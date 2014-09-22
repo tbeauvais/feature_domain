@@ -16,7 +16,7 @@ angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features
 
   link: (scope, elem, attrs) ->
     # TODO fix the feature.feature naming
-    scope.glyphicon = Features.get(scope.feature.feature).icon
+    scope.glyphicon = Features.getFeature(scope.feature.feature).icon
     elem.bind 'click', (e) ->
       scope.$root.$broadcast('featureSelected', scope.feature);
       e.preventDefault()
@@ -42,7 +42,7 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
 
   link: (scope, elem, attrs) ->
     scope.$on 'featureSelected', (event, featureInstance) ->
-      feature = Features.get(featureInstance.feature)
+      feature = Features.getFeature(featureInstance.feature)
 
       $('#content_section .highlight_feature').removeClass('highlight_feature')
       $("#content_section #" + featureInstance.id).addClass('highlight_feature')

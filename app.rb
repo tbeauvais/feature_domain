@@ -16,15 +16,18 @@ class App < Sinatra::Base
     serve '/images', :from => 'app/images'
 
     js :app, [
+        '/js/vendor/jquery-2.1.1.js',
+        '/js/vendor/jquery-ui.js',
+        '/js/vendor/bootstrap.js',
         '/js/vendor/angular.js',
+        '/js/vendor/sortable.js',
         '/js/application.js',
-        '/js/vendor/**/*.js',
-        '/js/assets/**/*.js',
         '/js/*.js'
     ]
 
     css :app, [
-        '/css/*.css'
+        '/css/*.css',
+        '/css/vendor/*.css'
     ]
 
   end

@@ -11,6 +11,8 @@
 #   - dist/**/*.js
 #
 src_files:
+  - public/js/vendor/jquery-2.1.1.js
+  - public/js/vendor/jquery-ui.js
   - public/js/vendor/angular.js
   - public/js/vendor/angular-mocks.js
   - public/js/vendor/sortable.js
