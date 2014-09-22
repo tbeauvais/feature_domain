@@ -13,13 +13,11 @@ angular.module('sampleDomainApp').factory 'Features', ($injector, FeatureNames) 
     feature = $injector.get(name)
     featureList[name] = feature
 
-  add: (feature) ->
-    feature = $injector.get(name)
-    featureList[feature.name] = feature
-
-  get: (name) ->
+  getFeature: (name) ->
     featureList[name]
 
+  getFeatures:  ->
+    featureList
 
 angular.module('sampleDomainApp').factory 'TextFeature', (AppMetadata) ->
 

@@ -28,7 +28,6 @@
           'AppGenerate': AppGenerate
         });
 
-
       }));
 
       it('sets sortableOptions', function () {
