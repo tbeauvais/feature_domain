@@ -1,18 +1,31 @@
 
-angular.module('sampleDomainApp').factory 'AppFeatures', ['Features', (Features) ->
+angular.module('sampleDomainApp').factory 'AppFeatures',  ->
 
   find: (id) ->
-    this.features().filter (feature) ->
+    _.find this.features(), (feature) ->
       id == feature.id
 
   delete: (id) ->
     index = 0
     features = this.features()
-    while features[index].id != id
+    while index < features.length && features[index].id != id
       index += 1
 
     features.splice(index, 1)
 
+  add: (feature) ->
+    feature.id = this.nextIndex()
+    this.features().push(feature)
+    feature
+
+  nextIndex:  ->
+    index = 0
+    features = this.features()
+    for feature in features
+      id = parseInt(feature.id)
+      index = id if id > index
+
+    (index + 1)+""
 
   features: ->
     this.app_features
@@ -143,4 +156,3 @@ angular.module('sampleDomainApp').factory 'AppFeatures', ['Features', (Features)
 
     ]
 
-]

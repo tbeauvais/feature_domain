@@ -19,6 +19,19 @@ angular.module('sampleDomainApp').factory 'Features', ($injector, FeatureNames) 
   getFeatures:  ->
     featureList
 
+  createFeatureInstance: (name) ->
+    feature = featureList[name]
+    featureInstance = { feature: name, id: '9', template: ''}
+    inputs = {}
+    for input in feature.inputs
+      if input.name != 'page_location'
+        inputs[input.name] = ''
+      else
+        inputs[input.name] = {name: 'Page 1', target: '#content_section'}
+
+    featureInstance['inputs'] = inputs
+    featureInstance
+
 angular.module('sampleDomainApp').factory 'TextFeature', (AppMetadata) ->
 
   name: 'Text'
@@ -139,8 +152,9 @@ angular.module('sampleDomainApp').factory 'ListFeature', (AppMetadata) ->
 
   generate: (instance, inputs, scope) ->
     AppMetadata.add_target('Page 1', instance.id)
-    scope.list = inputs.list.split(',')
-    $(inputs.page_location.target).append("<ul id='#{instance.id}'><li ng-repeat='item in list'>{{item}}</li></ul>")
+    listName = "list_#{instance.id}"
+    scope[listName] = inputs.list.split(',')
+    $(inputs.page_location.target).append("<ul id='#{instance.id}'><li ng-repeat='item in #{listName}'>{{item}}</li></ul>")
 
 
 angular.module('sampleDomainApp').factory 'LinkFeature', (AppMetadata) ->

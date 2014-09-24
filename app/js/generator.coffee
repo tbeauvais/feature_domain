@@ -5,9 +5,9 @@ angular.module('sampleDomainApp').factory 'AppGenerate', ($compile, Features, Ap
     AppMetadata.reset()
     for featureInstance in features
       f = Features.getFeature(featureInstance.feature)
+      console.log 'generating for ' + JSON.stringify(featureInstance.inputs)
       f.generate(featureInstance, featureInstance.inputs, scope)
 
-    console.log AppMetadata.get_targets('Page 1')
 
   compile: (scope) ->
     html = $('#content_section')

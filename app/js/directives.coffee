@@ -1,24 +1,30 @@
-angular.module('sampleDomainApp').directive 'featureList',  ->
+angular.module('sampleDomainApp').directive 'featureList', (Features, AppFeatures) ->
   restrict: 'AEC',
   replace: true,
   template: '<ul class="list" ui-sortable="sortableOptions" ng-model="features"><li class="item" ng-repeat="feature in features"><feature-item></li></ul>',
 
   link: (scope, elem, attrs) ->
-#    scope.$watchCollection(…, …)
+    scope.$on 'addFeature', (event, featureName) ->
+      featureInstance = Features.createFeatureInstance(featureName+'Feature')
+      AppFeatures.add(featureInstance)
+      # using parent scope so apply and generate are on the parent
+      scope.$apply()
+      # function on controller
+      scope.generate()
+      scope.$broadcast('featureSelected', featureInstance);
 
 angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features, AppFeatures) ->
   restrict: 'AEC',
   replace: true,
   template: '<div><div class="pull-left"><span class="glyphicon {{glyphicon}}"></span></div><span class="feature">{{feature.inputs.name}}</span><span class="pull-right feature-delete glyphicon glyphicon-remove-circle"></span></div>',
   # use parent scope
-  scope: false
-
+  scope: false,
 
   link: (scope, elem, attrs) ->
     # TODO fix the feature.feature naming
     scope.glyphicon = Features.getFeature(scope.feature.feature).icon
     elem.bind 'click', (e) ->
-      scope.$root.$broadcast('featureSelected', scope.feature);
+      scope.$root.$broadcast('featureSelected', scope.feature)
       e.preventDefault()
       false
     elem.find('.feature-delete').bind 'click', (e) ->
@@ -38,7 +44,7 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
   replace: true,
   template: '<div>Select feature from list to edit its properties...<div>',
   # use parent scope
-  scope: true
+  scope: true,
 
   link: (scope, elem, attrs) ->
     scope.$on 'featureSelected', (event, featureInstance) ->
@@ -93,3 +99,34 @@ angular.module('sampleDomainApp').directive 'pageTargetSelector', (AppMetadata) 
     scope.pages = AppMetadata.get_pages()
     scope.targets = AppMetadata.get_targets('Page 1')
 
+
+angular.module('sampleDomainApp').directive 'addFeature', (Features) ->
+  restrict: 'AEC',
+  replace: true,
+  template: '<div class="btn-group">' +
+      '<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">Add Feature ' +
+        '<span class="caret"></span>' +
+      '</button>' +
+      '<ul class="dropdown-menu" role="menu" ng-model="features">' +
+        '<li ng-repeat="feature in features"><add-feature-item/></li>' +
+      '</ul>' +
+    '</div>',
+  # use new scope
+  scope: true,
+
+  link: (scope, elem, attrs) ->
+    scope.features = Features.getFeatures()
+
+
+angular.module('sampleDomainApp').directive 'addFeatureItem',  ->
+  restrict: 'AEC',
+  replace: true,
+  template: '<a href="#">{{feature.name}}</a>'
+  # use parent scope
+  scope: false,
+
+  link: (scope, elem, attrs) ->
+    elem.bind 'click', (e) ->
+      scope.$root.$broadcast('addFeature', e.target.innerText)
+      e.preventDefault()
+      true
