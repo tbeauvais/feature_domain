@@ -16,6 +16,7 @@ src_files:
   - public/js/vendor/angular.js
   - public/js/vendor/angular-mocks.js
   - public/js/vendor/sortable.js
+  - public/js/vendor/underscore.js
   - public/js/application.js
   - public/js/app_features.js
   - public/js/controllers.js
