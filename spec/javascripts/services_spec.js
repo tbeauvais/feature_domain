@@ -86,4 +86,46 @@
   });
 
 
+  describe('factory: AppMetadata', function () {
+    var appMetadata;
+
+    beforeEach(module('sampleDomainApp'));
+
+    beforeEach(function() {
+      inject(function ($injector) {
+        appMetadata = $injector.get('AppMetadata');
+
+      });
+    });
+
+    it('reset sets root to null', function () {
+      expect(appMetadata.reset()).toEqual(null);
+    });
+
+    it('getPageTargets gets the targets for the specified page', function () {
+      var nodes = appMetadata.getPageTargets('Page 1');
+      var targets = _.map(nodes, function(target){
+        return target.model.name;
+      });
+      expect(targets).toEqual(['#content_section']);
+    });
+
+    it('getPages gets all the pages', function () {
+      expect(appMetadata.getPages()).toEqual(['Page 1']);
+    });
+
+    it('addPageTarget adds the targets to the specified page', function () {
+      appMetadata.addPageTarget('Page 1', '#new_target');
+      var nodes = appMetadata.getPageTargets('Page 1');
+      var targets = _.map(nodes, function(target){
+        return target.model.name;
+      });
+
+      expect(targets).toEqual(['#content_section','#new_target']);
+    });
+
+
+  });
+
+
 })();

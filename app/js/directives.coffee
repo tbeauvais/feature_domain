@@ -35,7 +35,7 @@ angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features
         scope.$apply()
         # function on controller
         scope.generate()
-        $rootScope.$broadcast('featureNotSelected');
+        $rootScope.$broadcast('featureNotSelected')
       e.preventDefault()
       false
 
@@ -91,13 +91,19 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
 angular.module('sampleDomainApp').directive 'pageTargetSelector', (AppMetadata) ->
   restrict: 'AEC',
   replace: true,
-  template: "<div class='control-group'><select ng-options='page for page in pages' ng-model='inputs.page_location.name' class='form-control page-select' /><select ng-options='target for target in targets' ng-model='inputs.page_location.target' class='form-control page-select'/></div>",
+  # target.model.name group by target.parent.model.name for target in targets
+  template: "<div class='control-group'><select ng-options='page for page in pages' ng-model='inputs.page_location.name' class='form-control page-select' /><select ng-options='target.model.name group by target.parent.model.name for target in targets' ng-model='selectedTarget' class='form-control page-select'/></div>",
   # use parent scope
   scope: false
 
   link: (scope, elem, attrs) ->
-    scope.pages = AppMetadata.get_pages()
-    scope.targets = AppMetadata.get_targets('Page 1')
+    scope.pages = AppMetadata.getPages()
+    scope.targets = AppMetadata.getPageTargets('Page 1')
+    target = _.find scope.targets, (target) ->
+      scope.inputs.page_location.target == target.model.name
+
+
+    scope.selectedTarget = target
 
 
 angular.module('sampleDomainApp').directive 'addFeature', (Features) ->
@@ -130,3 +136,81 @@ angular.module('sampleDomainApp').directive 'addFeatureItem',  ->
       scope.$root.$broadcast('addFeature', e.target.innerText)
       e.preventDefault()
       true
+
+
+angular.module('sampleDomainApp').directive 'renderMetaData', (AppMetadata) ->
+  restrict: 'AEC',
+  replace: true,
+  template: '<div>Metadata</div>'
+  # use parent scope
+  scope: false,
+
+  link: (scope, elem, attrs) ->
+
+    render = ->
+      margin =
+        top: 20
+        right: 10
+        bottom: 20
+        left: 100
+
+      width = 1110 - margin.right - margin.left
+      height = 500 - margin.top - margin.bottom
+      i = 0
+      tree = d3.layout.tree().size([height, width])
+      diagonal = d3.svg.diagonal().projection((d) ->
+        [
+          d.y
+          d.x
+        ]
+      )
+      svg = d3.select(elem[0]).append("svg").attr("width", width + margin.right + margin.left).attr("height", height + margin.top + margin.bottom).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+
+      root = AppMetadata.getRoot()
+
+      # Compute the new tree layout.
+      nodes = tree.nodes(root.model).reverse()
+      links = tree.links(nodes)
+
+      # Normalize for fixed-depth.
+      nodes.forEach (d) ->
+        d.y = d.depth * 150
+        return
+
+      # Declare the nodes…
+      node = svg.selectAll("g.node").data nodes, (d) ->
+        d.id or (d.id = ++i)
+
+      # Enter the nodes.
+      nodeEnter = node.enter().append("g").attr("class", "node").attr "transform", (d) ->
+        "translate(" + d.y + "," + d.x + ")"
+
+      debugger
+      nodeEnter.append("circle").attr("r", 10).style("fill", "#fff").attr("target", (d) ->
+        d.id
+      )
+      nodeEnter.append("text").attr("x", (d) ->
+        (if d.children or d._children then -13 else 13)
+      ).attr("dy", ".35em").attr("text-anchor", (d) ->
+        (if d.children or d._children then "end" else "start")
+      ).text((d) ->
+        d.name
+      ).style "fill-opacity", 1
+
+      # Declare the links…
+      link = svg.selectAll("path.link").data links, (d) ->
+        d.target.id
+
+      # Enter the links.
+      link.enter().insert("path", "g").attr("class", "link").attr "d", diagonal
+
+    render()
+    scope.$on 'postGenerate', (event) ->
+      elem.empty()
+      render()
+
+    elem.bind 'click', (e) ->
+      debugger
+
+
+    true
