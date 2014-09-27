@@ -69,7 +69,7 @@
 
       element = '<div class="feature-editor"></div>';
 
-      scope.feature = {feature: 'TextFeature', inputs: {name: 'My Text'}};
+      scope.feature = {feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
 
       element = $compile(element)(scope);
       scope.$digest();
@@ -80,24 +80,24 @@
       expect(element[0].outerHTML).toEqual(content);
     });
 
-    it("displays the proper editor when feature selected", function() {
-      scope.$root.$broadcast('featureSelected', scope.feature);
-      // TODO do more granular testing
-      var content = '<div class="feature-editor ng-scope"><h2>Text</h2>' +
-        '<form id="edit_form" role="form" ng-submit="submit()" ng-controller="EditorCtrl" class="ng-scope ng-pristine ng-valid">' +
-        '<div class="form-group">  <label>Name</label>  ' +
-        '<input name="name" placeholder="undefined" ng-model="inputs.name" class="form-control ng-pristine ng-untouched ng-valid">' +
-        '</div><div class="form-group">  <label>Text</label>  ' +
-        '<input name="text" placeholder="undefined" ng-model="inputs.text" class="form-control ng-pristine ng-untouched ng-valid">' +
-        '</div><div class="form-group">  <label>Page Location</label>  <div class="page-target-selector control-group">' +
-        '<select ng-options="page for page in pages" ng-model="inputs.page_location.name" class="form-control page-select ng-pristine ng-untouched ng-valid">' +
-        '<option value="?" selected="selected"></option><option value="0">Page 1</option>' +
-        '</select><select ng-options="target for target in targets" ng-model="inputs.page_location.target" class="form-control page-select ng-pristine ng-untouched ng-valid">' +
-        '<option value="?" selected="selected"></option><option value="0">#content_section</option></select></div></div>' +
-        '<input type="submit" id="submit" value="Submit" class="btn btn-default"></form></div>';
-      expect(element[0].outerHTML).toEqual(content);
-    });
+    describe('when feature selected', function () {
 
+      it("form has 3 inputs", function () {
+        scope.$root.$broadcast('featureSelected', scope.feature);
+        expect(element.find('input').length).toEqual(3);
+      });
+
+      it("adds select to pick page", function () {
+        scope.$root.$broadcast('featureSelected', scope.feature);
+        expect(element.find('select:first option').text()).toEqual('Page 1');
+      });
+
+      it("adds select to pick target", function () {
+        scope.$root.$broadcast('featureSelected', scope.feature);
+        expect(element.find('select:last option').text()).toEqual('#content_section');
+      });
+
+    });
   });
 
 

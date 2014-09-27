@@ -22,6 +22,8 @@ class App < Sinatra::Base
         '/js/vendor/angular.js',
         '/js/vendor/sortable.js',
         '/js/vendor/underscore.js',
+        '/js/vendor/tree-model.js',
+        '/js/vendor/d3.js',
         '/js/application.js',
         '/js/*.js'
     ]
@@ -36,6 +38,13 @@ class App < Sinatra::Base
   get '/' do
     slim :index
   end
+
+  get '/api/app_features' do
+    content_type :json
+    File.open('sample.json', 'rb') { |file| file.read }
+  end
+
+
 
 end
 

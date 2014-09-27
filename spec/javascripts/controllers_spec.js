@@ -4,7 +4,7 @@
     var scope,
       controller,
       AppGenerate,
-      $mockLocationService = {};
+      AppFeatures;
 
     beforeEach(function () {
       module('sampleDomainApp');
@@ -15,17 +15,22 @@
       beforeEach(inject(function ($rootScope, $controller) {
         scope = $rootScope.$new();
 
-        AppGenerate = {
-          generate: function(){},
-          compile: function(){}
-        };
+        AppGenerate = jasmine.createSpyObj('AppGenerate', ['generate', 'compile']);
 
-        spyOn(AppGenerate, 'generate');
-        spyOn(AppGenerate, 'compile');
+        // Mock out loading of data from AppFeatures.loadFeatures
+        AppFeatures = {
+          loadFeatures: function(){
+            var success = function (process) {
+              process({data: {}});
+            };
+            return { success: success }
+          }
+        };
 
         controller = $controller('FeaturesCtrl', {
           '$scope': scope,
-          'AppGenerate': AppGenerate
+          'AppGenerate': AppGenerate,
+          'AppFeatures': AppFeatures
         });
 
       }));

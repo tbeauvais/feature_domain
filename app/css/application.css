@@ -46,6 +46,7 @@ li.item {
     padding: 6px 12px;
     font-size: 14px;
     line-height: 1.428571429;
+    min-height: 34px;
 }
 
 .feature {
@@ -79,4 +80,25 @@ li.item {
 
 .page-select {
     margin-bottom: 5px;
+}
+
+.metadata-pane {
+    min-height: 200px;
+}
+
+
+
+
+.node circle {
+    fill: #fff;
+    stroke: steelblue;
+    stroke-width: 3px;
+}
+
+.node text { font: 12px sans-serif; }
+
+.link {
+    fill: none;
+    stroke: #ccc;
+    stroke-width: 2px;
 }

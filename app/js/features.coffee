@@ -51,8 +51,9 @@ angular.module('sampleDomainApp').factory 'TextFeature', (AppMetadata) ->
   ]
 
   generate: (instance, inputs) ->
-    AppMetadata.add_target('Page 1', instance.id)
-    $(inputs.page_location.target).append("<div id='#{instance.id}' title='generated from #{instance.name}' >#{inputs.text}</div>")
+    id = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
+    AppMetadata.addPageTarget('Page 1', '#' + id, inputs.page_location.target)
+    $(inputs.page_location.target).append("<div id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</div>")
 
 
 angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata) ->
@@ -85,7 +86,10 @@ angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata) ->
 
     rows = parseInt(inputs.rows)
 
-    $rows = $('<div/>', {class: 'container-fluid', id: instance.id})
+    containerId = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
+    $rows = $('<div/>', {class: 'container-fluid', id: containerId})
+
+    AppMetadata.addPageTarget('Page 1', '#' + containerId, inputs.page_location.target)
 
     row = 0
     while row < rows
@@ -99,7 +103,7 @@ angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata) ->
         col += 1
         id = "container_row_#{row}_col_#{col}"
         $row.append($('<div/>', {class: "col-md-#{col_size}", id: id}))
-        AppMetadata.add_target('Page 1', '#' + id)
+        AppMetadata.addPageTarget('Page 1', '#' + id, '#' + containerId)
 
     $(inputs.page_location.target).append($rows)
 
@@ -127,8 +131,9 @@ angular.module('sampleDomainApp').factory 'HeaderFeature', (AppMetadata) ->
   ]
 
   generate: (instance, inputs) ->
-    AppMetadata.add_target('Page 1', instance.id)
-    $(inputs.page_location.target).append("<H#{inputs.size} id='#{instance.id}' title='generated from #{instance.name}' >#{inputs.text}</H#{inputs.size}>")
+    id = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
+    AppMetadata.addPageTarget('Page 1', '#' + id, inputs.page_location.target)
+    $(inputs.page_location.target).append("<H#{inputs.size} id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</H#{inputs.size}>")
 
 
 angular.module('sampleDomainApp').factory 'ListFeature', (AppMetadata) ->
@@ -151,10 +156,11 @@ angular.module('sampleDomainApp').factory 'ListFeature', (AppMetadata) ->
   ]
 
   generate: (instance, inputs, scope) ->
-    AppMetadata.add_target('Page 1', instance.id)
+    id = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
+    AppMetadata.addPageTarget('Page 1', '#' + id, inputs.page_location.target)
     listName = "list_#{instance.id}"
     scope[listName] = inputs.list.split(',')
-    $(inputs.page_location.target).append("<ul id='#{instance.id}'><li ng-repeat='item in #{listName}'>{{item}}</li></ul>")
+    $(inputs.page_location.target).append("<ul id='#{id}'><li ng-repeat='item in #{listName}'>{{item}}</li></ul>")
 
 
 angular.module('sampleDomainApp').factory 'LinkFeature', (AppMetadata) ->
@@ -181,8 +187,9 @@ angular.module('sampleDomainApp').factory 'LinkFeature', (AppMetadata) ->
   ]
 
   generate: (instance, inputs) ->
-    AppMetadata.add_target('Page 1', instance.id)
-    $(inputs.page_location.target).append("<div id='#{instance.id}'><a href='#{inputs.href}' target='_blank'>#{inputs.text}</a></div>")
+    id = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
+    AppMetadata.addPageTarget('Page 1', '#' + id, inputs.page_location.target)
+    $(inputs.page_location.target).append("<div id='#{id}'><a href='#{inputs.href}' target='_blank'>#{inputs.text}</a></div>")
 
 
 angular.module('sampleDomainApp').factory 'ImageFeature', (AppMetadata) ->
@@ -217,7 +224,8 @@ angular.module('sampleDomainApp').factory 'ImageFeature', (AppMetadata) ->
   ]
 
   generate: (instance, inputs) ->
-    AppMetadata.add_target('Page 1', instance.id)
-    $(inputs.page_location.target).append("<image id='#{instance.id}' src='#{inputs.src}' alt='#{inputs.alt}'  height='#{inputs.height}' width='#{inputs.width}'>")
+    id = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
+    AppMetadata.addPageTarget('Page 1', '#' + id, inputs.page_location.target)
+    $(inputs.page_location.target).append("<image id='#{id}' src='#{inputs.src}' alt='#{inputs.alt}'  height='#{inputs.height}' width='#{inputs.width}'>")
 
 

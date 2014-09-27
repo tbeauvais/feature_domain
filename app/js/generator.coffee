@@ -8,6 +8,7 @@ angular.module('sampleDomainApp').factory 'AppGenerate', ($compile, Features, Ap
       console.log 'generating for ' + JSON.stringify(featureInstance.inputs)
       f.generate(featureInstance, featureInstance.inputs, scope)
 
+    scope.$root.$broadcast('postGenerate')
 
   compile: (scope) ->
     html = $('#content_section')
