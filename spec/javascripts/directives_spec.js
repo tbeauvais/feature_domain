@@ -64,12 +64,13 @@
 
     beforeEach(module('sampleDomainApp'));
 
-    beforeEach(inject(function($rootScope, $compile) {
+    beforeEach(inject(function($rootScope, $compile, AppMetadata) {
       scope = $rootScope.$new();
 
       element = '<div class="feature-editor"></div>';
 
-      scope.feature = {feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
+      instance = {id: '1', feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
+      AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}})
 
       element = $compile(element)(scope);
       scope.$digest();
@@ -83,18 +84,18 @@
     describe('when feature selected', function () {
 
       it("form has 3 inputs", function () {
-        scope.$root.$broadcast('featureSelected', scope.feature);
+        scope.$root.$broadcast('featureSelected', '1');
         expect(element.find('input').length).toEqual(3);
       });
 
       it("adds select to pick page", function () {
-        scope.$root.$broadcast('featureSelected', scope.feature);
+        scope.$root.$broadcast('featureSelected',  '1');
         expect(element.find('select:first option').text()).toEqual('Page 1');
       });
 
       it("adds select to pick target", function () {
-        scope.$root.$broadcast('featureSelected', scope.feature);
-        expect(element.find('select:last option').text()).toEqual('#content_section');
+        scope.$root.$broadcast('featureSelected',  '1');
+        expect(element.find('select:last option:last').text()).toEqual('#content_section');
       });
 
     });

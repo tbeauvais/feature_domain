@@ -23,7 +23,7 @@ angular.module('sampleDomainApp').factory 'AppMetadata',  ->
     _.map pages.children, (node)->
       return node.model.name
 
-  addPageTarget: (pageName, target, parent) ->
+  addPageTarget: (pageName, target, parent, featureInstanceId) ->
     root = this.getRoot()
 
     page = root.first (node) ->
@@ -36,12 +36,59 @@ angular.module('sampleDomainApp').factory 'AppMetadata',  ->
       targets = targets.first (node) ->
         node.model.name == parent
 
-    node = this.tree.parse({id: target, name: target})
+    node = this.tree.parse({feature_instance_id: featureInstanceId, id: target, name: target})
     targets.addChild(node)
+
+
+  getFeatures:  ->
+    root = this.getRoot()
+
+    root.first (node) ->
+      node.model.name == 'Features'
+
+  getFeature: (id)  ->
+    features = this.getFeatures()
+
+    features.first (node) ->
+      node.model.id == id
+
+  addFeature: (feature)  ->
+    features = this.getFeatures()
+    node = this.tree.parse(feature)
+    features.addChild(node)
+    debugger
+    this.addPageTarget(feature.page_info.page, '#' + feature.page_info.id, feature.page_info.target, feature.id)
+
+    node
 
   getRoot: ->
     if this.root == null
-      this.root = this.tree.parse({id: 'Pages', name: 'Pages', children: [{id: 'Page 1', name: 'Page 1', children: [{id: 'Targets', name: 'Targets', children: [{id: '#content_section', name: '#content_section'}]}]}]})
+      this.root = this.tree.parse(
+        id: "Application"
+        name: "Application"
+        children: [
+          id: "Pages"
+          name: "Pages"
+          children: [
+            id: "Page 1"
+            name: "Page 1"
+            children: [
+              id: "Targets"
+              name: "Targets"
+              children: [
+                id: "#content_section"
+                name: "#content_section"
+              ]
+            ]
+          ]
+          {
+            id: "Features"
+            name: "Features"
+            children: []
+          }
+        ]
+      )
+
     this.root
 
   _getPageTargets: (pageName) ->
@@ -54,16 +101,6 @@ angular.module('sampleDomainApp').factory 'AppMetadata',  ->
 
     page = root.first (node) ->
       node.model.name == pageName
-
-#  _addTargets: (parent, targets) ->
-#    if parent.hasChildren()
-#      _.each parent.children, (node) =>
-#        if node.hasChildren()
-#          this._addTargets(node, targets)
-#        else
-#          targets.push(node)
-#
-#    targets.push(parent)
 
   _addTargets: (children, targets) ->
     _.each children, (node) =>

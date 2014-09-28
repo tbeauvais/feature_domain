@@ -11,7 +11,7 @@ angular.module('sampleDomainApp').directive 'featureList', (Features, AppFeature
       scope.$apply()
       # function on controller
       scope.generate()
-      scope.$broadcast('featureSelected', featureInstance);
+      scope.$broadcast('featureSelected', featureInstance.id);
 
 angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features, AppFeatures) ->
   restrict: 'AEC',
@@ -24,7 +24,7 @@ angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features
     # TODO fix the feature.feature naming
     scope.glyphicon = Features.getFeature(scope.feature.feature).icon
     elem.bind 'click', (e) ->
-      scope.$root.$broadcast('featureSelected', scope.feature)
+      scope.$root.$broadcast('featureSelected', scope.feature.id)
       e.preventDefault()
       false
     elem.find('.feature-delete').bind 'click', (e) ->
@@ -38,6 +38,12 @@ angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features
         $rootScope.$broadcast('featureNotSelected')
       e.preventDefault()
       false
+    scope.$on 'featureSelected', (event, featureId) ->
+       if featureId == scope.feature.id
+         elem.parent().addClass('highlight_feature')
+       else
+         elem.parent().removeClass('highlight_feature')
+       true
 
 angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templateCache, Features, AppMetadata) ->
   restrict: 'AEC',
@@ -47,14 +53,17 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
   scope: true,
 
   link: (scope, elem, attrs) ->
-    scope.$on 'featureSelected', (event, featureInstance) ->
-      feature = Features.getFeature(featureInstance.feature)
+    scope.$on 'featureSelected', (event, featureId) ->
+      featureMetadata = AppMetadata.getFeature(featureId)
+      # TODO clean up this reference (featureMetadata.model.instance.feature)
+      feature = Features.getFeature(featureMetadata.model.instance.feature)
 
+      # TODO move this so the editor doesn't know about the content section
       $('#content_section .highlight_feature').removeClass('highlight_feature')
-      $("#content_section #" + featureInstance.id).addClass('highlight_feature')
+      $("#content_section #" + featureMetadata.model.page_info.id).addClass('highlight_feature')
 
       scope.inputs = {}
-      scope.featureId = featureInstance.id
+      scope.featureId = featureId
       inputs = []
       inputs.push("<h2>#{feature.name}</h2>")
       inputs.push("<form id='edit_form' role='form' ng-submit='submit()' ng-controller='EditorCtrl' >")
@@ -62,7 +71,7 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
         console.log input
         inputs.push("<div class='form-group' >")
         inputs.push("  <label>#{input.label}</label>")
-        scope.inputs[input.name] = featureInstance.inputs[input.name]
+        scope.inputs[input.name] = featureMetadata.model.instance.inputs[input.name]
         # TODO don't hard code this
         if input.name == 'page_location'
           inputs.push("  <input class='page-target-selector' />")
@@ -79,7 +88,7 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
       $compile(html)(scope)
       # process model data {{foo}} (i.e. through watchers)
       scope.$apply()
-      false
+      true
     scope.$on 'featureNotSelected', (event) ->
       elem.empty()
       $templateCache.get('')
@@ -154,7 +163,7 @@ angular.module('sampleDomainApp').directive 'renderMetaData', (AppMetadata) ->
         bottom: 20
         left: 100
 
-      width = 1110 - margin.right - margin.left
+      width = 2110 - margin.right - margin.left
       height = 500 - margin.top - margin.bottom
       i = 0
       tree = d3.layout.tree().size([height, width])
@@ -174,7 +183,7 @@ angular.module('sampleDomainApp').directive 'renderMetaData', (AppMetadata) ->
 
       # Normalize for fixed-depth.
       nodes.forEach (d) ->
-        d.y = d.depth * 150
+        d.y = d.depth * 175
         return
 
       # Declare the nodes…
@@ -185,9 +194,13 @@ angular.module('sampleDomainApp').directive 'renderMetaData', (AppMetadata) ->
       nodeEnter = node.enter().append("g").attr("class", "node").attr "transform", (d) ->
         "translate(" + d.y + "," + d.x + ")"
 
-      debugger
-      nodeEnter.append("circle").attr("r", 10).style("fill", "#fff").attr("target", (d) ->
-        d.id
+      nodeEnter.append("circle").attr("r", 10).style("fill", "#fff").attr("data-feature-instance-id", (d) ->
+        if d.page_info
+          d.id
+        else if d.feature_instance_id
+          d.feature_instance_id
+        else
+          ''
       )
       nodeEnter.append("text").attr("x", (d) ->
         (if d.children or d._children then -13 else 13)
@@ -210,7 +223,12 @@ angular.module('sampleDomainApp').directive 'renderMetaData', (AppMetadata) ->
       render()
 
     elem.bind 'click', (e) ->
-      debugger
+      featureId = e.target.getAttribute('data-feature-instance-id');
+      scope.$broadcast('featureSelected', featureId) if featureId
 
+    scope.$on 'featureSelected', (event, featureId) ->
+      $('.render-meta-data .highlight_metadata').attr('class', '')
+      #featureMetadata = AppMetadata.getFeature(featureId)
+      $('.render-meta-data').find("[data-feature-instance-id='#{featureId}']").attr('class','highlight_metadata')
 
     true

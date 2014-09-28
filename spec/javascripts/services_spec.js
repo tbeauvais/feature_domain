@@ -124,6 +124,23 @@
       expect(targets).toEqual(['#content_section','#new_target']);
     });
 
+    it('getFeatures gets all the features', function () {
+      expect(appMetadata.getFeatures().children).toEqual([]);
+    });
+
+    it('addFeature adds a feature', function () {
+      var instance = {id: '1', feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
+      var feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
+
+      expect(appMetadata.addFeature(feature).model.id).toEqual('1');
+    });
+
+    it('getFeature finds feature by id', function () {
+      var instance = {id: '1', feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
+      var feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
+      appMetadata.addFeature(feature);
+      expect(appMetadata.getFeature('1').model.id).toEqual('1');
+    });
 
   });
 
