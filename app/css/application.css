@@ -61,7 +61,7 @@ li.item {
 .highlight_feature {
     border-style: solid;
     border-width: 1px;
-    border-color: red;
+    border-color: red !important;
 }
 
 .feature-list {
@@ -86,8 +86,17 @@ li.item {
     min-height: 200px;
 }
 
+.add-feature {
+    margin-top: 10px;
+}
 
+.render-meta-data {
+ overflow: scroll;
+}
 
+.highlight_metadata {
+    stroke: red !important;
+}
 
 .node circle {
     fill: #fff;
