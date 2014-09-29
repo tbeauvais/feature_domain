@@ -56,9 +56,7 @@ angular.module('sampleDomainApp').factory 'AppMetadata',  ->
     features = this.getFeatures()
     node = this.tree.parse(feature)
     features.addChild(node)
-    debugger
     this.addPageTarget(feature.page_info.page, '#' + feature.page_info.id, feature.page_info.target, feature.id)
-
     node
 
   getRoot: ->

@@ -146,6 +146,26 @@ angular.module('sampleDomainApp').directive 'addFeatureItem',  ->
       e.preventDefault()
       true
 
+angular.module('sampleDomainApp').directive 'generatedContent', (AppMetadata) ->
+  restrict: 'C',
+  replace: false,
+  # use parent scope
+  scope: false,
+
+  link: (scope, elem, attrs) ->
+    elem.bind 'click', (e) ->
+      # TODO why is this called twice for a single click???
+      id = $(e.target).closest('[id]').attr('id')
+      node = AppMetadata.getFeatures().first (node) ->
+        if node.model.page_info
+          node.model.page_info.id == id
+        else
+          false
+      if node
+        scope.$root.$broadcast('featureSelected', node.model.id)
+      e.preventDefault()
+      false
+
 
 angular.module('sampleDomainApp').directive 'renderMetaData', (AppMetadata) ->
   restrict: 'AEC',
@@ -195,6 +215,7 @@ angular.module('sampleDomainApp').directive 'renderMetaData', (AppMetadata) ->
         "translate(" + d.y + "," + d.x + ")"
 
       nodeEnter.append("circle").attr("r", 10).style("fill", "#fff").attr("data-feature-instance-id", (d) ->
+        # TODO find consistent way of getting id
         if d.page_info
           d.id
         else if d.feature_instance_id
