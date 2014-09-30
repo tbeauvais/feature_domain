@@ -37,7 +37,10 @@ angular.module('sampleDomainApp').factory 'AppMetadata',  ->
         node.model.name == parent
 
     node = this.tree.parse({feature_instance_id: featureInstanceId, id: target, name: target})
-    targets.addChild(node)
+    if targets
+      targets.addChild(node)
+    else
+      debugger
 
 
   getFeatures:  ->

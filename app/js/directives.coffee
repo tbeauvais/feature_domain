@@ -65,16 +65,17 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
       scope.inputs = {}
       scope.featureId = featureId
       inputs = []
-      inputs.push("<h2>#{feature.name}</h2>")
+      inputs.push("<h3>#{feature.name}</h2>")
       inputs.push("<form id='edit_form' role='form' ng-submit='submit()' ng-controller='EditorCtrl' >")
       for input in feature.inputs
-        console.log input
         inputs.push("<div class='form-group' >")
         inputs.push("  <label>#{input.label}</label>")
         scope.inputs[input.name] = featureMetadata.model.instance.inputs[input.name]
         # TODO don't hard code this
         if input.name == 'page_location'
           inputs.push("  <input class='page-target-selector' />")
+        else if input.type == 'textarea'
+          inputs.push("  <textarea name='#{input.name}' placeholder='#{input.placeholder}' ng-model='inputs.#{input.name}' class='form-control' />")
         else
           inputs.push("  <input name='#{input.name}' placeholder='#{input.placeholder}' ng-model='inputs.#{input.name}' class='form-control' />")
 

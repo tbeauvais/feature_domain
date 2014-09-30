@@ -35,4 +35,5 @@ angular.module('sampleDomainApp').controller 'EditorCtrl', ($scope, AppFeatures,
     AppGenerate.compile($scope)
     # TODO move highlight to feature generation (i.e. add class there)
     $("#content_section #" + "#{id}").addClass('highlight_feature') if id
+    AppFeatures.saveFeatures()
     true
