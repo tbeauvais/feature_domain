@@ -37,4 +37,7 @@ angular.module('sampleDomainApp').factory 'AppFeatures',  ($http) ->
       this.app_features = data
     results
 
+  saveFeatures: ->
+    $http.post('/api/app_features', JSON.stringify(this.app_features))
+
   app_features: null

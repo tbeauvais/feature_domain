@@ -65,16 +65,17 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
       scope.inputs = {}
       scope.featureId = featureId
       inputs = []
-      inputs.push("<h2>#{feature.name}</h2>")
+      inputs.push("<h3>#{feature.name}</h2>")
       inputs.push("<form id='edit_form' role='form' ng-submit='submit()' ng-controller='EditorCtrl' >")
       for input in feature.inputs
-        console.log input
         inputs.push("<div class='form-group' >")
         inputs.push("  <label>#{input.label}</label>")
         scope.inputs[input.name] = featureMetadata.model.instance.inputs[input.name]
         # TODO don't hard code this
         if input.name == 'page_location'
           inputs.push("  <input class='page-target-selector' />")
+        else if input.type == 'textarea'
+          inputs.push("  <textarea name='#{input.name}' placeholder='#{input.placeholder}' ng-model='inputs.#{input.name}' class='form-control' />")
         else
           inputs.push("  <input name='#{input.name}' placeholder='#{input.placeholder}' ng-model='inputs.#{input.name}' class='form-control' />")
 
@@ -146,6 +147,26 @@ angular.module('sampleDomainApp').directive 'addFeatureItem',  ->
       e.preventDefault()
       true
 
+angular.module('sampleDomainApp').directive 'generatedContent', (AppMetadata) ->
+  restrict: 'C',
+  replace: false,
+  # use parent scope
+  scope: false,
+
+  link: (scope, elem, attrs) ->
+    elem.bind 'click', (e) ->
+      # TODO why is this called twice for a single click???
+      id = $(e.target).closest('[id]').attr('id')
+      node = AppMetadata.getFeatures().first (node) ->
+        if node.model.page_info
+          node.model.page_info.id == id
+        else
+          false
+      if node
+        scope.$root.$broadcast('featureSelected', node.model.id)
+      e.preventDefault()
+      false
+
 
 angular.module('sampleDomainApp').directive 'renderMetaData', (AppMetadata) ->
   restrict: 'AEC',
@@ -195,6 +216,7 @@ angular.module('sampleDomainApp').directive 'renderMetaData', (AppMetadata) ->
         "translate(" + d.y + "," + d.x + ")"
 
       nodeEnter.append("circle").attr("r", 10).style("fill", "#fff").attr("data-feature-instance-id", (d) ->
+        # TODO find consistent way of getting id
         if d.page_info
           d.id
         else if d.feature_instance_id
