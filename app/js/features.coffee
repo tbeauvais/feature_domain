@@ -1,7 +1,7 @@
 
 angular.module('sampleDomainApp').factory 'FeatureNames',  ->
 
-  ['TextFeature', 'LinkFeature', 'ImageFeature', 'ListFeature', 'HeaderFeature', 'ContainerFeature', 'GoogleMapFeature', 'TextWithParagraphFeature']
+  ['TextFeature', 'LinkFeature', 'ImageFeature', 'ListFeature', 'HeaderFeature', 'ContainerFeature', 'GoogleMapFeature', 'TextWithParagraphFeature', 'ImageWithParagraphFeature']
 
 
 angular.module('sampleDomainApp').factory 'Features', ($injector, FeatureNames) ->
@@ -95,6 +95,44 @@ angular.module('sampleDomainApp').factory 'TextWithParagraphFeature', (AppMetada
     else
       false
 
+angular.module('sampleDomainApp').factory 'ImageWithParagraphFeature', (AppMetadata) ->
+
+  name: 'ImageWithParagraph'
+  icon: 'glyphicon-pencil'
+  inputs: [
+    name: 'name'
+    label: 'Name'
+    type: 'string'
+  ,
+    name: 'title'
+    label: 'Title'
+    type: 'string'
+  ,
+    name: 'src'
+    label: 'Image URL'
+    placeholder: 'http://a-z-animals.com/capybara3.jpg'
+    type: 'string'
+  ,
+    name: 'text'
+    label: 'Text'
+    type: 'textarea'
+  ,
+    name: 'page_location'
+    label: 'Page Location'
+    type: 'page_location'
+  ]
+
+  generate: (instance, inputs) ->
+    id = (inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
+    target = $(inputs.page_location.target)
+    if target.length > 0
+      AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
+      template = "<div class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><div class='row-fluid'><img class='span2 img-responsive pull-left' style='margin:0 3px' src='#{inputs.src}' height='150' width='150' /><p class='span10'>#{instance.inputs.text}</p></div></div>"
+      target.append(template)
+      true
+    else
+      false
+
 
 angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata) ->
 
@@ -129,7 +167,7 @@ angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata) ->
       rows = parseInt(inputs.rows)
 
       containerId = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
-      $rows = $('<div/>', {class: 'container-fluid', id: containerId})
+      $rows = $('<div/>', {class: 'container-fluid well', id: containerId})
 
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: containerId, page: inputs.page_location.name, target: inputs.page_location.target}})
 
