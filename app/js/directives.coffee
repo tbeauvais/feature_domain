@@ -1,7 +1,7 @@
 angular.module('sampleDomainApp').directive 'featureList', (Features, AppFeatures) ->
   restrict: 'AEC',
   replace: true,
-  template: '<ul class="list" ui-sortable="sortableOptions" ng-model="features"><li class="item" ng-repeat="feature in features"><feature-item></li></ul>',
+  template: '<ul class="list" ui-sortable="sortableOptions" ng-model="features"><li class="item" ng-repeat="feature in features track by feature.id"><feature-item></li></ul>',
 
   link: (scope, elem, attrs) ->
     scope.$on 'addFeature', (event, featureName) ->

@@ -1,4 +1,5 @@
 require 'sinatra/base'
+require 'sinatra/contrib'
 require 'sinatra/assetpack'
 require 'slim'
 require 'coffee-script'
@@ -8,6 +9,7 @@ class App < Sinatra::Base
 
   set :root, File.dirname(__FILE__) # You must set app root
 
+  helpers Sinatra::JSON
   register Sinatra::AssetPack
 
   assets do
@@ -47,7 +49,7 @@ class App < Sinatra::Base
   post '/api/app_features' do
     content_type :json
     File.open('sample.json', 'w') {|f| f.write(request.body.read) }
-    {success: 'OK'}.to_s
+    json success: 'OK'
   end
 
 end

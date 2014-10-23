@@ -19,7 +19,7 @@
     });
 
     it("creates a repeat for features", function() {
-      expect(element[0].innerHTML).toEqual('<!-- ngRepeat: feature in features -->');
+      expect(element[0].innerHTML).toEqual('<!-- ngRepeat: feature in features track by feature.id -->');
     });
 
     it('adds features to model attribute', function() {
