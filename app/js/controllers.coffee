@@ -10,8 +10,12 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, AppFeature
     AppGenerate.compile($scope)
 
   $scope.sortableOptions =
-    stop: ->
+    stop: (e, ui) ->
       $scope.generate()
+
+  $scope.onDropComplete = (data, evt) ->
+    $scope.$root.$broadcast('addFeature', data)
+    console.log("drop success, data:", data)
 
   $scope.getFeatures()
 
