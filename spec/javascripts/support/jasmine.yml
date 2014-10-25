@@ -19,6 +19,7 @@ src_files:
   - public/js/vendor/underscore.js
   - public/js/vendor/tree-model.js
   - public/js/vendor/d3.js
+  - public/js/vendor/ng-draggable.js
   - public/js/application.js
   - public/js/app_features.js
   - public/js/controllers.js

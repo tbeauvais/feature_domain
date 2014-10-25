@@ -13,9 +13,15 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, AppFeature
     stop: (e, ui) ->
       $scope.generate()
 
-  $scope.onDropComplete = (data, evt) ->
-    $scope.$root.$broadcast('addFeature', data)
-    console.log("drop success, data:", data)
+  $scope.onDropComplete = (index, data, event) ->
+    id = null
+    t = document.elementFromPoint(event.tx, event.ty)
+    target = $(t).closest('.item')
+    if target.data()
+      id = target.data().$scope.feature.id
+      #name = target.data().$scope.feature.inputs.name
+    console.log("dropped '#{data}' on, '#{name}'")
+    $scope.$root.$broadcast('addFeature', data, id)
 
   $scope.getFeatures()
 

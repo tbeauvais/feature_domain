@@ -68,6 +68,11 @@
       expect(appFeatures.features().length).toEqual(3);
     });
 
+    it('add inserts a new feature after specified targetId', function () {
+      appFeatures.add({id: ''}, '1');
+      expect(appFeatures.features()[1].id).toEqual('3');
+    });
+
     it('add returns the inserted feature instance', function () {
       expect(appFeatures.add({id: ''})).toEqual({id: '3'});
     });
