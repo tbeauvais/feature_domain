@@ -24,4 +24,10 @@ angular.module('sampleDomainApp').factory 'AppGenerate', ($compile, Features, Ap
   compile: (scope) ->
     html = $('#content_section')
     $compile(html)(scope)
+
+    body = $("#iframe_section").contents().find('body')
+    html = body.find('#content_section')
+    debugger
+    $compile(html)(scope)
+
     true

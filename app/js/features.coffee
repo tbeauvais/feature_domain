@@ -53,7 +53,9 @@ angular.module('sampleDomainApp').factory 'TextFeature', (AppMetadata) ->
 
   generate: (instance, inputs) ->
     id = (inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
-    target = $(inputs.page_location.target)
+    body = $("#iframe_section").contents().find('body')
+    target = body.find(inputs.page_location.target)
+    target.push $(inputs.page_location.target)[0]
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
       target.append("<div id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</div>")
@@ -86,7 +88,9 @@ angular.module('sampleDomainApp').factory 'TextWithParagraphFeature', (AppMetada
 
   generate: (instance, inputs) ->
     id = (inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
-    target = $(inputs.page_location.target)
+    body = $("#iframe_section").contents().find('body')
+    target = body.find(inputs.page_location.target)
+    target.push $(inputs.page_location.target)[0]
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
       template = "<div class='well' id='#{id}'><h3 class='paragraph_title'>#{instance.inputs.title}</h3><p>#{instance.inputs.text}</p></div>"
@@ -124,7 +128,9 @@ angular.module('sampleDomainApp').factory 'ImageWithParagraphFeature', (AppMetad
 
   generate: (instance, inputs) ->
     id = (inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
-    target = $(inputs.page_location.target)
+    body = $("#iframe_section").contents().find('body')
+    target = body.find(inputs.page_location.target)
+    target.push $(inputs.page_location.target)[0]
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
       template = "<div class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><div class='row-fluid'><img class='span2 img-responsive pull-left' style='margin:0 3px' src='#{inputs.src}' height='150' width='150' /><p class='span10'>#{instance.inputs.text}</p></div></div>"
@@ -158,7 +164,9 @@ angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata) ->
 
   generate: (instance, inputs) ->
 
-    target = $(inputs.page_location.target)
+    body = $("#iframe_section").contents().find('body')
+    target = body.find(inputs.page_location.target)
+    target.push $(inputs.page_location.target)[0]
     if target.length > 0
       columns = parseInt(inputs.columns)
       columns = 12 if columns > 12
@@ -215,7 +223,9 @@ angular.module('sampleDomainApp').factory 'HeaderFeature', (AppMetadata) ->
 
   generate: (instance, inputs) ->
     id = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
-    target = $(inputs.page_location.target)
+    body = $("#iframe_section").contents().find('body')
+    target = body.find(inputs.page_location.target)
+    target.push $(inputs.page_location.target)[0]
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
       target.append("<H#{inputs.size} id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</H#{inputs.size}>")
@@ -245,7 +255,9 @@ angular.module('sampleDomainApp').factory 'ListFeature', (AppMetadata) ->
 
   generate: (instance, inputs, scope) ->
     id = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
-    target = $(inputs.page_location.target)
+    body = $("#iframe_section").contents().find('body')
+    target = body.find(inputs.page_location.target)
+    target.push $(inputs.page_location.target)[0]
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
       listName = "list_#{instance.id}"
@@ -281,7 +293,9 @@ angular.module('sampleDomainApp').factory 'LinkFeature', (AppMetadata) ->
 
   generate: (instance, inputs) ->
     id = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
-    target = $(inputs.page_location.target)
+    body = $("#iframe_section").contents().find('body')
+    target = body.find(inputs.page_location.target)
+    target.push $(inputs.page_location.target)[0]
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
       target.append("<div id='#{id}'><a href='#{inputs.href}' target='_blank'>#{inputs.text}</a></div>")
@@ -323,7 +337,9 @@ angular.module('sampleDomainApp').factory 'ImageFeature', (AppMetadata) ->
 
   generate: (instance, inputs) ->
     id = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
-    target = $(inputs.page_location.target)
+    body = $("#iframe_section").contents().find('body')
+    target = body.find(inputs.page_location.target)
+    target.push $(inputs.page_location.target)[0]
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
       target.append("<img id='#{id}' src='#{inputs.src}' alt='#{inputs.alt}' class='img-responsive' height='#{inputs.height}' width='#{inputs.width}'>")
@@ -363,7 +379,9 @@ angular.module('sampleDomainApp').factory 'GoogleMapFeature', (AppMetadata) ->
 
   generate: (instance, inputs) ->
     id = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
-    target = $(inputs.page_location.target)
+    body = $("#iframe_section").contents().find('body')
+    target = body.find(inputs.page_location.target)
+    target.push $(inputs.page_location.target)[0]
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
       #template = "<div class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><h3 ><a target='_blank' href='http://maps.google.com/maps?q=#{instance.inputs.address}' >#{instance.inputs.address}</a></h3><div class='map_container'><iframe width='100%' height='300' frameborder='0' scrolling='no' marginheight='0' marginwidth='0' src='http://maps.google.com/maps?q=#{instance.inputs.address}&output=embed'></iframe></div></div>"

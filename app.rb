@@ -41,6 +41,10 @@ class App < Sinatra::Base
     slim :index
   end
 
+  get '/target' do
+    slim :target, layout: false
+  end
+
   get '/api/app_features' do
     content_type :json
     File.open('sample.json', 'rb') { |file| file.read }
