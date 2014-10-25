@@ -1,7 +1,7 @@
 angular.module('sampleDomainApp').directive 'featureList', (Features, AppFeatures) ->
   restrict: 'AEC',
   replace: true,
-  template: '<ul class="list" ui-sortable="sortableOptions" ng-model="features"><li class="item" ng-repeat="feature in features track by feature.id"><feature-item></li></ul>',
+  template: '<ul class="list" ui-sortable="sortableOptions" ng-drop="true" ng-drop-success="onDropComplete($data,$event)" ng-model="features"><li class="item" ng-repeat="feature in features track by feature.id"><feature-item></li></ul>',
 
   link: (scope, elem, attrs) ->
     scope.$on 'addFeature', (event, featureName) ->
@@ -12,6 +12,7 @@ angular.module('sampleDomainApp').directive 'featureList', (Features, AppFeature
       # function on controller
       scope.generate()
       scope.$broadcast('featureSelected', featureInstance.id);
+
 
 angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features, AppFeatures) ->
   restrict: 'AEC',
@@ -115,23 +116,26 @@ angular.module('sampleDomainApp').directive 'pageTargetSelector', (AppMetadata) 
 
     scope.selectedTarget = target
 
-
-angular.module('sampleDomainApp').directive 'addFeature', (Features) ->
+angular.module('sampleDomainApp').directive 'paletteList', (Features) ->
   restrict: 'AEC',
   replace: true,
-  template: '<div class="btn-group">' +
-      '<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">Add Feature ' +
-        '<span class="caret"></span>' +
-      '</button>' +
-      '<ul class="dropdown-menu" role="menu" ng-model="features">' +
-        '<li ng-repeat="feature in features"><add-feature-item/></li>' +
-      '</ul>' +
-    '</div>',
+  template: '<ul class="list" ng-model="features"><li ng-drag="true" ng-drag-data="feature.name" class="item" ng-repeat="feature in features track by feature.name"><palette-item></li></ul>',
   # use new scope
   scope: true,
 
   link: (scope, elem, attrs) ->
     scope.features = Features.getFeatures()
+
+
+angular.module('sampleDomainApp').directive 'paletteItem', ($rootScope, Features, AppFeatures) ->
+  restrict: 'AEC',
+  replace: true,
+  template: '<div><div class="pull-left"><span class="glyphicon {{glyphicon}}"></span></div><span class="feature">{{feature.name}}</span></div>',
+  # use parent scope
+  scope: false,
+
+  link: (scope, elem, attrs) ->
+    scope.glyphicon = scope.feature.icon
 
 
 angular.module('sampleDomainApp').directive 'addFeatureItem',  ->

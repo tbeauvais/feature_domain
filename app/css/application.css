@@ -77,6 +77,10 @@ li.item {
     color: red;
 }
 
+.editor {
+    height: 400px;
+    overflow-y: scroll;
+}
 
 .page-select {
     margin-bottom: 5px;
@@ -104,10 +108,17 @@ li.item {
     stroke-width: 3px;
 }
 
-.node text { font: 12px sans-serif; }
+.node text {
+    font: 12px sans-serif;
+}
 
 .link {
     fill: none;
     stroke: #ccc;
     stroke-width: 2px;
+}
+
+.palette {
+    height: 400px;
+    overflow-y: scroll;
 }

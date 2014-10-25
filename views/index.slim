@@ -1,19 +1,22 @@
 div.container
-  h1 Sample Domain
+  h2 Feature Based Content Editor
 
   div ng-controller="FeaturesCtrl as featuresCtrl"
     div.row
-      div.col-lg-3
+      div.col-lg-4
+        h2 Palette
+        div.content-pane.palette
+          div.palette-list
+      div.col-lg-4
         h2 Features
         div.content-pane.features
           div.feature-list
-        div.text-center
-          div.add-feature
-      div.col-lg-3
+      div.col-lg-4
         h2 Editor
-        div.content-pane
+        div.content-pane.editor
           div.feature-editor
-      div.col-lg-6
+    div.row
+      div.col-lg-12
         h2 Dynamic Content
         div.content-pane
           div#content_section.generatedContent
