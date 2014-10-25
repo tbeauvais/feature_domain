@@ -14,9 +14,15 @@ angular.module('sampleDomainApp').factory 'AppFeatures',  ($http) ->
     this.saveFeatures()
     features.splice(index, 1)
 
-  add: (feature) ->
+  add: (feature, targetId) ->
     feature.id = this.nextIndex()
-    this.features().push(feature)
+
+    if targetId
+      index = this.indexOfId(targetId)
+      this.features().splice(index+1, 0, feature)
+    else
+      this.features().push(feature)
+
     this.saveFeatures()
     feature
 
@@ -32,6 +38,9 @@ angular.module('sampleDomainApp').factory 'AppFeatures',  ($http) ->
   features: ->
     this.app_features
 
+  indexOfId: (id) ->
+    this.features().map((e) ->
+      e.id).indexOf(id);
 
   loadFeatures: ->
     results = $http.get('/api/app_features');
