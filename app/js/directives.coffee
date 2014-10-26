@@ -1,25 +1,31 @@
-angular.module('sampleDomainApp').directive 'featureList', (Features, AppFeatures) ->
+angular.module('sampleDomainApp').directive 'featureList', ($rootScope, Features, AppFeatures) ->
   restrict: 'AEC',
   replace: true,
-  template: '<ul class="list" ui-sortable="sortableOptions" ng-drop="true" ng-drop-success="onDropComplete($data, $event)" ng-model="features"><li class="item" ng-repeat="feature in features track by feature.id"><feature-item></li></ul>',
+  template: '<ul class="list" ui-sortable="sortableOptions" ng-model="features" ><li drop-channel="A" ui-on-drop="onDropComplete($event,$index,$data,feature)" class="item" ng-repeat="feature in features track by feature.id"><feature-item></li></ul>',
 
   link: (scope, elem, attrs) ->
     scope.$on 'addFeature', (event, featureName, targetId) ->
+      targetId = targetId.toString()
       # TODO This should get passed a real feature ID (not featureName)
       featureInstance = Features.createFeatureInstance(featureName+'Feature')
       AppFeatures.add(featureInstance, targetId)
       # using parent scope so apply and generate are on the parent
-      scope.$apply()
+      # scope.$apply()
+
       # function on controller
       scope.generate()
       scope.$broadcast('featureSelected', featureInstance.id);
-    scope.$on 'moveFeature', (event, sourceId, targetId) ->
-      AppFeatures.move(sourceId, targetId)
+    scope.$on 'moveFeature', (event, sourceId, targetId, containerId) ->
+      sourceId = sourceId.toString()
+      targetId = targetId.toString()
+      AppFeatures.move(sourceId, targetId, containerId)
       # using parent scope so apply and generate are on the parent
-      scope.$apply()
+      #scope.$apply()
       # function on controller
       scope.generate()
       scope.$broadcast('featureSelected', targetId);
+
+
 
 
 angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features, AppFeatures) ->
@@ -98,7 +104,7 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
       $compile(html)(scope)
       # process model data {{foo}} (i.e. through watchers)
       scope.$apply()
-      true
+    true
     scope.$on 'featureNotSelected', (event) ->
       elem.empty()
       $templateCache.get('')
@@ -127,7 +133,7 @@ angular.module('sampleDomainApp').directive 'pageTargetSelector', (AppMetadata) 
 angular.module('sampleDomainApp').directive 'paletteList', (Features) ->
   restrict: 'AEC',
   replace: true,
-  template: '<ul class="list" ng-model="features"><li ng-drag="true" ng-drag-data="feature.name" class="item" ng-repeat="feature in features track by feature.name"><palette-item></li></ul>',
+  template: '<ul class="list" ng-model="features"><li ui-draggable="true" drag="featureType" drag-channel="A" class="item" ng-repeat="featureType in features track by featureType.name"><palette-item></li></ul>',
   # use new scope
   scope: true,
 
@@ -138,12 +144,12 @@ angular.module('sampleDomainApp').directive 'paletteList', (Features) ->
 angular.module('sampleDomainApp').directive 'paletteItem', ($rootScope, Features, AppFeatures) ->
   restrict: 'AEC',
   replace: true,
-  template: '<div><div class="pull-left"><span class="glyphicon {{glyphicon}}"></span></div><span class="feature">{{feature.name}}</span></div>',
+  template: '<div><div class="pull-left"><span class="glyphicon {{glyphicon}}"></span></div><span class="feature">{{featureType.name}}</span></div>',
   # use parent scope
   scope: false,
 
   link: (scope, elem, attrs) ->
-    scope.glyphicon = scope.feature.icon
+    scope.glyphicon = scope.featureType.icon
 
 angular.module('sampleDomainApp').directive 'generatedContent', (AppMetadata) ->
   restrict: 'C',

@@ -1,2 +1,2 @@
-sampleDomainApp = angular.module('sampleDomainApp', ['ui.sortable','ngDraggable'])
+sampleDomainApp = angular.module('sampleDomainApp', ['ui.sortable','ang-drag-drop'])
 

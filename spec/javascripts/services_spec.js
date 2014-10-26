@@ -23,7 +23,7 @@
         id: '9',
         template: '',
         inputs: {
-          name: '',
+          name: 'untitled',
           text: '',
           page_location: {
             name: 'Page 1',
@@ -50,7 +50,7 @@
       inject(function ($injector) {
         appFeatures = $injector.get('AppFeatures');
 
-        var app_features = [{id: '1'}, {id: '2'}];
+        var app_features = [{id: '1', inputs: {page_location: {target: 'A', name: 'P1'}}}, {id: '2', inputs: {page_location: {target: 'B', name: 'P1'}}}];
 
         appFeatures.features = function() {
           return app_features
@@ -77,9 +77,17 @@
       expect(appFeatures.add({id: ''})).toEqual({id: '3'});
     });
 
-    it('move feature instance', function () {
-      appFeatures.move(2, 1)
-      expect(appFeatures.features()).toEqual([{id: '2'},{id: '1'}]);
+    it('move feature instance changes order', function () {
+      appFeatures.move('2', '1');
+      var ids = appFeatures.features().map(function(feature) {
+        return feature.id;
+      });
+      expect(ids).toEqual(['2', '1']);
+    });
+
+    it('move feature instance changes page_location', function () {
+      appFeatures.move('2', '1');
+      expect(appFeatures.features()).toEqual([{id: '2', inputs: {page_location: {target: 'A', name: 'P1'}}}, {id: '1', inputs: {page_location: {target: 'A', name: 'P1'}}}]);
     });
 
     it('delete removes the specified feature instance', function () {
