@@ -26,6 +26,12 @@ angular.module('sampleDomainApp').factory 'AppFeatures',  ($http) ->
     this.saveFeatures()
     feature
 
+  move: (sourceId, targetId) ->
+    sourceIndex = this.indexOfId(sourceId)
+    targetIndex = this.indexOfId(targetId)
+    this.features().splice(targetIndex, 0, this.features().splice(sourceIndex, 1)[0]);
+    # do nothing
+
   nextIndex:  ->
     index = 0
     features = this.features()

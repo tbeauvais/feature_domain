@@ -1,7 +1,7 @@
 
 angular.module('sampleDomainApp').factory 'FeatureNames',  ->
 
-  ['TextFeature', 'LinkFeature', 'ImageFeature', 'ListFeature', 'HeaderFeature', 'ContainerFeature', 'GoogleMapFeature', 'TextWithParagraphFeature', 'ImageWithParagraphFeature']
+  ['TextFeature', 'LinkFeature', 'ImageFeature', 'ListFeature', 'HeaderFeature', 'ContainerFeature', 'GoogleMapFeature', 'TextWithParagraphFeature', 'ImageWithParagraphFeature', 'PageFeature']
 
 
 angular.module('sampleDomainApp').factory 'Features', ($injector, FeatureNames) ->
@@ -33,6 +33,39 @@ angular.module('sampleDomainApp').factory 'Features', ($injector, FeatureNames) 
     featureInstance['inputs'] = inputs
     featureInstance
 
+
+angular.module('sampleDomainApp').factory 'PageFeature', (AppMetadata) ->
+
+  name: 'Page'
+  icon: 'glyphicon-file'
+  inputs: [
+    name: 'name'
+    label: 'Name'
+    type: 'string'
+  ,
+    name: 'text'
+    label: 'Text'
+    type: 'string'
+  ,
+    name: 'page_location'
+    label: 'Page Location'
+    type: 'page_location'
+  ]
+
+  generate: (instance, inputs) ->
+    id = (inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
+    target = $(inputs.page_location.target)
+    if target.length > 0
+      AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
+      containerId = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
+      id = "page_container"
+      AppMetadata.addPageTarget('Page 1', '#' + id, '#' + containerId, instance.id)
+      target.append("<div style='background-image: url(http://members.shaw.ca/dkolowca.stgerard/MCSAA/Track/Page%20background.png);background-size: 100% 100%;padding: 10px;' id='#{id}' title='generated from #{instance.name}' ></div>")
+      true
+    else
+      false
+
+
 angular.module('sampleDomainApp').factory 'TextFeature', (AppMetadata) ->
 
   name: 'Text'
@@ -56,7 +89,7 @@ angular.module('sampleDomainApp').factory 'TextFeature', (AppMetadata) ->
     target = $(inputs.page_location.target)
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
-      target.append("<div id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</div>")
+      target.append("<div ng-drag='true' ng-drag-data='#{instance.id}'  id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</div>")
       true
     else
       false
@@ -89,7 +122,7 @@ angular.module('sampleDomainApp').factory 'TextWithParagraphFeature', (AppMetada
     target = $(inputs.page_location.target)
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
-      template = "<div class='well' id='#{id}'><h3 class='paragraph_title'>#{instance.inputs.title}</h3><p>#{instance.inputs.text}</p></div>"
+      template = "<div ng-drag='true' ng-drag-data='#{instance.id}'  class='well' id='#{id}'><h3 class='paragraph_title'>#{instance.inputs.title}</h3><p>#{instance.inputs.text}</p></div>"
       target.append(template)
       true
     else
@@ -127,7 +160,7 @@ angular.module('sampleDomainApp').factory 'ImageWithParagraphFeature', (AppMetad
     target = $(inputs.page_location.target)
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
-      template = "<div class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><div class='row-fluid'><img class='span2 img-responsive pull-left' style='margin:0 3px' src='#{inputs.src}' height='150' width='150' /><p class='span10'>#{instance.inputs.text}</p></div></div>"
+      template = "<div ng-drag='true' ng-drag-data='#{instance.id}'  class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><div class='row-fluid'><img class='span2 img-responsive pull-left' style='margin:0 3px' src='#{inputs.src}' height='150' width='150' /><p class='span10'>#{instance.inputs.text}</p></div></div>"
       target.append(template)
       true
     else
@@ -167,7 +200,7 @@ angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata) ->
       rows = parseInt(inputs.rows)
 
       containerId = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
-      $rows = $('<div/>', {class: 'container-fluid well', id: containerId})
+      $rows = $('<div/>', {class: 'container-fluid well', id: containerId, 'ng-drag': 'true', 'ng-drag-data': instance.id, 'ng-drop': 'true', 'ng-drop-success': 'onDropFromContent($data, $event)'})
 
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: containerId, page: inputs.page_location.name, target: inputs.page_location.target}})
 
@@ -175,14 +208,14 @@ angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata) ->
       while row < rows
         row += 1
 
-        $row = $('<div/>', {class: 'row'})
+        $row = $("<div/>", {class: 'row'})
         $rows.append($row)
 
         col = 0
         while col < columns
           col += 1
           id = "container_row_#{row}_col_#{col}"
-          $row.append($('<div/>', {class: "col-md-#{col_size}", id: id}))
+          $row.append($("<div/>", {class: "col-md-#{col_size}", id: id}))
           AppMetadata.addPageTarget('Page 1', '#' + id, '#' + containerId, instance.id)
 
       target.append($rows)
@@ -218,7 +251,7 @@ angular.module('sampleDomainApp').factory 'HeaderFeature', (AppMetadata) ->
     target = $(inputs.page_location.target)
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
-      target.append("<H#{inputs.size} id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</H#{inputs.size}>")
+      target.append("<div ng-drag='true' ng-drag-data='#{instance.id}'  ><H#{inputs.size} id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</H#{inputs.size}></div>")
       true
     else
       false
@@ -250,7 +283,7 @@ angular.module('sampleDomainApp').factory 'ListFeature', (AppMetadata) ->
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
       listName = "list_#{instance.id}"
       scope[listName] = inputs.list.split(',')
-      target.append("<ul id='#{id}'><li ng-repeat='item in #{listName}'>{{item}}</li></ul>")
+      target.append("<ul id='#{id}' ng-drag='true' ng-drag-data='#{instance.id}'  ><li ng-repeat='item in #{listName}'>{{item}}</li></ul>")
       true
     else
       false
@@ -284,7 +317,7 @@ angular.module('sampleDomainApp').factory 'LinkFeature', (AppMetadata) ->
     target = $(inputs.page_location.target)
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
-      target.append("<div id='#{id}'><a href='#{inputs.href}' target='_blank'>#{inputs.text}</a></div>")
+      target.append("<div id='#{id}' ng-drag='true' ng-drag-data='#{instance.id}'  ><a href='#{inputs.href}' target='_blank'>#{inputs.text}</a></div>")
       true
     else
       false
@@ -326,7 +359,7 @@ angular.module('sampleDomainApp').factory 'ImageFeature', (AppMetadata) ->
     target = $(inputs.page_location.target)
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
-      target.append("<img id='#{id}' src='#{inputs.src}' alt='#{inputs.alt}' class='img-responsive' height='#{inputs.height}' width='#{inputs.width}'>")
+      target.append("<img ng-drag='true' ng-drag-data='#{instance.id}'  id='#{id}' src='#{inputs.src}' alt='#{inputs.alt}' class='img-responsive' height='#{inputs.height}' width='#{inputs.width}'>")
       true
     else
       false
@@ -367,7 +400,7 @@ angular.module('sampleDomainApp').factory 'GoogleMapFeature', (AppMetadata) ->
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
       #template = "<div class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><h3 ><a target='_blank' href='http://maps.google.com/maps?q=#{instance.inputs.address}' >#{instance.inputs.address}</a></h3><div class='map_container'><iframe width='100%' height='300' frameborder='0' scrolling='no' marginheight='0' marginwidth='0' src='http://maps.google.com/maps?q=#{instance.inputs.address}&output=embed'></iframe></div></div>"
-      template = "<div class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><h3 ><a href='http://maps.google.com/maps?q=#{instance.inputs.address}' >#{instance.inputs.address}</a></h3><div class='map_container'><img src='http://maps.googleapis.com/maps/api/staticmap?center=#{instance.inputs.address}&zoom=15&size=500x300&markers=color:blue|#{instance.inputs.address}&sensor=true' /></div></div>"
+      template = "<div ng-drag='true' ng-drag-data='#{instance.id}'  class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><h3 ><a href='http://maps.google.com/maps?q=#{instance.inputs.address}' >#{instance.inputs.address}</a></h3><div class='map_container'><img src='http://maps.googleapis.com/maps/api/staticmap?center=#{instance.inputs.address}&zoom=15&size=500x300&markers=color:blue|#{instance.inputs.address}&sensor=true' /></div></div>"
       $(inputs.page_location.target).append(template)
       true
     else

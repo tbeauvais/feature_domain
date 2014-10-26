@@ -1,11 +1,11 @@
 angular.module('sampleDomainApp').directive 'featureList', (Features, AppFeatures) ->
   restrict: 'AEC',
   replace: true,
-  template: '<ul class="list" ui-sortable="sortableOptions" ng-drop="true" ng-drop-success="onDropComplete($index, $data, $event)" ng-model="features"><li class="item" ng-repeat="feature in features track by feature.id"><feature-item></li></ul>',
+  template: '<ul class="list" ui-sortable="sortableOptions" ng-drop="true" ng-drop-success="onDropComplete($data, $event)" ng-model="features"><li class="item" ng-repeat="feature in features track by feature.id"><feature-item></li></ul>',
 
   link: (scope, elem, attrs) ->
     scope.$on 'addFeature', (event, featureName, targetId) ->
-      # TODO This should get padded a real feature ID (not featureName)
+      # TODO This should get passed a real feature ID (not featureName)
       featureInstance = Features.createFeatureInstance(featureName+'Feature')
       AppFeatures.add(featureInstance, targetId)
       # using parent scope so apply and generate are on the parent
@@ -13,6 +13,13 @@ angular.module('sampleDomainApp').directive 'featureList', (Features, AppFeature
       # function on controller
       scope.generate()
       scope.$broadcast('featureSelected', featureInstance.id);
+    scope.$on 'moveFeature', (event, sourceId, targetId) ->
+      AppFeatures.move(sourceId, targetId)
+      # using parent scope so apply and generate are on the parent
+      scope.$apply()
+      # function on controller
+      scope.generate()
+      scope.$broadcast('featureSelected', targetId);
 
 
 angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features, AppFeatures) ->

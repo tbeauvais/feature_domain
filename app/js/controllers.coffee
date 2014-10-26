@@ -1,4 +1,4 @@
-angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, AppFeatures, AppGenerate) ->
+angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, AppFeatures, AppGenerate, AppMetadata) ->
 
   $scope.getFeatures = ->
     AppFeatures.loadFeatures().success (data) ->
@@ -13,15 +13,32 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, AppFeature
     stop: (e, ui) ->
       $scope.generate()
 
-  $scope.onDropComplete = (index, data, event) ->
+  $scope.onDropComplete = (data, event) ->
     id = null
     t = document.elementFromPoint(event.tx, event.ty)
     target = $(t).closest('.item')
     if target.data()
       id = target.data().$scope.feature.id
       #name = target.data().$scope.feature.inputs.name
-    console.log("dropped '#{data}' on, '#{name}'")
+    #console.log("dropped '#{data}' on, '#{name}'")
     $scope.$root.$broadcast('addFeature', data, id)
+
+  $scope.onDropFromContent = (data, event) ->
+    # TODO this should be a string already (see features)
+    data = data.toString()
+    t = document.elementFromPoint(event.tx, event.ty)
+    console.log(t)
+    id = $(t).closest('[id]').attr('id')
+    node = AppMetadata.getFeatures().first (node) ->
+      if node.model.page_info
+        node.model.page_info.id == id
+      else
+        false
+    if node
+      return if data == node.model.id
+      console.log("onDropFromContent from '#{data}' to '#{node.model.id}'")
+      $scope.$root.$broadcast('moveFeature', data, node.model.id)
+    false
 
   $scope.getFeatures()
 

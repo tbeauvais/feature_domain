@@ -10,7 +10,7 @@ angular.module('sampleDomainApp').factory 'AppGenerate', ($compile, Features, Ap
       tries += 1
       for featureInstance in features
         f = Features.getFeature(featureInstance.feature)
-        console.log "generating pass #{tries} for " + JSON.stringify(featureInstance.inputs)
+        #console.log "generating pass #{tries} for " + JSON.stringify(featureInstance.inputs)
 
         success = f.generate(featureInstance, featureInstance.inputs, scope)
         if !success
