@@ -77,6 +77,11 @@
       expect(appFeatures.add({id: ''})).toEqual({id: '3'});
     });
 
+    it('move feature instance', function () {
+      appFeatures.move(2, 1)
+      expect(appFeatures.features()).toEqual([{id: '2'},{id: '1'}]);
+    });
+
     it('delete removes the specified feature instance', function () {
       appFeatures.delete('2');
       expect(appFeatures.features().length).toEqual(1);

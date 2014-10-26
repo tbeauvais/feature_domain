@@ -19,7 +19,7 @@ div.container
       div.col-lg-12
         h2 Dynamic Content
         div.content-pane
-          div#content_section.generatedContent
+          div#content_section.generatedContent ng-drop='true' ng-drop-success='onDropFromContent($data, $event)'
     div.row
       div.col-lg-12
         h2 Application Metadata
