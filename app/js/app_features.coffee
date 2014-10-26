@@ -26,11 +26,18 @@ angular.module('sampleDomainApp').factory 'AppFeatures',  ($http) ->
     this.saveFeatures()
     feature
 
-  move: (sourceId, targetId) ->
+  move: (sourceId, targetId, containerId) ->
     sourceIndex = this.indexOfId(sourceId)
     targetIndex = this.indexOfId(targetId)
+    sourceInstance = this.find(sourceId)
+    targetInstance = this.find(targetId)
+    if containerId
+      sourceInstance.inputs.page_location.target = '#' + containerId
+    else
+      sourceInstance.inputs.page_location.target = targetInstance.inputs.page_location.target
+      sourceInstance.inputs.page_location.name = targetInstance.inputs.page_location.name
     this.features().splice(targetIndex, 0, this.features().splice(sourceIndex, 1)[0]);
-    # do nothing
+    this.saveFeatures()
 
   nextIndex:  ->
     index = 0

@@ -122,3 +122,16 @@ li.item {
     height: 400px;
     overflow-y: scroll;
 }
+
+.on-drag-hover {
+    border-style: dashed !important;
+    border-width: 2px !important;
+    border-color: green !important;
+    min-height: 25px !important;
+    min-width: 25px !important;
+
+}
+
+.container-column {
+    min-height: 25px !important;
+}

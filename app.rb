@@ -26,7 +26,7 @@ class App < Sinatra::Base
       '/js/vendor/underscore.js',
       '/js/vendor/tree-model.js',
       '/js/vendor/d3.js',
-      '/js/vendor/ng-draggable.js',
+      '/js/vendor/draganddrop.js',
       '/js/application.js',
       '/js/*.js'
     ]

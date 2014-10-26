@@ -1,4 +1,4 @@
-angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, AppFeatures, AppGenerate, AppMetadata) ->
+angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, Features, AppFeatures, AppGenerate, AppMetadata) ->
 
   $scope.getFeatures = ->
     AppFeatures.loadFeatures().success (data) ->
@@ -13,31 +13,21 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, AppFeature
     stop: (e, ui) ->
       $scope.generate()
 
-  $scope.onDropComplete = (data, event) ->
-    id = null
-    t = document.elementFromPoint(event.tx, event.ty)
-    target = $(t).closest('.item')
-    if target.data()
-      id = target.data().$scope.feature.id
-      #name = target.data().$scope.feature.inputs.name
-    #console.log("dropped '#{data}' on, '#{name}'")
-    $scope.$root.$broadcast('addFeature', data, id)
+  $scope.onDropComplete = (event, index, feature, featureInstance) ->
+    console.log("dropped '#{feature.name}' on, '#{featureInstance.inputs.name}'")
+    $scope.$root.$broadcast('addFeature', feature.name, featureInstance.id)
+    false
 
-  $scope.onDropFromContent = (data, event) ->
-    # TODO this should be a string already (see features)
-    data = data.toString()
-    t = document.elementFromPoint(event.tx, event.ty)
-    console.log(t)
-    id = $(t).closest('[id]').attr('id')
-    node = AppMetadata.getFeatures().first (node) ->
-      if node.model.page_info
-        node.model.page_info.id == id
-      else
-        false
-    if node
-      return if data == node.model.id
-      console.log("onDropFromContent from '#{data}' to '#{node.model.id}'")
-      $scope.$root.$broadcast('moveFeature', data, node.model.id)
+  $scope.onDropFromContent = (event, index, source, target) ->
+    return if source == target
+    console.log("onDropFromContent from '#{source}' to '#{target}'")
+    $scope.$root.$broadcast('moveFeature', source, target)
+    false
+
+  $scope.onDropFromContentInContainer = (event, index, source, target, containerId) ->
+    return if source == target
+    console.log("onDropFromContentInContainer from '#{source}' to '#{target}'")
+    $scope.$root.$broadcast('moveFeature', source, target, containerId)
     false
 
   $scope.getFeatures()
