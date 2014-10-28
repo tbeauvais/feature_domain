@@ -3,7 +3,6 @@ angular.module('sampleDomainApp').factory 'FeatureNames',  ->
 
   ['TextFeature', 'LinkFeature', 'ImageFeature', 'ListFeature', 'HeaderFeature', 'ContainerFeature', 'GoogleMapFeature', 'TextWithParagraphFeature', 'ImageWithParagraphFeature', 'PageFeature']
 
-
 angular.module('sampleDomainApp').factory 'Features', ($injector, FeatureNames) ->
 
   featureList = {}
@@ -28,13 +27,18 @@ angular.module('sampleDomainApp').factory 'Features', ($injector, FeatureNames) 
       if input.name != 'page_location'
         inputs[input.name] = ''
       else
-        inputs[input.name] = {name: 'Page 1', target: '#content_section'}
+        inputs[input.name] = {name: 'Page 1', target: '#page_container'} # need to look this target up
     inputs.name = 'untitled'
     featureInstance['inputs'] = inputs
     featureInstance
 
+angular.module('sampleDomainApp').factory 'FeatureHelper', (AppMetadata) ->
 
-angular.module('sampleDomainApp').factory 'PageFeature', (AppMetadata) ->
+  dragDropSupport: (id) ->
+    "ui-draggable='true' drag='#{id}' drag-channel='B' drop-channel='B,A' ui-on-drop='onDropFromContent($event,$index,$channel,$data,#{id})'"
+
+
+angular.module('sampleDomainApp').factory 'PageFeature', (AppMetadata, FeatureHelper) ->
 
   name: 'Page'
   icon: 'glyphicon-file'
@@ -66,7 +70,7 @@ angular.module('sampleDomainApp').factory 'PageFeature', (AppMetadata) ->
       false
 
 
-angular.module('sampleDomainApp').factory 'TextFeature', (AppMetadata) ->
+angular.module('sampleDomainApp').factory 'TextFeature', (AppMetadata, FeatureHelper) ->
 
   name: 'Text'
   icon: 'glyphicon-pencil'
@@ -84,19 +88,20 @@ angular.module('sampleDomainApp').factory 'TextFeature', (AppMetadata) ->
     type: 'page_location'
   ]
 
+
   generate: (instance, inputs) ->
     id = (inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
     target = $(inputs.page_location.target)
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
-      dd = "ui-draggable='true' drag='#{instance.id}' drag-channel='B' drop-channel='B' ui-on-drop='onDropFromContent($event,$index,$data,#{instance.id})'"
+      dd = FeatureHelper.dragDropSupport(instance.id)
       target.append("<div #{dd} id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</div>")
       true
     else
       false
 
 
-angular.module('sampleDomainApp').factory 'TextWithParagraphFeature', (AppMetadata) ->
+angular.module('sampleDomainApp').factory 'TextWithParagraphFeature', (AppMetadata, FeatureHelper) ->
 
   name: 'TextWithParagraph'
   icon: 'glyphicon-pencil'
@@ -123,14 +128,14 @@ angular.module('sampleDomainApp').factory 'TextWithParagraphFeature', (AppMetada
     target = $(inputs.page_location.target)
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
-      dd = "ui-draggable='true' drag='#{instance.id}' drag-channel='B' drop-channel='B' ui-on-drop='onDropFromContent($event,$index,$data,#{instance.id})'"
+      dd = FeatureHelper.dragDropSupport(instance.id)
       template = "<div #{dd} class='well' id='#{id}'><h3 class='paragraph_title'>#{instance.inputs.title}</h3><p>#{instance.inputs.text}</p></div>"
       target.append(template)
       true
     else
       false
 
-angular.module('sampleDomainApp').factory 'ImageWithParagraphFeature', (AppMetadata) ->
+angular.module('sampleDomainApp').factory 'ImageWithParagraphFeature', (AppMetadata, FeatureHelper) ->
 
   name: 'ImageWithParagraph'
   icon: 'glyphicon-pencil'
@@ -162,7 +167,7 @@ angular.module('sampleDomainApp').factory 'ImageWithParagraphFeature', (AppMetad
     target = $(inputs.page_location.target)
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
-      dd = "ui-draggable='true' drag='#{instance.id}' drag-channel='B' drop-channel='B' ui-on-drop='onDropFromContent($event,$index,$data,#{instance.id})'"
+      dd = FeatureHelper.dragDropSupport(instance.id)
       template = "<div #{dd} class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><div class='row-fluid'><img class='span2 img-responsive pull-left' style='margin:0 3px' src='#{inputs.src}' height='150' width='150' /><p class='span10'>#{instance.inputs.text}</p></div></div>"
       target.append(template)
       true
@@ -170,7 +175,7 @@ angular.module('sampleDomainApp').factory 'ImageWithParagraphFeature', (AppMetad
       false
 
 
-angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata) ->
+angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata, FeatureHelper) ->
 
   name: 'Container'
   icon: 'glyphicon-th'
@@ -203,7 +208,7 @@ angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata) ->
       rows = parseInt(inputs.rows)
 
       containerId = (instance.inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
-      $rows = $('<div/>', {class: 'container-fluid well', id: containerId, 'ui-draggable': 'true', 'drag': instance.id, 'drag-channel': 'B'})
+      $rows = $('<div/>', {class: 'container-fluid well', id: containerId, 'ui-draggable': 'true', 'drag': instance.id, 'drag-channel': 'B', 'drop-channel': 'A', 'ui-on-drop': "onDropFromContent($event,$index,$channel,$data,'#{instance.id}')"})
 
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: containerId, page: inputs.page_location.name, target: inputs.page_location.target}})
 
@@ -227,7 +232,7 @@ angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata) ->
       false
 
 
-angular.module('sampleDomainApp').factory 'HeaderFeature', (AppMetadata) ->
+angular.module('sampleDomainApp').factory 'HeaderFeature', (AppMetadata, FeatureHelper) ->
 
   name: 'Header'
   icon: 'glyphicon-header'
@@ -254,14 +259,14 @@ angular.module('sampleDomainApp').factory 'HeaderFeature', (AppMetadata) ->
     target = $(inputs.page_location.target)
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
-      dd = "ui-draggable='true' drag='#{instance.id}' drag-channel='B' drop-channel='B' ui-on-drop='onDropFromContent($event,$index,$data,#{instance.id})'"
+      dd = FeatureHelper.dragDropSupport(instance.id)
       target.append("<div #{dd} ><H#{inputs.size} id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</H#{inputs.size}></div>")
       true
     else
       false
 
 
-angular.module('sampleDomainApp').factory 'ListFeature', (AppMetadata) ->
+angular.module('sampleDomainApp').factory 'ListFeature', (AppMetadata, FeatureHelper) ->
 
   name: 'List'
   icon: 'glyphicon-list'
@@ -287,14 +292,14 @@ angular.module('sampleDomainApp').factory 'ListFeature', (AppMetadata) ->
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
       listName = "list_#{instance.id}"
       scope[listName] = inputs.list.split(',')
-      dd = "ui-draggable='true' drag='#{instance.id}' drag-channel='B' drop-channel='B' ui-on-drop='onDropFromContent($event,$index,$data,#{instance.id})'"
+      dd = FeatureHelper.dragDropSupport(instance.id)
       target.append("<ul #{dd} id='#{id}' ><li ng-repeat='item in #{listName}'>{{item}}</li></ul>")
       true
     else
       false
 
 
-angular.module('sampleDomainApp').factory 'LinkFeature', (AppMetadata) ->
+angular.module('sampleDomainApp').factory 'LinkFeature', (AppMetadata, FeatureHelper) ->
 
   name: 'Link'
   icon: 'glyphicon-link'
@@ -322,14 +327,14 @@ angular.module('sampleDomainApp').factory 'LinkFeature', (AppMetadata) ->
     target = $(inputs.page_location.target)
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
-      dd = "ui-draggable='true' drag='#{instance.id}' drag-channel='B' drop-channel='B' ui-on-drop='onDropFromContent($event,$index,$data,#{instance.id})'"
+      dd = FeatureHelper.dragDropSupport(instance.id)
       target.append("<div #{dd} id='#{id}' ><a href='#{inputs.href}' target='_blank'>#{inputs.text}</a></div>")
       true
     else
       false
 
 
-angular.module('sampleDomainApp').factory 'ImageFeature', (AppMetadata) ->
+angular.module('sampleDomainApp').factory 'ImageFeature', (AppMetadata, FeatureHelper) ->
 
   name: 'Image'
   icon: 'glyphicon-picture'
@@ -365,13 +370,13 @@ angular.module('sampleDomainApp').factory 'ImageFeature', (AppMetadata) ->
     target = $(inputs.page_location.target)
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
-      dd = "ui-draggable='true' drag='#{instance.id}' drag-channel='B' drop-channel='B' ui-on-drop='onDropFromContent($event,$index,$data,#{instance.id})'"
+      dd = FeatureHelper.dragDropSupport(instance.id)
       target.append("<img #{dd} id='#{id}' src='#{inputs.src}' alt='#{inputs.alt}' class='img-responsive' height='#{inputs.height}' width='#{inputs.width}'>")
       true
     else
       false
 
-angular.module('sampleDomainApp').factory 'GoogleMapFeature', (AppMetadata) ->
+angular.module('sampleDomainApp').factory 'GoogleMapFeature', (AppMetadata, FeatureHelper) ->
 
   name: 'GoogleMap'
   icon: 'glyphicon-map-marker'
@@ -407,7 +412,7 @@ angular.module('sampleDomainApp').factory 'GoogleMapFeature', (AppMetadata) ->
     if target.length > 0
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
       #template = "<div class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><h3 ><a target='_blank' href='http://maps.google.com/maps?q=#{instance.inputs.address}' >#{instance.inputs.address}</a></h3><div class='map_container'><iframe width='100%' height='300' frameborder='0' scrolling='no' marginheight='0' marginwidth='0' src='http://maps.google.com/maps?q=#{instance.inputs.address}&output=embed'></iframe></div></div>"
-      dd = "ui-draggable='true' drag='#{instance.id}' drag-channel='B' drop-channel='B' ui-on-drop='onDropFromContent($event,$index,$data,#{instance.id})'"
+      dd = FeatureHelper.dragDropSupport(instance.id)
       template = "<div #{dd} class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><h3 ><a href='http://maps.google.com/maps?q=#{instance.inputs.address}' >#{instance.inputs.address}</a></h3><div class='map_container'><img src='http://maps.googleapis.com/maps/api/staticmap?center=#{instance.inputs.address}&zoom=15&size=500x300&markers=color:blue|#{instance.inputs.address}&sensor=true' /></div></div>"
       $(inputs.page_location.target).append(template)
       true

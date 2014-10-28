@@ -22,6 +22,7 @@ div.container
           div#content_section.generatedContent
     div.row
       div.col-lg-12
-        h2 Application Metadata
-        div.content-pane.metadata-pane
+        div ng-click="toggleMetadata = !toggleMetadata"
+          h3 Feature Metadata
+        div.content-pane.metadata-pane ng-show="toggleMetadata" ng-animate=""
          div.render-meta-data

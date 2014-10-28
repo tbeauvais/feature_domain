@@ -18,7 +18,13 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, Features, 
     $scope.$root.$broadcast('addFeature', feature.name, featureInstance.id)
     false
 
-  $scope.onDropFromContent = (event, index, source, target) ->
+  $scope.onDropFromContent = (event, index, channel, source, target) ->
+
+    if channel == 'A'
+      debugger
+      $scope.$root.$broadcast('addFeature', source.name, target)
+      return
+
     return if source == target
     console.log("onDropFromContent from '#{source}' to '#{target}'")
     $scope.$root.$broadcast('moveFeature', source, target)
@@ -32,6 +38,7 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, Features, 
 
   $scope.getFeatures()
 
+  $scope.toggleMetadata = true
 
 angular.module('sampleDomainApp').controller 'EditorCtrl', ($scope, AppFeatures, AppGenerate) ->
 
