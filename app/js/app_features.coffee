@@ -11,8 +11,8 @@ angular.module('sampleDomainApp').factory 'AppFeatures',  ($http) ->
     while index < features.length && features[index].id != id
       index += 1
 
-    this.saveFeatures()
     features.splice(index, 1)
+    this.saveFeatures()
 
   add: (feature, targetId) ->
     feature.id = this.nextIndex()
