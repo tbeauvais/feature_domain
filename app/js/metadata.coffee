@@ -5,17 +5,17 @@ angular.module('sampleDomainApp').factory 'AppMetadata',  ->
   root: null
 
   reset:  ->
-    this.root = null
+    @root = null
 
   getPageTargets: (pageName) ->
-    targets = this._getPageTargets(pageName)
+    targets = @_getPageTargets(pageName)
 
     newTargets = []
-    this._addTargets(targets.children, newTargets)
+    @_addTargets(targets.children, newTargets)
     newTargets
 
   getPages:  ->
-    root = this.getRoot()
+    root = @getRoot()
 
     pages = root.first (node) ->
       node.model.name == 'Pages'
@@ -24,7 +24,7 @@ angular.module('sampleDomainApp').factory 'AppMetadata',  ->
       return node.model.name
 
   addPageTarget: (pageName, target, parent, featureInstanceId) ->
-    root = this.getRoot()
+    root = @getRoot()
 
     page = root.first (node) ->
       node.model.name == pageName
@@ -36,7 +36,7 @@ angular.module('sampleDomainApp').factory 'AppMetadata',  ->
       targets = targets.first (node) ->
         node.model.name == parent
 
-    node = this.tree.parse({feature_instance_id: featureInstanceId, id: target, name: target})
+    node = @tree.parse({feature_instance_id: featureInstanceId, id: target, name: target})
     if targets
       targets.addChild(node)
     else
@@ -44,40 +44,40 @@ angular.module('sampleDomainApp').factory 'AppMetadata',  ->
 
 
   getFeatures:  ->
-    root = this.getRoot()
+    root = @getRoot()
 
     root.first (node) ->
       node.model.name == 'Features'
 
   getFeature: (id)  ->
-    features = this.getFeatures()
+    features = @getFeatures()
 
     features.first (node) ->
       node.model.id == id
 
   getPageNode: (pageName, id) ->
-    page = this._getPage(pageName)
+    page = @_getPage(pageName)
     page.first (node) ->
       node.model.feature_instance_id && node.model.feature_instance_id == id
 
   isChildOfOnPage: (childId, parentId) ->
-    feature = this.getFeature(childId)
+    feature = @getFeature(childId)
     debugger
-    child = this.getPageNode(feature.model.page_info.page, childId)
+    child = @getPageNode(feature.model.page_info.page, childId)
     match = _.find child.getPath(), (node) ->
       return node.model.feature_instance_id == parentId
     !_.isUndefined(match)
 
   addFeature: (feature)  ->
-    features = this.getFeatures()
-    node = this.tree.parse(feature)
+    features = @getFeatures()
+    node = @tree.parse(feature)
     features.addChild(node)
-    this.addPageTarget(feature.page_info.page, '#' + feature.page_info.id, feature.page_info.target, feature.id)
+    @addPageTarget(feature.page_info.page, '#' + feature.page_info.id, feature.page_info.target, feature.id)
     node
 
   getRoot: ->
-    if this.root == null
-      this.root = this.tree.parse(
+    if @root == null
+      @root = @tree.parse(
         id: "Application"
         name: "Application"
         children: [
@@ -103,15 +103,15 @@ angular.module('sampleDomainApp').factory 'AppMetadata',  ->
         ]
       )
 
-    this.root
+    @root
 
   _getPageTargets: (pageName) ->
-    page = this._getPage(pageName)
+    page = @_getPage(pageName)
     page.first (node) ->
       node.model.name == 'Targets'
 
   _getPage: (pageName) ->
-    root = this.getRoot()
+    root = @getRoot()
 
     page = root.first (node) ->
       node.model.name == pageName
@@ -119,5 +119,5 @@ angular.module('sampleDomainApp').factory 'AppMetadata',  ->
   _addTargets: (children, targets) ->
     _.each children, (node) =>
       if node.hasChildren()
-        this._addTargets(node.children, targets)
+        @_addTargets(node.children, targets)
       targets.push(node)
