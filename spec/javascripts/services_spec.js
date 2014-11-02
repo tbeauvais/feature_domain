@@ -27,7 +27,7 @@
           text: '',
           page_location: {
             name: 'Page 1',
-            target: '#content_section'
+            target: '#page_container'
           }
         }
       };
@@ -159,6 +159,39 @@
       appMetadata.addFeature(feature);
       expect(appMetadata.getFeature('1').model.id).toEqual('1');
     });
+
+    it('getPageNode finds node on page by id', function () {
+      var instance = {id: '1', feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
+      var feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
+      appMetadata.addFeature(feature);
+      expect(appMetadata.getPageNode('Page 1', '1').model.feature_instance_id).toEqual('1');
+    });
+
+    it('isChildOfOnPage returns true if id is already a child', function () {
+      var instance = {id: '1', feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
+      var feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
+      appMetadata.addFeature(feature);
+
+      var instance = {id: '2', feature: 'TextFeature', inputs: {name: 'My Text 2', page_location: {name: 'Page 1', target: '#new_location'}}};
+      var feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location_2', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
+      appMetadata.addFeature(feature);
+
+
+      expect(appMetadata.isChildOfOnPage('2', '1')).toEqual(true);
+    });
+
+    it('isChildOfOnPage returns false if id is not already a child', function () {
+      var instance = {id: '1', feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
+      var feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
+      appMetadata.addFeature(feature);
+
+      var instance = {id: '2', feature: 'TextFeature', inputs: {name: 'My Text 2', page_location: {name: 'Page 1', target: '#content_section'}}};
+      var feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location_2', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
+      appMetadata.addFeature(feature);
+
+      expect(appMetadata.isChildOfOnPage('2', '1')).toEqual(false);
+    });
+
 
   });
 

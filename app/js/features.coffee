@@ -222,7 +222,7 @@ angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata, Feat
         col = 0
         while col < columns
           col += 1
-          id = "container_row_#{row}_col_#{col}"
+          id = "container_#{containerId}_row_#{row}_col_#{col}"
           $row.append($("<div/>", {class: "container-column col-md-#{col_size}", id: id, 'drop-channel': 'B', 'ui-on-drop': "onDropFromContentInContainer($event,$index,$data, '#{instance.id}', '#{id}')"}))
           AppMetadata.addPageTarget('Page 1', '#' + id, '#' + containerId, instance.id)
 

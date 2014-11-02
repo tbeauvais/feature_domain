@@ -19,21 +19,35 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, Features, 
     false
 
   $scope.onDropFromContent = (event, index, channel, source, target) ->
+    target = target.toString()
 
     if channel == 'A'
-      debugger
-      $scope.$root.$broadcast('addFeature', source.name, target)
-      return
+        $scope.$root.$broadcast('addFeature', source.name, target)
+        return
 
-    return if source == target
+    source = source.toString()
+
+    return false if source == target
+
+    if AppMetadata.isChildOfOnPage(target, source)
+      console.log "onDropFromContent aborted because of circular reference moving #{source} to #{target}"
+      return false
+
     console.log("onDropFromContent from '#{source}' to '#{target}'")
     $scope.$root.$broadcast('moveFeature', source, target)
     false
 
-  $scope.onDropFromContentInContainer = (event, index, source, target, containerId) ->
-    return if source == target
-    console.log("onDropFromContentInContainer from '#{source}' to '#{target}'")
-    $scope.$root.$broadcast('moveFeature', source, target, containerId)
+  $scope.onDropFromContentInContainer = (event, index, sourceId, targetId, containerId) ->
+    sourceId = sourceId.toString()
+    targetId = targetId.toString()
+    return false if sourceId == targetId
+
+    if AppMetadata.isChildOfOnPage(targetId, sourceId)
+      console.log "onDropFromContentInContainer aborted because of circular reference moving #{sourceId} to #{targetId}"
+      return false
+
+    console.log("onDropFromContentInContainer from '#{sourceId}' to '#{targetId}'")
+    $scope.$root.$broadcast('moveFeature', sourceId, targetId, containerId)
     false
 
   $scope.getFeatures()

@@ -55,6 +55,19 @@ angular.module('sampleDomainApp').factory 'AppMetadata',  ->
     features.first (node) ->
       node.model.id == id
 
+  getPageNode: (pageName, id) ->
+    page = this._getPage(pageName)
+    page.first (node) ->
+      node.model.feature_instance_id && node.model.feature_instance_id == id
+
+  isChildOfOnPage: (childId, parentId) ->
+    feature = this.getFeature(childId)
+    debugger
+    child = this.getPageNode(feature.model.page_info.page, childId)
+    match = _.find child.getPath(), (node) ->
+      return node.model.feature_instance_id == parentId
+    !_.isUndefined(match)
+
   addFeature: (feature)  ->
     features = this.getFeatures()
     node = this.tree.parse(feature)
