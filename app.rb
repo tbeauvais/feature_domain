@@ -43,7 +43,7 @@ class App < Sinatra::Base
   end
 
   get '/content' do
-    slim :content
+    slim :content, layout: false
   end
 
   get '/api/app_features' do
