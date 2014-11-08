@@ -3,14 +3,17 @@ angular.module('sampleDomainApp').factory 'FeatureNames',  ->
 
   ['TextFeature', 'LinkFeature', 'ImageFeature', 'ListFeature', 'HeaderFeature', 'ContainerFeature', 'GoogleMapFeature', 'TextWithParagraphFeature', 'ImageWithParagraphFeature', 'PageFeature']
 
-angular.module('sampleDomainApp').factory 'Features', ($injector, FeatureNames) ->
+angular.module('sampleDomainApp').factory 'Features', ($injector, $rootScope, FeatureNames) ->
 
   featureList = {}
+
+  if $rootScope.designMode != false
+    $rootScope.designMode = true
 
   for name in FeatureNames
     # Lookup from factory using feature name
     feature = $injector.get(name)
-    featureList[name] = new feature
+    featureList[name] = new feature(designMode: $rootScope.designMode)
 
   getFeature: (name) ->
     featureList[name]
@@ -36,10 +39,15 @@ angular.module('sampleDomainApp').factory 'BaseFeature', (AppMetadata) ->
 
   class BaseObject
     constructor: (initData) ->
-      angular.extend(@, initData )
+      @designMode = initData.designMode
+      angular.extend(@, initData)
 
     dragDropSupport: (id) ->
-      "ui-draggable='true' drag='#{id}' drag-channel='B' drop-channel='B,A' ui-on-drop='onDropFromContent($event,$index,$channel,$data,#{id})'"
+      debugger
+      if @designMode
+        "ui-draggable='true' drag='#{id}' drag-channel='B' drop-channel='B,A' ui-on-drop='onDropFromContent($event,$index,$channel,$data,#{id})'"
+      else
+        ''
 
     addFeature: (instance, inputs, id) ->
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
@@ -240,7 +248,12 @@ angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata, Base
         rows = parseInt(inputs.rows)
 
         containerId = @instanceId(instance, inputs)
-        $rows = $('<div/>', {class: 'container-fluid well', id: containerId, 'ui-draggable': 'true', 'drag': instance.id, 'drag-channel': 'B', 'drop-channel': 'A', 'ui-on-drop': "onDropFromContent($event,$index,$channel,$data,'#{instance.id}')"})
+
+        rowsParms = {class: 'container-fluid well', id: containerId}
+        if @designMode
+          angular.extend(rowsParms, {'ui-draggable': 'true', 'drag': instance.id, 'drag-channel': 'B', 'drop-channel': 'A,B', 'ui-on-drop': "onDropFromContent($event,$index,$channel,$data,'#{instance.id}')"})
+
+        $rows = $('<div/>', rowsParms)
 
         @addFeature(instance, inputs, containerId)
 
@@ -255,7 +268,11 @@ angular.module('sampleDomainApp').factory 'ContainerFeature', (AppMetadata, Base
           while col < columns
             col += 1
             id = "container_#{containerId}_row_#{row}_col_#{col}"
-            $row.append($("<div/>", {class: "container-column col-md-#{col_size}", id: id, 'drop-channel': 'B', 'ui-on-drop': "onDropFromContentInContainer($event,$index,$data, '#{instance.id}', '#{id}')"}))
+            rowParms = {class: "container-column col-md-#{col_size}", id: id}
+            if @designMode
+              angular.extend(rowParms, {'drop-channel': 'B', 'ui-on-drop': "onDropFromContentInContainer($event,$index,$data, '#{instance.id}', '#{id}')"})
+
+            $row.append($("<div/>", rowParms))
             AppMetadata.addPageTarget('Page 1', '#' + id, '#' + containerId, instance.id)
 
         target.append($rows)
