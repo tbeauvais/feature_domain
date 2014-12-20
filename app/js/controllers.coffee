@@ -13,16 +13,16 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, Features, 
     stop: (e, ui) ->
       $scope.generate()
 
-  $scope.onDropComplete = (event, index, feature, featureInstance) ->
-    console.log("dropped '#{feature.name}' on, '#{featureInstance.inputs.name}'")
-    $scope.$root.$broadcast('addFeature', feature.name, featureInstance.id)
+  $scope.onDropComplete = (event, index, featureType, featureInstance) ->
+    console.log("dropped '#{featureType}' on, '#{featureInstance.inputs.name}'")
+    $scope.$root.$broadcast('addFeature', featureType, featureInstance.id)
     false
 
   $scope.onDropFromContent = (event, index, channel, source, target) ->
     target = target.toString()
 
     if channel == 'A'
-        $scope.$root.$broadcast('addFeature', source.name, target)
+        $scope.$root.$broadcast('addFeature', source, target)
         return
 
     source = source.toString()

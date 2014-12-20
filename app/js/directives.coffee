@@ -133,7 +133,7 @@ angular.module('sampleDomainApp').directive 'pageTargetSelector', (AppMetadata) 
 angular.module('sampleDomainApp').directive 'paletteList', (Features) ->
   restrict: 'AEC',
   replace: true,
-  template: '<ul class="list" ng-model="features"><li ui-draggable="true" drag="featureType" drag-channel="A" class="item" ng-repeat="featureType in features track by featureType.name"><palette-item></li></ul>',
+  template: '<ul class="list" ng-model="features"><li ui-draggable="true" drag="featureType.name" drag-channel="A" class="item" ng-repeat="featureType in features track by featureType.name"><palette-item></li></ul>',
   # use new scope
   scope: true,
 
