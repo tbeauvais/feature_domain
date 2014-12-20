@@ -62,7 +62,6 @@ angular.module('sampleDomainApp').factory 'AppMetadata',  ->
 
   isChildOfOnPage: (childId, parentId) ->
     feature = @getFeature(childId)
-    debugger
     child = @getPageNode(feature.model.page_info.page, childId)
     match = _.find child.getPath(), (node) ->
       return node.model.feature_instance_id == parentId
