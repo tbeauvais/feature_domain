@@ -1,0 +1,6 @@
+---
+applications:
+- name: content-domain-app
+  memory: 128M
+  host: content-domain-app
+  buildpack: https://github.com/cloudfoundry/buildpack-ruby.git
