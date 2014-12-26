@@ -3,38 +3,41 @@ require 'sinatra/contrib'
 require 'sinatra/assetpack'
 require 'slim'
 require 'coffee-script'
-require 'pry'
 
 class App < Sinatra::Base
 
+  set :environment, :development
   set :root, File.dirname(__FILE__) # You must set app root
 
   helpers Sinatra::JSON
   register Sinatra::AssetPack
 
   assets do
-    serve '/js',     :from => 'app/js'
-    serve '/css',    :from => 'app/css'
-    serve '/images', :from => 'app/images'
 
-    js :app, [
-      '/js/vendor/jquery-2.1.1.js',
-      '/js/vendor/jquery-ui.js',
-      '/js/vendor/bootstrap.js',
-      '/js/vendor/angular.js',
-      '/js/vendor/sortable.js',
-      '/js/vendor/underscore.js',
-      '/js/vendor/tree-model.js',
-      '/js/vendor/d3.js',
-      '/js/vendor/draganddrop.js',
-      '/js/application.js',
-      '/js/*.js'
-    ]
+    js_compression  :uglify, mangle: false
 
-    css :app, [
-        '/css/*.css',
-        '/css/vendor/*.css'
-    ]
+    serve '/js',     from: 'app/js'
+    serve '/css',    from: 'app/css'
+    serve '/images', from: 'app/images'
+
+    js :app, %w(
+      /js/vendor/jquery-2.1.1.js
+      /js/vendor/jquery-ui.js
+      /js/vendor/bootstrap.js
+      /js/vendor/angular.js
+      /js/vendor/sortable.js
+      /js/vendor/underscore.js
+      /js/vendor/tree-model.js
+      /js/vendor/d3.js
+      /js/vendor/draganddrop.js
+      /js/application.js
+      /js/*.js
+    )
+
+    css :app, %w(
+      /css/*.css
+      /css/vendor/*.css
+    )
 
   end
 
