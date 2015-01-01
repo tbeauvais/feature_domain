@@ -201,10 +201,10 @@ angular.module("ang-drag-drop",[])
                     sendData = angular.fromJson(sendData);
 
                     var fn = $parse(attr.uiOnDrop);
-                    scope.$apply(function () {
-                        fn(scope, {$data: sendData.data, $event: e, $channel: sendData.channel});
-                    });
-
+                   // scope.$apply(function () {
+                   //     fn(scope, {$data: sendData.data, $event: e, $channel: sendData.channel});
+                  //  });
+                    fn(scope, {$data: sendData.data, $event: e, $channel: sendData.channel});
                     element.removeClass(dragEnterClass);
                     dragging = 0;
                 }

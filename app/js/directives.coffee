@@ -9,9 +9,6 @@ angular.module('sampleDomainApp').directive 'featureList', ($rootScope, Features
       # TODO This should get passed a real feature ID (not featureName)
       featureInstance = Features.createFeatureInstance(featureName+'Feature')
       AppFeatures.add(featureInstance, targetId)
-      # using parent scope so apply and generate are on the parent
-      # scope.$apply()
-
       # function on controller
       scope.generate()
       scope.$broadcast('featureSelected', featureInstance.id);
@@ -19,13 +16,8 @@ angular.module('sampleDomainApp').directive 'featureList', ($rootScope, Features
       sourceId = sourceId.toString()
       targetId = targetId.toString()
       AppFeatures.move(sourceId, targetId, containerId)
-      # using parent scope so apply and generate are on the parent
-      #scope.$apply()
-      # function on controller
       scope.generate()
       scope.$broadcast('featureSelected', targetId);
-
-
 
 
 angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features, AppFeatures) ->
@@ -151,7 +143,7 @@ angular.module('sampleDomainApp').directive 'paletteItem', ($rootScope, Features
   link: (scope, elem, attrs) ->
     scope.glyphicon = scope.featureType.icon
 
-angular.module('sampleDomainApp').directive 'generatedContent', (AppMetadata) ->
+angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Features, AppMetadata) ->
   restrict: 'C',
   replace: false,
   # use parent scope
@@ -159,7 +151,6 @@ angular.module('sampleDomainApp').directive 'generatedContent', (AppMetadata) ->
 
   link: (scope, elem, attrs) ->
     elem.bind 'click', (e) ->
-      # TODO why is this called twice for a single click???
       id = $(e.target).closest('[id]').attr('id')
       node = AppMetadata.getFeatures().first (node) ->
         if node.model.page_info
@@ -170,7 +161,15 @@ angular.module('sampleDomainApp').directive 'generatedContent', (AppMetadata) ->
         scope.$root.$broadcast('featureSelected', node.model.id)
       e.preventDefault()
       false
-
+    scope.$on 'generateContent', (event, features) ->
+      elem.find('#content_section').empty()
+      generator = new AppGenerate()
+      generator.generate(features, Features, AppMetadata)
+      html = elem.find('#content_section')
+      $compile(html)(scope)
+      scope.$root.$broadcast('postGenerate')
+      event.preventDefault()
+      false
 
 angular.module('sampleDomainApp').directive 'renderMetaData', (AppMetadata) ->
   restrict: 'AEC',

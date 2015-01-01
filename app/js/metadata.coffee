@@ -1,6 +1,6 @@
-angular.module('sampleDomainApp').factory 'AppMetadata',  ->
+class @AppMetadata
 
-  tree: new TreeModel();
+  tree: new TreeModel()
 
   root: null
 
@@ -120,3 +120,5 @@ angular.module('sampleDomainApp').factory 'AppMetadata',  ->
       if node.hasChildren()
         @_addTargets(node.children, targets)
       targets.push(node)
+
+angular.module('sampleDomainApp').value 'AppMetadata', new AppMetadata()

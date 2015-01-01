@@ -1,4 +1,4 @@
-angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, Features, AppFeatures, AppGenerate, AppMetadata) ->
+angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, AppFeatures, AppMetadata) ->
 
   $scope.getFeatures = ->
     AppFeatures.loadFeatures().success (data) ->
@@ -6,8 +6,7 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, Features, 
       $scope.generate()
 
   $scope.generate = ->
-    AppGenerate.generate($scope.features, $scope)
-    AppGenerate.compile($scope)
+    $scope.$root.$broadcast('generateContent', $scope.features)
 
   $scope.sortableOptions =
     stop: (e, ui) ->
@@ -54,7 +53,7 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, Features, 
 
   $scope.toggleMetadata = true
 
-angular.module('sampleDomainApp').controller 'EditorCtrl', ($scope, AppFeatures, AppGenerate) ->
+angular.module('sampleDomainApp').controller 'EditorCtrl', ($scope, AppFeatures, AppMetadata) ->
 
   $scope.submit =  ->
     features = AppFeatures.features()
@@ -69,8 +68,9 @@ angular.module('sampleDomainApp').controller 'EditorCtrl', ($scope, AppFeatures,
     featureInstance.inputs = $scope.inputs
     # TODO need a way to map inputs
     featureInstance.inputs.page_location.target = $scope.selectedTarget.model.name
-    AppGenerate.generate(features, $scope)
-    AppGenerate.compile($scope)
+
+    $scope.$root.$broadcast('generateContent', $scope.features)
+
     # TODO move highlight to feature generation (i.e. add class there)
     $("#content_section #" + "#{id}").addClass('highlight_feature') if id
     AppFeatures.saveFeatures()
