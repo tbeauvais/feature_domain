@@ -1,8 +1,8 @@
-angular.module('sampleDomainApp').factory 'AppGenerate', ($compile, Features, AppMetadata) ->
+class @AppGenerate
 
-  generate: (features, scope) ->
-    # TODO add message (preGenerate) and do this else where
-    $('#content_section').empty()
+#angular.module('sampleDomainApp').factory 'AppGenerate', ($compile, Features, AppMetadata) ->
+
+  generate: (features, Features, AppMetadata) ->
     AppMetadata.reset()
     tries = 0
     loop
@@ -12,16 +12,9 @@ angular.module('sampleDomainApp').factory 'AppGenerate', ($compile, Features, Ap
         f = Features.getFeature(featureInstance.feature)
         #console.log "generating pass #{tries} for " + JSON.stringify(featureInstance.inputs)
 
-        success = f.generate(featureInstance, featureInstance.inputs, scope)
+        success = f.generate(AppMetadata, featureInstance, featureInstance.inputs)
         if !success
           missingDependencies.push(featureInstance)
 
       features = missingDependencies
       break if tries > 3 || missingDependencies.length == 0
-
-    scope.$root.$broadcast('postGenerate')
-
-  compile: (scope) ->
-    html = $('#content_section')
-    $compile(html)(scope)
-    true

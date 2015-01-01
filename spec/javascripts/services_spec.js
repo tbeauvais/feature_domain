@@ -104,16 +104,11 @@
   });
 
 
-  describe('factory: AppMetadata', function () {
+  describe('class: AppMetadata', function () {
     var appMetadata;
 
-    beforeEach(module('sampleDomainApp'));
-
     beforeEach(function() {
-      inject(function ($injector) {
-        appMetadata = $injector.get('AppMetadata');
-
-      });
+      appMetadata = new AppMetadata();
     });
 
     it('reset sets root to null', function () {
@@ -176,7 +171,6 @@
       var feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location_2', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
       appMetadata.addFeature(feature);
 
-
       expect(appMetadata.isChildOfOnPage('2', '1')).toEqual(true);
     });
 
@@ -192,8 +186,6 @@
       expect(appMetadata.isChildOfOnPage('2', '1')).toEqual(false);
     });
 
-
   });
-
 
 })();

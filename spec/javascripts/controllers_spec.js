@@ -15,8 +15,6 @@
       beforeEach(inject(function ($rootScope, $controller) {
         scope = $rootScope.$new();
 
-        AppGenerate = jasmine.createSpyObj('AppGenerate', ['generate', 'compile']);
-
         // Mock out loading of data from AppFeatures.loadFeatures
         AppFeatures = {
           loadFeatures: function(){
@@ -27,10 +25,12 @@
           }
         };
 
+        spyOn(scope.$root, '$broadcast');
+
         controller = $controller('FeaturesCtrl', {
           '$scope': scope,
-          'AppGenerate': AppGenerate,
-          'AppFeatures': AppFeatures
+          'AppFeatures': AppFeatures,
+          'AppMetadata': AppMetadata
         });
 
       }));
@@ -39,12 +39,8 @@
         expect(scope.sortableOptions).not.toEqual(null);
       });
 
-      it('calls generate', function () {
-        expect(AppGenerate.generate).toHaveBeenCalled();
-      });
-
-      it('calls compile', function () {
-        expect(AppGenerate.compile).toHaveBeenCalled();
+      it('broadcasts generateContent event', function () {
+        expect(scope.$root.$broadcast).toHaveBeenCalledWith('generateContent', {data: {}});
       });
 
     });
