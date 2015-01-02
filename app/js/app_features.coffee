@@ -19,6 +19,10 @@ angular.module('sampleDomainApp').factory 'AppFeatures',  ($http) ->
 
     if targetId
       index = @indexOfId(targetId)
+      targetInstance = @find(targetId)
+      feature.inputs.page_location = {target: '', name: ''}
+      feature.inputs.page_location.target = targetInstance.inputs.page_location.target
+      feature.inputs.page_location.name = targetInstance.inputs.page_location.name
       @features().splice(index+1, 0, feature)
     else
       @features().push(feature)
@@ -31,11 +35,11 @@ angular.module('sampleDomainApp').factory 'AppFeatures',  ($http) ->
     targetIndex = @indexOfId(targetId)
     sourceInstance = @find(sourceId)
     targetInstance = @find(targetId)
+    sourceInstance.inputs.page_location.name = targetInstance.inputs.page_location.name
     if containerId
       sourceInstance.inputs.page_location.target = '#' + containerId
     else
       sourceInstance.inputs.page_location.target = targetInstance.inputs.page_location.target
-      sourceInstance.inputs.page_location.name = targetInstance.inputs.page_location.name
     @features().splice(targetIndex, 0, @features().splice(sourceIndex, 1)[0]);
     @saveFeatures()
 

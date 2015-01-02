@@ -23,8 +23,6 @@ class Features
     for input in feature.inputs
       if input.name != 'page_location'
         inputs[input.name] = input.default || ''
-      else
-        inputs[input.name] = {name: 'Page 1', target: '#page_container'} # need to look this target up
     featureInstance['inputs'] = inputs
     featureInstance
 
