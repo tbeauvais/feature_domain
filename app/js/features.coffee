@@ -340,10 +340,12 @@ class ListFeature extends BaseFeature
     target = $(inputs.page_location.target)
     if target.length > 0
       @addFeature(appMetadata, instance, inputs, id)
-      listName = "list_#{instance.id}"
-      #scope[listName] = inputs.list.split(',')
       dd = @dragDropSupport(instance.id)
-      target.append("<ul #{dd} id='#{id}' ><li ng-repeat='item in #{listName}'>{{item}}</li></ul>")
+      lists = ''
+      list = inputs.list.split(',')
+      for item in list
+        lists += "<li>#{item}</li>"
+      target.append("<ul #{dd} id='#{id}' >#{lists}</ul>")
       true
     else
       false
