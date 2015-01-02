@@ -1,7 +1,5 @@
 class @AppGenerate
 
-#angular.module('sampleDomainApp').factory 'AppGenerate', ($compile, Features, AppMetadata) ->
-
   generate: (features, Features, AppMetadata) ->
     AppMetadata.reset()
     tries = 0
