@@ -16,16 +16,15 @@ class Features
     @featureList
 
   createFeatureInstance: (name) ->
-    # TODO need a better way to do this, also add default values
+    # TODO need a better way to do this
     feature = @featureList[name]
     featureInstance = { feature: name, id: '9', template: ''}
     inputs = {}
     for input in feature.inputs
       if input.name != 'page_location'
-        inputs[input.name] = ''
+        inputs[input.name] = input.default || ''
       else
         inputs[input.name] = {name: 'Page 1', target: '#page_container'} # need to look this target up
-    inputs.name = 'untitled'
     featureInstance['inputs'] = inputs
     featureInstance
 
@@ -56,10 +55,6 @@ class PageFeature extends BaseFeature
     label: 'Name'
     type: 'string'
   ,
-    name: 'text'
-    label: 'Text'
-    type: 'string'
-  ,
     name: 'page_location'
     label: 'Page Location'
     type: 'page_location'
@@ -88,10 +83,12 @@ class TextFeature extends BaseFeature
     name: 'name'
     label: 'Name'
     type: 'string'
+    default: 'untitled'
   ,
     name: 'text'
     label: 'Text'
     type: 'string'
+    default: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit'
   ,
     name: 'page_location'
     label: 'Page Location'
@@ -121,14 +118,17 @@ class TextWithParagraphFeature extends BaseFeature
     name: 'name'
     label: 'Name'
     type: 'string'
+    default: 'untitled'
   ,
     name: 'title'
     label: 'Title'
     type: 'string'
+    default: 'Enter Your Title Here'
   ,
     name: 'text'
     label: 'Text'
     type: 'textarea'
+    default: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.'
   ,
     name: 'page_location'
     label: 'Page Location'
@@ -159,19 +159,23 @@ class ImageWithParagraphFeature extends BaseFeature
     name: 'name'
     label: 'Name'
     type: 'string'
+    default: 'untitled'
   ,
     name: 'title'
     label: 'Title'
     type: 'string'
+    default: 'Enter Your Title Here'
   ,
     name: 'src'
     label: 'Image URL'
-    placeholder: 'http://a-z-animals.com/capybara3.jpg'
+    placeholder: 'http://a-z-animals.com/media/animals/images/original/capybara3.jpg'
     type: 'string'
+    default: 'http://a-z-animals.com/media/animals/images/original/capybara3.jpg'
   ,
     name: 'text'
     label: 'Text'
     type: 'textarea'
+    default: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.'
   ,
     name: 'page_location'
     label: 'Page Location'
@@ -203,14 +207,17 @@ class ContainerFeature extends BaseFeature
     name: 'name'
     label: 'Name'
     type: 'string'
+    default: 'untitled'
   ,
     name: 'columns'
     label: 'Columns'
     type: 'string'
+    defaut: '2'
   ,
     name: 'rows'
     label: 'Rows'
     type: 'string'
+    defaut: '1'
   ,
     name: 'page_location'
     label: 'Page Location'
@@ -272,14 +279,17 @@ class HeaderFeature extends BaseFeature
     name: 'name'
     label: 'Name'
     type: 'string'
+    default: 'untitled'
   ,
     name: 'text'
     label: 'Text'
     type: 'string'
+    default: 'Enter your header text here'
   ,
     name: 'size'
     label: 'Size'
     type: 'string'
+    defaut: '1'
   ,
     name: 'page_location'
     label: 'Page Location'
@@ -309,11 +319,13 @@ class ListFeature extends BaseFeature
     name: 'name'
     label: 'Name'
     type: 'string'
+    default: 'untitled'
   ,
     name: 'list'
     label: 'List Items'
     placeholder: 'Comma separated list'
     type: 'string'
+    default: 'Red,Green,Blue'
   ,
     name: 'page_location'
     label: 'Page Location'
@@ -345,15 +357,18 @@ class LinkFeature extends BaseFeature
     name: 'name'
     label: 'Name'
     type: 'string'
+    default: 'untitled'
   ,
     name: 'href'
     label: 'Link URL'
     placeholder: 'http://www.google.com'
     type: 'string'
+    default: 'http://www.google.com'
   ,
     name: 'text'
     label: 'Text'
     type: 'string'
+    default: 'Link to knowhere'
   ,
     name: 'page_location'
     label: 'Page Location'
@@ -383,23 +398,28 @@ class ImageFeature extends BaseFeature
     name: 'name'
     label: 'Name'
     type: 'string'
+    default: 'untitled'
   ,
     name: 'src'
     label: 'Image URL'
     placeholder: 'http://a-z-animals.com/capybara3.jpg'
     type: 'string'
+    default: 'http://assets.kompas.com/data/photo/2014/04/07/2002239katak-kulit-paling-kasar780x390.jpg'
   ,
     name: 'alt'
     label: 'Alt Text'
     type: 'string'
+    default: 'some cool image'
   ,
     name: 'height'
     label: 'Height'
     type: 'string'
+    default: '200'
   ,
     name: 'width'
     label: 'Width'
     type: 'string'
+    default: '300'
   ,
     name: 'page_location'
     label: 'Page Location'
@@ -428,6 +448,7 @@ class GoogleMapFeature extends BaseFeature
     name: 'name'
     label: 'Name'
     type: 'string'
+    default: 'untitled'
   ,
     name: 'title'
     label: 'Title'
@@ -436,14 +457,17 @@ class GoogleMapFeature extends BaseFeature
     name: 'address'
     label: 'Address'
     type: 'string'
+    default: '131 Willow Rd. Guilford, CT'
   ,
     name: 'height'
     label: 'Height'
     type: 'string'
+    default: '200'
   ,
     name: 'width'
     label: 'Width'
     type: 'string'
+    default: '400'
   ,
     name: 'page_location'
     label: 'Page Location'
@@ -466,9 +490,5 @@ class GoogleMapFeature extends BaseFeature
       false
 
 FeatureClasses = {PageFeature: PageFeature, TextFeature: TextFeature, LinkFeature: LinkFeature, ImageFeature: ImageFeature, ListFeature: ListFeature, HeaderFeature: HeaderFeature, ContainerFeature: ContainerFeature, GoogleMapFeature: GoogleMapFeature, TextWithParagraphFeature: TextWithParagraphFeature, ImageWithParagraphFeature: ImageWithParagraphFeature}
-
-#angular.module('sampleDomainApp').config ($provide) ->
-#  $provide.value 'Features', new Features(true)
-
 
 angular.module('sampleDomainApp').value 'Features', new Features(true)
