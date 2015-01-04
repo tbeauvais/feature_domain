@@ -1,5 +1,5 @@
 
-angular.module('sampleDomainApp').factory 'AppFeatures',  ($http) ->
+angular.module('sampleDomainApp').factory 'AppFeatures',  ($q, Model) ->
 
   find: (id) ->
     _.find @features(), (feature) ->
@@ -53,19 +53,23 @@ angular.module('sampleDomainApp').factory 'AppFeatures',  ($http) ->
     (index + 1)+""
 
   features: ->
-    @app_features
+    @model.features
 
   indexOfId: (id) ->
     @features().map((e) ->
       e.id).indexOf(id);
 
-  loadFeatures: ->
-    results = $http.get('/api/app_features');
-    results.success (data) =>
-      @app_features = data
-    results
+  loadModel: (id) ->
+    deferred = $q.defer()
+    @model = Model.get {uuid: id}, (model) =>
+      deferred.resolve(model)
+    deferred.promise
+
+  setFeatures: (features) ->
+    @app_features = features
 
   saveFeatures: ->
-    $http.post('/api/app_features', JSON.stringify(@app_features))
+    @model.$update {uuid: @model.id}
 
   app_features: null
+  model: null

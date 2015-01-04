@@ -1,6 +1,20 @@
 div.container
   h2 Feature Based Content Editor
-
+  div.row
+    div.col-lg-12 ng-controller="ModelCtrl"
+      form.form-inline
+        .form-group
+          label.sr-only for="model_select"
+          select.form-control#model_select ng-change="load(currentModel)" ng-options="model.name for model in models track by model.id" ng-model="currentModel"
+        .form-group
+          label.sr-only for="model_name"
+          input.form-control#model_name ng-model="currentModel.name"
+        button.btn.btn-default ng-click="save(currentModel)"
+          | Save
+        button.btn.btn-default ng-click="saveAs(currentModel)"
+          | Save As
+        button.btn.btn-danger ng-click="delete(currentModel)"
+          | Delete
   div ng-controller="FeaturesCtrl as featuresCtrl"
     div.row
       div.col-lg-4

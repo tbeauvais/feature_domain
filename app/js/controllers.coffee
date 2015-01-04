@@ -49,7 +49,7 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, AppFeature
     $scope.$root.$broadcast('moveFeature', sourceId, targetId, containerId)
     false
 
-  $scope.getFeatures()
+  #$scope.getFeatures()
 
   $scope.toggleMetadata = true
 
@@ -75,3 +75,42 @@ angular.module('sampleDomainApp').controller 'EditorCtrl', ($scope, AppFeatures,
     $("#content_section #" + "#{id}").addClass('highlight_feature') if id
     AppFeatures.saveFeatures()
     true
+
+
+angular.module('sampleDomainApp').factory 'Models', ($resource) ->
+  $resource 'api/v1/models'
+
+angular.module('sampleDomainApp').factory 'Model', ($resource) ->
+  $resource 'api/v1/models/:uuid', {}, {
+    update:
+      method : 'PUT'
+  }
+
+angular.module('sampleDomainApp').controller 'ModelCtrl', ($scope, Models, Model, AppFeatures) ->
+
+  Models.query (models) ->
+    $scope.currentModel = models[0]
+    $scope.models = models
+    $scope.load(models[0])
+
+  $scope.load = (model) ->
+    AppFeatures.loadModel(model.id).then (model) ->
+      $scope.$root.features = model.features
+      $scope.$root.$broadcast('generateContent', $scope.features)
+
+  $scope.save = (model)->
+    updated_model = model
+    updated_model['features'] = AppFeatures.features()
+    Model.update {uuid: model.id}, JSON.stringify(updated_model)
+
+  $scope.saveAs = (model)->
+    new_model = model
+    new_model['features'] = AppFeatures.features()
+    Model.save JSON.stringify(new_model)
+
+  $scope.delete = (model)->
+    Model.delete {uuid: model.id}
+    $scope.$root.features = null
+    Models.query (models) ->
+      $scope.currentModel = models[0]
+      $scope.models = models

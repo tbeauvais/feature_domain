@@ -10,6 +10,8 @@ GEM
     diff-lcs (1.2.5)
     eventmachine (1.0.3)
     execjs (2.2.1)
+    fakeredis (0.5.0)
+      redis (~> 3.0)
     jasmine (2.0.2)
       jasmine-core (~> 2.0.0)
       phantomjs
@@ -26,6 +28,7 @@ GEM
     rack-test (0.6.2)
       rack (>= 1.0)
     rake (10.3.2)
+    redis (3.2.0)
     rspec (3.1.0)
       rspec-core (~> 3.1.0)
       rspec-expectations (~> 3.1.0)
@@ -72,8 +75,10 @@ PLATFORMS
 
 DEPENDENCIES
   coffee-script
+  fakeredis
   jasmine
   rack-test
+  redis
   rspec
   sinatra
   sinatra-assetpack
