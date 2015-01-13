@@ -31,6 +31,8 @@ angular.module('sampleDomainApp').factory 'AppFeatures',  ($q, Model) ->
     feature
 
   move: (sourceId, targetId, containerId) ->
+    console.log("AppFeatures move '#{sourceId}' to '#{targetId}'")
+
     sourceIndex = @indexOfId(sourceId)
     targetIndex = @indexOfId(targetId)
     sourceInstance = @find(sourceId)

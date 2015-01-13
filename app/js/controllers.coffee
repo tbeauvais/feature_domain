@@ -1,12 +1,7 @@
 angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, AppFeatures, AppMetadata) ->
 
-  $scope.getFeatures = ->
-    AppFeatures.loadFeatures().success (data) ->
-      $scope.features = data
-      $scope.generate()
-
   $scope.generate = ->
-    $scope.$root.$broadcast('generateContent', $scope.features)
+    $scope.$root.$broadcast('generateContent', AppFeatures.features())
 
   $scope.sortableOptions =
     stop: (e, ui) ->
@@ -19,6 +14,7 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, AppFeature
 
   $scope.onDropFromContent = (event, index, channel, source, target) ->
     target = target.toString()
+    console.log("onDropFromContent from '#{source}' to '#{target}'")
 
     if channel == 'A'
         $scope.$root.$broadcast('addFeature', source, target)
@@ -32,11 +28,12 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, AppFeature
       console.log "onDropFromContent aborted because of circular reference moving #{source} to #{target}"
       return false
 
-    console.log("onDropFromContent from '#{source}' to '#{target}'")
+    console.log("onDropFromContent moveFeature from '#{source}' to '#{target}'")
     $scope.$root.$broadcast('moveFeature', source, target)
     false
 
   $scope.onDropFromContentInContainer = (event, index, sourceId, targetId, containerId) ->
+    console.log("onDropFromContentInContainer called for container #{containerId} '#{sourceId}' to '#{targetId}'")
     sourceId = sourceId.toString()
     targetId = targetId.toString()
     return false if sourceId == targetId
@@ -48,8 +45,6 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, AppFeature
     console.log("onDropFromContentInContainer from '#{sourceId}' to '#{targetId}'")
     $scope.$root.$broadcast('moveFeature', sourceId, targetId, containerId)
     false
-
-  #$scope.getFeatures()
 
   $scope.toggleMetadata = true
 
@@ -94,9 +89,9 @@ angular.module('sampleDomainApp').controller 'ModelCtrl', ($scope, Models, Model
     $scope.load(models[0])
 
   $scope.load = (model) ->
-    AppFeatures.loadModel(model.id).then (model) ->
-      $scope.$root.features = model.features
-      $scope.$root.$broadcast('generateContent', $scope.features)
+    AppFeatures.loadModel(model.id).then ->
+      $scope.$root.features = AppFeatures.features()
+      $scope.$root.$broadcast('generateContent', AppFeatures.features())
 
   $scope.save = (model)->
     updated_model = model
@@ -110,7 +105,6 @@ angular.module('sampleDomainApp').controller 'ModelCtrl', ($scope, Models, Model
 
   $scope.delete = (model)->
     Model.delete {uuid: model.id}
-    $scope.$root.features = null
     Models.query (models) ->
       $scope.currentModel = models[0]
       $scope.models = models

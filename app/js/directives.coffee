@@ -9,6 +9,7 @@ angular.module('sampleDomainApp').directive 'featureList', ($rootScope, Features
       # TODO This should get passed a real feature ID (not featureName)
       featureInstance = Features.createFeatureInstance(featureName+'Feature')
       AppFeatures.add(featureInstance, targetId)
+      scope.features = AppFeatures.features()
       # function on controller
       scope.generate()
       scope.$broadcast('featureSelected', featureInstance.id);
@@ -16,6 +17,7 @@ angular.module('sampleDomainApp').directive 'featureList', ($rootScope, Features
       sourceId = sourceId.toString()
       targetId = targetId.toString()
       AppFeatures.move(sourceId, targetId, containerId)
+      scope.features = AppFeatures.features()
       scope.generate()
       scope.$broadcast('featureSelected', targetId);
 
