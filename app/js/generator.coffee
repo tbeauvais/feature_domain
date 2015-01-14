@@ -1,6 +1,8 @@
 class @AppGenerate
 
   generate: (features, Features, AppMetadata) ->
+    console.log("Running generate")
+
     AppMetadata.reset()
     tries = 0
     loop

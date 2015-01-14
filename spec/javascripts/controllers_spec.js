@@ -3,7 +3,6 @@
   describe('sampleDomainApp', function () {
     var scope,
       controller,
-      AppGenerate,
       AppFeatures;
 
     beforeEach(function () {
@@ -37,10 +36,6 @@
 
       it('sets sortableOptions', function () {
         expect(scope.sortableOptions).not.toEqual(null);
-      });
-
-      it('broadcasts generateContent event', function () {
-        expect(scope.$root.$broadcast).toHaveBeenCalledWith('generateContent', {data: {}});
       });
 
     });
