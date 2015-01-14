@@ -24,11 +24,7 @@
         template: '',
         inputs: {
           name: 'untitled',
-          text: '',
-          page_location: {
-            name: 'Page 1',
-            target: '#page_container'
-          }
+          text: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit'
         }
       };
       expect(features.createFeatureInstance('TextFeature')).toEqual(featureInstance);
@@ -56,6 +52,9 @@
           return app_features
         }
 
+        appFeatures.saveFeatures = function() {
+        }
+
       });
     });
 
@@ -69,7 +68,7 @@
     });
 
     it('add inserts a new feature after specified targetId', function () {
-      appFeatures.add({id: ''}, '1');
+      appFeatures.add({id: '', inputs: {page_location: {}}}, '1');
       expect(appFeatures.features()[1].id).toEqual('3');
     });
 

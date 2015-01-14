@@ -1,3 +1,4 @@
+require './load_path'
 require 'sinatra/base'
 require 'sinatra/contrib'
 require 'sinatra/assetpack'
