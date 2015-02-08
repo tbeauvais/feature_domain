@@ -64,12 +64,12 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
   link: (scope, elem, attrs) ->
     scope.$on 'featureSelected', (event, featureId) ->
       featureMetadata = AppMetadata.getFeature(featureId)
-      # TODO clean up this reference (featureMetadata.model.instance.feature)
-      feature = Features.getFeature(featureMetadata.model.instance.feature)
+      # TODO clean up this reference (featureMetadata.instance.feature)
+      feature = Features.getFeature(featureMetadata.instance.feature)
 
       # TODO move this so the editor doesn't know about the content section
       $('#content_section .highlight_feature').removeClass('highlight_feature')
-      $("#content_section #" + featureMetadata.model.page_info.id).addClass('highlight_feature')
+      $("#content_section #" + featureMetadata.page_info.id).addClass('highlight_feature')
 
       scope.inputs = {}
       scope.featureId = featureId
@@ -79,7 +79,7 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
       for input in feature.inputs
         inputs.push("<div class='form-group' >")
         inputs.push("  <label>#{input.label}</label>")
-        scope.inputs[input.name] = featureMetadata.model.instance.inputs[input.name]
+        scope.inputs[input.name] = featureMetadata.instance.inputs[input.name]
         # TODO don't hard code this
         if input.name == 'page_location'
           inputs.push("  <input class='page-target-selector' />")
@@ -116,11 +116,13 @@ angular.module('sampleDomainApp').directive 'pageTargetSelector', (AppMetadata) 
   scope: false
 
   link: (scope, elem, attrs) ->
-    scope.pages = AppMetadata.getPages()
+    pages = AppMetadata.getPages()
+    scope.pages = _.map pages, (page)->
+      return page.name
+
     scope.targets = AppMetadata.getPageTargets('Page 1')
     target = _.find scope.targets, (target) ->
       scope.inputs.page_location.target == target.model.name
-
 
     scope.selectedTarget = target
 
@@ -154,13 +156,13 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
   link: (scope, elem, attrs) ->
     elem.bind 'click', (e) ->
       id = $(e.target).closest('[id]').attr('id')
-      node = AppMetadata.getFeatures().first (node) ->
-        if node.model.page_info
-          node.model.page_info.id == id
+      feature = _.find AppMetadata.getFeatures(), (feature) ->
+        if feature.page_info
+          feature.page_info.id == id
         else
           false
-      if node
-        scope.$root.$broadcast('featureSelected', node.model.id)
+      if feature
+        scope.$root.$broadcast('featureSelected', feature.id)
       e.preventDefault()
       false
     scope.$on 'generateContent', (event, features) ->
