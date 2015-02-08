@@ -38,7 +38,13 @@ class BaseFeature
       ''
 
   addFeature: (appMetadata, instance, inputs, id) ->
-    appMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}})
+    feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}}
+    appMetadata.addFeature(feature)
+    feature
+
+  addPageFeature: (appMetadata, instance, inputs, id) ->
+    feature = @addFeature(appMetadata, instance, inputs, id)
+    appMetadata.addPageTarget(feature.page_info.page, '#' + feature.page_info.id, feature.page_info.target, feature.id)
 
   instanceId: (instance, inputs) ->
     (inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
@@ -65,7 +71,9 @@ class PageFeature extends BaseFeature
     id = @instanceId(instance, inputs)
     target = $(inputs.page_location.target)
     if target.length > 0
-      @addFeature(appMetadata, instance, inputs, id)
+      appMetadata.addPage('Page 1', 'Page 1')
+      appMetadata.addPageTarget('Page 1', '#content_section');
+      @addPageFeature(appMetadata, instance, inputs, id)
       appMetadata.addPageTarget('Page 1', '#page_container', '#' + id, instance.id)
       target.append("<div id='page_container' title='generated from #{instance.name}' ></div>")
       true
@@ -100,7 +108,7 @@ class TextFeature extends BaseFeature
     id = @instanceId(instance, inputs)
     target = $(inputs.page_location.target)
     if target.length > 0
-      @addFeature(appMetadata, instance, inputs, id)
+      @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
       target.append("<div #{dd} id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</div>")
       true
@@ -140,7 +148,7 @@ class TextWithParagraphFeature extends BaseFeature
     id = @instanceId(instance, inputs)
     target = $(inputs.page_location.target)
     if target.length > 0
-      @addFeature(appMetadata, instance, inputs, id)
+      @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
       template = "<div #{dd} class='well' id='#{id}'><h3 class='paragraph_title'>#{instance.inputs.title}</h3><p>#{instance.inputs.text}</p></div>"
       target.append(template)
@@ -187,7 +195,7 @@ class ImageWithParagraphFeature extends BaseFeature
     id = @instanceId(instance, inputs)
     target = $(inputs.page_location.target)
     if target.length > 0
-      @addFeature(appMetadata, instance, inputs, id)
+      @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
       template = "<div #{dd} class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><div class='row-fluid'><img class='span2 img-responsive pull-left' style='margin:0 3px' src='#{inputs.src}' height='150' width='150' /><p class='span10'>#{instance.inputs.text}</p></div></div>"
       target.append(template)
@@ -243,7 +251,7 @@ class ContainerFeature extends BaseFeature
 
       $rows = $('<div/>', rowsParms)
 
-      @addFeature(appMetadata, instance, inputs, containerId)
+      @addPageFeature(appMetadata, instance, inputs, containerId)
 
       row = 0
       while row < rows
@@ -301,7 +309,7 @@ class HeaderFeature extends BaseFeature
     id = @instanceId(instance, inputs)
     target = $(inputs.page_location.target)
     if target.length > 0
-      @addFeature(appMetadata, instance, inputs, id)
+      @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
       target.append("<div #{dd} ><H#{inputs.size} id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</H#{inputs.size}></div>")
       true
@@ -337,7 +345,7 @@ class ListFeature extends BaseFeature
     id = @instanceId(instance, inputs)
     target = $(inputs.page_location.target)
     if target.length > 0
-      @addFeature(appMetadata, instance, inputs, id)
+      @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
       lists = ''
       list = inputs.list.split(',')
@@ -382,7 +390,7 @@ class LinkFeature extends BaseFeature
     id = @instanceId(instance, inputs)
     target = $(inputs.page_location.target)
     if target.length > 0
-      @addFeature(appMetadata, instance, inputs, id)
+      @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
       target.append("<div #{dd} id='#{id}' ><a href='#{inputs.href}' target='_blank'>#{inputs.text}</a></div>")
       true
@@ -433,7 +441,7 @@ class ImageFeature extends BaseFeature
     id = @instanceId(instance, inputs)
     target = $(inputs.page_location.target)
     if target.length > 0
-      @addFeature(appMetadata, instance, inputs, id)
+      @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
       target.append("<img #{dd} id='#{id}' src='#{inputs.src}' alt='#{inputs.alt}' class='img-responsive' height='#{inputs.height}' width='#{inputs.width}'>")
       true
@@ -481,7 +489,7 @@ class GoogleMapFeature extends BaseFeature
     id = @instanceId(instance, inputs)
     target = $(inputs.page_location.target)
     if target.length > 0
-      @addFeature(appMetadata, instance, inputs, id)
+      @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
       template = "<div #{dd} class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><h3 ><a href='http://maps.google.com/maps?q=#{instance.inputs.address}' >#{instance.inputs.address}</a></h3><div class='map_container'><img class='img-responsive' src='http://maps.googleapis.com/maps/api/staticmap?center=#{instance.inputs.address}&zoom=15&scale=2&size=#{instance.inputs.width}x#{instance.inputs.height}&markers=color:blue|#{instance.inputs.address}&sensor=true' /></div></div>"
       $(inputs.page_location.target).append(template)

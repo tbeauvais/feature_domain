@@ -12,22 +12,22 @@ GEM
     execjs (2.2.1)
     fakeredis (0.5.0)
       redis (~> 3.0)
-    jasmine (2.0.2)
-      jasmine-core (~> 2.0.0)
+    jasmine (2.2.0)
+      jasmine-core (~> 2.2)
       phantomjs
       rack (>= 1.2.1)
       rake
-    jasmine-core (2.0.2)
+    jasmine-core (2.2.0)
     jsmin (1.0.1)
     json (1.8.1)
     multi_json (1.10.1)
-    phantomjs (1.9.7.1)
+    phantomjs (1.9.8.0)
     rack (1.5.2)
     rack-protection (1.5.3)
       rack
     rack-test (0.6.2)
       rack (>= 1.0)
-    rake (10.3.2)
+    rake (10.4.2)
     redis (3.2.0)
     rspec (3.1.0)
       rspec-core (~> 3.1.0)
@@ -76,7 +76,7 @@ PLATFORMS
 DEPENDENCIES
   coffee-script
   fakeredis
-  jasmine
+  jasmine (~> 2.2.0)
   rack-test
   redis
   rspec

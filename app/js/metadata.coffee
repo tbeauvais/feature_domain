@@ -7,6 +7,13 @@ class @AppMetadata
   reset:  ->
     @root = null
 
+  getDataResources:  ->
+    @_getTypes 'DataResources'
+
+  addDataResource: (name, resource) ->
+    data = {name: name, resource: resource}
+    @_addType 'DataResources', name, data
+
   getPageTargets: (pageName) ->
     targets = @_getPageTargets(pageName)
 
@@ -15,22 +22,34 @@ class @AppMetadata
     newTargets
 
   getPages:  ->
-    root = @getRoot()
+    @_getTypes 'Pages'
 
-    pages = root.first (node) ->
-      node.model.name == 'Pages'
+  addPage: (id, name) ->
+    data = {id: id, name: name}
+    @_addType 'Pages', name, data
 
-    _.map pages.children, (node)->
-      return node.model.name
+  getFeatures:  ->
+    @_getTypes 'Features'
+
+  addFeature: (feature)  ->
+    @_addType 'Features', name, feature
+
+  getFeature: (id)  ->
+    features = @getFeatures()
+
+    if features
+      _.find features, (feature) ->
+        feature.id == id
+    else
+      null
 
   addPageTarget: (pageName, target, parent, featureInstanceId) ->
-    root = @getRoot()
+    targets = @_getPageTargets(pageName)
 
-    page = root.first (node) ->
-      node.model.name == pageName
-
-    targets = page.first (node) ->
-      node.model.name == 'Targets'
+    unless targets
+      page = @_getPage(pageName)
+      targets = @tree.parse({id: 'Targets', name: 'Targets'})
+      page.addChild(targets)
 
     if parent
       targets = targets.first (node) ->
@@ -42,19 +61,6 @@ class @AppMetadata
     else
       debugger
 
-
-  getFeatures:  ->
-    root = @getRoot()
-
-    root.first (node) ->
-      node.model.name == 'Features'
-
-  getFeature: (id)  ->
-    features = @getFeatures()
-
-    features.first (node) ->
-      node.model.id == id
-
   getPageNode: (pageName, id) ->
     page = @_getPage(pageName)
     page.first (node) ->
@@ -62,52 +68,23 @@ class @AppMetadata
 
   isChildOfOnPage: (childId, parentId) ->
     feature = @getFeature(childId)
-    child = @getPageNode(feature.model.page_info.page, childId)
+    child = @getPageNode(feature.page_info.page, childId)
     match = _.find child.getPath(), (node) ->
       return node.model.feature_instance_id == parentId
     !_.isUndefined(match)
 
-  addFeature: (feature)  ->
-    features = @getFeatures()
-    node = @tree.parse(feature)
-    features.addChild(node)
-    @addPageTarget(feature.page_info.page, '#' + feature.page_info.id, feature.page_info.target, feature.id)
-    node
-
   getRoot: ->
     if @root == null
-      @root = @tree.parse(
-        id: "Application"
-        name: "Application"
-        children: [
-          id: "Pages"
-          name: "Pages"
-          children: [
-            id: "Page 1"
-            name: "Page 1"
-            children: [
-              id: "Targets"
-              name: "Targets"
-              children: [
-                id: "#content_section"
-                name: "#content_section"
-              ]
-            ]
-          ]
-          {
-            id: "Features"
-            name: "Features"
-            children: []
-          }
-        ]
-      )
+      @root = @tree.parse(id: 'Application', name: 'Application')
 
     @root
 
   _getPageTargets: (pageName) ->
     page = @_getPage(pageName)
-    page.first (node) ->
-      node.model.name == 'Targets'
+
+    if page
+      page.first (node) ->
+        node.model.name == 'Targets'
 
   _getPage: (pageName) ->
     root = @getRoot()
@@ -120,5 +97,30 @@ class @AppMetadata
       if node.hasChildren()
         @_addTargets(node.children, targets)
       targets.push(node)
+
+  _getTypes: (type) ->
+    root = @getRoot()
+
+    resources = root.first (node) ->
+      node.model.name == type
+
+    if resources
+      _.map resources.children, (node)->
+        return node.model
+    else
+      []
+
+  _addType: (type, name, data) ->
+    root = @getRoot()
+    resources = root.first (node) ->
+      node.model.name == type
+
+    unless resources
+      resources = @tree.parse({id: type, name: type})
+      root.addChild(resources)
+
+    node = @tree.parse(data)
+    resources.addChild(node)
+    resources
 
 angular.module('sampleDomainApp').value 'AppMetadata', new AppMetadata()
