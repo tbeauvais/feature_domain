@@ -37,18 +37,45 @@ class BaseFeature
     else
       ''
 
-  addFeature: (appMetadata, instance, inputs, id) ->
-    feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}}
-    appMetadata.addFeature(feature)
+  addFeature: (appMetadata, instance, inputs) ->
+    feature = {id: instance.id, instance: instance, name: instance.inputs.name}
+    appMetadata.addFeature(feature, instance.id)
     feature
 
   addPageFeature: (appMetadata, instance, inputs, id) ->
-    feature = @addFeature(appMetadata, instance, inputs, id)
+    feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: id, page: inputs.page_location.name, target: inputs.page_location.target}}
+    appMetadata.addFeature(feature, instance.id)
     appMetadata.addPageTarget(feature.page_info.page, '#' + feature.page_info.id, feature.page_info.target, feature.id)
 
   instanceId: (instance, inputs) ->
     (inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
 
+class DataResourceFeature extends BaseFeature
+
+  name: 'DataResource'
+  icon: 'glyphicon-cog'
+  inputs: [
+    name: 'name'
+    label: 'Name'
+    type: 'string'
+    default: 'untitled'
+  ,
+    name: 'resource'
+    label: 'Resource URL'
+    default: 'https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%202415484&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys'
+    type: 'string'
+  ]
+
+  constructor: (initData) ->
+    super(initData)
+
+  generate: (appMetadata, instance, inputs, scope) ->
+    id = @instanceId(instance, inputs)
+    @addFeature(appMetadata, instance, inputs)
+    appMetadata.addDataResource(inputs.name, inputs.resource, instance.id)
+    $.get inputs.resource, (data) ->
+      console.log "Data loaded #{JSON.stringify(data)}"
+      scope.dataResource = data
 
 class PageFeature extends BaseFeature
 
@@ -497,6 +524,6 @@ class GoogleMapFeature extends BaseFeature
     else
       false
 
-FeatureClasses = {PageFeature: PageFeature, TextFeature: TextFeature, LinkFeature: LinkFeature, ImageFeature: ImageFeature, ListFeature: ListFeature, HeaderFeature: HeaderFeature, ContainerFeature: ContainerFeature, GoogleMapFeature: GoogleMapFeature, TextWithParagraphFeature: TextWithParagraphFeature, ImageWithParagraphFeature: ImageWithParagraphFeature}
+FeatureClasses = {PageFeature: PageFeature, TextFeature: TextFeature, LinkFeature: LinkFeature, ImageFeature: ImageFeature, ListFeature: ListFeature, HeaderFeature: HeaderFeature, ContainerFeature: ContainerFeature, GoogleMapFeature: GoogleMapFeature, TextWithParagraphFeature: TextWithParagraphFeature, ImageWithParagraphFeature: ImageWithParagraphFeature, DataResourceFeature: DataResourceFeature}
 
 angular.module('sampleDomainApp').value 'Features', new Features(true)

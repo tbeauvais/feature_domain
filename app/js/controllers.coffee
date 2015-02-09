@@ -61,8 +61,10 @@ angular.module('sampleDomainApp').controller 'EditorCtrl', ($scope, AppFeatures,
     id = highlighted[0].id if highlighted.length > 0
 
     featureInstance.inputs = $scope.inputs
+
     # TODO need a way to map inputs
-    featureInstance.inputs.page_location.target = $scope.selectedTarget.model.name
+    if $scope.selectedTarget && featureInstance.inputs.page_location
+      featureInstance.inputs.page_location.target = $scope.selectedTarget.model.name
 
     $scope.$root.$broadcast('generateContent', features)
 

@@ -69,7 +69,8 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
 
       # TODO move this so the editor doesn't know about the content section
       $('#content_section .highlight_feature').removeClass('highlight_feature')
-      $("#content_section #" + featureMetadata.page_info.id).addClass('highlight_feature')
+      if featureMetadata.page_info
+        $("#content_section #" + featureMetadata.page_info.id).addClass('highlight_feature')
 
       scope.inputs = {}
       scope.featureId = featureId
@@ -168,10 +169,13 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
     scope.$on 'generateContent', (event, features) ->
       elem.find('#content_section').empty()
       generator = new AppGenerate()
-      generator.generate(features, Features, AppMetadata)
-      html = elem.find('#content_section')
-      $compile(html)(scope)
-      scope.$root.$broadcast('postGenerate')
+      promises = generator.generate(features, Features, AppMetadata, scope)
+
+      Promise.all(promises).then (arrayOfResults) ->
+        html = elem.find('#content_section')
+        $compile(html)(scope)
+        scope.$root.$broadcast('postGenerate')
+
       event.preventDefault()
       false
 
