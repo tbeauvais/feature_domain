@@ -1,8 +1,8 @@
 class @AppGenerate
 
-  generate: (features, Features, AppMetadata) ->
+  generate: (features, Features, AppMetadata, scope) ->
     console.log("Running generate")
-
+    promises = []
     AppMetadata.reset()
     tries = 0
     loop
@@ -12,9 +12,13 @@ class @AppGenerate
         f = Features.getFeature(featureInstance.feature)
         #console.log "generating pass #{tries} for " + JSON.stringify(featureInstance.inputs)
 
-        success = f.generate(AppMetadata, featureInstance, featureInstance.inputs)
-        if !success
+        result = f.generate(AppMetadata, featureInstance, featureInstance.inputs, scope)
+        if typeof result.then == 'function'
+          promises.push(result)
+        else if !result
           missingDependencies.push(featureInstance)
 
       features = missingDependencies
       break if tries > 3 || missingDependencies.length == 0
+    console.log("Generate complete")
+    promises
