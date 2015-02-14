@@ -48,7 +48,10 @@ class BaseFeature
     appMetadata.addPageTarget(feature.page_info.page, '#' + feature.page_info.id, feature.page_info.target, feature.id)
 
   instanceId: (instance, inputs) ->
-    (inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase();
+    (inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase()
+
+  cleanName: (name) ->
+    name.replace(/\s+/g, '')
 
 class DataResourceFeature extends BaseFeature
 
@@ -73,9 +76,68 @@ class DataResourceFeature extends BaseFeature
     id = @instanceId(instance, inputs)
     @addFeature(appMetadata, instance, inputs)
     appMetadata.addDataResource(inputs.name, inputs.resource, instance.id)
-    $.get inputs.resource, (data) ->
+    $.get inputs.resource, (data) =>
       console.log "Data loaded #{JSON.stringify(data)}"
-      scope.dataResource = data
+      scope.DataResource = {} unless scope.DataResource
+      scope.DataResource[@cleanName(inputs.name)] = data
+
+
+class TableFeature extends BaseFeature
+
+  name: 'Table'
+  icon: 'glyphicon-th'
+  inputs: [
+    name: 'name'
+    label: 'Name'
+    type: 'string'
+    default: 'untitled'
+  ,
+    name: 'resource'
+    label: 'Data Resource'
+    type: 'string'
+    default: ''
+  ,
+    name: 'fields'
+    label: 'Fields'
+    placeholder: 'Comma separated list'
+    type: 'string'
+    default: ''
+  ,
+    name: 'labels'
+    label: 'Lables'
+    placeholder: 'Comma separated list'
+    type: 'string'
+    default: ''
+  ,
+    name: 'page_location'
+    label: 'Page Location'
+    type: 'page_location'
+  ]
+
+  constructor: (initData) ->
+    super(initData)
+
+  generate: (appMetadata, instance, inputs) ->
+    id = @instanceId(instance, inputs)
+    target = $(inputs.page_location.target)
+    if target.length > 0
+      @addPageFeature(appMetadata, instance, inputs, id)
+      dd = @dragDropSupport(instance.id)
+
+      headerRow = ''
+      labels = inputs.labels.split(',')
+
+      dataRow = ''
+      fields = inputs.fields.split(',')
+      for field, index in fields
+        dataRow += "<td>{{data.#{field}}}</td>"
+        headerRow += "<th>#{labels[index] || field}</th>"
+
+      target.append("<div #{dd} id='#{id}'><table class='table table-bordered table-striped' ><tr>#{headerRow}</tr> <tr ng-repeat='data in DataResource.repos'>#{dataRow}</tr></table></div>")
+      true
+    else
+      false
+
 
 class PageFeature extends BaseFeature
 
@@ -235,7 +297,7 @@ class ImageWithParagraphFeature extends BaseFeature
 class ContainerFeature extends BaseFeature
 
   name: 'Container'
-  icon: 'glyphicon-th'
+  icon: 'glyphicon-th-large'
   inputs: [
     name: 'name'
     label: 'Name'
@@ -524,6 +586,6 @@ class GoogleMapFeature extends BaseFeature
     else
       false
 
-FeatureClasses = {PageFeature: PageFeature, TextFeature: TextFeature, LinkFeature: LinkFeature, ImageFeature: ImageFeature, ListFeature: ListFeature, HeaderFeature: HeaderFeature, ContainerFeature: ContainerFeature, GoogleMapFeature: GoogleMapFeature, TextWithParagraphFeature: TextWithParagraphFeature, ImageWithParagraphFeature: ImageWithParagraphFeature, DataResourceFeature: DataResourceFeature}
+FeatureClasses = {PageFeature: PageFeature, TextFeature: TextFeature, LinkFeature: LinkFeature, ImageFeature: ImageFeature, ListFeature: ListFeature, HeaderFeature: HeaderFeature, ContainerFeature: ContainerFeature, GoogleMapFeature: GoogleMapFeature, TextWithParagraphFeature: TextWithParagraphFeature, ImageWithParagraphFeature: ImageWithParagraphFeature, DataResourceFeature: DataResourceFeature, TableFeature: TableFeature}
 
 angular.module('sampleDomainApp').value 'Features', new Features(true)
