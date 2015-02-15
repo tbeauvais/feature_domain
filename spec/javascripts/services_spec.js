@@ -123,6 +123,30 @@
       expect(appMetadata.getDataResources()).toEqual([{name: 'Sales Data', resource: 'http://data.com'}]);
     });
 
+    it('addDataResourceReference inserts new reference', function () {
+      appMetadata.addDataResource('Sales Data', 'http://data.com', '123');
+
+      var instance = {id: '1', feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
+      var feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
+      appMetadata.addFeature(feature);
+
+      appMetadata.addDataResourceReference('Sales Data', '1');
+
+      expect(appMetadata.getDataResourceReferences('Sales Data').length).toEqual(1);
+    });
+
+    it('getDataResourceReferences gets resource reference', function () {
+      appMetadata.addDataResource('Sales Data', 'http://data.com', '123');
+
+      var instance = {id: '1', feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
+      var feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
+      appMetadata.addFeature(feature);
+
+      appMetadata.addDataResourceReference('Sales Data', '1');
+
+      expect(appMetadata.getDataResourceReferences('Sales Data')[0]).toEqual({feature_instance_id: '1', id: '1', name: 'My Text'});
+    });
+
     it('getPageTargets gets the targets for the specified page', function () {
       appMetadata.addPage('Page 1', 'Page 1');
       appMetadata.addPageTarget('Page 1', '#new_target');

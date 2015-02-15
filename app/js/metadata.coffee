@@ -14,6 +14,24 @@ class @AppMetadata
     data = {name: name, resource: resource}
     @_addType('DataResources', name, data, id)
 
+  addDataResourceReference: (resourceName, featureId) ->
+    resource = @_getTypeNode('DataResources', resourceName)
+    if resource
+      feature = @getFeature(featureId)
+      if feature
+        node = @tree.parse({feature_instance_id: feature.instance.id, id: feature.id, name: feature.name})
+        resource.addChild(node)
+
+  getDataResourceReferences: (resourceName) ->
+    resource = @_getTypeNode('DataResources', resourceName)
+    if resource
+      if resource
+        _.map resource.children, (node)->
+          return node.model
+      else
+        []
+
+
   getPageTargets: (pageName) ->
     targets = @_getPageTargets(pageName)
 
@@ -109,6 +127,25 @@ class @AppMetadata
         return node.model
     else
       []
+
+  _getTypesNode: (type) ->
+    root = @getRoot()
+
+    resources = root.first (node) ->
+      node.model.name == type
+
+    if resources
+      resources
+    else
+      []
+
+  _getTypeNode: (type, name) ->
+    types = @_getTypesNode(type)
+    if types
+      types.first (node) ->
+        node.model.name && node.model.name == name
+    else
+      null
 
   _addType: (type, name, data, featureInstanceId) ->
     root = @getRoot()
