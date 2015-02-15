@@ -2,7 +2,6 @@ class Features
   constructor: (designMode, appMetadata) ->
 
     @featureList = {}
-
     if designMode != false
       designMode = true
 
@@ -77,7 +76,6 @@ class DataResourceFeature extends BaseFeature
     @addFeature(appMetadata, instance, inputs)
     appMetadata.addDataResource(inputs.name, inputs.resource, instance.id)
     $.get inputs.resource, (data) =>
-      console.log "Data loaded #{JSON.stringify(data)}"
       scope.DataResource = {} unless scope.DataResource
       scope.DataResource[@cleanName(inputs.name)] = data
 
@@ -109,6 +107,12 @@ class TableFeature extends BaseFeature
     type: 'string'
     default: ''
   ,
+    name: 'filters'
+    label: 'Filters'
+    placeholder: 'Comma separated list'
+    type: 'string'
+    default: ''
+  ,
     name: 'page_location'
     label: 'Page Location'
     type: 'page_location'
@@ -127,12 +131,22 @@ class TableFeature extends BaseFeature
       appMetadata.addDataResourceReference(inputs.resource, instance.id)
 
       headerRow = ''
-      labels = inputs.labels.split(',')
+      labels = []
+      labels = inputs.labels.split(',') if inputs.labels
+
+      filters = []
+      filters = inputs.filters.split(',') if inputs.filters
 
       dataRow = ''
-      fields = inputs.fields.split(',')
+      fields = []
+      fields = inputs.fields.split(',') if inputs.fields
+
+
       for field, index in fields
-        dataRow += "<td>{{data.#{field}}}</td>"
+        filter = ''
+        filter = ' | ' + filters[index] if filters[index].length > 0
+   #     dataRow += "<td>{{data.#{field}#{filter}}}</td>"
+        dataRow += "<td ng-bind-html='data.#{field}#{filter}' ></td>"
         headerRow += "<th>#{labels[index] || field}</th>"
 
       target.append("<div #{dd} id='#{id}'><table class='table table-bordered table-striped' ><tr>#{headerRow}</tr> <tr ng-repeat='data in DataResource.#{inputs.resource}'>#{dataRow}</tr></table></div>")

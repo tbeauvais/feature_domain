@@ -4,6 +4,7 @@ html ng-app="sampleDomainApp" ng-init="designMode = false"
     == css :app
   body
     .container
+      div ng-controller="ModelCtrl"
       div.container ng-controller="FeaturesCtrl as featuresCtrl"
         div.row
           div.col-lg-12

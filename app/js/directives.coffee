@@ -155,17 +155,18 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
   scope: false,
 
   link: (scope, elem, attrs) ->
-    elem.bind 'click', (e) ->
-      id = $(e.target).closest('[id]').attr('id')
-      feature = _.find AppMetadata.getFeatures(), (feature) ->
-        if feature.page_info
-          feature.page_info.id == id
-        else
-          false
-      if feature
-        scope.$root.$broadcast('featureSelected', feature.id)
-      e.preventDefault()
-      false
+    unless scope.designMode
+      elem.bind 'click', (e) ->
+        id = $(e.target).closest('[id]').attr('id')
+        feature = _.find AppMetadata.getFeatures(), (feature) ->
+          if feature.page_info
+            feature.page_info.id == id
+          else
+            false
+        if feature
+          scope.$root.$broadcast('featureSelected', feature.id)
+        e.preventDefault()
+        false
     scope.$on 'generateContent', (event, features) ->
       elem.find('#content_section').empty()
       generator = new AppGenerate()
