@@ -124,6 +124,8 @@ class TableFeature extends BaseFeature
       @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
 
+      appMetadata.addDataResourceReference(inputs.resource, instance.id)
+
       headerRow = ''
       labels = inputs.labels.split(',')
 
@@ -133,7 +135,7 @@ class TableFeature extends BaseFeature
         dataRow += "<td>{{data.#{field}}}</td>"
         headerRow += "<th>#{labels[index] || field}</th>"
 
-      target.append("<div #{dd} id='#{id}'><table class='table table-bordered table-striped' ><tr>#{headerRow}</tr> <tr ng-repeat='data in DataResource.repos'>#{dataRow}</tr></table></div>")
+      target.append("<div #{dd} id='#{id}'><table class='table table-bordered table-striped' ><tr>#{headerRow}</tr> <tr ng-repeat='data in DataResource.#{inputs.resource}'>#{dataRow}</tr></table></div>")
       true
     else
       false
