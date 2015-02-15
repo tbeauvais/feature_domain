@@ -33,6 +33,7 @@ class App < Sinatra::Base
       /js/vendor/bootstrap.js
       /js/vendor/angular.js
       /js/vendor/angular-resource.js
+      /js/vendor/angular-sanitize.js
       /js/vendor/sortable.js
       /js/vendor/underscore.js
       /js/vendor/tree-model.js
