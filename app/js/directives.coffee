@@ -10,6 +10,7 @@ angular.module('sampleDomainApp').directive 'featureList', ($rootScope, Features
       featureInstance = Features.createFeatureInstance(featureName+'Feature')
       AppFeatures.add(featureInstance, targetId)
       scope.features = AppFeatures.features()
+      scope.$apply()
       # function on controller
       scope.generate()
       scope.$broadcast('featureSelected', featureInstance.id);
@@ -18,8 +19,18 @@ angular.module('sampleDomainApp').directive 'featureList', ($rootScope, Features
       targetId = targetId.toString()
       AppFeatures.move(sourceId, targetId, containerId)
       scope.features = AppFeatures.features()
+      scope.$apply()
       scope.generate()
       scope.$broadcast('featureSelected', targetId);
+    scope.$on 'deleteFeature', (event, featureId) ->
+      AppFeatures.delete(featureId)
+      scope.features = AppFeatures.features()
+      scope.$apply()
+      scope.generate()
+      scope.$broadcast('featureNotSelected')
+    scope.$on 'featureUpdated', (event, featureId) ->
+      scope.features = AppFeatures.features()
+      scope.generate()
 
 
 angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features, AppFeatures) ->
@@ -39,12 +50,7 @@ angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features
     elem.find('.feature-delete').bind 'click', (e) ->
       # TODO Use angular bootstrap confirm dialog
       if confirm('Are you sure you want to delete this feature')
-        AppFeatures.delete(scope.feature.id)
-        # using parent scope so apply and generate are on the parent
-        scope.$apply()
-        # function on controller
-        scope.generate()
-        $rootScope.$broadcast('featureNotSelected')
+        $rootScope.$broadcast('deleteFeature', scope.feature.id)
       e.preventDefault()
       false
     scope.$on 'featureSelected', (event, featureId) ->
@@ -66,11 +72,6 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
       featureMetadata = AppMetadata.getFeature(featureId)
       # TODO clean up this reference (featureMetadata.instance.feature)
       feature = Features.getFeature(featureMetadata.instance.feature)
-
-      # TODO move this so the editor doesn't know about the content section
-      $('#content_section .highlight_feature').removeClass('highlight_feature')
-      if featureMetadata.page_info
-        $("#content_section #" + featureMetadata.page_info.id).addClass('highlight_feature')
 
       scope.inputs = {}
       scope.featureId = featureId
@@ -155,7 +156,7 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
   scope: false,
 
   link: (scope, elem, attrs) ->
-    unless scope.designMode
+    if scope.designMode
       elem.bind 'click', (e) ->
         id = $(e.target).closest('[id]').attr('id')
         feature = _.find AppMetadata.getFeatures(), (feature) ->
@@ -167,6 +168,13 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
           scope.$root.$broadcast('featureSelected', feature.id)
         e.preventDefault()
         false
+      scope.$on 'featureSelected', (event, featureId) ->
+        featureMetadata = AppMetadata.getFeature(featureId)
+        # TODO cleanup
+        $('#content_section .highlight_feature').removeClass('highlight_feature')
+        if featureMetadata.page_info
+          $("#content_section #" + featureMetadata.page_info.id).addClass('highlight_feature')
+
     scope.$on 'generateContent', (event, features) ->
       elem.find('#content_section').empty()
       generator = new AppGenerate()

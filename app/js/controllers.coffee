@@ -66,11 +66,10 @@ angular.module('sampleDomainApp').controller 'EditorCtrl', ($scope, AppFeatures,
     if $scope.selectedTarget && featureInstance.inputs.page_location
       featureInstance.inputs.page_location.target = $scope.selectedTarget.model.name
 
-    $scope.$root.$broadcast('generateContent', features)
-
     # TODO move highlight to feature generation (i.e. add class there)
     $("#content_section #" + "#{id}").addClass('highlight_feature') if id
     AppFeatures.saveFeatures()
+    $scope.$root.$broadcast('featureUpdated', featureInstance.id)
     true
 
 
