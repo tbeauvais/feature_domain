@@ -1,7 +1,7 @@
 Feature Based Application Generation
 ==============
 
-Sample feature based domain for constructing data and content rendering
+Sample feature based domain for constructing an application with data service and content rendering.
 
 # Highlevel Architecture
 
