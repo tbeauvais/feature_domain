@@ -189,7 +189,7 @@ class PageFeature extends BaseFeature
       appMetadata.addPageTarget('Page 1', '#content_section');
       @addPageFeature(appMetadata, instance, inputs, id)
       appMetadata.addPageTarget('Page 1', '#page_container', '#' + id, instance.id)
-      target.append("<div id='page_container' title='generated from #{instance.name}' ></div>")
+      target.append("<div style='border: 5px solid dodgerblue;border-radius: 5px;padding: 8px;' id='page_container' title='generated from #{instance.name}' ></div>")
       true
     else
       false
@@ -214,7 +214,14 @@ class TextFeature extends BaseFeature
   ,
     name: 'page_location'
     label: 'Page Location'
-    type: 'page_location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
     control: 'page-target-selector'
   ]
 
@@ -258,7 +265,14 @@ class TextWithParagraphFeature extends BaseFeature
   ,
     name: 'page_location'
     label: 'Page Location'
-    type: 'page_location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
     control: 'page-target-selector'
   ]
 
@@ -310,7 +324,14 @@ class ImageWithParagraphFeature extends BaseFeature
   ,
     name: 'page_location'
     label: 'Page Location'
-    type: 'page_location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
     control: 'page-target-selector'
   ]
 
@@ -362,7 +383,14 @@ class ContainerFeature extends BaseFeature
   ,
     name: 'page_location'
     label: 'Page Location'
-    type: 'page_location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
     control: 'page-target-selector'
   ]
 
@@ -435,13 +463,24 @@ class HeaderFeature extends BaseFeature
   ,
     name: 'size'
     label: 'Size'
-    type: 'string'
+    type: 'integer'
     defaut: '1'
     control: 'text-input'
+    control_attributes:
+      min: '1'
+      max: '5'
+      type: 'number'
   ,
     name: 'page_location'
     label: 'Page Location'
-    type: 'page_location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
     control: 'page-target-selector'
   ]
 
@@ -480,7 +519,14 @@ class ListFeature extends BaseFeature
   ,
     name: 'page_location'
     label: 'Page Location'
-    type: 'page_location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
     control: 'page-target-selector'
   ]
 
@@ -529,7 +575,14 @@ class LinkFeature extends BaseFeature
   ,
     name: 'page_location'
     label: 'Page Location'
-    type: 'page_location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
     control: 'page-target-selector'
   ]
 
@@ -586,7 +639,14 @@ class ImageFeature extends BaseFeature
   ,
     name: 'page_location'
     label: 'Page Location'
-    type: 'page_location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
     control: 'page-target-selector'
   ]
 
@@ -640,7 +700,14 @@ class GoogleMapFeature extends BaseFeature
   ,
     name: 'page_location'
     label: 'Page Location'
-    type: 'page_location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
     control: 'page-target-selector'
   ]
 

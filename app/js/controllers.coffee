@@ -62,10 +62,6 @@ angular.module('sampleDomainApp').controller 'EditorCtrl', ($scope, AppFeatures,
 
     featureInstance.inputs = $scope.inputs
 
-    # TODO need a way to map inputs
-    if $scope.selectedTarget && featureInstance.inputs.page_location
-      featureInstance.inputs.page_location.target = $scope.selectedTarget.model.name
-
     # TODO move highlight to feature generation (i.e. add class there)
     $("#content_section #" + "#{id}").addClass('highlight_feature') if id
     AppFeatures.saveFeatures()

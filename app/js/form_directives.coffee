@@ -1,11 +1,10 @@
 angular.module('sampleDomainApp').directive 'pageTargetSelector', (AppMetadata) ->
   restrict: 'AEC',
   replace: true,
-  # target.model.name group by target.parent.model.name for target in targets
   template: """
      <div class='control-group'>
          <select ng-options='page for page in pages' ng-model='inputs.page_location.name' class='form-control page-select' />
-         <select ng-options='target.model.name group by target.parent.model.name for target in targets' ng-model='selectedTarget' class='form-control page-select'/>
+         <select ng-options='target for target in targets' ng-model='inputs.page_location.target' class='form-control page-select'/>
      </div>
 """
   # use parent scope
@@ -16,11 +15,9 @@ angular.module('sampleDomainApp').directive 'pageTargetSelector', (AppMetadata) 
     scope.pages = _.map pages, (page)->
       return page.name
 
-    scope.targets = AppMetadata.getPageTargets('Page 1')
-    target = _.find scope.targets, (target) ->
-      scope.inputs.page_location.target == target.model.name
-
-    scope.selectedTarget = target
+    targets = AppMetadata.getPageTargets(scope.inputs.page_location.name)
+    scope.targets = _.map targets, (target)->
+      target.model.name
 
 
 angular.module('sampleDomainApp').directive 'textInput', (AppMetadata) ->
@@ -43,6 +40,12 @@ angular.module('sampleDomainApp').directive 'textInput', (AppMetadata) ->
     input = _.find scope.feature.inputs, (input) ->
       input.name == scope.name
     scope.label = input.label
+
+    input_field = elem.find('input')
+
+    if input.control_attributes
+      for k,v of input.control_attributes
+        input_field.attr(k, v)
 
 
 angular.module('sampleDomainApp').directive 'textArea', (AppMetadata) ->
