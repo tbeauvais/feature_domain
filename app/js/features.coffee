@@ -61,11 +61,13 @@ class DataResourceFeature extends BaseFeature
     label: 'Name'
     type: 'string'
     default: 'untitled'
+    control: 'text-input'
   ,
     name: 'resource'
     label: 'Resource URL'
     default: 'https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%202415484&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys'
     type: 'string'
+    control: 'text-input'
   ]
 
   constructor: (initData) ->
@@ -89,23 +91,27 @@ class TableFeature extends BaseFeature
     label: 'Name'
     type: 'string'
     default: 'untitled'
+    control: 'text-input'
   ,
     name: 'resource'
     label: 'Data Resource'
     type: 'string'
     default: ''
+    control: 'text-input'
   ,
     name: 'fields'
     label: 'Fields'
     placeholder: 'Comma separated list'
     type: 'string'
     default: ''
+    control: 'text-input'
   ,
     name: 'labels'
     label: 'Lables'
     placeholder: 'Comma separated list'
     type: 'string'
     default: ''
+    control: 'text-input'
   ,
     name: 'filters'
     label: 'Filters'
@@ -116,6 +122,7 @@ class TableFeature extends BaseFeature
     name: 'page_location'
     label: 'Page Location'
     type: 'page_location'
+    control: 'page-target-selector'
   ]
 
   constructor: (initData) ->
@@ -149,7 +156,7 @@ class TableFeature extends BaseFeature
         dataRow += "<td ng-bind-html='data.#{field}#{filter}' ></td>"
         headerRow += "<th>#{labels[index] || field}</th>"
 
-      target.append("<div #{dd} id='#{id}'><table class='table table-bordered table-striped' ><tr>#{headerRow}</tr> <tr ng-repeat='data in DataResource.#{inputs.resource}'>#{dataRow}</tr></table></div>")
+      target.append("<div #{dd} id='#{id}' class='table-responsive' ><table class='table table-bordered table-striped' ><tr>#{headerRow}</tr> <tr ng-repeat='data in DataResource.#{inputs.resource}'>#{dataRow}</tr></table></div>")
       true
     else
       false
@@ -163,10 +170,12 @@ class PageFeature extends BaseFeature
     name: 'name'
     label: 'Name'
     type: 'string'
+    control: 'text-input'
   ,
     name: 'page_location'
     label: 'Page Location'
     type: 'page_location'
+    control: 'page-target-selector'
   ]
 
   constructor: (initData) ->
@@ -195,15 +204,18 @@ class TextFeature extends BaseFeature
     label: 'Name'
     type: 'string'
     default: 'untitled'
+    control: 'text-input'
   ,
     name: 'text'
     label: 'Text'
     type: 'string'
     default: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit'
+    control: 'text-input'
   ,
     name: 'page_location'
     label: 'Page Location'
     type: 'page_location'
+    control: 'page-target-selector'
   ]
 
   constructor: (initData) ->
@@ -230,20 +242,24 @@ class TextWithParagraphFeature extends BaseFeature
     label: 'Name'
     type: 'string'
     default: 'untitled'
+    control: 'text-input'
   ,
     name: 'title'
     label: 'Title'
     type: 'string'
     default: 'Enter Your Title Here'
+    control: 'text-input'
   ,
     name: 'text'
     label: 'Text'
-    type: 'textarea'
+    type: 'string'
     default: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.'
+    control: 'text-area'
   ,
     name: 'page_location'
     label: 'Page Location'
     type: 'page_location'
+    control: 'page-target-selector'
   ]
 
   constructor: (initData) ->
@@ -271,26 +287,31 @@ class ImageWithParagraphFeature extends BaseFeature
     label: 'Name'
     type: 'string'
     default: 'untitled'
+    control: 'text-input'
   ,
     name: 'title'
     label: 'Title'
     type: 'string'
     default: 'Enter Your Title Here'
+    control: 'text-input'
   ,
     name: 'src'
     label: 'Image URL'
     placeholder: 'http://a-z-animals.com/media/animals/images/original/capybara3.jpg'
     type: 'string'
     default: 'http://a-z-animals.com/media/animals/images/original/capybara3.jpg'
+    control: 'text-input'
   ,
     name: 'text'
     label: 'Text'
-    type: 'textarea'
+    type: 'string'
     default: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.'
+    control: 'text-area'
   ,
     name: 'page_location'
     label: 'Page Location'
     type: 'page_location'
+    control: 'page-target-selector'
   ]
 
   constructor: (initData) ->
@@ -319,20 +340,30 @@ class ContainerFeature extends BaseFeature
     label: 'Name'
     type: 'string'
     default: 'untitled'
+    control: 'text-input'
   ,
     name: 'columns'
     label: 'Columns'
     type: 'string'
     defaut: '2'
+    control: 'text-input'
   ,
     name: 'rows'
     label: 'Rows'
     type: 'string'
     defaut: '1'
+    control: 'text-input'
+  ,
+    name: 'well'
+    label: 'Add Well'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
   ,
     name: 'page_location'
     label: 'Page Location'
     type: 'page_location'
+    control: 'page-target-selector'
   ]
 
   constructor: (initData) ->
@@ -350,7 +381,10 @@ class ContainerFeature extends BaseFeature
 
       containerId = @instanceId(instance, inputs)
 
-      rowsParms = {class: 'container-fluid well', id: containerId}
+      rowsClass = 'container-fluid'
+      rowsClass += ' well' if inputs.well
+
+      rowsParms = {class: "#{rowsClass}", id: containerId}
       if @designMode
         angular.extend(rowsParms, {'ui-draggable': 'true', 'drag': instance.id, 'drag-channel': 'B', 'drop-channel': 'A,B', 'ui-on-drop': "onDropFromContent($event,$index,$channel,$data,'#{instance.id}')"})
 
@@ -391,20 +425,24 @@ class HeaderFeature extends BaseFeature
     label: 'Name'
     type: 'string'
     default: 'untitled'
+    control: 'text-input'
   ,
     name: 'text'
     label: 'Text'
     type: 'string'
     default: 'Enter your header text here'
+    control: 'text-input'
   ,
     name: 'size'
     label: 'Size'
     type: 'string'
     defaut: '1'
+    control: 'text-input'
   ,
     name: 'page_location'
     label: 'Page Location'
     type: 'page_location'
+    control: 'page-target-selector'
   ]
 
   constructor: (initData) ->
@@ -431,16 +469,19 @@ class ListFeature extends BaseFeature
     label: 'Name'
     type: 'string'
     default: 'untitled'
+    control: 'text-input'
   ,
     name: 'list'
     label: 'List Items'
     placeholder: 'Comma separated list'
     type: 'string'
     default: 'Red,Green,Blue'
+    control: 'text-input'
   ,
     name: 'page_location'
     label: 'Page Location'
     type: 'page_location'
+    control: 'page-target-selector'
   ]
 
   constructor: (initData) ->
@@ -471,21 +512,25 @@ class LinkFeature extends BaseFeature
     label: 'Name'
     type: 'string'
     default: 'untitled'
+    control: 'text-input'
   ,
     name: 'href'
     label: 'Link URL'
     placeholder: 'http://www.google.com'
     type: 'string'
     default: 'http://www.google.com'
+    control: 'text-input'
   ,
     name: 'text'
     label: 'Text'
     type: 'string'
     default: 'Link to knowhere'
+    control: 'text-input'
   ,
     name: 'page_location'
     label: 'Page Location'
     type: 'page_location'
+    control: 'page-target-selector'
   ]
 
   constructor: (initData) ->
@@ -512,31 +557,37 @@ class ImageFeature extends BaseFeature
     label: 'Name'
     type: 'string'
     default: 'untitled'
+    control: 'text-input'
   ,
     name: 'src'
     label: 'Image URL'
     placeholder: 'http://a-z-animals.com/capybara3.jpg'
     type: 'string'
     default: 'http://assets.kompas.com/data/photo/2014/04/07/2002239katak-kulit-paling-kasar780x390.jpg'
+    control: 'text-input'
   ,
     name: 'alt'
     label: 'Alt Text'
     type: 'string'
     default: 'some cool image'
+    control: 'text-input'
   ,
     name: 'height'
     label: 'Height'
     type: 'string'
     default: '200'
+    control: 'text-input'
   ,
     name: 'width'
     label: 'Width'
     type: 'string'
     default: '300'
+    control: 'text-input'
   ,
     name: 'page_location'
     label: 'Page Location'
     type: 'page_location'
+    control: 'page-target-selector'
   ]
 
   constructor: (initData) ->
@@ -562,29 +613,35 @@ class GoogleMapFeature extends BaseFeature
     label: 'Name'
     type: 'string'
     default: 'untitled'
+    control: 'text-input'
   ,
     name: 'title'
     label: 'Title'
     type: 'string'
+    control: 'text-input'
   ,
     name: 'address'
     label: 'Address'
     type: 'string'
     default: '131 Willow Rd. Guilford, CT'
+    control: 'text-input'
   ,
     name: 'height'
     label: 'Height'
     type: 'string'
     default: '200'
+    control: 'text-input'
   ,
     name: 'width'
     label: 'Width'
     type: 'string'
     default: '400'
+    control: 'text-input'
   ,
     name: 'page_location'
     label: 'Page Location'
     type: 'page_location'
+    control: 'page-target-selector'
   ]
 
   constructor: (initData) ->

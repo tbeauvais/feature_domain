@@ -73,24 +73,15 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
       # TODO clean up this reference (featureMetadata.instance.feature)
       feature = Features.getFeature(featureMetadata.instance.feature)
 
+      scope.feature = feature
       scope.inputs = {}
       scope.featureId = featureId
       inputs = []
       inputs.push("<h3>#{feature.name}</h2>")
       inputs.push("<form id='edit_form' role='form' ng-submit='submit()' ng-controller='EditorCtrl' >")
       for input in feature.inputs
-        inputs.push("<div class='form-group' >")
-        inputs.push("  <label>#{input.label}</label>")
         scope.inputs[input.name] = featureMetadata.instance.inputs[input.name]
-        # TODO don't hard code this
-        if input.name == 'page_location'
-          inputs.push("  <input class='page-target-selector' />")
-        else if input.type == 'textarea'
-          inputs.push("  <textarea name='#{input.name}' placeholder='#{input.placeholder}' ng-model='inputs.#{input.name}' class='form-control' />")
-        else
-          inputs.push("  <input name='#{input.name}' placeholder='#{input.placeholder}' ng-model='inputs.#{input.name}' class='form-control' />")
-
-        inputs.push("</div>")
+        inputs.push("  <div class='#{input.control}' feature='feature' inputs='inputs' model='inputs.#{input.name}' name='#{input.name}' />")
 
       inputs.push("<input type='submit' id='submit' value='Submit' class='btn btn-default' />")
       inputs.push("</form>")
@@ -108,25 +99,6 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
       elem.html('<div>Select feature from list to edit its properties...<div>')
       scope.$apply()
 
-
-angular.module('sampleDomainApp').directive 'pageTargetSelector', (AppMetadata) ->
-  restrict: 'AEC',
-  replace: true,
-  # target.model.name group by target.parent.model.name for target in targets
-  template: "<div class='control-group'><select ng-options='page for page in pages' ng-model='inputs.page_location.name' class='form-control page-select' /><select ng-options='target.model.name group by target.parent.model.name for target in targets' ng-model='selectedTarget' class='form-control page-select'/></div>",
-  # use parent scope
-  scope: false
-
-  link: (scope, elem, attrs) ->
-    pages = AppMetadata.getPages()
-    scope.pages = _.map pages, (page)->
-      return page.name
-
-    scope.targets = AppMetadata.getPageTargets('Page 1')
-    target = _.find scope.targets, (target) ->
-      scope.inputs.page_location.target == target.model.name
-
-    scope.selectedTarget = target
 
 angular.module('sampleDomainApp').directive 'paletteList', (Features) ->
   restrict: 'AEC',
