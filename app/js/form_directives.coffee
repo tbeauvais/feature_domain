@@ -1,6 +1,6 @@
 angular.module('sampleDomainApp').directive 'pageTargetSelector', (AppMetadata) ->
-  restrict: 'AEC',
-  replace: true,
+  restrict: 'AEC'
+  replace: true
   template: """
      <div class='control-group'>
          <select ng-options='page for page in pages' ng-model='inputs.page_location.name' class='form-control page-select' />
@@ -13,28 +13,76 @@ angular.module('sampleDomainApp').directive 'pageTargetSelector', (AppMetadata) 
   link: (scope, elem, attrs) ->
     pages = AppMetadata.getPages()
     scope.pages = _.map pages, (page)->
-      return page.name
+      page.name
 
     targets = AppMetadata.getPageTargets(scope.inputs.page_location.name)
     scope.targets = _.map targets, (target)->
       target.model.name
 
 
+angular.module('sampleDomainApp').directive 'resourceSelect', (AppMetadata) ->
+  restrict: 'AEC'
+  replace: true
+  template: """
+    <div class='form-group' >
+        <label>{{label}}</label>
+        <select ng-options='resource for resource in resources' ng-model='model' class='form-control' />
+    </div>
+"""
+
+  scope:
+    inputs: '='
+    model: '='
+    feature: '='
+    name: '@'
+
+  link: (scope, elem, attrs) ->
+    input = _.find scope.feature.inputs, (input) ->
+      input.name == scope.name
+    scope.label = input.label
+
+    resources = AppMetadata.getDataResources()
+    scope.resources = _.map resources, (resource)->
+      resource.name
+
+
+angular.module('sampleDomainApp').directive 'textSelect', (AppMetadata) ->
+  restrict: 'AEC'
+  replace: true
+  template: """
+    <div class='form-group' >
+        <label>{{label}}</label>
+        <select ng-options='item for item in items' ng-model='model' class='form-control' />
+    </div>
+"""
+
+  scope:
+    inputs: '='
+    model: '='
+    feature: '='
+    name: '@'
+
+  link: (scope, elem, attrs) ->
+    input = _.find scope.feature.inputs, (input) ->
+      input.name == scope.name
+    scope.label = input.label
+    scope.items = input.options.split(',')
+
+
 angular.module('sampleDomainApp').directive 'textInput', (AppMetadata) ->
-  restrict: 'AEC',
-  replace: true,
+  restrict: 'AEC'
+  replace: true
   template: """
     <div class='form-group' >
         <label>{{label}}</label>
         <input class='form-control' ng-model='model' />
     </div>
 """
-  scope: {
+  scope:
     inputs: '='
     model: '='
     feature: '='
     name: '@'
-  }
 
   link: (scope, elem, attrs) ->
     input = _.find scope.feature.inputs, (input) ->
@@ -57,12 +105,11 @@ angular.module('sampleDomainApp').directive 'textArea', (AppMetadata) ->
         <textarea class='form-control' ng-model='model' />
     </div>
 """
-  scope: {
+  scope:
     inputs: '='
     model: '='
     feature: '='
     name: '@'
-  }
 
   link: (scope, elem, attrs) ->
     input = _.find scope.feature.inputs, (input) ->
@@ -70,8 +117,8 @@ angular.module('sampleDomainApp').directive 'textArea', (AppMetadata) ->
     scope.label = input.label
 
 angular.module('sampleDomainApp').directive 'checkboxInput', (AppMetadata) ->
-  restrict: 'AEC',
-  replace: true,
+  restrict: 'AEC'
+  replace: true
   template: """
      <div class="checkbox">
         <label>
@@ -79,14 +126,11 @@ angular.module('sampleDomainApp').directive 'checkboxInput', (AppMetadata) ->
         </label>
       </div>
 """
-  # use parent scope
-  #scope: false
-  scope: {
+  scope:
     inputs: '='
     model: '='
     feature: '='
     name: '@'
-  }
 
   link: (scope, elem, attrs) ->
     input = _.find scope.feature.inputs, (input) ->

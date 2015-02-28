@@ -121,7 +121,7 @@ angular.module('sampleDomainApp').directive 'paletteItem', ($rootScope, Features
   link: (scope, elem, attrs) ->
     scope.glyphicon = scope.featureType.icon
 
-angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Features, AppMetadata) ->
+angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Features, AppMetadata, AppFeatures) ->
   restrict: 'C',
   replace: false,
   # use parent scope
@@ -141,11 +141,45 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
         e.preventDefault()
         false
       scope.$on 'featureSelected', (event, featureId) ->
-        featureMetadata = AppMetadata.getFeature(featureId)
+
         # TODO cleanup
-        $('#content_section .highlight_feature').removeClass('highlight_feature')
+        original = $('#content_section .highlight_feature')
+        if original && original.length >0
+          original.removeClass('highlight_feature')
+          originalFeatureId = original.attr('drag')
+          id = original.attr('id')
+
+          featureMetadata = AppMetadata.getFeature(originalFeatureId)
+          feature = Features.getFeature(featureMetadata.instance.feature)
+
+
+          if feature.visual_editor
+            original.unwrap()
+            original.empty()
+            generator = new AppGenerate()
+
+            inputs = JSON.parse(JSON.stringify(featureMetadata.instance.inputs))
+            inputs.page_location.target = '#' + "#{id}"
+
+            generator.generateInstance(featureMetadata.instance, inputs, Features, AppMetadata, scope)
+
+            $compile(original)(scope)
+
+
+        featureMetadata = AppMetadata.getFeature(featureId)
+        feature = Features.getFeature(featureMetadata.instance.feature)
+
         if featureMetadata.page_info
-          $("#content_section #" + featureMetadata.page_info.id).addClass('highlight_feature')
+          target = $("#content_section #" + featureMetadata.page_info.id)
+          target.addClass('highlight_feature')
+
+          if feature.visual_editor
+            scope.inputs = featureMetadata.instance.inputs
+            directive = $("<div class='#{feature.visual_editor}' model='inputs' ></div>")
+            target.wrap(directive)
+            $compile(target.parent())(scope)
+
+        true
 
     scope.$on 'generateContent', (event, features) ->
       elem.find('#content_section').empty()

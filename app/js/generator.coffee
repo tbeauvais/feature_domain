@@ -22,3 +22,9 @@ class @AppGenerate
       break if tries > 3 || missingDependencies.length == 0
     console.log("Generate complete")
     promises
+
+  generateInstance: (featureInstance, inputs, Features, AppMetadata, scope) ->
+    console.log("Running generateInstance")
+    f = Features.getFeature(featureInstance.feature)
+    f.generate(AppMetadata, featureInstance, inputs, scope)
+    console.log("GenerateInstance complete")

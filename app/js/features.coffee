@@ -97,7 +97,7 @@ class TableFeature extends BaseFeature
     label: 'Data Resource'
     type: 'string'
     default: ''
-    control: 'text-input'
+    control: 'resource-select'
   ,
     name: 'fields'
     label: 'Fields'
@@ -118,6 +118,7 @@ class TableFeature extends BaseFeature
     placeholder: 'Comma separated list'
     type: 'string'
     default: ''
+    control: 'text-input'
   ,
     name: 'page_location'
     label: 'Page Location'
@@ -189,6 +190,7 @@ class PageFeature extends BaseFeature
       appMetadata.addPageTarget('Page 1', '#content_section');
       @addPageFeature(appMetadata, instance, inputs, id)
       appMetadata.addPageTarget('Page 1', '#page_container', '#' + id, instance.id)
+      # TODO fix this ID
       target.append("<div style='border: 5px solid dodgerblue;border-radius: 5px;padding: 8px;' id='page_container' title='generated from #{instance.name}' ></div>")
       true
     else
@@ -340,16 +342,32 @@ class ImageWithParagraphFeature extends BaseFeature
 
   generate: (appMetadata, instance, inputs) ->
     id = @instanceId(instance, inputs)
+    inputs.page_location.target = "#page_container"
     target = $(inputs.page_location.target)
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
-      template = "<div #{dd} class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><div class='row-fluid'><img class='span2 img-responsive pull-left' style='margin:0 3px' src='#{inputs.src}' height='150' width='150' /><p class='span10'>#{instance.inputs.text}</p></div></div>"
+      template = """
+          <div #{dd} class='well' id='#{id}'>
+            <h3>#{inputs.title}</h3>
+            <div class='row-fluid'>
+              <div id='#{id}_image' class='span2 pull-left' style='margin:0 3px'></div>
+              <p class='span10'>#{inputs.text}</p>
+            </div>
+          </div>
+"""
       target.append(template)
+
+      image = features.getFeature('ImageFeature')
+      imageInputs = JSON.parse(JSON.stringify(inputs))
+      imageInputs.page_location.target = '#' + "#{id}_image"
+      imageInputs.width = '150'
+      imageInputs.height = '150'
+      image.generate(appMetadata, instance, imageInputs)
+
       true
     else
       false
-
 
 
 class ContainerFeature extends BaseFeature
@@ -448,6 +466,7 @@ class HeaderFeature extends BaseFeature
 
   name: 'Header'
   icon: 'glyphicon-header'
+  visual_editor: 'header-editor'
   inputs: [
     name: 'name'
     label: 'Name'
@@ -460,6 +479,13 @@ class HeaderFeature extends BaseFeature
     type: 'string'
     default: 'Enter your header text here'
     control: 'text-input'
+  ,
+    name: 'align'
+    label: 'Align'
+    type: 'string'
+    default: 'center'
+    control: 'text-select'
+    options: 'left,center,right'
   ,
     name: 'size'
     label: 'Size'
@@ -493,7 +519,19 @@ class HeaderFeature extends BaseFeature
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
-      target.append("<div #{dd} ><H#{inputs.size} id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</H#{inputs.size}></div>")
+
+      align = 'text-center'
+      if inputs.align == 'left'
+        align = 'text-left'
+      else if inputs.align == 'right'
+        align = 'text-right'
+
+      unless target.attr('id') == id
+        el = $("<div #{dd} id='#{id}' ></div>")
+        target.append(el)
+        target = el
+
+      target.append("<H#{inputs.size} class='#{align}' title='generated from #{instance.name}' >#{inputs.text}</H#{inputs.size}>")
       true
     else
       false
@@ -517,6 +555,13 @@ class ListFeature extends BaseFeature
     default: 'Red,Green,Blue'
     control: 'text-input'
   ,
+    name: 'align'
+    label: 'Align'
+    type: 'string'
+    default: 'center'
+    control: 'text-select'
+    options: 'left,center,right'
+  ,
     name: 'page_location'
     label: 'Page Location'
     type: 'object'
@@ -539,11 +584,18 @@ class ListFeature extends BaseFeature
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
+
+      align = 'text-center'
+      if inputs.align == 'left'
+        align = 'text-left'
+      else if inputs.align == 'right'
+        align = 'text-right'
+
       lists = ''
       list = inputs.list.split(',')
       for item in list
         lists += "<li>#{item}</li>"
-      target.append("<ul #{dd} id='#{id}' >#{lists}</ul>")
+      target.append("<div #{dd} id='#{id}' class='center-block' style='width:200px;' ><ul>#{lists}</ul></div>")
       true
     else
       false
@@ -727,5 +779,7 @@ class GoogleMapFeature extends BaseFeature
       false
 
 FeatureClasses = {PageFeature: PageFeature, TextFeature: TextFeature, LinkFeature: LinkFeature, ImageFeature: ImageFeature, ListFeature: ListFeature, HeaderFeature: HeaderFeature, ContainerFeature: ContainerFeature, GoogleMapFeature: GoogleMapFeature, TextWithParagraphFeature: TextWithParagraphFeature, ImageWithParagraphFeature: ImageWithParagraphFeature, DataResourceFeature: DataResourceFeature, TableFeature: TableFeature}
+
+features = new Features(true)
 
 angular.module('sampleDomainApp').value 'Features', new Features(true)
