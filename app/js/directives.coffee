@@ -2,6 +2,8 @@ angular.module('sampleDomainApp').directive 'featureList', ($rootScope, Features
   restrict: 'AEC',
   replace: true,
   template: '<ul class="list" ui-sortable="sortableOptions" ng-model="features" ><li drop-channel="A" ui-on-drop="onDropComplete($event,$index,$data,feature)" class="item" ng-repeat="feature in features track by feature.id"><feature-item></li></ul>',
+  # use parent scope
+  scope: false,
 
   link: (scope, elem, attrs) ->
     scope.$on 'addFeature', (event, featureName, targetId) ->
@@ -60,18 +62,17 @@ angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features
          elem.parent().removeClass('highlight_feature')
        true
 
-angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templateCache, Features, AppMetadata) ->
+angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templateCache, Features, AppFeatures, AppMetadata) ->
   restrict: 'AEC',
   replace: true,
   template: '<div>Select feature from list to edit its properties...<div>',
-  # use parent scope
+  # don't use parent scope
   scope: true,
 
   link: (scope, elem, attrs) ->
     scope.$on 'featureSelected', (event, featureId) ->
-      featureMetadata = AppMetadata.getFeature(featureId)
-      # TODO clean up this reference (featureMetadata.instance.feature)
-      feature = Features.getFeature(featureMetadata.instance.feature)
+      featureInstance = AppFeatures.find(featureId)
+      feature = Features.getFeature(featureInstance.feature)
 
       scope.feature = feature
       scope.inputs = {}
@@ -79,8 +80,8 @@ angular.module('sampleDomainApp').directive 'featureEditor', ($compile, $templat
       inputs = []
       inputs.push("<h3>#{feature.name}</h2>")
       inputs.push("<form id='edit_form' role='form' ng-submit='submit()' ng-controller='EditorCtrl' >")
+      scope.inputs = featureInstance.inputs
       for input in feature.inputs
-        scope.inputs[input.name] = featureMetadata.instance.inputs[input.name]
         inputs.push("  <div class='#{input.control}' feature='feature' inputs='inputs' model='inputs.#{input.name}' name='#{input.name}' />")
 
       inputs.push("<input type='submit' id='submit' value='Submit' class='btn btn-default' />")
@@ -150,32 +151,38 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
           id = original.attr('id')
 
           featureMetadata = AppMetadata.getFeature(originalFeatureId)
-          feature = Features.getFeature(featureMetadata.instance.feature)
+          featureInstance = AppFeatures.find(originalFeatureId)
+          if featureMetadata
+            feature = Features.getFeature(featureInstance.feature)
 
+            if feature.visual_editor
+              # remove the visual editor
+              original.unwrap()
+              original.empty()
 
-          if feature.visual_editor
-            original.unwrap()
-            original.empty()
-            generator = new AppGenerate()
+              # update the real feature instance inputs
+              featureInstance.inputs = scope.featureInstance.inputs
+              inputs = JSON.parse(JSON.stringify(scope.featureInstance.inputs))
+              inputs.page_location.target = '#' + "#{id}"
 
-            inputs = JSON.parse(JSON.stringify(featureMetadata.instance.inputs))
-            inputs.page_location.target = '#' + "#{id}"
+              # perform partial generation
+              generator = new AppGenerate()
+              generator.generateInstance(featureInstance, inputs, Features, AppMetadata, scope)
 
-            generator.generateInstance(featureMetadata.instance, inputs, Features, AppMetadata, scope)
-
-            $compile(original)(scope)
+              $compile(original)(scope)
 
 
         featureMetadata = AppMetadata.getFeature(featureId)
-        feature = Features.getFeature(featureMetadata.instance.feature)
+        featureInstance = AppFeatures.find(featureId)
 
-        if featureMetadata.page_info
+        if featureMetadata && featureMetadata.page_info
+          feature = Features.getFeature(featureInstance.feature)
           target = $("#content_section #" + featureMetadata.page_info.id)
           target.addClass('highlight_feature')
 
           if feature.visual_editor
-            scope.inputs = featureMetadata.instance.inputs
-            directive = $("<div class='#{feature.visual_editor}' model='inputs' ></div>")
+            scope.featureInstance = featureInstance
+            directive = $("<div class='#{feature.visual_editor}' feature-instance='featureInstance' ></div>")
             target.wrap(directive)
             $compile(target.parent())(scope)
 

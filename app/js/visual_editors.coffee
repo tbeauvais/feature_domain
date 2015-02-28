@@ -2,13 +2,14 @@ angular.module('sampleDomainApp').directive 'headerEditor', (AppMetadata) ->
   restrict: 'AEC'
   replace: false
   scope:
-    model: '='
+    featureInstance: '='
 
   link: (scope, elem, attrs) ->
 
     read = ->
       text = elem.find(':header').text()
-      scope.model.text = text
+      scope.featureInstance.inputs.text = text
+      console.log 'Header text' + scope.featureInstance.inputs.text
 
     elem.find(':header').attr('contenteditable', '')
     elem.find(':header').bind 'click', (e) ->

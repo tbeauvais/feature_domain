@@ -9,14 +9,18 @@ class @AppGenerate
       missingDependencies = []
       tries += 1
       for featureInstance in features
-        f = Features.getFeature(featureInstance.feature)
-        #console.log "generating pass #{tries} for " + JSON.stringify(featureInstance.inputs)
 
-        result = f.generate(AppMetadata, featureInstance, featureInstance.inputs, scope)
-        if typeof result.then == 'function'
-          promises.push(result)
-        else if !result
-          missingDependencies.push(featureInstance)
+        # TODO move this to feature, to allow feature to add disabled metadata (references can look at this and no-op)
+        unless featureInstance.inputs.disable == true
+
+          f = Features.getFeature(featureInstance.feature)
+          #console.log "generating pass #{tries} for " + JSON.stringify(featureInstance.inputs)
+
+          result = f.generate(AppMetadata, featureInstance, featureInstance.inputs, scope)
+          if typeof result.then == 'function'
+            promises.push(result)
+          else if !result
+            missingDependencies.push(featureInstance)
 
       features = missingDependencies
       break if tries > 3 || missingDependencies.length == 0

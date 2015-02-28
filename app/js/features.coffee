@@ -93,6 +93,12 @@ class TableFeature extends BaseFeature
     default: 'untitled'
     control: 'text-input'
   ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
+  ,
     name: 'resource'
     label: 'Data Resource'
     type: 'string'
@@ -157,7 +163,7 @@ class TableFeature extends BaseFeature
         dataRow += "<td ng-bind-html='data.#{field}#{filter}' ></td>"
         headerRow += "<th>#{labels[index] || field}</th>"
 
-      target.append("<div #{dd} id='#{id}' class='table-responsive' ><table class='table table-bordered table-striped' ><tr>#{headerRow}</tr> <tr ng-repeat='data in DataResource.#{inputs.resource}'>#{dataRow}</tr></table></div>")
+      target.append("<div #{dd} id='#{id}' class='table-responsive' style='background-color: #ffffff'><table class='table table-bordered table-striped' ><tr>#{headerRow}</tr> <tr ng-repeat='data in DataResource.#{inputs.resource}'>#{dataRow}</tr></table></div>")
       true
     else
       false
@@ -191,7 +197,7 @@ class PageFeature extends BaseFeature
       @addPageFeature(appMetadata, instance, inputs, id)
       appMetadata.addPageTarget('Page 1', '#page_container', '#' + id, instance.id)
       # TODO fix this ID
-      target.append("<div style='border: 5px solid dodgerblue;border-radius: 5px;padding: 8px;' id='page_container' title='generated from #{instance.name}' ></div>")
+      target.append("<div style='border: 5px solid dodgerblue;border-radius: 5px;padding: 8px;background-image: url(https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTdl-OtxypNdS1EePB5svEdeCIp0FwmOiza4bm_RJK6LTTKuigk)' id='page_container' title='generated from #{instance.name}' ></div>")
       true
     else
       false
@@ -207,6 +213,12 @@ class TextFeature extends BaseFeature
     type: 'string'
     default: 'untitled'
     control: 'text-input'
+  ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
   ,
     name: 'text'
     label: 'Text'
@@ -236,7 +248,7 @@ class TextFeature extends BaseFeature
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
-      target.append("<div #{dd} id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</div>")
+      target.append("<span #{dd} id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</span>")
       true
     else
       false
@@ -252,6 +264,12 @@ class TextWithParagraphFeature extends BaseFeature
     type: 'string'
     default: 'untitled'
     control: 'text-input'
+  ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
   ,
     name: 'title'
     label: 'Title'
@@ -304,6 +322,12 @@ class ImageWithParagraphFeature extends BaseFeature
     type: 'string'
     default: 'untitled'
     control: 'text-input'
+  ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
   ,
     name: 'title'
     label: 'Title'
@@ -380,6 +404,12 @@ class ContainerFeature extends BaseFeature
     type: 'string'
     default: 'untitled'
     control: 'text-input'
+  ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
   ,
     name: 'columns'
     label: 'Columns'
@@ -474,6 +504,12 @@ class HeaderFeature extends BaseFeature
     default: 'untitled'
     control: 'text-input'
   ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
+  ,
     name: 'text'
     label: 'Text'
     type: 'string'
@@ -490,7 +526,7 @@ class HeaderFeature extends BaseFeature
     name: 'size'
     label: 'Size'
     type: 'integer'
-    defaut: '1'
+    default: '1'
     control: 'text-input'
     control_attributes:
       min: '1'
@@ -548,6 +584,12 @@ class ListFeature extends BaseFeature
     default: 'untitled'
     control: 'text-input'
   ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
+  ,
     name: 'list'
     label: 'List Items'
     placeholder: 'Comma separated list'
@@ -585,17 +627,17 @@ class ListFeature extends BaseFeature
       @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
 
-      align = 'text-center'
+      align = 'center-block'
       if inputs.align == 'left'
-        align = 'text-left'
+        align = 'pull-left'
       else if inputs.align == 'right'
-        align = 'text-right'
+        align = 'pull-right'
 
       lists = ''
       list = inputs.list.split(',')
       for item in list
         lists += "<li>#{item}</li>"
-      target.append("<div #{dd} id='#{id}' class='center-block' style='width:200px;' ><ul>#{lists}</ul></div>")
+      target.append("<div #{dd} id='#{id}' class='#{align}' style='width:200px;' ><ul>#{lists}</ul></div>")
       true
     else
       false
@@ -611,6 +653,12 @@ class LinkFeature extends BaseFeature
     type: 'string'
     default: 'untitled'
     control: 'text-input'
+  ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
   ,
     name: 'href'
     label: 'Link URL'
@@ -664,6 +712,12 @@ class ImageFeature extends BaseFeature
     default: 'untitled'
     control: 'text-input'
   ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
+  ,
     name: 'src'
     label: 'Image URL'
     placeholder: 'http://a-z-animals.com/capybara3.jpg'
@@ -689,6 +743,13 @@ class ImageFeature extends BaseFeature
     default: '300'
     control: 'text-input'
   ,
+    name: 'align'
+    label: 'Align'
+    type: 'string'
+    default: 'center'
+    control: 'text-select'
+    options: 'left,center,right'
+  ,
     name: 'page_location'
     label: 'Page Location'
     type: 'object'
@@ -711,7 +772,14 @@ class ImageFeature extends BaseFeature
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
-      target.append("<img #{dd} id='#{id}' src='#{inputs.src}' alt='#{inputs.alt}' class='img-responsive' height='#{inputs.height}' width='#{inputs.width}'>")
+
+      align = 'center-block'
+      if inputs.align == 'left'
+        align = 'pull-left'
+      else if inputs.align == 'right'
+        align = 'pull-right'
+
+      target.append("<img #{dd} id='#{id}' src='#{inputs.src}' alt='#{inputs.alt}' class='img-responsive  #{align}' height='#{inputs.height}' width='#{inputs.width}'>")
       true
     else
       false
@@ -726,6 +794,12 @@ class GoogleMapFeature extends BaseFeature
     type: 'string'
     default: 'untitled'
     control: 'text-input'
+  ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
   ,
     name: 'title'
     label: 'Title'

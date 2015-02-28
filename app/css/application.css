@@ -135,3 +135,7 @@ li.item {
 .container-column {
     min-height: 25px !important;
 }
+
+.form-inline .form-control, .form-inline .btn {
+    margin: 0px 5px;
+}

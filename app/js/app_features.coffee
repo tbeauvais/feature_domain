@@ -21,8 +21,14 @@ angular.module('sampleDomainApp').factory 'AppFeatures',  ($q, Model) ->
       index = @indexOfId(targetId)
       targetInstance = @find(targetId)
       feature.inputs.page_location = {target: '', name: ''}
-      feature.inputs.page_location.target = targetInstance.inputs.page_location.target
-      feature.inputs.page_location.name = targetInstance.inputs.page_location.name
+      if targetInstance.inputs.page_location
+        feature.inputs.page_location.target = targetInstance.inputs.page_location.target
+        feature.inputs.page_location.name = targetInstance.inputs.page_location.name
+      else
+        # TODO get these from page feature
+        feature.inputs.page_location.target = '#page_container'
+        feature.inputs.page_location.name = 'Page 1'
+
       @features().splice(index+1, 0, feature)
     else
       @features().push(feature)
@@ -71,6 +77,7 @@ angular.module('sampleDomainApp').factory 'AppFeatures',  ($q, Model) ->
     @app_features = features
 
   saveFeatures: ->
+    console.log 'Saving feature instances'
     @model.$update {uuid: @model.id}
 
   app_features: null
