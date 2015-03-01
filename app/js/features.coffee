@@ -400,6 +400,86 @@ class ButtonFeature extends BaseFeature
       false
 
 
+class SeparatorFeature extends BaseFeature
+
+  name: 'Separator'
+  icon: 'glyphicon-minus'
+  inputs: [
+    name: 'name'
+    label: 'Name'
+    type: 'string'
+    default: 'untitled'
+    control: 'text-input'
+  ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
+  ,
+    name: 'color'
+    label: 'Color'
+    type: 'string'
+    control: 'color-picker'
+  ,
+    name: 'height'
+    label: 'Height'
+    type: 'string'
+    default: '3'
+    control: 'text-input'
+  ,
+    name: 'width'
+    label: 'Width'
+    type: 'string'
+    default: '80'
+    control: 'text-input'
+  ,
+    name: 'align'
+    label: 'Align'
+    type: 'string'
+    default: 'center'
+    control: 'text-select'
+    options: [
+      value: 'left'
+      text: 'Left'
+    ,
+      value: 'center'
+      text: 'Center'
+    ,
+      value: 'right'
+      text: 'Right'
+    ]
+  ,
+    name: 'page_location'
+    label: 'Page Location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
+    control: 'page-target-selector'
+  ]
+
+  constructor: (initData) ->
+    super(initData)
+
+  generate: (appMetadata, instance, inputs) ->
+    id = @instanceId(instance, inputs)
+    target = $(inputs.page_location.target)
+    if target.length > 0
+      @addPageFeature(appMetadata, instance, inputs, id)
+      dd = @dragDropSupport(instance.id)
+
+      target.append("<div #{dd} id='#{id}' ><hr align='#{inputs.align}' width='#{inputs.width}%' style='background-color: #{inputs.color};height: #{inputs.height}px;' ></hr></div>")
+
+      true
+    else
+      false
+
+
 class TextWithParagraphFeature extends BaseFeature
 
   name: 'TextWithParagraph'
@@ -1021,6 +1101,7 @@ FeatureClasses = {
   DataResourceFeature: DataResourceFeature
   TableFeature: TableFeature
   ButtonFeature: ButtonFeature
+  SeparatorFeature: SeparatorFeature
 }
 
 features = new Features(true)
