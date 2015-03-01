@@ -52,7 +52,7 @@ angular.module('sampleDomainApp').directive 'textSelect', (AppMetadata) ->
   template: """
     <div class='form-group' >
         <label>{{label}}</label>
-        <select ng-options='item for item in items' ng-model='model' class='form-control' />
+        <select ng-options='item.value as item.text for item in items' ng-model='model' class='form-control' />
     </div>
 """
 
@@ -66,7 +66,7 @@ angular.module('sampleDomainApp').directive 'textSelect', (AppMetadata) ->
     input = _.find scope.feature.inputs, (input) ->
       input.name == scope.name
     scope.label = input.label
-    scope.items = input.options.split(',')
+    scope.items = input.options
 
 
 angular.module('sampleDomainApp').directive 'textInput', (AppMetadata) ->

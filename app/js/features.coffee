@@ -277,6 +277,129 @@ class TextFeature extends BaseFeature
       false
 
 
+class ButtonFeature extends BaseFeature
+
+  name: 'Button'
+  icon: 'glyphicon-link'
+  inputs: [
+    name: 'name'
+    label: 'Name'
+    type: 'string'
+    default: 'untitled'
+    control: 'text-input'
+  ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
+  ,
+    name: 'text'
+    label: 'Text'
+    type: 'string'
+    default: 'Click Me'
+    control: 'text-input'
+  ,
+    name: 'href'
+    label: 'Target'
+    placeholder: 'http://www.google.com'
+    type: 'string'
+    default: 'http://www.google.com'
+    control: 'text-input'
+  ,
+    name: 'style'
+    label: 'Style'
+    type: 'string'
+    default: 'btn-default'
+    control: 'text-select'
+    options: [
+      value: 'btn-default'
+      text: 'Default'
+    ,
+      value: 'btn-primary'
+      text: 'Primary'
+    ,
+      value: 'btn-success'
+      text: 'Success'
+    ,
+      value: 'btn-info'
+      text: 'Info'
+    ,
+      value: 'btn-warning'
+      text: 'Warning'
+    ,
+      value: 'btn-danger'
+      text: 'Danger'
+    ,
+      value: 'btn-link'
+      text: 'Link'
+    ]
+  ,
+    name: 'size'
+    label: 'Size'
+    type: 'string'
+    default: ''
+    control: 'text-select'
+    options: [
+      value: 'btn-lg'
+      text: 'Large'
+    ,
+      value: ''
+      text: 'Medium'
+    ,
+      value: 'btn-sm'
+      text: 'Small'
+    ,
+      value: 'btn-xs'
+      text: 'Extra Small'
+    ]
+  ,
+    name: 'align'
+    label: 'Align'
+    type: 'string'
+    default: 'text-center'
+    control: 'text-select'
+    options: [
+      value: 'text-left'
+      text: 'Left'
+    ,
+      value: 'text-center'
+      text: 'Center'
+    ,
+      value: 'text-right'
+      text: 'Right'
+    ]
+  ,
+    name: 'page_location'
+    label: 'Page Location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
+    control: 'page-target-selector'
+  ]
+
+  constructor: (initData) ->
+    super(initData)
+
+  generate: (appMetadata, instance, inputs) ->
+    id = @instanceId(instance, inputs)
+    target = $(inputs.page_location.target)
+    if target.length > 0
+      @addPageFeature(appMetadata, instance, inputs, id)
+      dd = @dragDropSupport(instance.id)
+
+      target.append("<div #{dd} id='#{id}' class='#{inputs.align}' style='padding: 3px;' > <a class='btn #{inputs.style} #{inputs.size}' href='#{inputs.href}' target='_blank' role='button' >#{inputs.text}</a></div>")
+
+      true
+    else
+      false
+
+
 class TextWithParagraphFeature extends BaseFeature
 
   name: 'TextWithParagraph'
@@ -542,9 +665,18 @@ class HeaderFeature extends BaseFeature
     name: 'align'
     label: 'Align'
     type: 'string'
-    default: 'center'
+    default: 'text-center'
     control: 'text-select'
-    options: 'left,center,right'
+    options: [
+      value: 'text-left'
+      text: 'Left'
+    ,
+      value: 'text-center'
+      text: 'Center'
+    ,
+      value: 'text-right'
+      text: 'Right'
+    ]
   ,
     name: 'size'
     label: 'Size'
@@ -579,18 +711,12 @@ class HeaderFeature extends BaseFeature
       @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
 
-      align = 'text-center'
-      if inputs.align == 'left'
-        align = 'text-left'
-      else if inputs.align == 'right'
-        align = 'text-right'
-
       unless target.attr('id') == id
         el = $("<div #{dd} id='#{id}' ></div>")
         target.append(el)
         target = el
 
-      target.append("<H#{inputs.size} class='#{align}' >#{inputs.text}</H#{inputs.size}>")
+      target.append("<H#{inputs.size} class='#{inputs.align}' >#{inputs.text}</H#{inputs.size}>")
       true
     else
       false
@@ -623,9 +749,18 @@ class ListFeature extends BaseFeature
     name: 'align'
     label: 'Align'
     type: 'string'
-    default: 'center'
+    default: 'text-center'
     control: 'text-select'
-    options: 'left,center,right'
+    options: [
+      value: 'pull-left'
+      text: 'Left'
+    ,
+      value: 'center-block'
+      text: 'Center'
+    ,
+      value: 'pull-right'
+      text: 'Right'
+    ]
   ,
     name: 'page_location'
     label: 'Page Location'
@@ -650,17 +785,11 @@ class ListFeature extends BaseFeature
       @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
 
-      align = 'center-block'
-      if inputs.align == 'left'
-        align = 'pull-left'
-      else if inputs.align == 'right'
-        align = 'pull-right'
-
       lists = ''
       list = inputs.list.split(',')
       for item in list
         lists += "<li>#{item}</li>"
-      target.append("<div #{dd} id='#{id}' class='#{align}' style='width:200px;' ><ul>#{lists}</ul></div>")
+      target.append("<div #{dd} id='#{id}' class='#{inputs.align}' style='width:200px;' ><ul>#{lists}</ul></div>")
       true
     else
       false
@@ -769,9 +898,18 @@ class ImageFeature extends BaseFeature
     name: 'align'
     label: 'Align'
     type: 'string'
-    default: 'center'
+    default: 'center-block'
     control: 'text-select'
-    options: 'left,center,right'
+    options: [
+      value: 'pull-left'
+      text: 'Left'
+    ,
+      value: 'center-block'
+      text: 'Center'
+    ,
+      value: 'pull-right'
+      text: 'Right'
+    ]
   ,
     name: 'page_location'
     label: 'Page Location'
@@ -796,13 +934,7 @@ class ImageFeature extends BaseFeature
       @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
 
-      align = 'center-block'
-      if inputs.align == 'left'
-        align = 'pull-left'
-      else if inputs.align == 'right'
-        align = 'pull-right'
-
-      target.append("<img #{dd} id='#{id}' src='#{inputs.src}' alt='#{inputs.alt}' class='img-responsive  #{align}' height='#{inputs.height}' width='#{inputs.width}'>")
+      target.append("<img #{dd} id='#{id}' src='#{inputs.src}' alt='#{inputs.alt}' class='img-responsive  #{inputs.align}' height='#{inputs.height}' width='#{inputs.width}'>")
       true
     else
       false
@@ -875,7 +1007,21 @@ class GoogleMapFeature extends BaseFeature
     else
       false
 
-FeatureClasses = {PageFeature: PageFeature, TextFeature: TextFeature, LinkFeature: LinkFeature, ImageFeature: ImageFeature, ListFeature: ListFeature, HeaderFeature: HeaderFeature, ContainerFeature: ContainerFeature, GoogleMapFeature: GoogleMapFeature, TextWithParagraphFeature: TextWithParagraphFeature, ImageWithParagraphFeature: ImageWithParagraphFeature, DataResourceFeature: DataResourceFeature, TableFeature: TableFeature}
+FeatureClasses = {
+  PageFeature: PageFeature
+  TextFeature: TextFeature
+  LinkFeature: LinkFeature
+  ImageFeature: ImageFeature
+  ListFeature: ListFeature
+  HeaderFeature: HeaderFeature
+  ContainerFeature: ContainerFeature
+  GoogleMapFeature: GoogleMapFeature
+  TextWithParagraphFeature: TextWithParagraphFeature
+  ImageWithParagraphFeature: ImageWithParagraphFeature
+  DataResourceFeature: DataResourceFeature
+  TableFeature: TableFeature
+  ButtonFeature: ButtonFeature
+}
 
 features = new Features(true)
 
