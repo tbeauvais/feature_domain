@@ -26,4 +26,32 @@ angular.module('sampleDomainApp').directive 'headerEditor', (AppMetadata) ->
       console.log '$destroy Called !!!!!!!!!!!'
 
 
+angular.module('sampleDomainApp').directive 'listEditor', (AppMetadata) ->
+  restrict: 'AEC'
+  replace: false
+  scope:
+    featureInstance: '='
+
+  link: (scope, elem, attrs) ->
+
+    read = ->
+      items = _.map elem.find('li'), (el)->
+        $(el).text()
+      text = items.join(',')
+      scope.featureInstance.inputs.list = text
+
+    elem.find('ul').attr('contenteditable', '')
+    elem.find('ul').bind 'click', (e) ->
+      e.preventDefault()
+      false
+
+    elem.on 'blur keyup change', ->
+      scope.$evalAsync(read)
+
+    elem.on '$destroy', ->
+      elem.find('ul').off 'click'
+      elem.find('ul').removeAttr 'contenteditable'
+      elem.off 'blur keyup change'
+      console.log '$destroy Called !!!!!!!!!!!'
+
 

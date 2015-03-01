@@ -806,6 +806,7 @@ class ListFeature extends BaseFeature
 
   name: 'List'
   icon: 'glyphicon-list'
+  visual_editor: 'list-editor'
   inputs: [
     name: 'name'
     label: 'Name'
