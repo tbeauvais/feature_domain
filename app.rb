@@ -37,6 +37,7 @@ class App < Sinatra::Base
       /js/vendor/sortable.js
       /js/vendor/underscore.js
       /js/vendor/tree-model.js
+      /js/vendor/colorpicker-module.js
       /js/vendor/d3.js
       /js/vendor/draganddrop.js
       /js/application.js

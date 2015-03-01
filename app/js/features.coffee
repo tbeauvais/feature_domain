@@ -179,6 +179,21 @@ class PageFeature extends BaseFeature
     type: 'string'
     control: 'text-input'
   ,
+    name: 'border_color'
+    label: 'Border Color'
+    type: 'string'
+    control: 'color-picker'
+  ,
+    name: 'background_color'
+    label: 'Background Color'
+    type: 'string'
+    control: 'color-picker'
+  ,
+    name: 'background_image'
+    label: 'Background Image'
+    type: 'string'
+    control: 'text-input'
+  ,
     name: 'page_location'
     label: 'Page Location'
     type: 'page_location'
@@ -196,8 +211,16 @@ class PageFeature extends BaseFeature
       appMetadata.addPageTarget('Page 1', '#content_section');
       @addPageFeature(appMetadata, instance, inputs, id)
       appMetadata.addPageTarget('Page 1', '#page_container', '#' + id, instance.id)
+      style = ''
+      if inputs.border_color
+        style = "border: 5px solid #{inputs.border_color};border-radius: 5px;padding: 8px;"
+      if inputs.background_color
+        style += "background-color: #{inputs.background_color};"
+      if inputs.background_image
+        style += "background-image: url(#{inputs.background_image});"
+
       # TODO fix this ID
-      target.append("<div style='border: 5px solid dodgerblue;border-radius: 5px;padding: 8px;background-image: url(https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTdl-OtxypNdS1EePB5svEdeCIp0FwmOiza4bm_RJK6LTTKuigk)' id='page_container' title='generated from #{instance.name}' ></div>")
+      target.append("<div style='#{style}' id='page_container' ></div>")
       true
     else
       false
@@ -248,7 +271,7 @@ class TextFeature extends BaseFeature
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
-      target.append("<span #{dd} id='#{id}' title='generated from #{instance.name}' >#{inputs.text}</span>")
+      target.append("<span #{dd} id='#{id}' >#{inputs.text}</span>")
       true
     else
       false
@@ -567,7 +590,7 @@ class HeaderFeature extends BaseFeature
         target.append(el)
         target = el
 
-      target.append("<H#{inputs.size} class='#{align}' title='generated from #{instance.name}' >#{inputs.text}</H#{inputs.size}>")
+      target.append("<H#{inputs.size} class='#{align}' >#{inputs.text}</H#{inputs.size}>")
       true
     else
       false

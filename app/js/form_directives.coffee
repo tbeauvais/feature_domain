@@ -136,3 +136,29 @@ angular.module('sampleDomainApp').directive 'checkboxInput', (AppMetadata) ->
     input = _.find scope.feature.inputs, (input) ->
       input.name == scope.name
     scope.label = input.label
+
+angular.module('sampleDomainApp').directive 'colorPicker', (AppMetadata) ->
+  restrict: 'AEC'
+  replace: true
+  template: """
+    <div class='form-group' >
+        <label>{{label}}</label>
+        <input colorpicker class='form-control' ng-model='model' />
+    </div>
+"""
+  scope:
+    inputs: '='
+    model: '='
+    feature: '='
+    name: '@'
+
+  link: (scope, elem, attrs) ->
+    input = _.find scope.feature.inputs, (input) ->
+      input.name == scope.name
+    scope.label = input.label
+
+    input_field = elem.find('input')
+
+    if input.control_attributes
+      for k,v of input.control_attributes
+        input_field.attr(k, v)
