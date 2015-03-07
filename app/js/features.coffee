@@ -684,7 +684,7 @@ class ContainerFeature extends BaseFeature
     name: 'well'
     label: 'Add Well'
     type: 'boolean'
-    defaut: 'false'
+    defaut: 'true'
     control: 'checkbox-input'
   ,
     name: 'page_location'
@@ -861,7 +861,7 @@ class ListFeature extends BaseFeature
     name: 'align'
     label: 'Align'
     type: 'string'
-    default: 'text-center'
+    default: 'center-block'
     control: 'text-select'
     options: [
       value: 'pull-left'
@@ -902,6 +902,143 @@ class ListFeature extends BaseFeature
       for item in list
         lists += "<li>#{item}</li>"
       target.append("<ul>#{lists}</ul>")
+      true
+    else
+      false
+
+
+class ListGroupFeature extends BaseFeature
+
+  name: 'ListGroup'
+  icon: 'glyphicon-list'
+  visual_editor:
+    control: 'list-editor'
+  inputs: [
+    name: 'name'
+    label: 'Name'
+    type: 'string'
+    default: 'untitled'
+    control: 'text-input'
+  ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
+  ,
+    name: 'style'
+    label: 'Style'
+    type: 'string'
+    default: 'panel-primary'
+    control: 'text-select'
+    options: [
+      value: 'panel-primary'
+      text: 'Primary'
+    ,
+      value: 'panel-success'
+      text: 'Success'
+    ,
+      value: 'panel-info'
+      text: 'Info'
+    ,
+      value: 'panel-warning'
+      text: 'Warning'
+    ,
+      value: 'panel-danger'
+      text: 'Danger'
+    ]
+  ,
+    name: 'heading'
+    label: 'Heading'
+    type: 'string'
+    default: 'List Group Heading'
+    control: 'text-input'
+  ,
+    name: 'description'
+    label: 'Description'
+    type: 'string'
+    default: 'This is our best offer ever.'
+    control: 'text-area'
+  ,
+    name: 'list'
+    label: 'List Items'
+    placeholder: 'Comma separated list'
+    type: 'string'
+    default: 'Red,Green,Blue'
+    control: 'text-input'
+  ,
+    name: 'align'
+    label: 'Align'
+    type: 'string'
+    default: 'center-block'
+    control: 'text-select'
+    options: [
+      value: 'pull-left'
+      text: 'Left'
+    ,
+      value: 'center-block'
+      text: 'Center'
+    ,
+      value: 'pull-right'
+      text: 'Right'
+    ]
+  ,
+    name: 'page_location'
+    label: 'Page Location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
+    control: 'page-target-selector'
+  ]
+
+  constructor: (initData) ->
+    super(initData)
+
+  generate: (appMetadata, instance, inputs) ->
+    id = @instanceId(instance, inputs)
+    target = @getTarget(inputs.page_location, id, instance.id)
+    if target.length > 0
+      @addPageFeature(appMetadata, instance, inputs, id)
+      target.addClass(inputs.align)
+      target.addClass('text-center')
+     # target.addClass('col-lg-4')
+
+     # target.attr('style', 'width:200px;')
+
+      lists = ''
+      list = inputs.list.split(',')
+      for item, index in list
+        debugger
+        if index < (list.length - 1)
+          lists += "<li class='list-group-item' >#{item}</li>"
+        else
+          lists += """
+            <li class="list-group-item">
+              <h3><strong><span class="text-success">#{item}</span></strong></h3>
+            </li>
+"""
+
+      pannel = """
+        <div class="panel #{inputs.style}">
+          <div class="panel-heading">
+            <h4><strong>#{inputs.heading}</strong></h4>
+          </div>
+          <div class="panel-body">
+            <strong><p>#{inputs.description}</p></strong>
+            <br>
+          </div>
+          <ul class='list-group'>
+            #{lists}
+          </ul>
+        </div>
+"""
+
+      target.append(pannel)
       true
     else
       false
@@ -1148,6 +1285,7 @@ FeatureClasses = {
   TableFeature: TableFeature
   ButtonFeature: ButtonFeature
   SeparatorFeature: SeparatorFeature
+  ListGroupFeature: ListGroupFeature
 }
 
 features = new Features(true)
