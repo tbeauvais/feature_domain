@@ -145,7 +145,7 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
 
         # TODO cleanup
         original = $('#content_section .highlight_feature')
-        if original && original.length >0
+        if original && original.length > 0
           original.removeClass('highlight_feature')
           originalFeatureId = original.attr('drag')
           id = original.attr('id')
@@ -182,7 +182,8 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
 
           if feature.visual_editor
             scope.featureInstance = featureInstance
-            directive = $("<div class='#{feature.visual_editor}' feature-instance='featureInstance' ></div>")
+            scope.feature = feature
+            directive = $("<div class='#{feature.visual_editor.control}' feature='feature' feature-instance='featureInstance' ></div>")
             target.wrap(directive)
             $compile(target.parent())(scope)
 

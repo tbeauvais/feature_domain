@@ -52,6 +52,17 @@ class BaseFeature
   cleanName: (name) ->
     name.replace(/\s+/g, '')
 
+  getTarget: (page_info, id, instanceId) ->
+    target = $(page_info.target)
+    if target.length > 0
+      unless target.attr('id') == id
+        dd = @dragDropSupport(instanceId)
+        el = $("<div #{dd} id='#{id}' ></div>")
+        target.append(el)
+        target = el
+
+    target
+
 class DataResourceFeature extends BaseFeature
 
   name: 'DataResource'
@@ -230,6 +241,12 @@ class TextFeature extends BaseFeature
 
   name: 'Text'
   icon: 'glyphicon-pencil'
+  visual_editor:
+    control: 'visual-text-editor'
+    targets: [
+      element: 'span'
+      input: 'text'
+    ]
   inputs: [
     name: 'name'
     label: 'Name'
@@ -267,11 +284,10 @@ class TextFeature extends BaseFeature
 
   generate: (appMetadata, instance, inputs) ->
     id = @instanceId(instance, inputs)
-    target = $(inputs.page_location.target)
+    target = @getTarget(inputs.page_location, id, instance.id)
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
-      dd = @dragDropSupport(instance.id)
-      target.append("<span #{dd} id='#{id}' >#{inputs.text}</span>")
+      target.append("<span>#{inputs.text}</span>")
       true
     else
       false
@@ -281,6 +297,12 @@ class ButtonFeature extends BaseFeature
 
   name: 'Button'
   icon: 'glyphicon-link'
+  visual_editor:
+    control: 'visual-text-editor'
+    targets: [
+      element: 'a'
+      input: 'text'
+    ]
   inputs: [
     name: 'name'
     label: 'Name'
@@ -388,13 +410,12 @@ class ButtonFeature extends BaseFeature
 
   generate: (appMetadata, instance, inputs) ->
     id = @instanceId(instance, inputs)
-    target = $(inputs.page_location.target)
+    target = @getTarget(inputs.page_location, id, instance.id)
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
-      dd = @dragDropSupport(instance.id)
-
-      target.append("<div #{dd} id='#{id}' class='#{inputs.align}' style='padding: 3px;' > <a class='btn #{inputs.style} #{inputs.size}' href='#{inputs.href}' target='_blank' role='button' >#{inputs.text}</a></div>")
-
+      target.addClass(inputs.align)
+      target.attr('style', 'padding: 3px;')
+      target.append("<a class='btn #{inputs.style} #{inputs.size}' href='#{inputs.href}' target='_blank' role='button' >#{inputs.text}</a>")
       true
     else
       false
@@ -468,13 +489,10 @@ class SeparatorFeature extends BaseFeature
 
   generate: (appMetadata, instance, inputs) ->
     id = @instanceId(instance, inputs)
-    target = $(inputs.page_location.target)
+    target = @getTarget(inputs.page_location, id, instance.id)
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
-      dd = @dragDropSupport(instance.id)
-
-      target.append("<div #{dd} id='#{id}' ><hr align='#{inputs.align}' width='#{inputs.width}%' style='background-color: #{inputs.color};height: #{inputs.height}px;' ></hr></div>")
-
+      target.append("<hr align='#{inputs.align}' width='#{inputs.width}%' style='background-color: #{inputs.color};height: #{inputs.height}px;' ></hr>")
       true
     else
       false
@@ -484,6 +502,15 @@ class TextWithParagraphFeature extends BaseFeature
 
   name: 'TextWithParagraph'
   icon: 'glyphicon-pencil'
+  visual_editor:
+    control: 'visual-text-editor'
+    targets: [
+      element: 'p'
+      input: 'text'
+    ,
+      element: ':header'
+      input: 'title'
+    ]
   inputs: [
     name: 'name'
     label: 'Name'
@@ -527,21 +554,29 @@ class TextWithParagraphFeature extends BaseFeature
 
   generate: (appMetadata, instance, inputs) ->
     id = @instanceId(instance, inputs)
-    target = $(inputs.page_location.target)
+    target = @getTarget(inputs.page_location, id, instance.id)
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
-      dd = @dragDropSupport(instance.id)
-      template = "<div #{dd} class='well' id='#{id}'><h3 class='paragraph_title'>#{instance.inputs.title}</h3><p>#{instance.inputs.text}</p></div>"
+      target.addClass('well')
+      template = "<h3 class='paragraph_title'>#{instance.inputs.title}</h3><p>#{instance.inputs.text}</p>"
       target.append(template)
       true
     else
       false
 
-
 class ImageWithParagraphFeature extends BaseFeature
 
   name: 'ImageWithParagraph'
   icon: 'glyphicon-pencil'
+  visual_editor:
+    control: 'visual-text-editor'
+    targets: [
+      element: 'p'
+      input: 'text'
+    ,
+      element: ':header'
+      input: 'title'
+    ]
   inputs: [
     name: 'name'
     label: 'Name'
@@ -592,18 +627,15 @@ class ImageWithParagraphFeature extends BaseFeature
 
   generate: (appMetadata, instance, inputs) ->
     id = @instanceId(instance, inputs)
-    inputs.page_location.target = "#page_container"
-    target = $(inputs.page_location.target)
+    target = @getTarget(inputs.page_location, id, instance.id)
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
-      dd = @dragDropSupport(instance.id)
+      target.addClass('well')
       template = """
-          <div #{dd} class='well' id='#{id}'>
-            <h3>#{inputs.title}</h3>
-            <div class='row-fluid'>
-              <div id='#{id}_image' class='span2 pull-left' style='margin:0 3px'></div>
-              <p class='span10'>#{inputs.text}</p>
-            </div>
+          <h3>#{inputs.title}</h3>
+          <div class='row-fluid'>
+            <div id='#{id}_image' class='span2 pull-left' style='margin:0 3px'></div>
+            <p class='span10'>#{inputs.text}</p>
           </div>
 """
       target.append(template)
@@ -722,7 +754,12 @@ class HeaderFeature extends BaseFeature
 
   name: 'Header'
   icon: 'glyphicon-header'
-  visual_editor: 'header-editor'
+  visual_editor:
+    control: 'visual-text-editor'
+    targets: [
+      element: ':header'
+      input: 'text'
+    ]
   inputs: [
     name: 'name'
     label: 'Name'
@@ -786,16 +823,9 @@ class HeaderFeature extends BaseFeature
 
   generate: (appMetadata, instance, inputs) ->
     id = @instanceId(instance, inputs)
-    target = $(inputs.page_location.target)
+    target = @getTarget(inputs.page_location, id, instance.id)
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
-      dd = @dragDropSupport(instance.id)
-
-      unless target.attr('id') == id
-        el = $("<div #{dd} id='#{id}' ></div>")
-        target.append(el)
-        target = el
-
       target.append("<H#{inputs.size} class='#{inputs.align}' >#{inputs.text}</H#{inputs.size}>")
       true
     else
@@ -806,7 +836,8 @@ class ListFeature extends BaseFeature
 
   name: 'List'
   icon: 'glyphicon-list'
-  visual_editor: 'list-editor'
+  visual_editor:
+    control: 'list-editor'
   inputs: [
     name: 'name'
     label: 'Name'
@@ -861,16 +892,16 @@ class ListFeature extends BaseFeature
 
   generate: (appMetadata, instance, inputs) ->
     id = @instanceId(instance, inputs)
-    target = $(inputs.page_location.target)
+    target = @getTarget(inputs.page_location, id, instance.id)
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
-      dd = @dragDropSupport(instance.id)
-
+      target.addClass(inputs.align)
+      target.attr('style', 'width:200px;')
       lists = ''
       list = inputs.list.split(',')
       for item in list
         lists += "<li>#{item}</li>"
-      target.append("<div #{dd} id='#{id}' class='#{inputs.align}' style='width:200px;' ><ul>#{lists}</ul></div>")
+      target.append("<ul>#{lists}</ul>")
       true
     else
       false
@@ -880,6 +911,12 @@ class LinkFeature extends BaseFeature
 
   name: 'Link'
   icon: 'glyphicon-link'
+  visual_editor:
+    control: 'visual-text-editor'
+    targets: [
+      element: 'a'
+      input: 'text'
+    ]
   inputs: [
     name: 'name'
     label: 'Name'
@@ -924,11 +961,10 @@ class LinkFeature extends BaseFeature
 
   generate: (appMetadata, instance, inputs) ->
     id = @instanceId(instance, inputs)
-    target = $(inputs.page_location.target)
+    target = @getTarget(inputs.page_location, id, instance.id)
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
-      dd = @dragDropSupport(instance.id)
-      target.append("<div #{dd} id='#{id}' ><a href='#{inputs.href}' target='_blank'>#{inputs.text}</a></div>")
+      target.append("<a href='#{inputs.href}' target='_blank'>#{inputs.text}</a>")
       true
     else
       false
@@ -1024,6 +1060,15 @@ class GoogleMapFeature extends BaseFeature
 
   name: 'GoogleMap'
   icon: 'glyphicon-map-marker'
+  visual_editor:
+    control: 'visual-text-editor'
+    targets: [
+      element: 'H4 a'
+      input: 'address'
+    ,
+      element: 'H3'
+      input: 'title'
+    ]
   inputs: [
     name: 'name'
     label: 'Name'
@@ -1078,12 +1123,12 @@ class GoogleMapFeature extends BaseFeature
 
   generate: (appMetadata, instance, inputs) ->
     id = @instanceId(instance, inputs)
-    target = $(inputs.page_location.target)
+    target = @getTarget(inputs.page_location, id, instance.id)
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
-      dd = @dragDropSupport(instance.id)
-      template = "<div #{dd} class='well' id='#{id}'><h3>#{instance.inputs.title}</h3><h3 ><a href='http://maps.google.com/maps?q=#{instance.inputs.address}' >#{instance.inputs.address}</a></h3><div class='map_container'><img class='img-responsive' src='http://maps.googleapis.com/maps/api/staticmap?center=#{instance.inputs.address}&zoom=15&scale=2&size=#{instance.inputs.width}x#{instance.inputs.height}&markers=color:blue|#{instance.inputs.address}&sensor=true' /></div></div>"
-      $(inputs.page_location.target).append(template)
+      target.addClass('well')
+      template = "<h3>#{instance.inputs.title}</h3><h4><a href='http://maps.google.com/maps?q=#{instance.inputs.address}' >#{instance.inputs.address}</a><h4><div class='map_container'><img class='img-responsive' src='http://maps.googleapis.com/maps/api/staticmap?center=#{instance.inputs.address}&zoom=15&scale=2&size=#{instance.inputs.width}x#{instance.inputs.height}&markers=color:blue|#{instance.inputs.address}&sensor=true' /></div>"
+      target.append(template)
       true
     else
       false
