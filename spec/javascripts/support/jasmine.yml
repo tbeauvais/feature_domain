@@ -16,15 +16,20 @@ src_files:
   - public/js/vendor/angular.js
   - public/js/vendor/angular-mocks.js
   - public/js/vendor/angular-resource.js
+  - public/js/vendor/angular-sanitize.js
   - public/js/vendor/sortable.js
   - public/js/vendor/underscore.js
   - public/js/vendor/tree-model.js
   - public/js/vendor/d3.js
   - public/js/vendor/draganddrop.js
+  - public/js/vendor/colorpicker-module.js
   - public/js/application.js
   - public/js/app_features.js
   - public/js/controllers.js
   - public/js/directives.js
+  - public/js/form_directives.js
+  - public/js/visual_editors.js
+  - public/js/filters.js
   - public/js/features.js
   - public/js/generator.js
   - public/js/metadata.js

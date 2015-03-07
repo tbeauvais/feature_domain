@@ -60,11 +60,11 @@
 
 
   describe('directive: featureEditor', function () {
-    var element, scope, editor;
+    var element, scope, editor, compiler;
 
     beforeEach(module('sampleDomainApp'));
 
-    beforeEach(inject(function($rootScope, $compile, AppMetadata) {
+    beforeEach(inject(function($rootScope, $compile, AppMetadata, AppFeatures) {
       AppMetadata.reset();
       scope = $rootScope.$new();
 
@@ -72,9 +72,19 @@
 
       AppMetadata.addPage('Page 1', 'Page 1');
       AppMetadata.addPageTarget('Page 1', '#content_section');
-      instance = {id: '1', feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
+      instance = {id: '3', feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
       AppMetadata.addFeature({id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}});
 
+
+      var app_features = [{id: '1', inputs: {page_location: {target: '#content_section', name: 'Page 1'}}}, {id: '2', inputs: {page_location: {target: '#content_section', name: 'Page 1'}}}];
+      AppFeatures.features = function() {
+        return app_features
+      };
+      AppFeatures.saveFeatures = function() {
+      };
+      AppFeatures.add(instance, '2');
+
+      compiler = $compile;
       element = $compile(editor)(scope);
       scope.$digest();
     }));
@@ -86,18 +96,18 @@
 
     describe('when feature selected', function () {
 
-      it("form has 3 inputs", function () {
-        scope.$broadcast('featureSelected', '1');
-        expect(element.find('input').length).toEqual(3);
+      it("form has 4 inputs", function () {
+        scope.$broadcast('featureSelected', '3');
+        expect(element.find('input').length).toEqual(4);
       });
 
       it("adds select to pick page", function () {
-        scope.$broadcast('featureSelected',  '1');
+        scope.$broadcast('featureSelected',  '3');
         expect(element.find('select:first option').text()).toEqual('Page 1');
       });
 
       it("adds select to pick target", function () {
-        scope.$broadcast('featureSelected',  '1');
+        scope.$broadcast('featureSelected',  '3');
         expect(element.find('select:last option:last').text()).toEqual('#content_section');
       });
 

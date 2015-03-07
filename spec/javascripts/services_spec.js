@@ -24,6 +24,7 @@
         template: '',
         inputs: {
           name: 'untitled',
+          disable: '',
           text: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit'
         }
       };
