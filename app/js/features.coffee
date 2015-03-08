@@ -1013,7 +1013,6 @@ class ListGroupFeature extends BaseFeature
       lists = ''
       list = inputs.list.split(',')
       for item, index in list
-        debugger
         if index < (list.length - 1)
           lists += "<li class='list-group-item' >#{item}</li>"
         else

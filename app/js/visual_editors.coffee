@@ -10,7 +10,6 @@ angular.module('sampleDomainApp').directive 'visualTextEditor', (AppMetadata) ->
     @targets = scope.feature.visual_editor.targets
 
     read = (scope, options) ->
-      debugger
       text = elem.find(options.source).text()
       scope.featureInstance.inputs[options.target] = text
 
@@ -23,7 +22,6 @@ angular.module('sampleDomainApp').directive 'visualTextEditor', (AppMetadata) ->
         false
 
       elem.on 'blur keyup change', target.element, {source: target.element, target: target.input}, (event)->
-        debugger
         scope.$evalAsync(read, event.data)
 
     elem.on '$destroy', =>

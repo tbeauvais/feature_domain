@@ -33,12 +33,22 @@ angular.module('sampleDomainApp').directive 'featureList', ($rootScope, Features
     scope.$on 'featureUpdated', (event, featureId) ->
       scope.features = AppFeatures.features()
       scope.generate()
+    scope.$on 'copyFeature', (event, featureId) ->
+      sourceInstance = AppFeatures.find(featureId)
+      featureInstance = Features.createFeatureInstance(sourceInstance.feature)
+      featureInstance.inputs = JSON.parse(JSON.stringify(sourceInstance.inputs))
+      AppFeatures.add(featureInstance, featureId)
+      scope.features = AppFeatures.features()
+      scope.$apply()
+      # function on controller
+      scope.generate()
+      scope.$broadcast('featureSelected', featureInstance.id);
 
 
 angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features, AppFeatures) ->
   restrict: 'AEC',
   replace: true,
-  template: '<div><div class="pull-left"><span class="glyphicon {{glyphicon}}"></span></div><span class="feature">{{feature.inputs.name}}</span><span class="pull-right feature-delete glyphicon glyphicon-remove-circle"></span></div>',
+  template: '<div><div class="pull-left"><span class="glyphicon {{glyphicon}}"></span></div><span class="feature">{{feature.inputs.name}}</span><span class="pull-right feature-copy glyphicon glyphicon-share" title="Copy" ></span><span class="pull-right feature-delete glyphicon glyphicon-remove-circle" title="Delete"></span></div>',
   # use parent scope
   scope: false,
 
@@ -53,6 +63,10 @@ angular.module('sampleDomainApp').directive 'featureItem', ($rootScope, Features
       # TODO Use angular bootstrap confirm dialog
       if confirm('Are you sure you want to delete this feature')
         $rootScope.$broadcast('deleteFeature', scope.feature.id)
+      e.preventDefault()
+      false
+    elem.find('.feature-copy').bind 'click', (e) ->
+      $rootScope.$broadcast('copyFeature', scope.feature.id)
       e.preventDefault()
       false
     scope.$on 'featureSelected', (event, featureId) ->

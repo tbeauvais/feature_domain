@@ -71,10 +71,21 @@ li.item {
 .feature-delete {
     color: gray;
     cursor: pointer;
+    margin-left: 3px;
 }
 
 .feature-delete:hover {
     color: red;
+}
+
+.feature-copy {
+    color: gray;
+    cursor: pointer;
+    margin-left: 3px;
+}
+
+.feature-copy:hover {
+    color: blue;
 }
 
 .editor {
