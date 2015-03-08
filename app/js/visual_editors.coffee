@@ -9,20 +9,32 @@ angular.module('sampleDomainApp').directive 'visualTextEditor', (AppMetadata) ->
 
     @targets = scope.feature.visual_editor.targets
 
-    read = (scope, options) ->
+    updateText = (scope, options) ->
       text = elem.find(options.source).text()
       scope.featureInstance.inputs[options.target] = text
 
+    updateList = (scope, options)->
+      items = _.map elem.find(options.source).find('li'), (el)->
+        $(el).text()
+      text = items.join(',')
+      scope.featureInstance.inputs[options.target] = text
 
     for target in @targets
       elem.find(target.element).attr('contenteditable', '')
-      elem.find(target.element).text(scope.featureInstance.inputs[target.input])
+
+      if target.type == 'text'
+        elem.find(target.element).text(scope.featureInstance.inputs[target.input])
+
       elem.find(target.element).bind 'click', (e) ->
         e.preventDefault()
         false
 
-      elem.on 'blur keyup change', target.element, {source: target.element, target: target.input}, (event)->
-        scope.$evalAsync(read, event.data)
+      if target.type == 'text'
+        elem.on 'blur keyup change', target.element, {source: target.element, target: target.input}, (event)->
+          scope.$evalAsync(updateText, event.data)
+      else
+        elem.on 'blur keyup change', target.element, {source: target.element, target: target.input}, (event)->
+          scope.$evalAsync(updateList, event.data)
 
     elem.on '$destroy', =>
       for target in @targets
@@ -31,34 +43,3 @@ angular.module('sampleDomainApp').directive 'visualTextEditor', (AppMetadata) ->
         elem.find(target.element).off 'blur keyup change'
 
       console.log 'visualTextEditor destroyed'
-
-
-angular.module('sampleDomainApp').directive 'listEditor', (AppMetadata) ->
-  restrict: 'AEC'
-  replace: false
-  scope:
-    featureInstance: '='
-
-  link: (scope, elem, attrs) ->
-
-    read = ->
-      items = _.map elem.find('li'), (el)->
-        $(el).text()
-      text = items.join(',')
-      scope.featureInstance.inputs.list = text
-
-    elem.find('ul').attr('contenteditable', '')
-    elem.find('ul').bind 'click', (e) ->
-      e.preventDefault()
-      false
-
-    elem.on 'blur keyup change', ->
-      scope.$evalAsync(read)
-
-    elem.on '$destroy', ->
-      elem.find('ul').off 'click'
-      elem.find('ul').removeAttr 'contenteditable'
-      elem.off 'blur keyup change'
-      console.log 'listEditor destroyed'
-
-

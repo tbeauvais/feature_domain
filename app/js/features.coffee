@@ -246,6 +246,7 @@ class TextFeature extends BaseFeature
     targets: [
       element: 'span'
       input: 'text'
+      type: 'text'
     ]
   inputs: [
     name: 'name'
@@ -302,6 +303,7 @@ class ButtonFeature extends BaseFeature
     targets: [
       element: 'a'
       input: 'text'
+      type: 'text'
     ]
   inputs: [
     name: 'name'
@@ -507,9 +509,11 @@ class TextWithParagraphFeature extends BaseFeature
     targets: [
       element: 'p'
       input: 'text'
+      type: 'text'
     ,
       element: ':header'
       input: 'title'
+      type: 'text'
     ]
   inputs: [
     name: 'name'
@@ -573,9 +577,11 @@ class ImageWithParagraphFeature extends BaseFeature
     targets: [
       element: 'p'
       input: 'text'
+      type: 'text'
     ,
       element: ':header'
       input: 'title'
+      type: 'text'
     ]
   inputs: [
     name: 'name'
@@ -759,6 +765,7 @@ class HeaderFeature extends BaseFeature
     targets: [
       element: ':header'
       input: 'text'
+      type: 'text'
     ]
   inputs: [
     name: 'name'
@@ -837,7 +844,12 @@ class ListFeature extends BaseFeature
   name: 'List'
   icon: 'glyphicon-list'
   visual_editor:
-    control: 'list-editor'
+    control: 'visual-text-editor'
+    targets: [
+      element: 'ul'
+      input: 'list'
+      type: 'list'
+    ]
   inputs: [
     name: 'name'
     label: 'Name'
@@ -912,7 +924,21 @@ class ListGroupFeature extends BaseFeature
   name: 'ListGroup'
   icon: 'glyphicon-list'
   visual_editor:
-    control: 'list-editor'
+    control: 'visual-text-editor'
+    targets: [
+      element: 'h4 strong'
+      input: 'heading'
+      type: 'text'
+    ,
+      element: '.panel-body strong p'
+      input: 'description'
+      type: 'text'
+    ,
+      element: 'ul'
+      input: 'list'
+      type: 'list'
+    ]
+
   inputs: [
     name: 'name'
     label: 'Name'
@@ -1052,6 +1078,7 @@ class LinkFeature extends BaseFeature
     targets: [
       element: 'a'
       input: 'text'
+      type: 'text'
     ]
   inputs: [
     name: 'name'
@@ -1201,9 +1228,11 @@ class GoogleMapFeature extends BaseFeature
     targets: [
       element: 'H4 a'
       input: 'address'
+      type: 'text'
     ,
       element: 'H3'
       input: 'title'
+      type: 'text'
     ]
   inputs: [
     name: 'name'
