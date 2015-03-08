@@ -63,6 +63,7 @@ class BaseFeature
 
     target
 
+
 class DataResourceFeature extends BaseFeature
 
   name: 'DataResource'
@@ -528,6 +529,28 @@ class TextWithParagraphFeature extends BaseFeature
     defaut: 'false'
     control: 'checkbox-input'
   ,
+    name: 'style'
+    label: 'Style'
+    type: 'string'
+    default: 'panel-info'
+    control: 'text-select'
+    options: [
+      value: 'panel-primary'
+      text: 'Primary'
+    ,
+      value: 'panel-success'
+      text: 'Success'
+    ,
+      value: 'panel-info'
+      text: 'Info'
+    ,
+      value: 'panel-warning'
+      text: 'Warning'
+    ,
+      value: 'panel-danger'
+      text: 'Danger'
+    ]
+  ,
     name: 'title'
     label: 'Title'
     type: 'string'
@@ -561,8 +584,18 @@ class TextWithParagraphFeature extends BaseFeature
     target = @getTarget(inputs.page_location, id, instance.id)
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
-      target.addClass('well')
-      template = "<h3 class='paragraph_title'>#{instance.inputs.title}</h3><p>#{instance.inputs.text}</p>"
+
+      template = """
+        <div class="panel #{inputs.style}">
+          <div class="panel-heading">
+            <h4><strong>#{inputs.title}</strong></h4>
+          </div>
+          <div class="panel-body">
+            <p>#{inputs.text}</p>
+          </div>
+        </div>
+"""
+
       target.append(template)
       true
     else
@@ -595,6 +628,28 @@ class ImageWithParagraphFeature extends BaseFeature
     type: 'boolean'
     defaut: 'false'
     control: 'checkbox-input'
+  ,
+    name: 'style'
+    label: 'Style'
+    type: 'string'
+    default: 'panel-info'
+    control: 'text-select'
+    options: [
+      value: 'panel-primary'
+      text: 'Primary'
+    ,
+      value: 'panel-success'
+      text: 'Success'
+    ,
+      value: 'panel-info'
+      text: 'Info'
+    ,
+      value: 'panel-warning'
+      text: 'Warning'
+    ,
+      value: 'panel-danger'
+      text: 'Danger'
+    ]
   ,
     name: 'title'
     label: 'Title'
@@ -636,14 +691,21 @@ class ImageWithParagraphFeature extends BaseFeature
     target = @getTarget(inputs.page_location, id, instance.id)
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
-      target.addClass('well')
+
       template = """
-          <h3>#{inputs.title}</h3>
-          <div class='row-fluid'>
-            <div id='#{id}_image' class='span2 pull-left' style='margin:0 3px'></div>
-            <p class='span10'>#{inputs.text}</p>
+        <div class="panel #{inputs.style}">
+          <div class="panel-heading">
+            <h4><strong>#{inputs.title}</strong></h4>
           </div>
+          <div class="panel-body">
+            <div class='row-fluid'>
+              <div id='#{id}_image' class='span2 pull-left' style='margin:0 3px'></div>
+              <p class='span10'>#{inputs.text}</p>
+            </div>
+          </div>
+        </div>
 """
+
       target.append(template)
 
       image = features.getFeature('ImageFeature')
@@ -756,6 +818,108 @@ class ContainerFeature extends BaseFeature
       false
 
 
+class PanelFeature extends BaseFeature
+
+  name: 'Panel'
+  icon: 'glyphicon-list'
+#  visual_editor:
+#    control: 'visual-text-editor'
+#    targets: [
+#      element: 'h4 strong'
+#      input: 'heading'
+#      type: 'text'
+#    ]
+
+  inputs: [
+    name: 'name'
+    label: 'Name'
+    type: 'string'
+    default: 'untitled'
+    control: 'text-input'
+  ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
+  ,
+    name: 'style'
+    label: 'Style'
+    type: 'string'
+    default: 'panel-primary'
+    control: 'text-select'
+    options: [
+      value: 'panel-primary'
+      text: 'Primary'
+    ,
+      value: 'panel-success'
+      text: 'Success'
+    ,
+      value: 'panel-info'
+      text: 'Info'
+    ,
+      value: 'panel-warning'
+      text: 'Warning'
+    ,
+      value: 'panel-danger'
+      text: 'Danger'
+    ]
+  ,
+    name: 'heading'
+    label: 'Heading'
+    type: 'string'
+    default: 'List Group Heading'
+    control: 'text-input'
+  ,
+    name: 'page_location'
+    label: 'Page Location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
+    control: 'page-target-selector'
+  ]
+
+  constructor: (initData) ->
+    super(initData)
+
+  generate: (appMetadata, instance, inputs) ->
+    id = @instanceId(instance, inputs)
+    target = @getTarget(inputs.page_location, id, instance.id)
+    if target.length > 0
+
+      containerId = "#{id}_panel"
+
+      dd = ''
+      if @designMode
+        dd = """
+drop-channel='B' ui-on-drop="onDropFromContentInContainer($event,$index,$data,'#{instance.id}','#{containerId}')"
+"""
+
+      @addPageFeature(appMetadata, instance, inputs, id)
+
+      appMetadata.addPageTarget(inputs.page_location.name, '#' + containerId, '#' + id, instance.id)
+
+      template = """
+        <div class="panel #{inputs.style}">
+          <div class="panel-heading">
+            <h4><strong>#{inputs.heading}</strong></h4>
+          </div>
+          <div class="panel-body" id="#{containerId}" #{dd}>
+          </div>
+        </div>
+"""
+
+      target.append(template)
+      true
+    else
+      false
+
+
 class HeaderFeature extends BaseFeature
 
   name: 'Header'
@@ -779,6 +943,59 @@ class HeaderFeature extends BaseFeature
     type: 'boolean'
     defaut: 'false'
     control: 'checkbox-input'
+  ,
+    name: 'text_style'
+    label: 'Text Style'
+    type: 'string'
+    default: 'text-info'
+    control: 'text-select'
+    options: [
+      value: ''
+      text: 'None'
+    ,
+      value: 'text-muted'
+      text: 'Muted'
+    ,
+      value: 'text-primary'
+      text: 'Primary'
+    ,
+      value: 'text-success'
+      text: 'Success'
+    ,
+      value: 'text-info'
+      text: 'Info'
+    ,
+      value: 'text-warning'
+      text: 'Warning'
+    ,
+      value: 'text-danger'
+      text: 'Danger'
+    ]
+  ,
+    name: 'background'
+    label: 'Background Style'
+    type: 'string'
+    default: ''
+    control: 'text-select'
+    options: [
+      value: ''
+      text: 'None'
+    ,
+      value: 'bg-primary'
+      text: 'Primary'
+    ,
+      value: 'bg-success'
+      text: 'Success'
+    ,
+      value: 'bg-info'
+      text: 'Info'
+    ,
+      value: 'bg-warning'
+      text: 'Warning'
+    ,
+      value: 'bg-danger'
+      text: 'Danger'
+    ]
   ,
     name: 'text'
     label: 'Text'
@@ -833,6 +1050,8 @@ class HeaderFeature extends BaseFeature
     target = @getTarget(inputs.page_location, id, instance.id)
     if target.length > 0
       @addPageFeature(appMetadata, instance, inputs, id)
+      target.addClass(inputs.text_style)
+      target.addClass(inputs.background)
       target.append("<H#{inputs.size} class='#{inputs.align}' >#{inputs.text}</H#{inputs.size}>")
       true
     else
@@ -1048,7 +1267,7 @@ class ListGroupFeature extends BaseFeature
             </li>
 """
 
-      pannel = """
+      panel = """
         <div class="panel #{inputs.style}">
           <div class="panel-heading">
             <h4><strong>#{inputs.heading}</strong></h4>
@@ -1063,7 +1282,7 @@ class ListGroupFeature extends BaseFeature
         </div>
 """
 
-      target.append(pannel)
+      target.append(panel)
       true
     else
       false
@@ -1314,6 +1533,7 @@ FeatureClasses = {
   ButtonFeature: ButtonFeature
   SeparatorFeature: SeparatorFeature
   ListGroupFeature: ListGroupFeature
+  PanelFeature: PanelFeature
 }
 
 features = new Features(true)
