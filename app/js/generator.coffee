@@ -1,5 +1,9 @@
 class @AppGenerate
 
+  constructor: (appFeatures) ->
+
+    @appFeatures = appFeatures
+
   generate: (features, Features, AppMetadata, scope) ->
     console.log("Running generate")
     promises = []
@@ -31,4 +35,18 @@ class @AppGenerate
     console.log("Running generateInstance")
     f = Features.getFeature(featureInstance.feature)
     f.generate(AppMetadata, featureInstance, inputs, scope)
+
+    @generateDependencies(featureInstance, Features, AppMetadata, scope)
     console.log("GenerateInstance complete")
+
+  generateDependencies: (featureInstance, Features, AppMetadata, scope) ->
+
+    console.log("GenerateInstance dependencies #{featureInstance.inputs.name}")
+    dependencies = AppMetadata.getFeatureDependencies(featureInstance.id)
+
+    for dependency in dependencies
+      featureInstance = @appFeatures.find(dependency.feature_instance_id)
+      f = Features.getFeature(featureInstance.feature)
+      f.generate(AppMetadata, featureInstance, featureInstance.inputs, scope)
+      @generateDependencies(featureInstance, Features, AppMetadata, scope)
+

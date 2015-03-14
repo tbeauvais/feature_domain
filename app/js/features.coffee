@@ -46,6 +46,13 @@ class BaseFeature
     appMetadata.addFeature(feature, instance.id)
     appMetadata.addPageTarget(feature.page_info.page, '#' + feature.page_info.id, feature.page_info.target, feature.id)
 
+    node = appMetadata.getPageTargetFeatureInstance(feature.page_info.page, feature.page_info.target)
+
+    if node && feature.page_info.target != '#content_section' &&  feature.page_info.target != '#page_container'
+      appMetadata.addFeatureDependency(node.model.feature_instance_id, instance.id)
+
+
+
   instanceId: (instance, inputs) ->
     (inputs.name + '_' + instance.id).replace(/\s+/g, '_').toLowerCase()
 
@@ -148,6 +155,10 @@ class TableFeature extends BaseFeature
     super(initData)
 
   generate: (appMetadata, instance, inputs) ->
+
+    unless appMetadata.getDataResourceReferences(inputs.resource)
+      return false
+
     id = @instanceId(instance, inputs)
     target = $(inputs.page_location.target)
     if target.length > 0
@@ -823,13 +834,13 @@ class PanelFeature extends BaseFeature
 
   name: 'Panel'
   icon: 'glyphicon-list'
-#  visual_editor:
-#    control: 'visual-text-editor'
-#    targets: [
-#      element: 'h4 strong'
-#      input: 'heading'
-#      type: 'text'
-#    ]
+  visual_editor:
+    control: 'visual-text-editor'
+    targets: [
+      element: 'h4 strong'
+      input: 'heading'
+      type: 'text'
+    ]
 
   inputs: [
     name: 'name'

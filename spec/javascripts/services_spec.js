@@ -148,6 +148,24 @@
       expect(appMetadata.getDataResourceReferences('Sales Data')[0]).toEqual({feature_instance_id: '1', id: '1', name: 'My Text'});
     });
 
+
+    it('addFeatureDependency adds a child feature reference', function () {
+
+      var instance = {id: '1', feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
+      var feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
+      appMetadata.addFeature(feature);
+
+
+      var instance = {id: '2', feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
+      var feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
+      appMetadata.addFeature(feature);
+
+      appMetadata.addFeatureDependency('1', '2');
+
+      expect(appMetadata.getFeatureDependencies('1').length).toEqual(1);
+    });
+
+
     it('getPageTargets gets the targets for the specified page', function () {
       appMetadata.addPage('Page 1', 'Page 1');
       appMetadata.addPageTarget('Page 1', '#new_target');
@@ -241,6 +259,23 @@
       appMetadata.addPageTarget(feature.page_info.page, '#' + feature.page_info.id, feature.page_info.target, feature.id)
 
       expect(appMetadata.isChildOfOnPage('2', '1')).toEqual(false);
+    });
+
+    it('getPageTargetFeature returns feature instance for the page target', function () {
+      appMetadata.addPage('Page 1', 'Page 1');
+      appMetadata.addPageTarget('Page 1', '#content_section');
+      var instance = {id: '1', feature: 'TextFeature', inputs: {name: 'My Text', page_location: {name: 'Page 1', target: '#content_section'}}};
+      var feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
+      appMetadata.addFeature(feature);
+      appMetadata.addPageTarget(feature.page_info.page, '#' + feature.page_info.id, feature.page_info.target, feature.id);
+
+      instance = {id: '2', feature: 'TextFeature', inputs: {name: 'My Text 2', page_location: {name: 'Page 1', target: '#new_location'}}};
+      feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location_2', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
+      appMetadata.addFeature(feature);
+      appMetadata.addPageTarget(feature.page_info.page, '#' + feature.page_info.id, feature.page_info.target, feature.id);
+
+      node = appMetadata.getPageTargetFeatureInstance('Page 1', '#new_location_2');
+      expect(node.model.feature_instance_id).toEqual('2');
     });
 
   });

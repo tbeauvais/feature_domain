@@ -52,7 +52,8 @@
     it("adds proper content", function() {
       var content = '<div class="pull-left"><span class="glyphicon glyphicon-pencil"></span></div>' +
         '<span class="feature ng-binding">My Text</span>' +
-        '<span class="pull-right feature-delete glyphicon glyphicon-remove-circle"></span>';
+        '<span class="pull-right feature-copy glyphicon glyphicon-share" title="Copy"></span>' +
+        '<span class="pull-right feature-delete glyphicon glyphicon-remove-circle" title="Delete"></span>';
       expect(element[0].innerHTML).toEqual(content);
     });
 

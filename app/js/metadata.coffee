@@ -19,7 +19,7 @@ class @AppMetadata
     if resource
       feature = @getFeature(featureId)
       if feature
-        node = @tree.parse({feature_instance_id: feature.instance.id, id: feature.id, name: feature.name})
+        node = @tree.parse({feature_instance_id: feature.instance.id, id: @_uniqueId(), name: feature.name})
         resource.addChild(node)
 
   getDataResourceReferences: (resourceName) ->
@@ -31,6 +31,40 @@ class @AppMetadata
       else
         []
 
+  addFeatureDependency: (parentId, featureId) ->
+    return if parentId == featureId || @hasFeatureDependencies(parentId, featureId)
+
+    parentFeature = @_getTypeNodeById('Features', parentId)
+    feature = @_getTypeNodeById('Features', featureId)
+    if parentFeature && feature
+      node = @tree.parse({feature_instance_id: feature.model.id, id: @_uniqueId(), name: feature.model.name})
+      parentFeature.addChild(node)
+
+  getFeatureDependencies: (featureId) ->
+    feature =  @_getTypeNodeById('Features', featureId)
+    if feature
+      _.map feature.children, (node)->
+        return node.model
+    else
+      []
+
+  hasFeatureDependencies: (parentId, featureId) ->
+    dependencies = @getFeatureDependencies(parentId)
+    dep = _.find dependencies, (node)->
+      return node.feature_instance_id == featureId
+    if dep
+      true
+    else
+      false
+
+  getPageTargetFeatureInstance: (pageName, target) ->
+    nodes = @_getPageTargets(pageName)
+    if nodes
+      #nodes.first {strategy: 'breadth'}, (node) ->
+      nodes.first (node) ->
+        node.model.id == target
+    else
+      null
 
   getPageTargets: (pageName) ->
     targets = @_getPageTargets(pageName)
@@ -147,6 +181,14 @@ class @AppMetadata
     else
       null
 
+  _getTypeNodeById: (type, id) ->
+    types = @_getTypesNode(type)
+    if types
+      types.first (node) ->
+        node.model.id && node.model.id == id
+    else
+      null
+
   _addType: (type, name, data, featureInstanceId) ->
     root = @getRoot()
     resources = root.first (node) ->
@@ -161,5 +203,9 @@ class @AppMetadata
     node = @tree.parse(data)
     resources.addChild(node)
     resources
+
+
+  _uniqueId: ->
+    '_' + Math.random().toString(36).substr(2, 9)
 
 angular.module('sampleDomainApp').value 'AppMetadata', new AppMetadata()

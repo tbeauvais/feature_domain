@@ -161,6 +161,7 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
         original = $('#content_section .highlight_feature')
         if original && original.length > 0
           original.removeClass('highlight_feature')
+          # TODO Find a better way to get originalFeatureId
           originalFeatureId = original.attr('drag')
           id = original.attr('id')
 
@@ -180,7 +181,7 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
               inputs.page_location.target = '#' + "#{id}"
 
               # perform partial generation
-              generator = new AppGenerate()
+              generator = new AppGenerate(AppFeatures)
               generator.generateInstance(featureInstance, inputs, Features, AppMetadata, scope)
 
               $compile(original)(scope)
