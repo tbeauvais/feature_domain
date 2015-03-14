@@ -713,6 +713,7 @@ class ImageWithParagraphFeature extends BaseFeature
       imageInputs.page_location.target = '#' + "#{id}_image"
       imageInputs.width = '150'
       imageInputs.height = '150'
+      imageInputs.responsive = true
       image.generate(appMetadata, instance, imageInputs)
 
       true
@@ -1376,6 +1377,12 @@ class ImageFeature extends BaseFeature
     default: 'http://assets.kompas.com/data/photo/2014/04/07/2002239katak-kulit-paling-kasar780x390.jpg'
     control: 'text-input'
   ,
+    name: 'responsive'
+    label: 'Responsive'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
+  ,
     name: 'alt'
     label: 'Alt Text'
     type: 'string'
@@ -1433,7 +1440,10 @@ class ImageFeature extends BaseFeature
       @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
 
-      target.append("<img #{dd} id='#{id}' src='#{inputs.src}' alt='#{inputs.alt}' class='img-responsive  #{inputs.align}' height='#{inputs.height}' width='#{inputs.width}'>")
+      responsive = ''
+      responsive = 'img-responsive' if inputs.responsive
+
+      target.append("<img #{dd} id='#{id}' src='#{inputs.src}' alt='#{inputs.alt}' class='#{responsive}  #{inputs.align}' height='#{inputs.height}' width='#{inputs.width}'>")
       true
     else
       false

@@ -52,11 +52,15 @@ class App < Sinatra::Base
   end
 
   get '/' do
-    slim :index
+    slim :index, locals: {current_model: 'none'}
   end
 
-  get '/content' do
-    slim :content, layout: false
+  get '/models/:id' do
+    slim :index, locals: {current_model: params[:id]}
+  end
+
+  get '/models/:id/preview' do
+    slim :content, layout: false, locals: {current_model: params[:id]}
   end
 
   get '/api/app_features' do

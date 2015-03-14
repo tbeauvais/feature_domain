@@ -1,7 +1,8 @@
 doctype html
-html ng-app="sampleDomainApp" ng-init="designMode = false"
+html ng-app="sampleDomainApp" ng-init="designMode = false;currentModelId='#{current_model}'"
   head
     == css :app
+    base href="/models"
   body
     .container
       div ng-controller="ModelCtrl"

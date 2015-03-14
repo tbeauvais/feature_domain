@@ -70,22 +70,28 @@ angular.module('sampleDomainApp').controller 'EditorCtrl', ($scope, AppFeatures,
 
 
 angular.module('sampleDomainApp').factory 'Models', ($resource) ->
-  $resource 'api/v1/models'
+  $resource '/api/v1/models'
 
 angular.module('sampleDomainApp').factory 'Model', ($resource) ->
-  $resource 'api/v1/models/:uuid', {}, {
+  $resource '/api/v1/models/:uuid', {}, {
     update:
       method : 'PUT'
   }
 
-angular.module('sampleDomainApp').controller 'ModelCtrl', ($scope, Models, Model, AppFeatures) ->
+angular.module('sampleDomainApp').controller 'ModelCtrl', ($scope,  $location, Models, Model, AppFeatures) ->
 
   Models.query (models) ->
-    $scope.currentModel = models[0]
+    if $scope.currentModelId
+      $scope.currentModel = _.find models, (model) ->
+        $scope.currentModelId == model.id
+
+    $scope.currentModel = models[0] unless $scope.currentModel
     $scope.models = models
-    $scope.load(models[0])
+    $scope.load($scope.currentModel)
 
   $scope.load = (model) ->
+    $location.path("/models/#{model.id}", false)
+    $location.replace()
     AppFeatures.loadModel(model.id).then ->
       $scope.$root.features = AppFeatures.features()
       $scope.$root.$broadcast('generateContent', AppFeatures.features())
@@ -98,10 +104,13 @@ angular.module('sampleDomainApp').controller 'ModelCtrl', ($scope, Models, Model
   $scope.saveAs = (model)->
     new_model = model
     new_model['features'] = AppFeatures.features()
-    Model.save JSON.stringify(new_model)
+
+    Model.save JSON.stringify(new_model), (model)->
+      $location.path("/models/#{model.id}", false)
 
   $scope.delete = (model)->
     Model.delete {uuid: model.id}
     Models.query (models) ->
       $scope.currentModel = models[0]
       $scope.models = models
+      $location.path("/models/#{$scope.currentModel.id}", false)

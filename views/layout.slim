@@ -1,7 +1,8 @@
 doctype html
-html ng-app="sampleDomainApp" ng-init="designMode = true"
+html ng-app="sampleDomainApp" ng-init="designMode = true;currentModelId='#{current_model}'"
   head
     == css :app
+    base href="/models"
   body
     .navbar.navbar-inverse.navbar-fixed-top role="navigation"
       .container
