@@ -172,7 +172,13 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
 
             if feature.visual_editor
               # remove the visual editor
-              original.unwrap()
+              if feature.visual_editor.target
+                target = original.find(feature.visual_editor.target)
+              else
+                target = original
+
+              target.unwrap()
+
               original.empty()
 
               # update the real feature instance inputs
@@ -198,6 +204,8 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
           if feature.visual_editor
             scope.featureInstance = featureInstance
             scope.feature = feature
+            if feature.visual_editor.target
+              target = target.find(feature.visual_editor.target)
             directive = $("<div class='#{feature.visual_editor.control}' feature='feature' feature-instance='featureInstance' ></div>")
             target.wrap(directive)
             $compile(target.parent())(scope)

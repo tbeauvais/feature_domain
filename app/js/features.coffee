@@ -836,6 +836,7 @@ class PanelFeature extends BaseFeature
   icon: 'glyphicon-list'
   visual_editor:
     control: 'visual-text-editor'
+    target: 'h4'
     targets: [
       element: 'h4 strong'
       input: 'heading'

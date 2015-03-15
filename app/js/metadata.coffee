@@ -111,7 +111,7 @@ class @AppMetadata
     if targets
       targets.addChild(node)
     else
-      debugger
+      console.log "addPageTarget target not found #{target} for featureInstanceId #{featureInstanceId}"
 
   getPageNode: (pageName, id) ->
     page = @_getPage(pageName)
