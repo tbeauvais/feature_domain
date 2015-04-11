@@ -103,7 +103,8 @@ class App < Sinatra::Base
       status 201
       model = request.body.read
       model = JSON.parse(model)
-      access.add_model(model).to_json
+      access.add_model(model)
+      {id: model['id']}.to_json
     end
 
     delete '/models/:id' do
@@ -117,7 +118,9 @@ class App < Sinatra::Base
       content_type :json
       model = request.body.read
       model = JSON.parse(model)
-      access.update_model(params[:id], model).to_json
+      access.update_model(params[:id], model)
+      status 204
+      body ''
     end
 
   end

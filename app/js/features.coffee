@@ -101,6 +101,38 @@ class DataResourceFeature extends BaseFeature
       scope.DataResource[@cleanName(inputs.name)] = data
 
 
+class ScriptTestFeature extends BaseFeature
+
+  name: 'ScriptTest'
+  icon: 'glyphicon-cog'
+  inputs: [
+    name: 'name'
+    label: 'Name'
+    type: 'string'
+    default: 'untitled'
+    control: 'text-input'
+  ,
+    name: 'resource'
+    label: 'Resource URL'
+    default: 'https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%202415484&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys'
+    type: 'string'
+    control: 'text-input'
+  ]
+
+  constructor: (initData) ->
+    super(initData)
+
+  generate: (appMetadata, instance, inputs, scope) ->
+    id = @instanceId(instance, inputs)
+    @addFeature(appMetadata, instance, inputs)
+    script = """
+        $.get('#{inputs.resource}', function (data) {
+          alert('hi ' + data);
+        });
+"""
+    eval(script)
+
+
 class TableFeature extends BaseFeature
 
   name: 'Table'
@@ -1556,6 +1588,7 @@ FeatureClasses = {
   SeparatorFeature: SeparatorFeature
   ListGroupFeature: ListGroupFeature
   PanelFeature: PanelFeature
+  ScriptTestFeature: ScriptTestFeature
 }
 
 features = new Features(true)

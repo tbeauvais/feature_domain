@@ -95,6 +95,7 @@ angular.module('sampleDomainApp').controller 'ModelCtrl', ($scope,  $location, M
     AppFeatures.loadModel(model.id).then ->
       $scope.$root.features = AppFeatures.features()
       $scope.$root.$broadcast('generateContent', AppFeatures.features())
+      $scope.saveAsModelName = model.name
 
   $scope.save = (model)->
     updated_model = model
@@ -104,13 +105,15 @@ angular.module('sampleDomainApp').controller 'ModelCtrl', ($scope,  $location, M
   $scope.saveAs = (model)->
     new_model = model
     new_model['features'] = AppFeatures.features()
-
+    new_model.name = $scope.saveAsModelName
     Model.save JSON.stringify(new_model), (model)->
+      new_model.id = model.id
       $location.path("/models/#{model.id}", false)
 
   $scope.delete = (model)->
     Model.delete {uuid: model.id}
     Models.query (models) ->
       $scope.currentModel = models[0]
+      $scope.saveAsModelName = $scope.currentModel.name
       $scope.models = models
       $location.path("/models/#{$scope.currentModel.id}", false)

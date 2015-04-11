@@ -8,7 +8,7 @@ div.container
           select.form-control#model_select ng-change="load(currentModel)" ng-options="model.name for model in models track by model.id" ng-model="currentModel"
         .form-group
           label.sr-only for="model_name"
-          input.form-control#model_name ng-model="currentModel.name"
+          input.form-control#model_name ng-model="saveAsModelName"
         button.btn.btn-primary ng-click="save(currentModel)"
           | Save
         button.btn.btn-default ng-click="saveAs(currentModel)"
