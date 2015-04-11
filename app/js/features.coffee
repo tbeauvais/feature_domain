@@ -127,7 +127,7 @@ class ScriptTestFeature extends BaseFeature
     @addFeature(appMetadata, instance, inputs)
     script = """
         $.get('#{inputs.resource}', function (data) {
-          alert('hi ' + data);
+          alert('hi ' + data.query.results.channel.item.condition.temp);
         });
 """
     eval(script)

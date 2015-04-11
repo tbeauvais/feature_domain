@@ -10,11 +10,11 @@ angular.module('sampleDomainApp').directive 'visualTextEditor', (AppMetadata) ->
     @targets = scope.feature.visual_editor.targets
 
     updateText = (scope, options) ->
-      text = elem.find(options.source).text()
+      text = options.element.find(options.source).text()
       scope.featureInstance.inputs[options.target] = text
 
     updateList = (scope, options)->
-      items = _.map elem.find(options.source).find('li'), (el)->
+      items = _.map options.element.find(options.source).find('li'), (el)->
         $(el).text()
       text = items.join(',')
       scope.featureInstance.inputs[options.target] = text
@@ -30,10 +30,10 @@ angular.module('sampleDomainApp').directive 'visualTextEditor', (AppMetadata) ->
         false
 
       if target.type == 'text'
-        elem.on 'blur keyup change', target.element, {source: target.element, target: target.input}, (event)->
+        elem.on 'blur keyup change', target.element, {source: target.element, target: target.input, element: elem.children()}, (event)->
           scope.$evalAsync(updateText, event.data)
       else
-        elem.on 'blur keyup change', target.element, {source: target.element, target: target.input}, (event)->
+        elem.on 'blur keyup change', target.element, {source: target.element, target: target.input, element: elem.children()}, (event)->
           scope.$evalAsync(updateList, event.data)
 
     elem.on '$destroy', =>
