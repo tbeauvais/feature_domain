@@ -17,12 +17,13 @@ class Features
   createFeatureInstance: (name) ->
     # TODO need a better way to do this
     feature = @featureList[name]
-    featureInstance = { feature: name, id: '9', template: ''}
+    featureInstance = { feature: name, id: '9'}
     inputs = {}
     for input in feature.inputs
       if input.name != 'page_location'
         inputs[input.name] = input.default || ''
-    featureInstance['inputs'] = inputs
+    featureInstance.inputs = inputs
+    featureInstance.cache = {}
     featureInstance
 
 
@@ -130,6 +131,7 @@ class SwaggerDataResourceFeature extends BaseFeature
 
   name: 'SwaggerDataResource'
   icon: 'glyphicon-cog'
+  cache: {}
   inputs: [
     name: 'name'
     label: 'Name'
@@ -151,15 +153,18 @@ class SwaggerDataResourceFeature extends BaseFeature
     id = @instanceId(instance, inputs)
     @addFeature(appMetadata, instance, inputs)
     appMetadata.addDataResource(inputs.name, inputs.resource, instance.id)
-    $.get inputs.resource, (data) =>
-      for key, value of data.models
-        appMetadata.addDataSchema(key, value, instance.id)
 
-      for api in data.apis
+    if instance.cache.swagger
+      swagger = instance.cache.swagger
+      for key, value of swagger.models
+        appMetadata.addDataSchema(key, value, instance.id)
+      for api in swagger.apis
         path = api.path
         for operation in api.operations
-          appMetadata.addDataResourceOperation(inputs.name, {feature_instance_id: instance.id, end_point: "#{data.basePath}/#{path}", id: "#{operation.method} #{path}", name: "#{operation.method} #{path}", operation: operation})
-
+          appMetadata.addDataResourceOperation(inputs.name, {feature_instance_id: instance.id, end_point: "#{swagger.basePath}#{path}", id: "#{operation.method} #{path}", name: "#{operation.method} #{path}", operation: operation})
+    else
+      $.get inputs.resource, (data) ->
+        instance.cache.swagger = data
 
 
 class ScriptTestFeature extends BaseFeature
@@ -211,7 +216,7 @@ class TableFeature extends BaseFeature
     defaut: 'false'
     control: 'checkbox-input'
   ,
-    name: 'resource'
+    name: 'data_resource'
     label: 'Data Resource'
     type: 'data_resource'
     default: ''
@@ -249,7 +254,7 @@ class TableFeature extends BaseFeature
 
   generate: (appMetadata, instance, inputs) ->
 
-    unless appMetadata.getDataResourceReferences(inputs.resource)
+    unless appMetadata.getDataResourceReferences(inputs.data_resource.name)
       return false
 
     id = @instanceId(instance, inputs)
@@ -258,28 +263,48 @@ class TableFeature extends BaseFeature
       @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
 
-      appMetadata.addDataResourceReference(inputs.resource, instance.id)
+      labels = if inputs.labels then inputs.labels.split(',') else []
+      filters = if inputs.filters then inputs.filters.split(',') else []
+      fields = if inputs.fields then inputs.fields.split(',') else []
+
+      appMetadata.addDataResourceReference(inputs.data_resource.name, instance.id)
+
+      operation = appMetadata.getDataResourceOperation(inputs.data_resource.name, inputs.data_resource.operation)
+
+      resourceName = @cleanName(inputs.data_resource.name)
+
+      repeatingDataName = ''
+      repeatingDataProperty = null
+      # Find the repeating data to use for the table
+      if operation && operation.operation && operation.operation.type
+        schema = appMetadata.getDataSchema(operation.operation.type)
+        if schema
+          for key, property of schema.schema.properties
+            if property.type == 'array'
+              repeatingDataName = ".#{key}"
+              repeatingDataProperty = property
+
+      target.append("<div class='service-resource' url='#{operation.end_point}' target='#{resourceName}' ></div>")
+
+      # get the properties of the repeating data
+      if repeatingDataProperty && repeatingDataProperty.items.$ref
+        data = appMetadata.getDataSchema(repeatingDataProperty.items.$ref)
+        if data && data.schema
+          fields = _.map data.schema.properties, (property, name) ->
+            name
+          labels = _.map data.schema.properties, (property, name) ->
+            property.description
 
       headerRow = ''
-      labels = []
-      labels = inputs.labels.split(',') if inputs.labels
-
-      filters = []
-      filters = inputs.filters.split(',') if inputs.filters
-
       dataRow = ''
-      fields = []
-      fields = inputs.fields.split(',') if inputs.fields
-
 
       for field, index in fields
         filter = ''
-        filter = ' | ' + filters[index] if filters[index].length > 0
-   #     dataRow += "<td>{{data.#{field}#{filter}}}</td>"
+        filter = ' | ' + filters[index] if filters[index] && filters[index].length > 0
         dataRow += "<td ng-bind-html='data.#{field}#{filter}' ></td>"
         headerRow += "<th>#{labels[index] || field}</th>"
 
-      target.append("<div #{dd} id='#{id}' class='table-responsive' style='background-color: #ffffff'><table class='table table-bordered table-striped' ><tr>#{headerRow}</tr> <tr ng-repeat='data in DataResource.#{inputs.resource}'>#{dataRow}</tr></table></div>")
+      target.append("<div #{dd} id='#{id}' class='table-responsive' style='background-color: #ffffff'><table class='table table-bordered table-striped' ><tr>#{headerRow}</tr> <tr ng-repeat='data in DataResource.#{resourceName}#{repeatingDataName}'>#{dataRow}</tr></table></div>")
       true
     else
       false

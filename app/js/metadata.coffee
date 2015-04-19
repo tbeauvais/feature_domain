@@ -42,6 +42,11 @@ class @AppMetadata
       _.map operations.children, (node)->
         return node.model
 
+  getDataResourceOperation: (resourceName, operationName) ->
+    operations = @getDataResourceOperations(resourceName)
+    if operations
+      operation = _.find operations, (op)->
+        return op.name == operationName
 
   getDataResourceReferences: (resourceName) ->
     resource = @_getTypeNode('DataResources', resourceName)

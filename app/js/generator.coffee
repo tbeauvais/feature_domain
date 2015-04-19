@@ -19,7 +19,9 @@ class @AppGenerate
           f = Features.getFeature(featureInstance.feature)
           #console.log "generating pass #{tries} for " + JSON.stringify(featureInstance.inputs)
 
-          result = f.generate(AppMetadata, featureInstance, featureInstance.inputs, scope)
+          featureInstance.cache = {} unless featureInstance.cache
+
+          result = f.generate(AppMetadata, featureInstance, featureInstance.inputs)
           if !result
             missingDependencies.push(featureInstance)
 
@@ -27,15 +29,15 @@ class @AppGenerate
       break if tries > 3 || missingDependencies.length == 0
     console.log("Generate complete")
 
-  generateInstance: (featureInstance, inputs, Features, AppMetadata, scope) ->
+  generateInstance: (featureInstance, inputs, Features, AppMetadata) ->
     console.log("Running generateInstance")
     f = Features.getFeature(featureInstance.feature)
-    f.generate(AppMetadata, featureInstance, inputs, scope)
+    f.generate(AppMetadata, featureInstance, inputs)
 
-    @generateDependencies(featureInstance, Features, AppMetadata, scope)
+    @generateDependencies(featureInstance, Features, AppMetadata)
     console.log("GenerateInstance complete")
 
-  generateDependencies: (featureInstance, Features, AppMetadata, scope) ->
+  generateDependencies: (featureInstance, Features, AppMetadata) ->
 
     console.log("GenerateInstance dependencies #{featureInstance.inputs.name}")
     dependencies = AppMetadata.getFeatureDependencies(featureInstance.id)
@@ -43,6 +45,6 @@ class @AppGenerate
     for dependency in dependencies
       featureInstance = @appFeatures.find(dependency.feature_instance_id)
       f = Features.getFeature(featureInstance.feature)
-      f.generate(AppMetadata, featureInstance, featureInstance.inputs, scope)
-      @generateDependencies(featureInstance, Features, AppMetadata, scope)
+      f.generate(AppMetadata, featureInstance, featureInstance.inputs)
+      @generateDependencies(featureInstance, Features, AppMetadata)
 
