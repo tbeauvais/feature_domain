@@ -51,7 +51,7 @@
 
         appFeatures.features = function() {
           return app_features
-        }
+        };
 
         appFeatures.saveFeatures = function() {
         }
@@ -143,9 +143,41 @@
       var feature = {id: instance.id, instance: instance, name: instance.inputs.name, page_info: {id: 'new_location', page: instance.inputs.page_location.name, target: instance.inputs.page_location.target}};
       appMetadata.addFeature(feature);
 
+      spyOn(appMetadata, '_uniqueId' ).and.returnValue('1');
+
       appMetadata.addDataResourceReference('Sales Data', '1');
 
       expect(appMetadata.getDataResourceReferences('Sales Data')[0]).toEqual({feature_instance_id: '1', id: '1', name: 'My Text'});
+    });
+
+    it('addDataSchema inserts new data schema', function () {
+      sale = {
+        "id": "Sale",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ID of sales person."
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of sales person."
+          },
+          "amount": {
+            "type": "float",
+            "description": "Total sales for sales person."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+      appMetadata.addDataSchema('Sale', sale);
+      expect(appMetadata.getDataSchema('Sale')).toEqual({ name: 'Sale', schema: sale });
+    });
+
+    it('getDataSchemas gets array of all schemas', function () {
+      appMetadata.addDataSchema('Sale', {test: 'test'});
+      expect(appMetadata.getDataSchemas()).toEqual([{name: 'Sale', schema: {test: 'test'} }]);
     });
 
 

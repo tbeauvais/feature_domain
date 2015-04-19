@@ -10,9 +10,10 @@ class @AppMetadata
   getDataResources:  ->
     @_getTypes 'DataResources'
 
-  addDataResource: (name, resource, id) ->
-    data = {name: name, resource: resource}
-    @_addType('DataResources', name, data, id)
+  addDataResource: (resourceName, resource, id) ->
+    data = {name: resourceName, resource: resource}
+    @_addType('DataResources', resourceName, data, id)
+    @_addSubType('DataResources', resourceName, 'Operations')
 
   addDataResourceReference: (resourceName, featureId) ->
     resource = @_getTypeNode('DataResources', resourceName)
@@ -22,14 +23,45 @@ class @AppMetadata
         node = @tree.parse({feature_instance_id: feature.instance.id, id: @_uniqueId(), name: feature.name})
         resource.addChild(node)
 
+  addDataResourceOperation: (resourceName, operation) ->
+    resource = @_getTypeNode('DataResources', resourceName)
+    if resource
+      operations = _.find resource.children, (node)->
+        return node.model.name == 'Operations'
+
+      if operations
+        node = @tree.parse(operation)
+        operations.addChild(node)
+
+  getDataResourceOperations: (resourceName) ->
+    resource = @_getTypeNode('DataResources', resourceName)
+    if resource
+      operations = _.find resource.children, (node)->
+        return node.model.name == 'Operations'
+
+      _.map operations.children, (node)->
+        return node.model
+
+
   getDataResourceReferences: (resourceName) ->
     resource = @_getTypeNode('DataResources', resourceName)
     if resource
-      if resource
-        _.map resource.children, (node)->
-          return node.model
-      else
-        []
+      _.map resource.children, (node)->
+        return node.model
+    else
+      []
+
+  addDataSchema: (name, schema, id) ->
+    data = { name: name, schema: schema }
+    @_addType('DataSchemas', name, data, id)
+
+  getDataSchema: (schemaName) ->
+    schema = @_getTypeNode('DataSchemas', schemaName)
+    if schema
+      schema.model
+
+  getDataSchemas: ->
+    @_getTypes 'DataSchemas'
 
   addFeatureDependency: (parentId, featureId) ->
     return if parentId == featureId || @hasFeatureDependencies(parentId, featureId)
@@ -204,6 +236,12 @@ class @AppMetadata
     resources.addChild(node)
     resources
 
+  _addSubType: (parentType, parentName, type) ->
+    parent = @_getTypeNode(parentType, parentName)
+
+    if parent
+      subType = @tree.parse({id: @_uniqueId(), name: type})
+      parent.addChild(subType)
 
   _uniqueId: ->
     '_' + Math.random().toString(36).substr(2, 9)

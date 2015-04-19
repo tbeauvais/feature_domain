@@ -1,8 +1,8 @@
 ---
 applications:
-- name: content-domain-app
+- name: feature-domain-app
   memory: 128M
-  host: content-domain-app
+  host: feature-domain-app
   buildpack: https://github.com/cloudfoundry/buildpack-ruby.git
 services:
-- redis-zv
+- redis-db1

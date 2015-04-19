@@ -143,6 +143,8 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
   scope: false,
 
   link: (scope, elem, attrs) ->
+    scope.DataResource = {} unless scope.DataResource
+
     if scope.designMode
       elem.bind 'click', (e) ->
         id = $(e.target).closest('[id]').attr('id')
@@ -188,7 +190,7 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
 
               # perform partial generation
               generator = new AppGenerate(AppFeatures)
-              generator.generateInstance(featureInstance, inputs, Features, AppMetadata, scope)
+              generator.generateInstance(featureInstance, inputs, Features, AppMetadata)
 
               $compile(original)(scope)
 
@@ -215,13 +217,10 @@ angular.module('sampleDomainApp').directive 'generatedContent', ($compile, Featu
     scope.$on 'generateContent', (event, features) ->
       elem.find('#content_section').empty()
       generator = new AppGenerate()
-      promises = generator.generate(features, Features, AppMetadata, scope)
-
-      Promise.all(promises).then (arrayOfResults) ->
-        html = elem.find('#content_section')
-        $compile(html)(scope)
-        scope.$root.$broadcast('postGenerate')
-
+      generator.generate(features, Features, AppMetadata)
+      html = elem.find('#content_section')
+      $compile(html)(scope)
+      scope.$root.$broadcast('postGenerate')
       event.preventDefault()
       false
 
@@ -242,7 +241,7 @@ angular.module('sampleDomainApp').directive 'renderMetaData', (AppMetadata) ->
         left: 100
 
       width = 2110 - margin.right - margin.left
-      height = 500 - margin.top - margin.bottom
+      height = 1500 - margin.top - margin.bottom
       i = 0
       tree = d3.layout.tree().size([height, width])
       diagonal = d3.svg.diagonal().projection((d) ->

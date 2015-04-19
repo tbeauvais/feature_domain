@@ -87,18 +87,79 @@ class DataResourceFeature extends BaseFeature
     default: 'https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%202415484&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys'
     type: 'string'
     control: 'text-input'
+  ,
+    name: 'operation'
+    label: 'Operation'
+    type: 'string'
+    default: 'GET'
+    control: 'text-select'
+    options: [
+      value: 'GET'
+      text: 'Get'
+    ,
+      value: 'POST'
+      text: 'Post'
+    ,
+      value: 'PUT'
+      text: 'Put'
+    ,
+      value: 'DELETE'
+      text: 'Delete'
+    ]
   ]
 
   constructor: (initData) ->
     super(initData)
 
-  generate: (appMetadata, instance, inputs, scope) ->
+  generate: (appMetadata, instance, inputs) ->
+    id = @instanceId(instance, inputs)
+    @addFeature(appMetadata, instance, inputs)
+    appMetadata.addDataResource(inputs.name, inputs.resource, instance.id)
+
+    url = new URL(inputs.resource)
+
+    inputs.operation = 'GET' unless inputs.operation
+
+    appMetadata.addDataResourceOperation(inputs.name, {feature_instance_id: instance.id, end_point: inputs.resource, id: instance.id, name: "#{inputs.operation} #{url.pathname}", operation: {}})
+
+    # TODO Add to proper page location ()
+    $('#content_section').append("<div class='service-resource' url='#{inputs.resource}' target='#{@cleanName(inputs.name)}' ></div>")
+
+
+class SwaggerDataResourceFeature extends BaseFeature
+
+  name: 'SwaggerDataResource'
+  icon: 'glyphicon-cog'
+  inputs: [
+    name: 'name'
+    label: 'Name'
+    type: 'string'
+    default: 'untitled'
+    control: 'text-input'
+  ,
+    name: 'resource'
+    label: 'Resource URL'
+    default: 'http://sales-api.mybluemix.net/swagger_doc/sales.json'
+    type: 'string'
+    control: 'text-input'
+  ]
+
+  constructor: (initData) ->
+    super(initData)
+
+  generate: (appMetadata, instance, inputs) ->
     id = @instanceId(instance, inputs)
     @addFeature(appMetadata, instance, inputs)
     appMetadata.addDataResource(inputs.name, inputs.resource, instance.id)
     $.get inputs.resource, (data) =>
-      scope.DataResource = {} unless scope.DataResource
-      scope.DataResource[@cleanName(inputs.name)] = data
+      for key, value of data.models
+        appMetadata.addDataSchema(key, value, instance.id)
+
+      for api in data.apis
+        path = api.path
+        for operation in api.operations
+          appMetadata.addDataResourceOperation(inputs.name, {feature_instance_id: instance.id, end_point: "#{data.basePath}/#{path}", id: "#{operation.method} #{path}", name: "#{operation.method} #{path}", operation: operation})
+
 
 
 class ScriptTestFeature extends BaseFeature
@@ -122,7 +183,7 @@ class ScriptTestFeature extends BaseFeature
   constructor: (initData) ->
     super(initData)
 
-  generate: (appMetadata, instance, inputs, scope) ->
+  generate: (appMetadata, instance, inputs) ->
     id = @instanceId(instance, inputs)
     @addFeature(appMetadata, instance, inputs)
     script = """
@@ -152,7 +213,7 @@ class TableFeature extends BaseFeature
   ,
     name: 'resource'
     label: 'Data Resource'
-    type: 'string'
+    type: 'data_resource'
     default: ''
     control: 'resource-select'
   ,
@@ -1583,6 +1644,7 @@ FeatureClasses = {
   TextWithParagraphFeature: TextWithParagraphFeature
   ImageWithParagraphFeature: ImageWithParagraphFeature
   DataResourceFeature: DataResourceFeature
+  SwaggerDataResourceFeature: SwaggerDataResourceFeature
   TableFeature: TableFeature
   ButtonFeature: ButtonFeature
   SeparatorFeature: SeparatorFeature

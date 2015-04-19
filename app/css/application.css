@@ -97,6 +97,10 @@ li.item {
     margin-bottom: 5px;
 }
 
+.resource-select-ctl {
+    margin-bottom: 5px;
+}
+
 .metadata-pane {
     min-height: 200px;
 }

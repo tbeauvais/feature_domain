@@ -24,9 +24,10 @@ angular.module('sampleDomainApp').directive 'resourceSelect', (AppMetadata) ->
   restrict: 'AEC'
   replace: true
   template: """
-    <div class='form-group' >
+    <div class='control-group' >
         <label>{{label}}</label>
-        <select ng-options='resource for resource in resources' ng-model='model' class='form-control' />
+        <select ng-options='resource for resource in resources' ng-model='inputs.data_resource.name' class='form-control resource-select-ctl' />
+        <select ng-options='operation for operation in operations' ng-model='inputs.data_resource.operation' class='form-control resource-select-ctl' />
     </div>
 """
 
@@ -42,9 +43,18 @@ angular.module('sampleDomainApp').directive 'resourceSelect', (AppMetadata) ->
     scope.label = input.label
 
     resources = AppMetadata.getDataResources()
-    scope.resources = _.map resources, (resource)->
+    scope.resources = _.map resources, (resource) ->
       resource.name
 
+    if scope.inputs.data_resource && scope.inputs.data_resource.name
+      operations = AppMetadata.getDataResourceOperations(scope.inputs.data_resource.name)
+      scope.operations = _.map operations, (operation) ->
+        operation.name
+
+    scope.$watch 'inputs.data_resource.name', (value) ->
+      operations = AppMetadata.getDataResourceOperations(value)
+      scope.operations = _.map operations, (operation) ->
+        operation.name
 
 angular.module('sampleDomainApp').directive 'textSelect', (AppMetadata) ->
   restrict: 'AEC'
