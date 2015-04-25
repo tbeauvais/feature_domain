@@ -131,7 +131,6 @@ class SwaggerDataResourceFeature extends BaseFeature
 
   name: 'SwaggerDataResource'
   icon: 'glyphicon-cog'
-  cache: {}
   inputs: [
     name: 'name'
     label: 'Name'
@@ -221,6 +220,10 @@ class TableFeature extends BaseFeature
     type: 'data_resource'
     default: ''
     control: 'resource-select'
+    resource_types: [
+      'GET',
+      'DELETE'
+    ]
   ,
     name: 'fields'
     label: 'Fields'
@@ -267,9 +270,15 @@ class TableFeature extends BaseFeature
       filters = if inputs.filters then inputs.filters.split(',') else []
       fields = if inputs.fields then inputs.fields.split(',') else []
 
-      appMetadata.addDataResourceReference(inputs.data_resource.name, instance.id)
-
       operation = appMetadata.getDataResourceOperation(inputs.data_resource.name, inputs.data_resource.operation)
+
+      if inputs.data_resource.delete_operation
+        delete_operation = appMetadata.getDataResourceOperation(inputs.data_resource.name, inputs.data_resource.delete_operation)
+
+        # add parameter information to url
+        deleteUrl = "'#{delete_operation.end_point}'"
+        for parameter in delete_operation.operation.parameters
+          deleteUrl = deleteUrl.replace("{#{parameter.name}}", "' + data.#{parameter.name} + '");
 
       resourceName = @cleanName(inputs.data_resource.name)
 
@@ -284,7 +293,12 @@ class TableFeature extends BaseFeature
               repeatingDataName = ".#{key}"
               repeatingDataProperty = property
 
-      target.append("<div class='service-resource' url='#{operation.end_point}' target='#{resourceName}' ></div>")
+      references = appMetadata.getDataResourceReferences(inputs.data_resource.name)
+      # TODO exclude operation from references (need to know what's a reference)
+      if references.length <= 1
+        target.append("<div class='service-resource' url='#{operation.end_point}' target='#{resourceName}' ></div>")
+
+      appMetadata.addDataResourceReference(inputs.data_resource.name, instance.id)
 
       # get the properties of the repeating data
       if repeatingDataProperty && repeatingDataProperty.items.$ref
@@ -302,12 +316,121 @@ class TableFeature extends BaseFeature
         filter = ''
         filter = ' | ' + filters[index] if filters[index] && filters[index].length > 0
         dataRow += "<td ng-bind-html='data.#{field}#{filter}' ></td>"
+
         headerRow += "<th>#{labels[index] || field}</th>"
 
-      target.append("<div #{dd} id='#{id}' class='table-responsive' style='background-color: #ffffff'><table class='table table-bordered table-striped' ><tr>#{headerRow}</tr> <tr ng-repeat='data in DataResource.#{resourceName}#{repeatingDataName}'>#{dataRow}</tr></table></div>")
+      if delete_operation
+        headerRow += "<th>Delete</th>"
+        dataRow += """
+         <td><button ng-click="$emit('deleteResource', #{deleteUrl})" type="button" class="btn btn-danger btn-xs">Delete</button></td>
+        """
+
+      target.append("<div #{dd} id='#{id}' class='table-responsive' style='background-color: #ffffff'><table class='table table-hover table-striped' ><tr>#{headerRow}</tr> <tr ng-repeat='data in DataResource.#{resourceName}#{repeatingDataName}'>#{dataRow}</tr></table></div>")
       true
     else
       false
+
+
+class FormFeature extends BaseFeature
+
+  name: 'Form'
+  icon: 'glyphicon-th'
+  inputs: [
+    name: 'name'
+    label: 'Name'
+    type: 'string'
+    default: 'untitled'
+    control: 'text-input'
+  ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
+  ,
+    name: 'data_resource'
+    label: 'Data Resource'
+    type: 'data_resource'
+    default: ''
+    control: 'resource-select'
+  ,
+    name: 'fields'
+    label: 'Fields'
+    placeholder: 'Comma separated list'
+    type: 'string'
+    default: ''
+    control: 'text-input'
+  ,
+    name: 'labels'
+    label: 'Lables'
+    placeholder: 'Comma separated list'
+    type: 'string'
+    default: ''
+    control: 'text-input'
+  ,
+    name: 'filters'
+    label: 'Filters'
+    placeholder: 'Comma separated list'
+    type: 'string'
+    default: ''
+    control: 'text-input'
+  ,
+    name: 'page_location'
+    label: 'Page Location'
+    type: 'page_location'
+    control: 'page-target-selector'
+  ]
+
+  constructor: (initData) ->
+    super(initData)
+
+  generate: (appMetadata, instance, inputs) ->
+
+    unless appMetadata.getDataResourceReferences(inputs.data_resource.name)
+      return false
+
+    id = @instanceId(instance, inputs)
+    target = @getTarget(inputs.page_location, id, instance.id)
+    if target.length > 0
+      @addPageFeature(appMetadata, instance, inputs, id)
+      dd = @dragDropSupport(instance.id)
+
+      labels = if inputs.labels then inputs.labels.split(',') else []
+      filters = if inputs.filters then inputs.filters.split(',') else []
+      fields = if inputs.fields then inputs.fields.split(',') else []
+
+      post_operation = appMetadata.getDataResourceOperation(inputs.data_resource.name, inputs.data_resource.operation)
+
+      resourceName = @cleanName(inputs.data_resource.name)
+
+      references = appMetadata.getDataResourceReferences(inputs.data_resource.name)
+      # TODO exclude operation from references (need to know what's a reference)
+      if references.length <= 1
+        target.append("<div class='service-resource' url='#{post_operation.end_point}' target='#{resourceName}' ></div>")
+
+      appMetadata.addDataResourceReference(inputs.data_resource.name, instance.id)
+
+      parameters = post_operation.operation.parameters
+      dataRow = ''
+      for parameter in parameters
+        dataRow += """
+          <div class="form-group">
+            <label for="#{parameter.name}">#{parameter.name}</label>
+            <input type="string" class="form-control" name="#{parameter.name}" ng-model="data.#{parameter.name}" id="#{parameter.name}" placeholder="#{parameter.description}">
+          </div>
+        """
+      form = """
+        <form class='well' name="form1">
+          #{dataRow}
+          <input ng-click="$emit('postResource', form1, data)" type="submit" value="Submit"/>
+        <form>
+      """
+      target.append(form)
+
+      true
+    else
+      false
+
 
 
 class PageFeature extends BaseFeature
@@ -1676,6 +1799,7 @@ FeatureClasses = {
   ListGroupFeature: ListGroupFeature
   PanelFeature: PanelFeature
   ScriptTestFeature: ScriptTestFeature
+  FormFeature: FormFeature
 }
 
 features = new Features(true)
