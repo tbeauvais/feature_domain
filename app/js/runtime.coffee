@@ -12,7 +12,7 @@ angular.module('sampleDomainApp').factory 'DataResource', ($http) ->
         resource[target] = data
 
   post: (url, data, resource, target) ->
-    $http.post({
+    $http({
       method: 'POST'
       url: url
       data: $.param(data)
