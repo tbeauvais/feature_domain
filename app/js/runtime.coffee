@@ -6,7 +6,9 @@ angular.module('sampleDomainApp').factory 'DataResource', ($http) ->
       resource[target] = data
 
   delete: (url, get_url, resource, target) ->
+    console.log 'hit delete 1'
     $http.delete(url).success (data) ->
+      console.log 'hit delete 2'
       # TODO do something on failure (error event?)
       $http.get(get_url).success (data) ->
         resource[target] = data
@@ -38,11 +40,13 @@ angular.module('sampleDomainApp').directive 'serviceResource', (DataResource) ->
     DataResource.get(scope.url, scope.$parent.DataResource, scope.target)
     # TODO make unique name based on feature instance
     deleteResourceCleanup = scope.$parent.$on 'deleteResource', (event, deleteUrl) ->
+      console.log 'hit delete 0'
       DataResource.delete(deleteUrl, scope.url, scope.$parent.DataResource, scope.target)
     postResourceCleanup = scope.$parent.$on 'postResource', (event, form, data) ->
       DataResource.post(scope.url, data, scope.$parent.DataResource, scope.target)
 
     # remove listeners when directive is destroyed
     elem.on '$destroy', ->
+      console.log 'hit $destroy'
       deleteResourceCleanup()
       postResourceCleanup()
