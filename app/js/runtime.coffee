@@ -37,7 +37,12 @@ angular.module('sampleDomainApp').directive 'serviceResource', (DataResource) ->
   link: (scope, elem, attrs) ->
     DataResource.get(scope.url, scope.$parent.DataResource, scope.target)
     # TODO make unique name based on feature instance
-    scope.$parent.$on 'deleteResource', (event, deleteUrl) ->
+    deleteResourceCleanup = scope.$parent.$on 'deleteResource', (event, deleteUrl) ->
       DataResource.delete(deleteUrl, scope.url, scope.$parent.DataResource, scope.target)
-    scope.$parent.$on 'postResource', (event, form, data) ->
+    postResourceCleanup = scope.$parent.$on 'postResource', (event, form, data) ->
       DataResource.post(scope.url, data, scope.$parent.DataResource, scope.target)
+
+    # remove listeners when directive is destroyed
+    elem.on '$destroy', ->
+      deleteResourceCleanup()
+      postResourceCleanup()
