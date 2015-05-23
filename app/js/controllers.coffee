@@ -46,7 +46,7 @@ angular.module('sampleDomainApp').controller 'FeaturesCtrl', ($scope, AppFeature
     $scope.$root.$broadcast('moveFeature', sourceId, targetId, containerId)
     false
 
-  $scope.toggleMetadata = true
+  $scope.toggleMetadata = false
 
 angular.module('sampleDomainApp').controller 'EditorCtrl', ($scope, AppFeatures, AppMetadata) ->
 
