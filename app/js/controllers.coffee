@@ -78,7 +78,7 @@ angular.module('sampleDomainApp').factory 'Model', ($resource) ->
       method : 'PUT'
   }
 
-angular.module('sampleDomainApp').controller 'ModelCtrl', ($scope,  $location, Models, Model, AppFeatures) ->
+angular.module('sampleDomainApp').controller 'ModelCtrl', ($scope,  $location, $window, Models, Model, AppFeatures) ->
 
   Models.query (models) ->
     if $scope.currentModelId
@@ -111,9 +111,14 @@ angular.module('sampleDomainApp').controller 'ModelCtrl', ($scope,  $location, M
       $location.path("/models/#{model.id}", false)
 
   $scope.delete = (model)->
-    Model.delete {uuid: model.id}
-    Models.query (models) ->
-      $scope.currentModel = models[0]
-      $scope.saveAsModelName = $scope.currentModel.name
-      $scope.models = models
-      $location.path("/models/#{$scope.currentModel.id}", false)
+    if confirm('Are you sure you want to delete this application')
+      Model.delete {uuid: model.id}
+      Models.query (models) ->
+        $scope.currentModel = models[0]
+        $scope.saveAsModelName = $scope.currentModel.name
+        $scope.models = models
+        $location.path("/models/#{$scope.currentModel.id}", false)
+
+  $scope.preview = (model)->
+    $window.open("/models/#{model.id}/preview")
+    true

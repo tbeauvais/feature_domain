@@ -9,10 +9,12 @@ div.container
         .form-group
           label.sr-only for="model_name"
           input.form-control#model_name ng-model="saveAsModelName"
-        button.btn.btn-primary ng-click="save(currentModel)"
+        button.btn.btn-success ng-click="save(currentModel)"
           | Save
         button.btn.btn-default ng-click="saveAs(currentModel)"
           | Save As
+        button.btn.btn-info ng-click="preview(currentModel)"
+          | Preview
         button.btn.btn-danger ng-click="delete(currentModel)"
           | Delete
   div ng-controller="FeaturesCtrl as featuresCtrl"
