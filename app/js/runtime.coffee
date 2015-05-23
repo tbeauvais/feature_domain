@@ -50,3 +50,36 @@ angular.module('sampleDomainApp').directive 'serviceResource', (DataResource) ->
       console.log 'hit $destroy'
       deleteResourceCleanup()
       postResourceCleanup()
+
+angular.module('sampleDomainApp').directive 'googleChart', (DataResource) ->
+  restrict: 'AEC',
+  replace: true,
+  template: "<img src='https://chart.googleapis.com/chart?chs={{width}}x{{height}}&chd=t:{{chd}}&cht={{type}}&chl={{chl}}&chds=0,500&chco={{color}}&chbh=a,5' alt='chart' class='img-responsive {{align}}' >",
+
+  scope:
+    type: '@'
+    color: '@'
+    target: '@'
+    width: '@'
+    height: '@'
+    field: '@'
+    label: '@'
+    align: '@'
+
+  link: (scope, elem, attrs) ->
+    scope.chd = ''
+    scope.chl = ''
+    scope.chl = ''
+
+    scope.$watch '$parent.' + scope.target, (newValue, oldValue) ->
+      if (newValue)
+        scope.chd = _.map(newValue, (item) ->
+          item[scope.field] + ''
+        ).join()
+        scope.chl = _.map(newValue, (item) ->
+          item[scope.label]
+        ).join('|')
+
+    # remove watch when directive is destroyed
+    elem.on '$destroy', ->
+      console.log 'hit $destroy'

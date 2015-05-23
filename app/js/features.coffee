@@ -1780,6 +1780,168 @@ class GoogleMapFeature extends BaseFeature
     else
       false
 
+class GoogleChartFeature extends BaseFeature
+
+  name: 'GoogleChart'
+  icon: 'glyphicon-signal'
+  inputs: [
+    name: 'name'
+    label: 'Name'
+    type: 'string'
+    default: 'untitled'
+    control: 'text-input'
+  ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
+  ,
+    name: 'data_resource'
+    label: 'Data Resource'
+    type: 'data_resource'
+    default: ''
+    control: 'resource-select'
+    resource_types: [
+      'GET'
+    ]
+  ,
+    name: 'type'
+    label: 'Chart Type'
+    type: 'string'
+    default: 'p'
+    control: 'text-select'
+    options: [
+      value: 'p'
+      text: 'Pie'
+    ,
+      value: 'p3'
+      text: 'Pie 3D'
+    ,
+      value: 'bvs'
+      text: 'Bar Vertical'
+    ,
+      value: 'bhs'
+      text: 'Bar Horizontal'
+    ]
+  ,
+    name: 'color'
+    label: 'Color'
+    default: '#4D89F9'
+    type: 'string'
+    control: 'color-picker'
+  ,
+    name: 'field'
+    label: 'Data Field'
+    placeholder: ''
+    type: 'string'
+    default: ''
+    control: 'text-input'
+  ,
+    name: 'label'
+    label: 'Label Field'
+    placeholder: ''
+    type: 'string'
+    default: ''
+    control: 'text-input'
+  ,
+    name: 'filters'
+    label: 'Filters'
+    placeholder: 'Comma separated list'
+    type: 'string'
+    default: ''
+    control: 'text-input'
+  ,
+    name: 'alt'
+    label: 'Alt Text'
+    type: 'string'
+    default: 'Cool chart'
+    control: 'text-input'
+  ,
+    name: 'height'
+    label: 'Height'
+    type: 'string'
+    default: '200'
+    control: 'text-input'
+  ,
+    name: 'width'
+    label: 'Width'
+    type: 'string'
+    default: '300'
+    control: 'text-input'
+  ,
+    name: 'align'
+    label: 'Align'
+    type: 'string'
+    default: 'center-block'
+    control: 'text-select'
+    options: [
+      value: 'pull-left'
+      text: 'Left'
+    ,
+      value: 'center-block'
+      text: 'Center'
+    ,
+      value: 'pull-right'
+      text: 'Right'
+    ]
+  ,
+    name: 'page_location'
+    label: 'Page Location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
+    control: 'page-target-selector'
+  ]
+
+  constructor: (initData) ->
+    super(initData)
+
+  generate: (appMetadata, instance, inputs) ->
+    id = @instanceId(instance, inputs)
+    target = @getTarget(inputs.page_location, id, instance.id)
+    if target.length > 0
+      @addPageFeature(appMetadata, instance, inputs, id)
+      dd = @dragDropSupport(instance.id)
+
+      operation = appMetadata.getDataResourceOperation(inputs.data_resource.name, inputs.data_resource.operation)
+
+      if inputs.data_resource.delete_operation
+        delete_operation = appMetadata.getDataResourceOperation(inputs.data_resource.name, inputs.data_resource.delete_operation)
+
+        # add parameter information to url
+        deleteUrl = "'#{delete_operation.end_point}'"
+        for parameter in delete_operation.operation.parameters
+          deleteUrl = deleteUrl.replace("{#{parameter.name}}", "' + data.#{parameter.name} + '");
+
+      resourceName = @cleanName(inputs.data_resource.name)
+
+      repeatingDataName = ''
+      repeatingDataProperty = null
+      # Find the repeating data to use for the table
+      if operation && operation.operation && operation.operation.type
+        schema = appMetadata.getDataSchema(operation.operation.type)
+        if schema
+          for key, property of schema.schema.properties
+            if property.type == 'array'
+              repeatingDataName = ".#{key}"
+              repeatingDataProperty = property
+
+      references = appMetadata.getDataResourceReferences(inputs.data_resource.name)
+
+      appMetadata.addDataResourceReference(inputs.data_resource.name, instance.id)
+
+      target.append("<div class='google-chart' field='#{inputs.field}' type='#{inputs.type}' label='#{inputs.label}' color='#{inputs.color.slice(1)}' width='#{inputs.width}' height='#{inputs.height}' align='#{inputs.align}' target='DataResource.#{resourceName}#{repeatingDataName}'></div>")
+      true
+    else
+      false
+
+
 FeatureClasses = {
   PageFeature: PageFeature
   TextFeature: TextFeature
@@ -1800,6 +1962,7 @@ FeatureClasses = {
   PanelFeature: PanelFeature
   ScriptTestFeature: ScriptTestFeature
   FormFeature: FormFeature
+  GoogleChartFeature: GoogleChartFeature
 }
 
 features = new Features(true)
