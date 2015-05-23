@@ -11,6 +11,7 @@ gem 'redis'
 gem 'sinatra-assetpack'
 gem 'coffee-script'
 gem 'uglifier'
+gem 'therubyracer'
 
 group :test do
   gem 'rspec'
