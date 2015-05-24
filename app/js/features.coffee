@@ -1941,6 +1941,96 @@ class GoogleChartFeature extends BaseFeature
     else
       false
 
+class WatsonTextToSpeechFeature extends BaseFeature
+
+  name: 'WatsonTextToSpeech'
+  icon: 'glyphicon-volume-up'
+  inputs: [
+    name: 'name'
+    label: 'Name'
+    type: 'string'
+    default: 'untitled'
+    control: 'text-input'
+  ,
+    name: 'disable'
+    label: 'Disable'
+    type: 'boolean'
+    defaut: 'false'
+    control: 'checkbox-input'
+  ,
+    name: 'text'
+    label: 'Text'
+    placeholder: 'Enter your text'
+    type: 'string'
+    default: ''
+    control: 'text-area'
+  ,
+    name: 'voice'
+    label: 'Voice'
+    type: 'string'
+    default: 'VoiceEnUsMichael'
+    control: 'text-select'
+    options: [
+      value: 'VoiceEnUsMichael'
+      text: 'Male English'
+    ,
+      value: 'VoiceEnUsLisa'
+      text: 'Female English'
+    ,
+      value: 'VoiceEsEsEnrique'
+      text: 'Male Spanish'
+    ]
+  ,
+    name: 'align'
+    label: 'Align'
+    type: 'string'
+    default: 'center-block'
+    control: 'text-select'
+    options: [
+      value: 'pull-left'
+      text: 'Left'
+    ,
+      value: 'center-block'
+      text: 'Center'
+    ,
+      value: 'pull-right'
+      text: 'Right'
+    ]
+  ,
+    name: 'page_location'
+    label: 'Page Location'
+    type: 'object'
+    properties:
+      target:
+        description: "Target page location"
+        type: 'string'
+      name:
+        description: "Page name"
+        type: 'string'
+    control: 'page-target-selector'
+  ]
+
+  constructor: (initData) ->
+    super(initData)
+
+  generate: (appMetadata, instance, inputs) ->
+    id = @instanceId(instance, inputs)
+    target = @getTarget(inputs.page_location, id, instance.id)
+    if target.length > 0
+      @addPageFeature(appMetadata, instance, inputs, id)
+      audio = """
+        <div >
+          <audio class="#{inputs.align}" controls>
+            <source src="https://stream.watsonplatform.net/text-to-speech-beta/api/v1/synthesize?text=#{inputs.text}&voice=#{inputs.voice}" type="audio/ogg">
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+"""
+      target.append(audio)
+      true
+    else
+      false
+
 
 FeatureClasses = {
   PageFeature: PageFeature
@@ -1963,6 +2053,7 @@ FeatureClasses = {
   ScriptTestFeature: ScriptTestFeature
   FormFeature: FormFeature
   GoogleChartFeature: GoogleChartFeature
+  WatsonTextToSpeechFeature: WatsonTextToSpeechFeature
 }
 
 features = new Features(true)
