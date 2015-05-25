@@ -2010,6 +2010,7 @@ class WatsonTextToSpeechFeature extends BaseFeature
     control: 'page-target-selector'
   ]
 
+
   constructor: (initData) ->
     super(initData)
 
