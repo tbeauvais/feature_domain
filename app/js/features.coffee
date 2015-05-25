@@ -1905,7 +1905,7 @@ class GoogleChartFeature extends BaseFeature
   generate: (appMetadata, instance, inputs) ->
     id = @instanceId(instance, inputs)
     target = @getTarget(inputs.page_location, id, instance.id)
-    if target.length > 0
+    if target.length > 0 && inputs.data_resource && inputs.data_resource.name
       @addPageFeature(appMetadata, instance, inputs, id)
       dd = @dragDropSupport(instance.id)
 
