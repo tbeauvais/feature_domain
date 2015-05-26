@@ -34,6 +34,7 @@ angular.module('sampleDomainApp').directive 'featureList', ($rootScope, Features
       # TODO caused feature instance list not to be updated when changing model
       #scope.features = AppFeatures.features()
       scope.generate()
+      true
     scope.$on 'copyFeature', (event, featureId) ->
       sourceInstance = AppFeatures.find(featureId)
       featureInstance = Features.createFeatureInstance(sourceInstance.feature)
