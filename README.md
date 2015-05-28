@@ -20,7 +20,7 @@ Points
 * Partial generation after edit (Google map)
 * Composite Features
 * Drag within container sets target page location
-* Extended to server side micrservice generation
+* Can be extended to server side microservice generation
 
 
 # What is a Feature
