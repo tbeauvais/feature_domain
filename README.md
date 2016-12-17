@@ -165,3 +165,6 @@ A feature instance in the application model contains the following:
 
 # Application Metadata
 The application metadata is used to publish information related to feature instances. The feature metadata can be used at generation time by other features to introspect information about the application under construction, and at design time to enhance the visual or feature input pages. The application metadata is transient.
+
+# License
+Released under the MIT license.
