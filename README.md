@@ -76,7 +76,7 @@ For example here are the inputs for a simple Text feature.
 ```
 
 ## Feature Generation
-Exach feature specifies a generate function, which has access to the current state of the application metadata, inputs, and its instance information.
+Each feature specifies a generate function, which has access to the current state of the application metadata, inputs, and its instance information.
 
 For example here is the generate function for a simple Text feature.
 ```
