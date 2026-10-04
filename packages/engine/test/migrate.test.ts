@@ -140,6 +140,20 @@ describe('migrate: values reproduce legacy rendering', () => {
     expect(feature(one('ContainerFeature', { rows: '2', columns: '40' }), 'x').inputs).toMatchObject({ rows: 2, columns: 12 })
   })
 
+  it('caps rows at the Container maximum, leaving features in later rows unplaced', () => {
+    const r = run(
+      legacyPage,
+      { feature: 'ContainerFeature', id: 'c', inputs: { name: 'g', rows: '60', columns: '1', ...loc('#page_container') } },
+      { feature: 'TextFeature', id: 'in', inputs: { text: '', ...loc('#container_g_c_row_50_col_1') } },
+      { feature: 'TextFeature', id: 'out', inputs: { text: '', ...loc('#container_g_c_row_55_col_1') } },
+    )
+    expect(feature(r, 'c').inputs.rows).toBe(50)
+    expect(feature(r, 'in').placement).toEqual({ parent: 'c', slot: 'r50c1' })
+    expect(feature(r, 'out').placement).toBeUndefined()
+    expect(notes(r)).toEqual(['invalid-value:c', 'unresolved-target:out'])
+    expect(generate(r.model).diagnostics.map((d) => d.code)).toEqual(['missing-placement'])
+  })
+
   it('maps Bootstrap values and absent styles on headers', () => {
     expect(feature(one('HeaderFeature', { text: 'Hi', size: '3', align: 'text-right', text_style: 'text-success', background: 'bg-info' }), 'x').inputs).toEqual({
       name: '',
@@ -189,6 +203,18 @@ describe('migrate: references and unported features', () => {
       labels: ['Name', 'Description'],
       filters: ['uppercase', '', 'date'],
     })
+  })
+
+  it('normalizes operation methods and notes operations the resource does not provide', () => {
+    const r = run(
+      legacyPage,
+      resource('21', 'Repos'),
+      table('24', { data_resource: { name: 'Repos', operation: 'get /21', delete_operation: 'DELETE /21/{id}' } }),
+    )
+    expect(feature(r, '24').inputs).toMatchObject({ operation: 'GET /21', delete_operation: 'DELETE /21/{id}' })
+    expect(r.notes.map((n) => `${n.code}:${n.featureInstanceId}: ${n.message}`)).toEqual([
+      'unresolved-operation:24: Operation "DELETE /21/{id}" is not provided by data resource "Repos" (it provides "GET /21")',
+    ])
   })
 
   it('notes references to resources that do not exist', () => {

@@ -1,5 +1,5 @@
-import { cellSlot, MAX_COLUMNS } from '../features/container.js'
-import { DATA_RESOURCE_TYPES, HTTP_METHODS } from '../features/data-resource.js'
+import { cellSlot, MAX_COLUMNS, MAX_ROWS } from '../features/container.js'
+import { DATA_RESOURCE_TYPES, HTTP_METHODS, httpMethod, operationName } from '../features/data-resource.js'
 import { ROOT_ID, ROOT_SLOT, type AppModel, type FeatureInstance, type InputValue, type Placement } from '../types.js'
 import { legacyDomId, legacyGrid, normalizeAlign, normalizeTarget, normalizeTone } from './legacy.js'
 
@@ -12,6 +12,7 @@ export type MigrationNoteCode =
   | 'duplicate-target'
   | 'unresolved-target'
   | 'unresolved-reference'
+  | 'unresolved-operation'
   | 'markup-in-text'
   | 'data-binding'
 
@@ -33,6 +34,8 @@ interface Context {
   note(code: MigrationNoteCode, severity: MigrationNote['severity'], message: string): void
   /** Instance id of the first data resource with this legacy name. */
   resourceId(name: string): string | undefined
+  /** Name and operation names of a migrated DataResource, when they are known without fetching anything. */
+  resourceOperations(id: string): { name: string; operations: string[] } | undefined
 }
 
 export function isV2Model(value: unknown): value is AppModel {
@@ -84,7 +87,8 @@ export function migrate(input: unknown): MigrationResult {
     if (feature === 'PageFeature') provide('page_container', id, 'content')
     if (feature === 'PanelFeature') provide(`${legacyDomId(inputs.name, id)}_panel`, id, 'body')
     if (feature === 'ContainerFeature') {
-      const { rows, columns } = legacyGrid(inputs)
+      const { rows: legacyRows, columns } = legacyGrid(inputs)
+      const rows = Math.min(legacyRows, MAX_ROWS)
       const dom = legacyDomId(inputs.name, id)
       for (let r = 1; r <= rows; r++) for (let c = 1; c <= columns; c++) provide(`container_${dom}_row_${r}_col_${c}`, id, cellSlot(r, c))
     }
@@ -92,14 +96,16 @@ export function migrate(input: unknown): MigrationResult {
 
   // Legacy references were by data resource name; the first resource with a name won.
   const resources = new Map<string, string>()
+  const operations = new Map<string, { name: string; operations: string[] }>()
   for (const { id, feature, inputs } of instances) {
     const name = str(inputs.name)
     if (DATA_RESOURCE_TYPES.includes(feature) && !resources.has(name)) resources.set(name, id)
+    if (feature === 'DataResourceFeature') operations.set(id, { name, operations: [operationName(httpMethod(str(inputs.operation)), str(inputs.resource))] })
   }
 
   const features = instances.map(({ id, feature, inputs, raw }): FeatureInstance => {
     const note = noteFor(id)
-    const ctx: Context = { note, resourceId: (name) => resources.get(name) }
+    const ctx: Context = { note, resourceId: (name) => resources.get(name), resourceOperations: (rid) => operations.get(rid) }
     const migrateInputs = INPUTS[feature]
     const out: FeatureInstance = { feature, id, inputs: migrateInputs ? migrateInputs(inputs, ctx) : scalarInputs(inputs) }
 
@@ -166,10 +172,13 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     if (rows === 0 || columns === 0) {
       ctx.note('invalid-value', 'warning', `Container had no valid rows/columns (${JSON.stringify(i.rows)} x ${JSON.stringify(i.columns)}), so the legacy app rendered it empty; using the defaults`)
     }
+    if (rows > MAX_ROWS) {
+      ctx.note('invalid-value', 'warning', `Container has ${rows} rows; capped at ${MAX_ROWS}, so features in later rows are left unplaced`)
+    }
     return {
       name: str(i.name),
       disable: disable(i.disable, ctx),
-      rows: rows || 1,
+      rows: Math.min(rows || 1, MAX_ROWS),
       columns: Math.min(columns || 2, MAX_COLUMNS),
       well: truthy(i.well, 'well', ctx),
     }
@@ -182,14 +191,7 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     heading: text(i.heading, ctx),
   }),
 
-  DataResourceFeature: (i) => {
-    const method = str(i.operation).toUpperCase()
-    return {
-      name: str(i.name),
-      resource: str(i.resource),
-      operation: (HTTP_METHODS as readonly string[]).includes(method) ? method : 'GET',
-    }
-  },
+  DataResourceFeature: (i) => ({ name: str(i.name), resource: str(i.resource), operation: httpMethod(str(i.operation)) }),
 
   TableFeature: (i, ctx) => {
     const ref = typeof i.data_resource === 'object' && i.data_resource !== null ? (i.data_resource as Raw) : {}
@@ -198,12 +200,20 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     if (resourceId === undefined) {
       ctx.note('unresolved-reference', 'warning', resourceName ? `No data resource named "${resourceName}"` : 'No data resource selected')
     }
+    const operation = normalizeOperation(str(ref.operation))
+    const deleteOperation = normalizeOperation(str(ref.delete_operation))
+    const provided = resourceId === undefined ? undefined : ctx.resourceOperations(resourceId)
+    for (const name of [operation, deleteOperation]) {
+      if (provided && name !== '' && !provided.operations.includes(name)) {
+        ctx.note('unresolved-operation', 'warning', `Operation "${name}" is not provided by data resource "${provided.name}" (it provides ${provided.operations.map((o) => `"${o}"`).join(', ')})`)
+      }
+    }
     return {
       name: str(i.name),
       disable: disable(i.disable, ctx),
       data_resource: resourceId ?? '',
-      operation: str(ref.operation),
-      delete_operation: str(ref.delete_operation),
+      operation,
+      delete_operation: deleteOperation,
       fields: list(i.fields),
       labels: list(i.labels),
       filters: list(i.filters),
@@ -246,6 +256,13 @@ function text(value: unknown, ctx: Context): string {
   if (s.includes('{{')) ctx.note('data-binding', 'warning', 'Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported')
   else if (/<[a-z!/]/i.test(s)) ctx.note('markup-in-text', 'warning', 'Text contains HTML markup, which the legacy app rendered as HTML; it now renders as plain text')
   return s
+}
+
+/** "get /path" -> "GET /path": operation names start with an uppercase HTTP method. */
+function normalizeOperation(name: string): string {
+  const match = /^(\S+)\s+(.*)$/.exec(name.trim())
+  if (!match || !(HTTP_METHODS as readonly string[]).includes(match[1]!.toUpperCase())) return name
+  return `${match[1]!.toUpperCase()} ${match[2]}`
 }
 
 function list(value: unknown): string[] {

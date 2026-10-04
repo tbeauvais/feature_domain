@@ -2,7 +2,7 @@ import { referencedIds, type FeatureDefinition, type FeatureOutput, type Feature
 import { defaultRegistry } from './features/index.js'
 import { buildGraph, topoSort, type Graph } from './graph.js'
 import { asBool, asString, resolveInputs, type Inputs } from './inputs.js'
-import { indexNodes, node, walkNodes } from './nodes.js'
+import { node, walkNodes } from './nodes.js'
 import { ROOT_ID, ROOT_SLOT, type AppModel, type Diagnostic, type DocNode, type FeatureInstance, type Placement } from './types.js'
 
 export type FeatureStatus = 'generated' | 'suppressed' | 'skipped'
@@ -32,7 +32,7 @@ export interface TargetMetadata {
 export interface AppMetadata {
   pages: { id: string; name: string }[]
   features: FeatureMetadata[]
-  /** Slots of generated features (plus the document root). */
+  /** Slots that generated features actually produced (plus the document root). */
   targets: TargetMetadata[]
 }
 
@@ -76,6 +76,15 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
     status.set(id, 'skipped')
     report({ ...d, featureInstanceId: id })
   }
+  /** Runs feature code outside generate(); an exception skips the feature instead of escaping. */
+  const attempt = <T>(id: string, what: string, fn: () => T, fallback: T): T => {
+    try {
+      return fn()
+    } catch (error) {
+      fail(id, { code: 'feature-error', severity: 'error', message: `Feature threw in ${what}: ${errorMessage(error)}` })
+      return fallback
+    }
+  }
 
   // 1. Collect known features.
   const entries = new Map<string, Entry>()
@@ -93,7 +102,8 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
       return
     }
     const inputs = resolveInputs(def.inputs, instance.inputs)
-    entries.set(id, { instance, def, inputs, index, slots: def.slots?.(inputs) ?? [], declared: new Set() })
+    const slots = attempt(id, 'slots()', () => def.slots?.(inputs) ?? [], [])
+    entries.set(id, { instance, def, inputs, index, slots, declared: new Set() })
   })
   const describe = (id: string) => {
     const e = entries.get(id)
@@ -140,7 +150,7 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
     }
     const refs = [
       ...referencedIds(e.def, e.inputs).map((r) => ({ ...r, accepts: e.def.inputs.find((i) => i.name === r.input)?.accepts })),
-      ...(e.def.dependencies?.(e.inputs) ?? []).map((refId) => ({ input: 'dependencies', id: refId, accepts: undefined })),
+      ...attempt(id, 'dependencies()', () => e.def.dependencies?.(e.inputs) ?? [], []).map((refId) => ({ input: 'dependencies', id: refId, accepts: undefined })),
     ]
     for (const ref of refs) {
       const target = entries.get(ref.id)
@@ -215,7 +225,7 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
       report: (severity, message) => report({ code: 'feature', severity, featureInstanceId: id, message }),
       })
     } catch (error) {
-      fail(id, { code: 'feature-error', severity: 'error', message: `Feature threw during generation: ${error instanceof Error ? error.message : String(error)}` })
+      fail(id, { code: 'feature-error', severity: 'error', message: `Feature threw during generation: ${errorMessage(error)}` })
       continue
     }
 
@@ -225,13 +235,19 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
         continue
       }
       const featureNode: DocNode = { ...out.node, featureInstanceId: id }
-      const index = indexNodes(featureNode)
-      const clash = [...index.keys()].find((nodeId) => nodeIds.has(nodeId))
+      const ownIds: string[] = []
+      walkNodes(featureNode, (n) => ownIds.push(n.id))
+      const foreign = ownIds.find((nodeId) => nodeId !== id && !nodeId.startsWith(`${id}.`))
+      if (foreign !== undefined) {
+        fail(id, { code: 'invalid-node-id', severity: 'error', message: `Generated node id "${foreign}" is not owned by this feature (use ctx.nodeId)` })
+        continue
+      }
+      const clash = ownIds.find((nodeId, i) => nodeIds.has(nodeId) || ownIds.indexOf(nodeId) !== i)
       if (clash !== undefined) {
         fail(id, { code: 'duplicate-node-id', severity: 'error', message: `Generated node id "${clash}" is already in use` })
         continue
       }
-      for (const nodeId of index.keys()) nodeIds.add(nodeId)
+      for (const nodeId of ownIds) nodeIds.add(nodeId)
       const ownSlots = new Map<string, DocNode>()
       walkNodes(featureNode, (n) => {
         if (n.slot !== undefined && !ownSlots.has(n.slot)) ownSlots.set(n.slot, n)
@@ -243,7 +259,7 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
       }
       generated.set(id, featureNode)
     }
-    resolved.set(id, { id, feature: e.instance.feature, name: asString(e.inputs.name), exports: Object.freeze({ ...out.exports }) })
+    resolved.set(id, { id, feature: e.instance.feature, name: asString(e.inputs.name), exports: frozenCopy(out.exports ?? {}) })
     status.set(id, 'generated')
   }
 
@@ -266,7 +282,7 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
 
   return {
     root: assemble(template),
-    metadata: buildMetadata(entries, status),
+    metadata: buildMetadata(entries, status, new Set(slotNodes.keys())),
     graph,
     edgeKinds,
     order,
@@ -274,7 +290,7 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
   }
 }
 
-function buildMetadata(entries: Map<string, Entry>, status: Map<string, FeatureStatus>): AppMetadata {
+function buildMetadata(entries: Map<string, Entry>, status: Map<string, FeatureStatus>, generatedSlots: Set<string>): AppMetadata {
   const pageOf = (id: string, depth = 0): string | undefined => {
     const e = entries.get(id)
     if (!e || depth > entries.size) return undefined
@@ -302,7 +318,22 @@ function buildMetadata(entries: Map<string, Entry>, status: Map<string, FeatureS
 
     if (f.status !== 'generated') continue
     if (e.instance.feature === 'PageFeature') pages.push({ id, name })
-    for (const slot of e.slots) targets.push({ parent: id, slot, label: `${name || id} › ${slot}` })
+    for (const slot of e.slots.filter((s) => generatedSlots.has(slotKey(id, s)))) targets.push({ parent: id, slot, label: `${name || id} › ${slot}` })
   }
   return { pages, features, targets }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/** A deep, frozen copy of plain data (objects and arrays), so no consumer can change what another one reads. */
+export function frozenCopy<T>(value: T): T {
+  if (Array.isArray(value)) return Object.freeze(value.map(frozenCopy)) as T
+  if (typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype) {
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value)) out[k] = frozenCopy(v)
+    return Object.freeze(out) as T
+  }
+  return value
 }

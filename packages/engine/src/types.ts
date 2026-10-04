@@ -104,6 +104,7 @@ export type DiagnosticCode =
   | 'undeclared-dependency'
   | 'missing-slot'
   | 'missing-node'
+  | 'invalid-node-id'
   | 'duplicate-node-id'
   | 'cycle'
   | 'parent-skipped'

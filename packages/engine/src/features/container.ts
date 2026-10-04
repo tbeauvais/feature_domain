@@ -3,7 +3,7 @@ import { asBool, asInt, clamp, disableInput, nameInput, type Inputs } from '../i
 import { node } from '../nodes.js'
 
 export const MAX_COLUMNS = 12
-const MAX_ROWS = 50
+export const MAX_ROWS = 50
 
 /** Slot key of a cell, e.g. row 1, column 2 -> "r1c2". */
 export const cellSlot = (row: number, column: number) => `r${row}c${column}`

@@ -8,12 +8,14 @@ import { PanelFeature } from './panel.js'
 import { TableFeature } from './table.js'
 import { TextFeature } from './text.js'
 
-export { ContainerFeature, cellSlot, MAX_COLUMNS } from './container.js'
+export { ContainerFeature, cellSlot, MAX_COLUMNS, MAX_ROWS } from './container.js'
 export {
   DataResourceFeature,
   DATA_RESOURCE_TYPES,
   HTTP_METHODS,
+  httpMethod,
   isDataResourceExports,
+  operationName,
   pathname,
   type DataOperation,
   type DataResourceExports,

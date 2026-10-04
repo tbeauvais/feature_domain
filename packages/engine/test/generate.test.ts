@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createFeatureInstance,
   createRegistry,
   defaultRegistry,
   dependentsOf,
@@ -7,6 +8,7 @@ import {
   node,
   renderOutline,
   ROOT_ID,
+  TableFeature,
   type FeatureDefinition,
 } from '../src'
 import { at, deepFreeze, inst, model, page, resource } from './helpers'
@@ -188,6 +190,18 @@ describe('references', () => {
     ])
   })
 
+  it('reads numeric reference values as instance ids', () => {
+    const r = generate(model(page(), resource('23'), inst('TableFeature', 't', { data_resource: 23 })))
+    expect(r.diagnostics).toEqual([])
+    expect(r.metadata.features.find((f) => f.id === 't')?.references).toEqual(['23'])
+  })
+
+  it('reports a Table fresh from the palette until a data resource is chosen', () => {
+    const r = generate(model(page(), createFeatureInstance(TableFeature, 't', at('1', 'content'))))
+    expect(r.diagnostics).toEqual([{ code: 'unresolved-reference', severity: 'error', featureInstanceId: 't', message: 'No Data Resource selected' }])
+    expect(statusOf(r, 't')).toBe('skipped')
+  })
+
   it('warns when a feature is listed before a feature it references', () => {
     const r = generate(model(page(), table('t'), resource('r')))
     expect(r.diagnostics.map((d) => d.message)).toEqual(['Listed before feature r ("Repos"), which it references'])
@@ -257,17 +271,44 @@ describe('custom features', () => {
     const r = generate(model(page(), inst('Broken', 'b'), inst('TextFeature', 't', {}, at('b', 'hole'))), registry(broken))
     expect(codes(r)).toEqual(['missing-slot:b', 'parent-skipped:t'])
     expect(statusOf(r, 't')).toBe('skipped')
+    expect(r.metadata.targets.filter((t) => t.parent === 'b')).toEqual([])
   })
 
-  it('skips placed features that generate no node, or clashing node ids', () => {
+  it('skips placed features that generate no node', () => {
     const empty = stub({ type: 'Empty', generate: () => ({}) })
-    const clash = stub({ type: 'Clash', generate: () => ({ node: node('text', '1', { text: '' }) }) })
-    const r = generate(model(page(), inst('Empty', 'e'), inst('Clash', 'k')), registry(empty, clash))
-    expect(codes(r)).toEqual(['missing-node:e', 'duplicate-node-id:k'])
+    expect(codes(generate(model(page(), inst('Empty', 'e')), registry(empty)))).toEqual(['missing-node:e'])
+  })
+
+  it('blames a feature that emits node ids it does not own, without harming the owner', () => {
+    // Listed first and placed at the root, so it generates before Page "1" whose id it steals.
+    const thief = stub({ type: 'Thief', generate: () => ({ node: node('text', '1', { text: '' }) }) })
+    const r = generate(model(inst('Thief', 'k', {}, at(ROOT_ID, 'content')), page(), inst('TextFeature', 't')), registry(thief))
+    expect(r.diagnostics.map((d) => `${d.code}:${d.featureInstanceId}: ${d.message}`)).toEqual([
+      'invalid-node-id:k: Generated node id "1" is not owned by this feature (use ctx.nodeId)',
+    ])
+    expect(statusOf(r, '1')).toBe('generated')
+    expect(statusOf(r, 't')).toBe('generated')
+  })
+
+  it('skips a feature whose own node ids repeat', () => {
+    const twins = stub({ type: 'Twins', generate: (_, ctx) => ({ node: node('text', ctx.nodeId(), { text: '' }, { children: [node('text', ctx.nodeId('a'), { text: '' }), node('text', ctx.nodeId('a'), { text: '' })] }) }) })
+    expect(codes(generate(model(page(), inst('Twins', 'w')), registry(twins)))).toEqual(['duplicate-node-id:w'])
+  })
+
+  it('turns exceptions in slots() and dependencies() into diagnostics', () => {
+    const badSlots = stub({ type: 'BadSlots', slots: () => { throw new Error('slots boom') }, generate: (_, ctx) => ({ node: node('text', ctx.nodeId(), { text: '' }) }) })
+    const badDeps = stub({ type: 'BadDeps', dependencies: () => { throw new Error('deps boom') }, generate: (_, ctx) => ({ node: node('text', ctx.nodeId(), { text: '' }) }) })
+    const r = generate(model(page(), inst('BadSlots', 's'), inst('TextFeature', 'in', {}, at('s', 'x')), inst('BadDeps', 'd'), inst('TextFeature', 'ok')), registry(badSlots, badDeps))
+    expect(r.diagnostics.map((d) => `${d.code}:${d.featureInstanceId}: ${d.message}`)).toEqual([
+      'feature-error:s: Feature threw in slots(): slots boom',
+      'unresolved-placement:in: Parent feature s ("BadSlots s") has no slot "x"',
+      'feature-error:d: Feature threw in dependencies(): deps boom',
+    ])
+    expect(statusOf(r, 'ok')).toBe('generated')
   })
 
   it('never mutates nodes returned by features', () => {
-    const shared = deepFreeze(node('text', 'shared', { text: '' }, { slot: 's' }))
+    const shared = deepFreeze(node('text', 'h', { text: '' }, { slot: 's' }))
     const holder = stub({ type: 'Holder', slots: () => ['s'], generate: () => ({ node: shared }) })
     const m = model(page(), inst('Holder', 'h'), inst('TextFeature', 't', {}, at('h', 's')))
     const first = generate(m, registry(holder))
@@ -285,6 +326,20 @@ describe('custom features', () => {
     const r = generate(model(page(), resource('r'), resource('x', 'Other'), inst('Reader', 'rd')), registry(reader))
     expect(codes(r)).toEqual(['undeclared-dependency:rd'])
     expect(pageNode(r).children[0]!.props).toEqual({ text: 'Repos/undefined' })
+  })
+
+  it('deep-freezes exports so one consumer cannot change what another reads', () => {
+    const pusher = stub({
+      type: 'Pusher',
+      dependencies: () => ['r'],
+      generate: (_, ctx) => {
+        ;(ctx.resolve('r')!.exports.operations as unknown[]).push({ name: 'POST /evil', method: 'POST', endPoint: 'x' })
+        return { node: node('text', ctx.nodeId(), { text: '' }) }
+      },
+    })
+    const r = generate(model(page(), resource('r'), inst('Pusher', 'p'), inst('TableFeature', 't', { data_resource: 'r', operation: 'POST /evil' })), registry(pusher))
+    expect(codes(r)).toEqual(['feature-error:p', 'feature:t'])
+    expect(r.diagnostics[1]!.message).toBe('Operation "POST /evil" is not provided by Repos')
   })
 
   it('freezes exports so consumers cannot change them', () => {

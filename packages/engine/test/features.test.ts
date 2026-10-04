@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { deepFreeze } from './helpers'
 import {
   ContainerFeature,
   coreFeatures,
@@ -27,7 +28,7 @@ function context(resolve: (id: string) => ResolvedFeature | undefined = () => un
 
 /** Runs a feature as a newly created instance would: defaults, overridden by `raw`. */
 function run(def: FeatureDefinition, raw: Record<string, unknown> = {}, resolve?: (id: string) => ResolvedFeature | undefined) {
-  const inputs = { ...defaultInputs(def.inputs), ...raw } as Parameters<FeatureDefinition['generate']>[0]
+  const inputs = deepFreeze({ ...defaultInputs(def.inputs), ...raw }) as Parameters<FeatureDefinition['generate']>[0]
   const { ctx, report } = context(resolve)
   return { out: def.generate(inputs, ctx), slots: def.slots?.(inputs) ?? [], report }
 }
@@ -48,8 +49,11 @@ describe.each(coreFeatures.map((f) => [f.type, f] as const))('%s contract', (_, 
     }
   })
 
-  it('is deterministic', () => {
-    expect(run(def).out).toEqual(run(def).out)
+  it('is deterministic and does not mutate its inputs', () => {
+    // Inputs are deep-frozen by run(), so any mutation throws.
+    const first = run(def).out
+    expect(run(def).out).toEqual(first)
+    expect(JSON.stringify(run(def).out)).toBe(JSON.stringify(first))
   })
 
   if (def.placement === 'required') {
@@ -167,8 +171,16 @@ describe('DataResourceFeature', () => {
     })
   })
 
-  it('names operations by URL path, like the legacy app', () => {
-    expect(['https://h/a/b?x=1#f', 'https://h', 'https://h?q', 'HTTP://h/A', '/local?x', 'rel/path'].map(pathname)).toEqual(['/a/b', '/', '/', '/A', '/local', 'rel/path'])
+  it('names operations by URL path exactly like the WHATWG URL parser the legacy app used', () => {
+    const urls = [
+      'https://h/a/b?x=1#f', 'https://h', 'https://h?q', 'HTTP://h/A', 'https://user:pw@h:80/p?x#f',
+      'https://h/a b', 'https://h/a\\b', 'https://h\\a\\b', 'https://h/./x/../y', 'https://h/x/..', 'https://h/x/.',
+      'https://h/%2e%2E/y', 'https://h/a/%2e/b', 'https://h/a//b', 'https://h/\u00fc', 'https://h/\u{1F600}',
+      'https://h/a%20b', 'https://h/a^b|c', 'https://h/a"b<c>`{}', 'https://h/a\tb\n', '  https://h/trim  ',
+      'https://api.github.com/users/tbeauvais/repos?per_page=5',
+    ]
+    for (const url of urls) expect(pathname(url), url).toBe(new URL(url).pathname)
+    expect(['/local?x', 'rel/path#f'].map(pathname)).toEqual(['/local', 'rel/path'])
   })
 
   it('falls back to GET and tolerates non-URL resources', () => {

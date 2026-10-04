@@ -69,13 +69,14 @@ cd packages/engine && npx vitest           # watch mode
   - The graph has `placement` edges (parent -> child) and `reference` edges (referenced -> referencing).
   - Features generate in topological order. Siblings attach to their slot in **model order**.
   - Suppression (`disable`) and skipping propagate along both edge kinds.
-  - Never throws: unknown feature, missing or unresolved placement or reference, missing slot or node, duplicate ids, cycles, out-of-order (a feature listed before something it depends on), and exceptions thrown by a feature all become `diagnostics`.
+  - Never throws: unknown feature, missing or unresolved placement or reference, missing slot or node, invalid or duplicate node ids, cycles, out-of-order (a feature listed before something it depends on), and exceptions thrown by a feature's `generate`, `slots` or `dependencies` all become `diagnostics`.
+  - `metadata.targets` lists only slots that were actually generated (valid drop targets).
   - Never mutates the model or feature output.
 - **Feature API** (`src/feature.ts`): implement `FeatureDefinition`.
   - Declare `inputs` (with defaults for new instances; `resolveInputs` fills absent ones) and `placement: 'required' | 'none'`.
   - Optionally declare `slots(inputs)` (slot keys; mark the matching nodes with `slot`) and `dependencies(inputs)` (ids beyond `reference` inputs).
   - `generate(inputs, ctx)` returns `{ node?, exports? }`.
-  - The context provides `ctx.nodeId(part?)` for node ids (`12`, `12.r1c2`), `ctx.resolve(id)` (only declared dependencies; returns their frozen `exports`) and `ctx.report(severity, message)`.
+  - The context provides `ctx.nodeId(part?)` for node ids (`12`, `12.r1c2`; the engine rejects ids a feature doesn't own), `ctx.resolve(id)` (only declared dependencies; returns a deep-frozen copy of their `exports`) and `ctx.report(severity, message)`.
 - **Node kinds** are typed: `NodeKinds` in `src/types.ts` maps each `kind` to its props. Extend it with declaration merging.
 - **Features** live in `src/features/`, one file each, registered in `src/features/index.ts`. Ported so far: Page, Container, Panel, Text, Header, Image, DataResource, Table. **To add a feature:**
   - Implement it and register it.

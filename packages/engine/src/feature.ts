@@ -1,4 +1,4 @@
-import { defaultInputs, type InputDef, type Inputs } from './inputs.js'
+import { asString, defaultInputs, type InputDef, type Inputs } from './inputs.js'
 import type { DocNode, FeatureInstance, Placement, Severity } from './types.js'
 
 /** A generated feature as seen by features that depend on it. */
@@ -63,12 +63,12 @@ export function createFeatureInstance(def: FeatureDefinition, id: string, placem
   return instance
 }
 
-/** Instance ids referenced by a feature's `reference` inputs (empty values ignored). */
+/** Instance ids referenced by a feature's `reference` inputs (numbers read as ids; empty values ignored). */
 export function referencedIds(def: FeatureDefinition, inputs: Inputs): { input: string; id: string }[] {
   const refs: { input: string; id: string }[] = []
   for (const input of def.inputs) {
-    const value = inputs[input.name]
-    if (input.type === 'reference' && typeof value === 'string' && value !== '') refs.push({ input: input.name, id: value })
+    const value = asString(inputs[input.name])
+    if (input.type === 'reference' && value !== '') refs.push({ input: input.name, id: value })
   }
   return refs
 }
