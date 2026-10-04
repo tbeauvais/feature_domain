@@ -1,11 +1,12 @@
-import type { FeatureDefinition } from '../feature'
-import { node } from '../ids'
-import { asString, disableInput, nameInput, pageLocationInput } from '../inputs'
+import type { FeatureDefinition } from '../feature.js'
+import { asString, disableInput, nameInput } from '../inputs.js'
+import { node } from '../nodes.js'
 
 export const TextFeature: FeatureDefinition = {
   type: 'TextFeature',
   name: 'Text',
   icon: 'pencil',
+  placement: 'required',
   inputs: [
     nameInput(),
     disableInput,
@@ -16,10 +17,9 @@ export const TextFeature: FeatureDefinition = {
       default: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit',
       control: 'text-input',
     },
-    pageLocationInput,
   ],
 
   generate(inputs, ctx) {
-    return node(ctx.domId, 'text', { text: asString(inputs.text) })
+    return { node: node('text', ctx.nodeId(), { text: asString(inputs.text) }) }
   },
 }

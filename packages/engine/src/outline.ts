@@ -1,16 +1,19 @@
-import type { Diagnostic, DocNode } from './types'
+import type { Diagnostic, DocNode } from './types.js'
 
 /**
  * Renders a document tree as indented text, one node per line, for snapshots and debugging. e.g.
- *   heading #top_header_1 [1] {"text":"Hi","level":1,"align":"center"}
+ *   grid-cell #12.r1c2 <r1c2> {"row":1,"column":2}
+ *   heading #8 [8] {"text":"Hi","level":4,"align":"center"}
+ * `<slot>` marks slots; `[id]` marks the feature instance that generated the node.
  */
 export function renderOutline(root: DocNode): string {
   const lines: string[] = []
   const walk = (n: DocNode, depth: number) => {
-    const owner = n.featureInstanceId ? ` [${n.featureInstanceId}]` : ''
+    const slot = n.slot !== undefined ? ` <${n.slot}>` : ''
+    const owner = n.featureInstanceId !== undefined ? ` [${n.featureInstanceId}]` : ''
     const props = Object.keys(n.props).length > 0 ? ` ${JSON.stringify(n.props)}` : ''
     const style = n.style ? ` style=${JSON.stringify(n.style)}` : ''
-    lines.push(`${'  '.repeat(depth)}${n.kind} #${n.id}${owner}${props}${style}`)
+    lines.push(`${'  '.repeat(depth)}${n.kind} #${n.id}${slot}${owner}${props}${style}`)
     for (const child of n.children) walk(child, depth + 1)
   }
   walk(root, 0)
@@ -18,5 +21,5 @@ export function renderOutline(root: DocNode): string {
 }
 
 export function formatDiagnostic(d: Diagnostic): string {
-  return `${d.severity} ${d.code}${d.featureInstanceId ? ` [${d.featureInstanceId}]` : ''}: ${d.message}`
+  return `${d.severity} ${d.code}${d.featureInstanceId !== undefined ? ` [${d.featureInstanceId}]` : ''}: ${d.message}`
 }

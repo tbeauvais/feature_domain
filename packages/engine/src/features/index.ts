@@ -1,16 +1,40 @@
-import { createRegistry } from '../feature'
-import { ContainerFeature } from './container'
-import { HeaderFeature } from './header'
-import { ImageFeature } from './image'
-import { PageFeature } from './page'
-import { TextFeature } from './text'
+import { createRegistry } from '../feature.js'
+import { ContainerFeature } from './container.js'
+import { DataResourceFeature } from './data-resource.js'
+import { HeaderFeature } from './header.js'
+import { ImageFeature } from './image.js'
+import { PageFeature } from './page.js'
+import { PanelFeature } from './panel.js'
+import { TableFeature } from './table.js'
+import { TextFeature } from './text.js'
 
-export { ContainerFeature, cellId } from './container'
-export { HeaderFeature } from './header'
-export { ImageFeature } from './image'
-export { PageFeature, PAGE_CONTAINER } from './page'
-export { TextFeature } from './text'
+export { ContainerFeature, cellSlot, MAX_COLUMNS } from './container.js'
+export {
+  DataResourceFeature,
+  DATA_RESOURCE_TYPES,
+  HTTP_METHODS,
+  isDataResourceExports,
+  pathname,
+  type DataOperation,
+  type DataResourceExports,
+  type DataSchema,
+} from './data-resource.js'
+export { HeaderFeature } from './header.js'
+export { ImageFeature } from './image.js'
+export { PageFeature } from './page.js'
+export { PanelFeature } from './panel.js'
+export { TableFeature } from './table.js'
+export { TextFeature } from './text.js'
 
-export const coreFeatures = [PageFeature, ContainerFeature, TextFeature, HeaderFeature, ImageFeature]
+export const coreFeatures = [
+  PageFeature,
+  ContainerFeature,
+  PanelFeature,
+  TextFeature,
+  HeaderFeature,
+  ImageFeature,
+  DataResourceFeature,
+  TableFeature,
+]
 
 export const defaultRegistry = createRegistry(coreFeatures)
