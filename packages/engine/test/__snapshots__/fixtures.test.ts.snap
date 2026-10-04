@@ -1,0 +1,143 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`app_models/buy_deal_sample.json > matches the golden diagnostics 1`] = `
+[
+  "warning unknown-feature [21]: Unknown feature type "DataResourceFeature"",
+  "warning unknown-feature [34]: Unknown feature type "DataResourceFeature"",
+  "warning unknown-feature [30]: Unknown feature type "ListGroupFeature"",
+  "warning unknown-feature [31]: Unknown feature type "ButtonFeature"",
+  "warning unknown-feature [32]: Unknown feature type "ListGroupFeature"",
+  "warning unknown-feature [33]: Unknown feature type "ButtonFeature"",
+  "warning unknown-feature [28]: Unknown feature type "ListGroupFeature"",
+  "warning unknown-feature [26]: Unknown feature type "ButtonFeature"",
+  "warning unknown-feature [27]: Unknown feature type "SeparatorFeature"",
+  "warning unknown-feature [16]: Unknown feature type "GoogleMapFeature"",
+  "warning unknown-feature [6]: Unknown feature type "GoogleMapFeature"",
+  "warning unknown-feature [10]: Unknown feature type "TextWithParagraphFeature"",
+  "warning unknown-feature [11]: Unknown feature type "ImageWithParagraphFeature"",
+]
+`;
+
+exports[`app_models/buy_deal_sample.json > matches the golden document 1`] = `
+"root #content_section
+  page #page_container [15] style={"border":"5px solid #00a3ff","borderRadius":"5px","padding":"8px","backgroundColor":"#e6fcfc"}
+    image #header_image_36 [36] {"src":"https://www.nard.ma/images/english/web-application-header.jpg","alt":"some cool image","width":"100%","height":"200","responsive":false,"align":"center"}
+    grid #buy_pannels_29 [29] {"rows":1,"columns":3,"well":true}
+      grid-cell #container_buy_pannels_29_row_1_col_1 {"row":1,"column":1}
+      grid-cell #container_buy_pannels_29_row_1_col_2 {"row":1,"column":2}
+      grid-cell #container_buy_pannels_29_row_1_col_3 {"row":1,"column":3}
+    grid #top_container_18 [18] {"rows":2,"columns":1,"well":true}
+      grid-cell #container_top_container_18_row_1_col_1 {"row":1,"column":1}
+        heading #container_header_20 [20] {"text":"Two New Locations","level":1,"align":"center","tone":"info"}
+      grid-cell #container_top_container_18_row_2_col_1 {"row":2,"column":1}
+        grid #inner_container_19 [19] {"rows":1,"columns":2,"well":false}
+          grid-cell #container_inner_container_19_row_1_col_1 {"row":1,"column":1}
+            text #weather_text_2 [2] {"text":"Temp {{DataResource.WeatherService.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherService.query.results.channel.item.condition.text}}"}
+          grid-cell #container_inner_container_19_row_1_col_2 {"row":1,"column":2}
+            text #weather_text_35 [35] {"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}"
+`;
+
+exports[`app_models/google_map_sample.json > matches the golden diagnostics 1`] = `
+[
+  "warning unknown-feature [21]: Unknown feature type "DataResourceFeature"",
+  "warning unknown-feature [34]: Unknown feature type "DataResourceFeature"",
+  "warning unknown-feature [23]: Unknown feature type "DataResourceFeature"",
+  "warning unknown-feature [37]: Unknown feature type "DataResourceFeature"",
+  "warning unknown-feature [27]: Unknown feature type "SeparatorFeature"",
+  "warning unknown-feature [24]: Unknown feature type "TableFeature"",
+  "warning unknown-feature [36]: Unknown feature type "PanelFeature"",
+  "warning unknown-feature [39]: Unknown feature type "PanelFeature"",
+  "warning unknown-feature [38]: Unknown feature type "TableFeature"",
+  "warning unknown-feature [7]: Unknown feature type "ListFeature"",
+  "warning unknown-feature [16]: Unknown feature type "GoogleMapFeature"",
+  "warning unknown-feature [6]: Unknown feature type "GoogleMapFeature"",
+  "warning unknown-feature [10]: Unknown feature type "TextWithParagraphFeature"",
+  "warning unknown-feature [11]: Unknown feature type "ImageWithParagraphFeature"",
+  "warning unknown-feature [4]: Unknown feature type "LinkFeature"",
+]
+`;
+
+exports[`app_models/google_map_sample.json > matches the golden document 1`] = `
+"root #content_section
+  page #page_container [15] style={"border":"5px solid #00a3ff","borderRadius":"5px","padding":"8px","backgroundColor":"#e6fcfc"}
+    image #header_image_25 [25] {"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","width":"100%","height":"150","responsive":false,"align":"center"}
+    grid #top_container_18 [18] {"rows":2,"columns":1,"well":true}
+      grid-cell #container_top_container_18_row_1_col_1 {"row":1,"column":1}
+        heading #container_header_20 [20] {"text":"Two New Locations","level":1,"align":"center","tone":"info"}
+      grid-cell #container_top_container_18_row_2_col_1 {"row":2,"column":1}
+        grid #inner_container_19 [19] {"rows":1,"columns":2,"well":false}
+          grid-cell #container_inner_container_19_row_1_col_1 {"row":1,"column":1}
+            text #weather_text_2 [2] {"text":"Temp {{DataResource.WeatherService.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherService.query.results.channel.item.condition.text}}"}
+          grid-cell #container_inner_container_19_row_1_col_2 {"row":1,"column":2}
+            text #weather_text_35 [35] {"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
+    grid #my_container_12 [12] {"rows":1,"columns":2,"well":true}
+      grid-cell #container_my_container_12_row_1_col_1 {"row":1,"column":1}
+        heading #small_header_8 [8] {"text":"Here's a list of colors","level":4,"align":"center"}
+      grid-cell #container_my_container_12_row_1_col_2 {"row":1,"column":2}
+        heading #frog_label_17 [17] {"text":"I'm just a little frog","level":4,"align":"center"}
+        image #frog_13 [13] {"src":"http://assets.kompas.com/data/photo/2014/04/07/2002239katak-kulit-paling-kasar780x390.jpg","alt":"Frog","width":"300","height":"300","responsive":true,"align":"center"}"
+`;
+
+exports[`app_models/swagger_resource_sample.json > matches the golden diagnostics 1`] = `
+[
+  "warning unknown-feature [42]: Unknown feature type "SwaggerDataResourceFeature"",
+  "warning unknown-feature [27]: Unknown feature type "SeparatorFeature"",
+  "warning unknown-feature [46]: Unknown feature type "PanelFeature"",
+  "warning unknown-feature [45]: Unknown feature type "PanelFeature"",
+  "warning unknown-feature [44]: Unknown feature type "FormFeature"",
+  "warning unknown-feature [43]: Unknown feature type "TableFeature"",
+  "warning unknown-feature [47]: Unknown feature type "GoogleChartFeature"",
+]
+`;
+
+exports[`app_models/swagger_resource_sample.json > matches the golden document 1`] = `
+"root #content_section
+  page #page_container [15] style={"border":"5px solid #00a3ff","borderRadius":"5px","padding":"8px","backgroundColor":"#e6fcfc"}
+    image #header_image_25 [25] {"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","width":"100%","height":"150","responsive":false,"align":"center"}"
+`;
+
+exports[`app_models/watson_sample.json > matches the golden diagnostics 1`] = `
+[
+  "warning unknown-feature [27]: Unknown feature type "SeparatorFeature"",
+  "warning unknown-feature [28]: Unknown feature type "WatsonTextToSpeechFeature"",
+]
+`;
+
+exports[`app_models/watson_sample.json > matches the golden document 1`] = `
+"root #content_section
+  page #page_container [15] style={"border":"5px solid #00a3ff","borderRadius":"5px","padding":"8px","backgroundColor":"#e6fcfc"}
+    heading #header_29 [29] {"text":"Leverage IBM's Watson Services","level":1,"align":"center","tone":"info"}
+    image #header_image_25 [25] {"src":"http://www.dotpod.com.ar/wp-content/uploads/ibm-silvergate-argentina-02-710x242.jpg","alt":"some cool image","width":"100%","height":"250","responsive":false,"align":"left"}"
+`;
+
+exports[`sample.json > matches the golden diagnostics 1`] = `
+[
+  "warning unknown-feature [7]: Unknown feature type "ListFeature"",
+  "warning unknown-feature [16]: Unknown feature type "GoogleMapFeature"",
+  "warning unknown-feature [6]: Unknown feature type "GoogleMapFeature"",
+  "warning unknown-feature [10]: Unknown feature type "TextWithParagraphFeature"",
+  "warning unknown-feature [11]: Unknown feature type "ImageWithParagraphFeature"",
+  "warning unknown-feature [4]: Unknown feature type "LinkFeature"",
+]
+`;
+
+exports[`sample.json > matches the golden document 1`] = `
+"root #content_section
+  page #page_container [15]
+    heading #top_header_1 [1] {"text":"Here is some content for ya...gfdgfd","level":1,"align":"left"}
+    grid #my_container_12 [12] {"rows":1,"columns":2,"well":false}
+      grid-cell #container_my_container_12_row_1_col_1 {"row":1,"column":1}
+        heading #small_header_8 [8] {"text":"Here's a list of colors","level":4,"align":"left"}
+      grid-cell #container_my_container_12_row_1_col_2 {"row":1,"column":2}
+        heading #frog_label_17 [17] {"text":"I'm a Frog","level":3,"align":"left"}
+        image #frog_13 [13] {"src":"http://assets.kompas.com/data/photo/2014/04/07/2002239katak-kulit-paling-kasar780x390.jpg","alt":"Frog","width":"300","height":"300","responsive":false,"align":"left"}
+    grid #top_container_18 [18] {"rows":2,"columns":1,"well":false}
+      grid-cell #container_top_container_18_row_1_col_1 {"row":1,"column":1}
+        heading #container_header_20 [20] {"text":"Moving to...","level":1,"align":"left"}
+      grid-cell #container_top_container_18_row_2_col_1 {"row":2,"column":1}
+        grid #inner_container_19 [19] {"rows":1,"columns":2,"well":false}
+          grid-cell #container_inner_container_19_row_1_col_1 {"row":1,"column":1}
+          grid-cell #container_inner_container_19_row_1_col_2 {"row":1,"column":2}
+    text #more_text_5 [5] {"text":"This is a simple line of text"}
+    text #simple_text_2 [2] {"text":"This is from Feature #1"}"
+`;
