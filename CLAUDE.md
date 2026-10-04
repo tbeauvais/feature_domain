@@ -36,6 +36,35 @@ The purpose of the project is to **showcase parametric, feature-based modeling**
 - **Local dev:** `wrangler dev` with local D1. Wrangler stores data as SQLite files in `.wrangler/state/` (gitignore it; delete it to reset), so local and production use the same code and storage API. No Docker or Redis: Cloudflare has no managed Redis, and a separate dev store would drift from production. Seed local data from `app_models/*.json`.
 - **Tests:** the engine is pure TypeScript, so its tests (Vitest) load `app_models/*.json` directly from disk as fixtures and need no storage layer.
 
+## New stack (in progress)
+
+An npm workspace (`package.json` at the root, packages under `packages/`). Node LTS. CI (`.github/workflows/ci.yml`) runs typecheck and tests on every push and PR. **Everything new must be covered by tests.**
+
+```bash
+npm install
+npm test                    # all workspaces (Vitest)
+npm run typecheck           # tsc --noEmit, all workspaces
+cd packages/engine && npx vitest run test/generate.test.ts -t "cycle"   # one file / one test
+cd packages/engine && npx vitest           # watch mode
+```
+
+### `packages/engine`: the parametric generation engine (pure TypeScript, no DOM)
+- `generate(model, registry?)` in `src/generate.ts` produces `{ root, metadata, graph, order, diagnostics }`. Steps:
+  1. Each feature's `slots()` declares the target ids it provides.
+  2. `page_location.target` links each feature to its parent, which gives the dependency graph.
+  3. Features generate in topological order (`src/graph.ts`). Each `generate()` returns a `DocNode` tree.
+  4. Nodes are attached to their parent slots in **model order**.
+- Problems never throw. They become `diagnostics`: unknown feature, unresolved or duplicate target, missing slot, duplicate node id, cycle, suppressed (`disable`), and so on. A feature that can't be generated is `skipped`, and everything placed inside it is skipped too. Suppressing a feature suppresses everything inside it. For a duplicated target, the first provider in model order wins and the others are skipped.
+- `generate` never mutates the model or the nodes features return; it assembles the tree from copies. Every feature, including unplaceable ones, is a node in `graph`.
+- `dependentsOf(graph, id)` gives the set of features to regenerate when one changes (for incremental regeneration later).
+- Features live in `src/features/`, one file each, registered in `src/features/index.ts`. Ported so far: Page, Container, Text, Header, Image. **To add a feature:**
+  - Implement `FeatureDefinition` with `inputs`, an optional `slots`, and a pure `generate`.
+  - Register it.
+  - Add tests in `test/features.test.ts`. The contract tests run automatically for every registered feature.
+- **Defaults vs absent inputs:** `InputDef.default` applies only to new instances (`createFeatureInstance`). `generate` reads stored inputs as-is, and an absent input keeps its legacy meaning (no well, no tone, left-aligned). Legacy Bootstrap values (`text-center`, `pull-left`, `text-info`) are mapped in `src/features/legacy.ts`.
+- Target and DOM ids match the legacy app (`instanceDomId`: `my_container_12`; container cells: `container_my_container_12_row_1_col_1`) so existing models resolve unchanged.
+- **Golden tests:** `test/fixtures.test.ts` generates `sample.json` and every `app_models/*.json` and snapshots an outline of each document and its diagnostics. Snapshot diffs are the review record of output changes. Read them before running `vitest -u`.
+
 ## Commands (original stack; won't work until dependencies are modernized)
 
 ```bash
