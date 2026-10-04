@@ -36,6 +36,7 @@ export type DiagnosticCode =
   | 'unresolved-target'
   | 'duplicate-target'
   | 'missing-slot'
+  | 'duplicate-node-id'
   | 'cycle'
   | 'parent-skipped'
   | 'suppressed'

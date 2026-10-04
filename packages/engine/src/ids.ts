@@ -1,13 +1,13 @@
-import { asString, type Inputs } from './inputs'
+import type { Inputs } from './inputs'
 import type { DocNode } from './types'
 
 /**
  * DOM-style id for a feature instance, e.g. name "My Container" + id "12" -> "my_container_12".
- * Matches the legacy app so existing models' targets (e.g. "#container_my_container_12_row_1_col_1") resolve.
+ * Matches the legacy app exactly (including "_5" for an empty name and "undefined_5" for a missing one) so existing
+ * models' targets (e.g. "#container_my_container_12_row_1_col_1") resolve.
  */
 export function instanceDomId(instanceId: string, inputs: Inputs): string {
-  const name = asString(inputs.name) || 'untitled'
-  return `${name}_${instanceId}`.replace(/\s+/g, '_').toLowerCase()
+  return `${String(inputs.name)}_${instanceId}`.replace(/\s+/g, '_').toLowerCase()
 }
 
 /** Strips the legacy leading '#' from a target selector. */

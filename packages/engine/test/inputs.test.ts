@@ -75,7 +75,8 @@ describe('pageLocation', () => {
 describe('ids', () => {
   it('derives DOM ids the same way as the legacy app', () => {
     expect(instanceDomId('12', { name: 'My  Container' })).toBe('my_container_12')
-    expect(instanceDomId('3', {})).toBe('untitled_3')
+    expect(instanceDomId('5', { name: '' })).toBe('_5')
+    expect(instanceDomId('3', {})).toBe('undefined_3')
   })
 
   it('strips the legacy # from targets', () => {

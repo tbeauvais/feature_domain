@@ -41,9 +41,9 @@ export interface AppMetadata {
 export interface GenerateResult {
   root: DocNode
   metadata: AppMetadata
-  /** Placement dependencies: an edge parent -> child means the child is placed in a slot of the parent. */
+  /** Placement dependencies over every known feature: an edge parent -> child means the child is placed in a slot of the parent. */
   graph: Graph
-  /** Order features were generated in. */
+  /** Dependency order of the graph (parents first). Features on or behind a cycle are absent. */
   order: string[]
   diagnostics: Diagnostic[]
 }
@@ -95,51 +95,59 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
     })
   }
 
-  // 2. Map each target id to the feature that provides it.
+  // 2. Map each target id to the feature that provides it. The first provider in model order wins; a feature that
+  // loses any of its targets is skipped entirely, so children never land in it and node ids stay unique.
   const providers = new Map<string, string>([[ROOT_TARGET, ROOT_PROVIDER]])
+  const status = new Map<string, FeatureStatus>()
   for (const [id, e] of entries) {
     for (const slot of e.slots) {
       const existing = providers.get(slot)
-      if (existing !== undefined) {
-        report({ code: 'duplicate-target', severity: 'error', featureInstanceId: id, message: `Target "#${slot}" is already provided by ${describe(existing)}; ignored` })
-      } else {
+      if (existing === undefined) {
         providers.set(slot, id)
+      } else if (existing !== id) {
+        status.set(id, 'skipped')
+        report({ code: 'duplicate-target', severity: 'error', featureInstanceId: id, message: `Target "#${slot}" is already provided by ${describe(existing)}; feature skipped` })
       }
     }
   }
 
-  // 3. Build the placement dependency graph.
+  // 3. Build the placement dependency graph. Every feature is a node, including ones that cannot be placed, so
+  // inspectors and dependentsOf see the whole model.
   const parentOf = new Map<string, string>()
   const edges: [string, string][] = []
   for (const [id, e] of entries) {
     if (e.target === undefined) {
+      status.set(id, 'skipped')
       report({ code: 'missing-target', severity: 'error', featureInstanceId: id, message: 'Feature has no page_location target' })
       continue
     }
     const parent = providers.get(e.target)
     if (parent === undefined) {
+      status.set(id, 'skipped')
       report({ code: 'unresolved-target', severity: 'error', featureInstanceId: id, message: `Target "#${e.target}" is not provided by any feature` })
       continue
     }
     parentOf.set(id, parent)
     if (parent !== ROOT_PROVIDER) edges.push([parent, id])
   }
-  const graph = buildGraph([...parentOf.keys()], edges)
+  const graph = buildGraph([...entries.keys()], edges)
   const { order, cyclic, blocked } = topoSort(graph)
   for (const id of cyclic) {
+    status.set(id, 'skipped')
     report({ code: 'cycle', severity: 'error', featureInstanceId: id, message: 'Feature is placed inside itself (placement cycle)' })
   }
-
-  // 4. Generate features in dependency order.
-  const status = new Map<string, FeatureStatus>(blocked.concat(cyclic).map((id) => [id, 'skipped']))
   for (const id of blocked) {
+    status.set(id, 'skipped')
     report({ code: 'parent-skipped', severity: 'warning', featureInstanceId: id, message: 'Parent feature is part of a placement cycle' })
   }
-  const root = node(ROOT_TARGET, 'root')
-  const slotNodes = new Map<string, DocNode>([[ROOT_TARGET, root]])
+
+  // 4. Generate features in dependency order. Feature output is never mutated; the tree is assembled from copies.
+  const slotOwners = new Map<string, DocNode>()
+  const nodeIds = new Set([ROOT_TARGET])
   const generated = new Map<string, DocNode>()
 
   for (const id of order) {
+    if (status.has(id)) continue
     const e = entries.get(id)!
     const parent = parentOf.get(id)!
     const parentStatus = parent === ROOT_PROVIDER ? 'generated' : status.get(parent)
@@ -154,27 +162,48 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
       report({ code: 'parent-skipped', severity: 'warning', featureInstanceId: id, message: `Parent ${describe(parent)} was not generated` })
       continue
     }
+    if (parent !== ROOT_PROVIDER && !slotOwners.has(e.target!)) {
+      status.set(id, 'skipped')
+      report({ code: 'parent-skipped', severity: 'warning', featureInstanceId: id, message: `Parent ${describe(parent)} did not generate target "#${e.target}"` })
+      continue
+    }
 
-    const out = { ...e.def.generate(e.inputs, { instanceId: id, domId: e.domId }), featureInstanceId: id }
+    const out: DocNode = { ...e.def.generate(e.inputs, { instanceId: id, domId: e.domId }), featureInstanceId: id }
     const index = indexNodes(out)
+    const clash = [...index.keys()].find((nodeId) => nodeIds.has(nodeId))
+    if (clash !== undefined) {
+      status.set(id, 'skipped')
+      report({ code: 'duplicate-node-id', severity: 'error', featureInstanceId: id, message: `Generated node id "${clash}" is already in use; feature skipped` })
+      continue
+    }
+    for (const nodeId of index.keys()) nodeIds.add(nodeId)
     for (const slot of e.slots) {
       const slotNode = index.get(slot)
-      if (slotNode) slotNodes.set(slot, slotNode)
+      if (slotNode) slotOwners.set(slot, slotNode)
       else report({ code: 'missing-slot', severity: 'error', featureInstanceId: id, message: `Feature declares target "#${slot}" but did not generate it` })
     }
     generated.set(id, out)
     status.set(id, 'generated')
   }
 
-  // 5. Attach generated nodes to their parent slots in model order, so siblings keep the order users arranged.
+  // 5. Assemble the tree. Generated features are appended to their parent slot in model order, so siblings keep
+  // the order users arranged.
+  const placed = new Map<string, DocNode[]>()
   for (const [id, e] of entries) {
     const out = generated.get(id)
     if (!out) continue
-    const slotNode = slotNodes.get(e.target!)
-    if (slotNode) slotNode.children.push(out)
+    const list = placed.get(e.target!) ?? []
+    list.push(out)
+    placed.set(e.target!, list)
+  }
+  const template = node(ROOT_TARGET, 'root')
+  slotOwners.set(ROOT_TARGET, template)
+  const assemble = (n: DocNode): DocNode => {
+    const attached = slotOwners.get(n.id) === n ? (placed.get(n.id) ?? []) : []
+    return { ...n, children: [...n.children, ...attached].map(assemble) }
   }
 
-  return { root, metadata: buildMetadata(entries, status, providers), graph, order, diagnostics }
+  return { root: assemble(template), metadata: buildMetadata(entries, status, providers), graph, order, diagnostics }
 
   function describe(providerId: string) {
     return providerId === ROOT_PROVIDER ? 'the page root' : `feature ${providerId}`

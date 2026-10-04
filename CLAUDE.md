@@ -54,7 +54,8 @@ cd packages/engine && npx vitest           # watch mode
   2. `page_location.target` links each feature to its parent, which gives the dependency graph.
   3. Features generate in topological order (`src/graph.ts`). Each `generate()` returns a `DocNode` tree.
   4. Nodes are attached to their parent slots in **model order**.
-- Problems never throw. They become `diagnostics`: unknown feature, unresolved or duplicate target, cycle, suppressed (`disable`), and so on. Suppressing a feature suppresses everything placed inside it.
+- Problems never throw. They become `diagnostics`: unknown feature, unresolved or duplicate target, missing slot, duplicate node id, cycle, suppressed (`disable`), and so on. A feature that can't be generated is `skipped`, and everything placed inside it is skipped too. Suppressing a feature suppresses everything inside it. For a duplicated target, the first provider in model order wins and the others are skipped.
+- `generate` never mutates the model or the nodes features return; it assembles the tree from copies. Every feature, including unplaceable ones, is a node in `graph`.
 - `dependentsOf(graph, id)` gives the set of features to regenerate when one changes (for incremental regeneration later).
 - Features live in `src/features/`, one file each, registered in `src/features/index.ts`. Ported so far: Page, Container, Text, Header, Image. **To add a feature:**
   - Implement `FeatureDefinition` with `inputs`, an optional `slots`, and a pure `generate`.
