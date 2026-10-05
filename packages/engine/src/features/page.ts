@@ -1,25 +1,22 @@
-import type { FeatureDefinition } from '../feature'
-import { node } from '../ids'
-import { asString, nameInput, pageLocationInput } from '../inputs'
-
-export const PAGE_CONTAINER = 'page_container'
+import type { FeatureDefinition } from '../feature.js'
+import { asString, nameInput } from '../inputs.js'
+import { node } from '../nodes.js'
 
 export const PageFeature: FeatureDefinition = {
   type: 'PageFeature',
   name: 'Page',
   icon: 'file',
+  placement: 'required',
   inputs: [
     nameInput('Page'),
-    { name: 'border_color', label: 'Border Color', type: 'color', control: 'color-picker' },
-    { name: 'background_color', label: 'Background Color', type: 'color', control: 'color-picker' },
-    { name: 'background_image', label: 'Background Image', type: 'string', control: 'text-input' },
-    pageLocationInput,
+    { name: 'border_color', label: 'Border Color', type: 'color', default: '', control: 'color-picker' },
+    { name: 'background_color', label: 'Background Color', type: 'color', default: '', control: 'color-picker' },
+    { name: 'background_image', label: 'Background Image', type: 'string', default: '', control: 'text-input' },
   ],
 
-  // Legacy models place top-level features into a fixed "#page_container" target.
-  slots: () => [PAGE_CONTAINER],
+  slots: () => ['content'],
 
-  generate(inputs) {
+  generate(inputs, ctx) {
     const style: Record<string, string> = {}
     const border = asString(inputs.border_color)
     if (border) {
@@ -32,6 +29,6 @@ export const PageFeature: FeatureDefinition = {
     const image = asString(inputs.background_image)
     if (image) style.backgroundImage = `url(${JSON.stringify(image)})`
 
-    return node(PAGE_CONTAINER, 'page', {}, [], style)
+    return { node: node('page', ctx.nodeId(), {}, { slot: 'content', style }) }
   },
 }

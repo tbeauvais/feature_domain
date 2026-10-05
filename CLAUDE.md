@@ -44,26 +44,46 @@ An npm workspace (`package.json` at the root, packages under `packages/`). Node 
 npm install
 npm test                    # all workspaces (Vitest)
 npm run typecheck           # tsc --noEmit, all workspaces
+npm run build               # emit packages/engine/dist (JS + .d.ts)
+npm run smoke               # build, then import the engine by package name from plain Node
 cd packages/engine && npx vitest run test/generate.test.ts -t "cycle"   # one file / one test
 cd packages/engine && npx vitest           # watch mode
 ```
 
-### `packages/engine`: the parametric generation engine (pure TypeScript, no DOM)
-- `generate(model, registry?)` in `src/generate.ts` produces `{ root, metadata, graph, order, diagnostics }`. Steps:
-  1. Each feature's `slots()` declares the target ids it provides.
-  2. `page_location.target` links each feature to its parent, which gives the dependency graph.
-  3. Features generate in topological order (`src/graph.ts`). Each `generate()` returns a `DocNode` tree.
-  4. Nodes are attached to their parent slots in **model order**.
-- Problems never throw. They become `diagnostics`: unknown feature, unresolved or duplicate target, missing slot, duplicate node id, cycle, suppressed (`disable`), and so on. A feature that can't be generated is `skipped`, and everything placed inside it is skipped too. Suppressing a feature suppresses everything inside it. For a duplicated target, the first provider in model order wins and the others are skipped.
-- `generate` never mutates the model or the nodes features return; it assembles the tree from copies. Every feature, including unplaceable ones, is a node in `graph`.
-- `dependentsOf(graph, id)` gives the set of features to regenerate when one changes (for incremental regeneration later).
-- Features live in `src/features/`, one file each, registered in `src/features/index.ts`. Ported so far: Page, Container, Text, Header, Image. **To add a feature:**
-  - Implement `FeatureDefinition` with `inputs`, an optional `slots`, and a pure `generate`.
-  - Register it.
-  - Add tests in `test/features.test.ts`. The contract tests run automatically for every registered feature.
-- **Defaults vs absent inputs:** `InputDef.default` applies only to new instances (`createFeatureInstance`). `generate` reads stored inputs as-is, and an absent input keeps its legacy meaning (no well, no tone, left-aligned). Legacy Bootstrap values (`text-center`, `pull-left`, `text-info`) are mapped in `src/features/legacy.ts`.
-- Target and DOM ids match the legacy app (`instanceDomId`: `my_container_12`; container cells: `container_my_container_12_row_1_col_1`) so existing models resolve unchanged.
-- **Golden tests:** `test/fixtures.test.ts` generates `sample.json` and every `app_models/*.json` and snapshots an outline of each document and its diagnostics. Snapshot diffs are the review record of output changes. Read them before running `vitest -u`.
+### `packages/engine`: the parametric generation engine (pure TypeScript, no DOM, no platform globals)
+- **v2 model** (`src/types.ts`): `{ version: 2, name, features: FeatureInstance[] }`.
+  - Each instance has `feature`, `id`, `inputs` (plain values: strings, numbers, booleans, string lists) and, when placed, `placement: { parent, slot }`.
+  - `parent` is the parent's **instance id**, or `$root` for the document. `slot` is a local key: `content` (root and Page), `r1c2` (Container cell), `body` (Panel). Renaming a feature never breaks placement.
+  - References between features (e.g. Table -> DataResource) are `reference`-type inputs holding an instance id.
+- **`migrate(legacy)`** (`src/migrate/`) is the only code that knows the legacy format. It converts it to v2 and returns `{ model, notes }`.
+  - It maps legacy DOM-id targets (`#container_my_container_12_row_1_col_2`) to `{ parent, slot }` and resolves name-based data resource references to instance ids.
+  - Values become **what the legacy app rendered**:
+    - `disable` only counted when it was boolean `true`.
+    - Other booleans used JS truthiness, so `"false"` meant on.
+    - Containers with no valid rows or columns get the 1x2 default.
+    - Bootstrap values (`text-center`, `pull-left`, `panel-success`) map to plain values.
+  - Every interpretation is recorded as a note, and text using HTML or `{{...}}` bindings is flagged.
+  - Unported feature types keep their scalar inputs and their legacy instance in `cache.legacy`, so they can be migrated properly once ported.
+  - v2 models pass through unchanged.
+- **`generate(model, registry?)`** (`src/generate.ts`) returns `{ root, metadata, graph, edgeKinds, order, diagnostics }`.
+  - The graph has `placement` edges (parent -> child) and `reference` edges (referenced -> referencing).
+  - Features generate in topological order. Siblings attach to their slot in **model order**.
+  - Suppression (`disable`) and skipping propagate along both edge kinds.
+  - Never throws: unknown feature, missing or unresolved placement or reference, missing slot or node, invalid or duplicate node ids, cycles, out-of-order (a feature listed before something it depends on), and exceptions thrown by a feature's `generate`, `slots` or `dependencies` all become `diagnostics`.
+  - `metadata.targets` lists only slots that were actually generated (valid drop targets).
+  - Never mutates the model or feature output.
+- **Feature API** (`src/feature.ts`): implement `FeatureDefinition`.
+  - Declare `inputs` (with defaults for new instances; `resolveInputs` fills absent ones) and `placement: 'required' | 'none'`.
+  - Optionally declare `slots(inputs)` (slot keys; mark the matching nodes with `slot`) and `dependencies(inputs)` (ids beyond `reference` inputs).
+  - `generate(inputs, ctx)` returns `{ node?, exports? }`.
+  - The context provides `ctx.nodeId(part?)` for node ids (`12`, `12.r1c2`; the engine rejects ids a feature doesn't own), `ctx.resolve(id)` (only declared dependencies; returns a deep-frozen copy of their `exports`) and `ctx.report(severity, message)`.
+- **Node kinds** are typed: `NodeKinds` in `src/types.ts` maps each `kind` to its props. Extend it with declaration merging.
+- **Features** live in `src/features/`, one file each, registered in `src/features/index.ts`. Ported so far: Page, Container, Panel, Text, Header, Image, DataResource, Table. **To add a feature:**
+  - Implement it and register it.
+  - Add an input migration in `src/migrate/index.ts` if legacy models use it.
+  - Add tests: the contract tests in `test/features.test.ts` run automatically for every registered feature.
+- **Golden tests:** `test/fixtures.test.ts` migrates `sample.json` and every `app_models/*.json`, then snapshots the v2 model summary, migration notes, document outline and diagnostics. Snapshot diffs are the review record. Read them before running `vitest -u`.
+- **Packaging:** source uses `.js` import specifiers so `tsc -p tsconfig.build.json` emits runnable ESM to `dist/`. `exports` has a `source` condition (TS source, for Vite/Vitest via `resolve.conditions` / `customConditions`) and a `default` condition (built `dist/`). `npm run smoke` proves plain Node can import it.
 
 ## Commands (original stack; won't work until dependencies are modernized)
 
