@@ -1,10 +1,21 @@
 <script setup lang="ts">
-import type { ModelSummary } from '@feature-domain/engine'
+import { ROOT_ID, ROOT_SLOT, type ModelSummary } from '@feature-domain/engine'
 import { onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { modelStore } from '../services'
 
 const models = ref<ModelSummary[] | null>(null)
+const router = useRouter()
+
+/** A new model starts with one empty page. */
+async function createModel() {
+  const id = await modelStore().create({
+    version: 2,
+    name: 'Untitled model',
+    features: [{ feature: 'PageFeature', id: '1', inputs: { name: 'Page' }, placement: { parent: ROOT_ID, slot: ROOT_SLOT } }],
+  })
+  await router.push({ name: 'model', params: { id } })
+}
 
 onMounted(async () => {
   models.value = await modelStore().list()
@@ -13,7 +24,12 @@ onMounted(async () => {
 
 <template>
   <section>
-    <h1 class="mb-4 text-2xl font-semibold">Models</h1>
+    <div class="mb-4 flex items-center justify-between">
+      <h1 class="text-2xl font-semibold">Models</h1>
+      <button type="button" class="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700" data-testid="new-model" @click="createModel">
+        New model
+      </button>
+    </div>
     <p v-if="models === null" class="text-slate-500">Loading…</p>
     <p v-else-if="models.length === 0" class="text-slate-500">No models yet.</p>
     <ul v-else class="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white" data-testid="model-list">

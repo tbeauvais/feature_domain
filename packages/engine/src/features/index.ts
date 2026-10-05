@@ -3,6 +3,7 @@ import { ContainerFeature } from './container.js'
 import { DataResourceFeature } from './data-resource.js'
 import { HeaderFeature } from './header.js'
 import { ImageFeature } from './image.js'
+import { ListFeature } from './list.js'
 import { PageFeature } from './page.js'
 import { PanelFeature } from './panel.js'
 import { TableFeature } from './table.js'
@@ -23,6 +24,7 @@ export {
 } from './data-resource.js'
 export { HeaderFeature } from './header.js'
 export { ImageFeature } from './image.js'
+export { ListFeature } from './list.js'
 export { PageFeature } from './page.js'
 export { PanelFeature } from './panel.js'
 export { TableFeature } from './table.js'
@@ -35,6 +37,7 @@ export const coreFeatures = [
   TextFeature,
   HeaderFeature,
   ImageFeature,
+  ListFeature,
   DataResourceFeature,
   TableFeature,
 ]

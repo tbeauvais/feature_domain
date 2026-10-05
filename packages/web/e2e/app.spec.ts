@@ -21,7 +21,7 @@ async function isolateNetwork(page: Page) {
 async function openSample(page: Page, name: string): Promise<string> {
   await page.goto('/')
   await page.getByRole('link', { name, exact: true }).click()
-  await expect(page.getByTestId('model-name')).toHaveText(name)
+  await expect(page.getByTestId('model-name')).toHaveValue(name)
   return decodeURIComponent(new URL(page.url()).pathname.split('/').pop()!)
 }
 
@@ -59,7 +59,11 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
   const overflowing = await canvas.locator('.fd-cell').evaluateAll((cells) => cells.filter((c) => c.scrollWidth > c.clientWidth + 1).map((c) => c.getAttribute('data-node-id')))
   expect(overflowing).toEqual([])
 
-  const diagnostics = page.getByTestId('diagnostics')
+  // List is ported now; unported features show as placeholders in the editor.
+  await expect(canvas.locator('[data-feature-id="7"] li')).toHaveText(['Red', 'Green', 'Blue', 'Yellow'])
+  await expect(canvas.locator('.fd-placeholder[data-feature-id="16"]')).toContainText('GoogleMapFeature is not ported yet')
+
+  const diagnostics = page.getByTestId('diagnostics').last()
   await expect(diagnostics.locator('[data-code="out-of-order"]')).toHaveCount(3)
   await expect(diagnostics).toContainText('Listed before feature 36 ("repo panel"), which it is placed in')
 })
@@ -82,14 +86,17 @@ const measureDocument = (target: Page) =>
   target.evaluate((layoutDependent) => {
     const skip = new RegExp(layoutDependent)
     const root = document.querySelector('.fd-root')!
-    return [root, ...root.querySelectorAll('*')].map((el) => {
+    // Placeholders for unported features exist only in the editor, by design.
+    const elements = [root, ...root.querySelectorAll('*')].filter((el) => !el.closest('.fd-placeholder'))
+    return elements.map((el) => {
       const style = getComputedStyle(el)
       const values: Record<string, string> = { node: el.getAttribute('data-node-id') ?? el.tagName.toLowerCase() }
       for (const name of Array.from(style)) {
         if (!name.startsWith('--') && !skip.test(name)) values[name] = style.getPropertyValue(name)
       }
-      // Auto margins resolve to pixels that depend on the container width; compare "centred" instead.
-      if (el.classList.contains('fd-image-center') && values['margin-left'] === values['margin-right']) {
+      // Centred boxes (images, lists) use auto margins, which resolve to pixels that depend on the container width;
+      // compare "centred" instead.
+      if (/\bfd-(image|list)-center\b/.test(el.className) && values['margin-left'] === values['margin-right']) {
         values['margin-left'] = values['margin-right'] = values['margin-inline-start'] = values['margin-inline-end'] = 'centred'
       }
       return values

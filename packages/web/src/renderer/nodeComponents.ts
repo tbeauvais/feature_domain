@@ -4,9 +4,11 @@ import GridCellNode from './nodes/GridCellNode.vue'
 import GridNode from './nodes/GridNode.vue'
 import HeadingNode from './nodes/HeadingNode.vue'
 import ImageNode from './nodes/ImageNode.vue'
+import ListNode from './nodes/ListNode.vue'
 import PageNode from './nodes/PageNode.vue'
 import PanelBodyNode from './nodes/PanelBodyNode.vue'
 import PanelNode from './nodes/PanelNode.vue'
+import PlaceholderNode from './nodes/PlaceholderNode.vue'
 import RootNode from './nodes/RootNode.vue'
 import TableNode from './nodes/TableNode.vue'
 import TextNode from './nodes/TextNode.vue'
@@ -23,4 +25,6 @@ export const nodeComponents: Record<NodeKind, Component> = {
   panel: PanelNode,
   'panel-body': PanelBodyNode,
   table: TableNode,
+  list: ListNode,
+  placeholder: PlaceholderNode,
 }

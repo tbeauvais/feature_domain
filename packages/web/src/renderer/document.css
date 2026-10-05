@@ -168,3 +168,26 @@ h6.fd-heading { font-size: 12px; margin-top: 10px; }
   color: var(--fd-muted);
 }
 .fd-table-error { color: var(--fd-danger); }
+
+/* Lists (legacy: a 200px-wide box aligned by pull-left / center-block / pull-right) */
+.fd-list { display: block; width: 200px; }
+.fd-list-left { float: left; }
+.fd-list-center { margin-left: auto; margin-right: auto; }
+.fd-list-right { float: right; }
+.fd-list ul { margin: 0 0 10px; padding-left: 40px; }
+
+/* Editor-only placeholders for features that produced nothing */
+.fd-placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 6px 0;
+  padding: 8px 10px;
+  border: 1px dashed #9ca3af;
+  border-radius: 4px;
+  background: repeating-linear-gradient(-45deg, #f9fafb, #f9fafb 6px, #f3f4f6 6px, #f3f4f6 12px);
+  color: #4b5563;
+  font-size: 12px;
+}
+.fd-placeholder strong { font-size: 13px; color: #111827; }
+.fd-placeholder-skipped { border-color: #f59e0b; color: #92400e; }

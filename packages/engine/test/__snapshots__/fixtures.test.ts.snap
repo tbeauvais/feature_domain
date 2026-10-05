@@ -99,6 +99,7 @@ exports[`app_models/google_map_sample.json > generates the golden document 1`] =
     grid #12 [12] {"rows":1,"columns":2,"well":true}
       grid-cell #12.r1c1 <r1c1> {"row":1,"column":1}
         heading #8 [8] {"text":"Here's a list of colors","level":4,"align":"center"}
+        list #7 [7] {"items":["Red","Green","Blue","Yellow"],"align":"center"}
       grid-cell #12.r1c2 <r1c2> {"row":1,"column":2}
         heading #17 [17] {"text":"I'm just a little frog","level":4,"align":"center"}
         image #13 [13] {"src":"http://assets.kompas.com/data/photo/2014/04/07/2002239katak-kulit-paling-kasar780x390.jpg","alt":"Frog","width":"300","height":"300","responsive":true,"align":"center"}"
@@ -107,7 +108,6 @@ exports[`app_models/google_map_sample.json > generates the golden document 1`] =
 exports[`app_models/google_map_sample.json > generates the golden document 2`] = `
 [
   "warning unknown-feature [27]: Unknown feature type "SeparatorFeature"",
-  "warning unknown-feature [7]: Unknown feature type "ListFeature"",
   "warning unknown-feature [16]: Unknown feature type "GoogleMapFeature"",
   "warning unknown-feature [6]: Unknown feature type "GoogleMapFeature"",
   "warning unknown-feature [10]: Unknown feature type "TextWithParagraphFeature"",
@@ -136,7 +136,7 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 1`]
 18 ContainerFeature @15/content {"name":"top container","disable":false,"rows":2,"columns":1,"well":true}
 12 ContainerFeature @15/content {"name":"My Container","disable":false,"rows":1,"columns":2,"well":true}
 8 HeaderFeature @12/r1c1 {"name":"Small header","disable":false,"text":"Here's a list of colors","size":4,"align":"center","text_style":"","background":""}
-7 ListFeature @12/r1c1 {"name":"Color list","list":"Red,Green,Blue,Yellow","align":"center-block"} cache=legacy
+7 ListFeature @12/r1c1 {"name":"Color list","disable":false,"items":["Red","Green","Blue","Yellow"],"align":"center"}
 20 HeaderFeature @18/r1c1 {"name":"container header","disable":false,"text":"Two New Locations","size":1,"align":"center","text_style":"info","background":""}
 19 ContainerFeature @18/r2c1 {"name":"inner container","disable":false,"rows":1,"columns":2,"well":false}
 35 TextFeature @19/r1c2 {"name":"Weather Text","disable":false,"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
@@ -151,7 +151,6 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 1`]
 exports[`app_models/google_map_sample.json > migrates to the golden v2 model 2`] = `
 [
   "info unported-feature [27]: SeparatorFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [7]: ListFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "warning data-binding [35]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
   "info unported-feature [16]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "warning data-binding [2]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
@@ -239,6 +238,7 @@ exports[`sample.json > generates the golden document 1`] = `
     grid #12 [12] {"rows":1,"columns":2,"well":false}
       grid-cell #12.r1c1 <r1c1> {"row":1,"column":1}
         heading #8 [8] {"text":"Here's a list of colors","level":4,"align":"left"}
+        list #7 [7] {"items":["Red","Green","Blue"],"align":"left"}
       grid-cell #12.r1c2 <r1c2> {"row":1,"column":2}
         heading #17 [17] {"text":"I'm a Frog","level":3,"align":"left"}
         image #13 [13] {"src":"http://assets.kompas.com/data/photo/2014/04/07/2002239katak-kulit-paling-kasar780x390.jpg","alt":"Frog","width":"300","height":"300","responsive":false,"align":"left"}
@@ -255,7 +255,6 @@ exports[`sample.json > generates the golden document 1`] = `
 
 exports[`sample.json > generates the golden document 2`] = `
 [
-  "warning unknown-feature [7]: Unknown feature type "ListFeature"",
   "warning unknown-feature [16]: Unknown feature type "GoogleMapFeature"",
   "warning unknown-feature [6]: Unknown feature type "GoogleMapFeature"",
   "warning unknown-feature [10]: Unknown feature type "TextWithParagraphFeature"",
@@ -269,7 +268,7 @@ exports[`sample.json > migrates to the golden v2 model 1`] = `
 1 HeaderFeature @15/content {"name":"Top Header","disable":false,"text":"Here is some content for ya...gfdgfd","size":1,"align":"left","text_style":"","background":""}
 12 ContainerFeature @15/content {"name":"My Container","disable":false,"rows":1,"columns":2,"well":false}
 8 HeaderFeature @12/r1c1 {"name":"Small header","disable":false,"text":"Here's a list of colors","size":4,"align":"left","text_style":"","background":""}
-7 ListFeature @12/r1c1 {"name":"Color list","list":"Red,Green,Blue"} cache=legacy
+7 ListFeature @12/r1c1 {"name":"Color list","disable":false,"items":["Red","Green","Blue"],"align":"left"}
 17 HeaderFeature @12/r1c2 {"name":"frog label","disable":false,"text":"I'm a Frog","size":3,"align":"left","text_style":"","background":""}
 13 ImageFeature @12/r1c2 {"name":"Frog","disable":false,"src":"http://assets.kompas.com/data/photo/2014/04/07/2002239katak-kulit-paling-kasar780x390.jpg","alt":"Frog","height":"300","width":"300","responsive":false,"align":"left"}
 18 ContainerFeature @15/content {"name":"top container","disable":false,"rows":2,"columns":1,"well":false}
@@ -286,7 +285,6 @@ exports[`sample.json > migrates to the golden v2 model 1`] = `
 
 exports[`sample.json > migrates to the golden v2 model 2`] = `
 [
-  "info unported-feature [7]: ListFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [16]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [6]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [10]: TextWithParagraphFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",

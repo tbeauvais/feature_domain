@@ -184,6 +184,14 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     }
   },
 
+  // Legacy rendered `list.split(',')` as <li> items in a 200px-wide box aligned by a Bootstrap class.
+  ListFeature: (i, ctx) => ({
+    name: str(i.name),
+    disable: disable(i.disable, ctx),
+    items: list(i.list),
+    align: normalizeAlign(i.align, 'left'),
+  }),
+
   PanelFeature: (i, ctx) => ({
     name: str(i.name),
     disable: disable(i.disable, ctx),
