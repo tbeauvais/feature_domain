@@ -1,0 +1,170 @@
+/*
+ * Styles for generated documents, in plain CSS (no Tailwind: values come from runtime parameters).
+ *
+ * The editor page uses Tailwind, whose reset (preflight) restyles headings, images and tables; the preview page does
+ * not. To render identically in both, .fd-root is a hard boundary:
+ * - .fd-root itself starts from `all: initial`, so nothing is inherited from the page around it (editor fonts,
+ *   colours, or any utility class on a wrapper such as `uppercase` or `whitespace-nowrap`);
+ * - everything inside is reverted to browser defaults, which also means Tailwind utilities have no effect inside a
+ *   generated page. Editor overlays (selection, drop indicators) must therefore live outside .fd-root.
+ * Then everything is styled here. The look follows Bootstrap 3, which the legacy app used.
+ */
+:where(.fd-root *) {
+  all: revert;
+}
+
+.fd-root {
+  all: initial;
+  display: block;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.428571;
+  color: #333;
+  background: #fff;
+  /* Long unbroken text (URLs, legacy bindings) wraps instead of spilling into the next grid cell. */
+  overflow-wrap: anywhere;
+  --fd-primary: #337ab7;
+  --fd-primary-bg: #337ab7;
+  --fd-primary-on: #fff;
+  --fd-success: #3c763d;
+  --fd-success-bg: #dff0d8;
+  --fd-info: #31708f;
+  --fd-info-bg: #d9edf7;
+  --fd-warning: #8a6d3b;
+  --fd-warning-bg: #fcf8e3;
+  --fd-danger: #a94442;
+  --fd-danger-bg: #f2dede;
+  --fd-muted: #777;
+}
+
+.fd-page {
+  display: block;
+}
+
+.fd-text {
+  display: inline;
+}
+
+/* Headings */
+.fd-heading {
+  font-weight: 500;
+  line-height: 1.1;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+h1.fd-heading { font-size: 36px; }
+h2.fd-heading { font-size: 30px; }
+h3.fd-heading { font-size: 24px; }
+h4.fd-heading { font-size: 18px; margin-top: 10px; }
+h5.fd-heading { font-size: 14px; margin-top: 10px; }
+h6.fd-heading { font-size: 12px; margin-top: 10px; }
+
+.fd-align-left { text-align: left; }
+.fd-align-center { text-align: center; }
+.fd-align-right { text-align: right; }
+
+.fd-tone-muted { color: var(--fd-muted); }
+.fd-tone-primary { color: var(--fd-primary); }
+.fd-tone-success { color: var(--fd-success); }
+.fd-tone-info { color: var(--fd-info); }
+.fd-tone-warning { color: var(--fd-warning); }
+.fd-tone-danger { color: var(--fd-danger); }
+
+.fd-bg-primary { background: var(--fd-primary-bg); color: var(--fd-primary-on); padding: 15px; }
+.fd-bg-success { background: var(--fd-success-bg); padding: 15px; }
+.fd-bg-info { background: var(--fd-info-bg); padding: 15px; }
+.fd-bg-warning { background: var(--fd-warning-bg); padding: 15px; }
+.fd-bg-danger { background: var(--fd-danger-bg); padding: 15px; }
+
+/* Images (legacy pull-left / center-block / pull-right) */
+.fd-image { vertical-align: middle; }
+.fd-image-left { float: left; margin-right: 10px; }
+.fd-image-center { display: block; margin-left: auto; margin-right: auto; }
+.fd-image-right { float: right; margin-left: 10px; }
+.fd-image-responsive { display: block; max-width: 100%; height: auto; }
+
+/* Containers */
+.fd-grid {
+  display: grid;
+  gap: 30px;
+  margin-bottom: 20px;
+}
+.fd-cell {
+  display: block;
+  min-width: 0;
+}
+.fd-well {
+  min-height: 20px;
+  padding: 19px;
+  background: #f5f5f5;
+  border: 1px solid #e3e3e3;
+  border-radius: 4px;
+}
+
+/* Panels */
+.fd-panel {
+  display: block;
+  margin-bottom: 20px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+.fd-panel-heading {
+  display: block;
+  padding: 0 15px;
+  border-bottom: 1px solid #ddd;
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
+  background: #f5f5f5;
+}
+.fd-panel-heading h4 {
+  margin: 10px 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+.fd-panel-primary { border-color: var(--fd-primary); }
+.fd-panel-primary > .fd-panel-heading { background: var(--fd-primary-bg); color: var(--fd-primary-on); border-color: var(--fd-primary); }
+.fd-panel-success { border-color: #d6e9c6; }
+.fd-panel-success > .fd-panel-heading { background: var(--fd-success-bg); color: var(--fd-success); border-color: #d6e9c6; }
+.fd-panel-info { border-color: #bce8f1; }
+.fd-panel-info > .fd-panel-heading { background: var(--fd-info-bg); color: var(--fd-info); border-color: #bce8f1; }
+.fd-panel-warning { border-color: #faebcc; }
+.fd-panel-warning > .fd-panel-heading { background: var(--fd-warning-bg); color: var(--fd-warning); border-color: #faebcc; }
+.fd-panel-danger { border-color: #ebccd1; }
+.fd-panel-danger > .fd-panel-heading { background: var(--fd-danger-bg); color: var(--fd-danger); border-color: #ebccd1; }
+.fd-panel-body {
+  display: block;
+  padding: 15px;
+}
+
+/* Tables */
+.fd-table-wrap {
+  display: block;
+  overflow-x: auto;
+  background: #fff;
+}
+.fd-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+.fd-table th,
+.fd-table td {
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+  border-top: 1px solid #ddd;
+}
+.fd-table th {
+  font-weight: bold;
+  border-bottom: 2px solid #ddd;
+}
+.fd-table tbody tr:nth-child(odd) { background: #f9f9f9; }
+.fd-table tbody tr:hover { background: #f5f5f5; }
+.fd-table a { color: var(--fd-primary); text-decoration: none; }
+.fd-table a:hover { text-decoration: underline; }
+.fd-table-note {
+  margin: 8px;
+  color: var(--fd-muted);
+}
+.fd-table-error { color: var(--fd-danger); }

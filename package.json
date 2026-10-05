@@ -9,6 +9,13 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "smoke": "npm run smoke --workspaces --if-present"
+    "smoke": "npm run smoke --workspaces --if-present",
+    "e2e": "npm run e2e --workspaces --if-present"
+  },
+  "overrides": {
+    "typescript": "$typescript"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
   }
 }
