@@ -24,7 +24,8 @@ Dormant since Dec 2016 and **does not build on a current toolchain**. The goal i
 
 The purpose of the project is to **showcase parametric, feature-based modeling** (in the spirit of CAD feature trees) applied to app generation. Preserve that model and don't swap in a generic page-builder library.
 
-- **Frontend:** Vue 3 + TypeScript + Vite (Pinia for state). CoffeeScript and AngularJS 1.x will be removed.
+- **Frontend:** Vue 3 + TypeScript + Vite (Pinia for state), in `packages/web`. CoffeeScript and AngularJS 1.x will be removed.
+- **Drag and drop:** Pragmatic drag and drop (Atlassian) for both the canvas and the feature tree. Gestures call pure engine edit operations (`insertFeature`, `moveFeature`, `removeFeature`, `canPlace`), so the logic is unit-tested and undo is a stack of models.
 - **Engine:** keep the separation between generation and rendering. Features should be pure `generate(inputs, context)` functions that output a document tree plus metadata, and Vue renders that tree. No direct DOM mutation from features. Replace the retry loop with dependency-ordered (topological) regeneration.
 - **Styling:** two separate concerns.
   - Editor UI uses Tailwind CSS + shadcn-vue (Reka UI), replacing Bootstrap 3, jQuery UI and the colorpicker plugin.
@@ -46,6 +47,8 @@ npm test                    # all workspaces (Vitest)
 npm run typecheck           # tsc --noEmit, all workspaces
 npm run build               # emit packages/engine/dist (JS + .d.ts)
 npm run smoke               # build, then import the engine by package name from plain Node
+npm run e2e                 # Playwright end-to-end tests (packages/web; first run: npx playwright install chromium)
+npm run dev -w packages/web # editor at http://localhost:5173 (preview page: /preview.html?model=<id>)
 cd packages/engine && npx vitest run test/generate.test.ts -t "cycle"   # one file / one test
 cd packages/engine && npx vitest           # watch mode
 ```
@@ -83,7 +86,24 @@ cd packages/engine && npx vitest           # watch mode
   - Add an input migration in `src/migrate/index.ts` if legacy models use it.
   - Add tests: the contract tests in `test/features.test.ts` run automatically for every registered feature.
 - **Golden tests:** `test/fixtures.test.ts` migrates `sample.json` and every `app_models/*.json`, then snapshots the v2 model summary, migration notes, document outline and diagnostics. Snapshot diffs are the review record. Read them before running `vitest -u`.
+- **Storage:** `ModelStore` (`src/store.ts`) is the persistence interface for the browser store now and the Worker later. `MemoryModelStore` is the reference implementation. Every implementation must pass `test/store-contract.ts` (`describeModelStore`), which `packages/web` also imports.
 - **Packaging:** source uses `.js` import specifiers so `tsc -p tsconfig.build.json` emits runnable ESM to `dist/`. `exports` has a `source` condition (TS source, for Vite/Vitest via `resolve.conditions` / `customConditions`) and a `default` condition (built `dist/`). `npm run smoke` proves plain Node can import it.
+
+### `packages/web`: the Vue app (Vite, Vue 3, Pinia, vue-router, Tailwind v4)
+- **Two pages.** `index.html` (`src/main.ts`) is the editor and uses Tailwind. `preview.html` (`src/preview.ts`) shows only the generated page and has no Tailwind, so it looks like a published site.
+- **Rendering.** `src/renderer/` renders a `DocNode` tree. `NodeView` picks a component per node kind from `nodeComponents.ts`, which is typed as a full `Record<NodeKind, Component>`, so a new kind fails the typecheck until it has a component.
+- **Model ids in the DOM.** `NodeView` adds `data-node-id`, `data-feature-id`, and on slots `data-slot` / `data-slot-parent`, so selection and drag-drop can map the DOM back to the model.
+- **Generated-page styling.** `document.css` is plain CSS (Bootstrap-3-like, matching the legacy look).
+  - `.fd-root` is a hard boundary. The root starts from `all: initial`, so nothing is inherited from the editor page, and everything inside is reverted to browser defaults (`all: revert`). Then `document.css` applies its own styles.
+  - An e2e test compares *every* computed property of every element in the editor and the preview, except a short list of layout-dependent ones, including with leaky utility classes added to the canvas wrapper. It fails if the isolation breaks.
+  - **Tailwind utilities have no effect inside `.fd-root`.** Editor overlays (selection outlines, drop indicators, inline editors) must live outside it, positioned from bounding boxes, or use plain CSS.
+  - Text is always plain text, never `v-html`. URL policies are in `renderer/urls.ts`: links and data fetches are http(s) only; image sources are http(s), relative or `data:image/`.
+- **Tables.** Tables fetch rows at runtime (`renderer/rows.ts`, injectable through `FETCH_JSON`; phase 3 routes this via `/api/proxy`). Cells use a small filter language (`renderer/filters.ts`: `uppercase`, `lowercase`, `date`, `dataLink :path`), and links are only ever http(s).
+- **Validation at the boundary.** `useDocumentStore.load` checks models from storage with the engine's `validateModel` (later, the same check applies to Worker responses), and catches any exception from `generate`. Bad data shows an error, never a blank page.
+- **Storage.** Until the backend exists, models live in browser storage. `BrowserModelStore` implements `ModelStore` and is seeded once with the migrated sample models from `app_models/` and `sample.json` (`src/data/samples.ts`). The app gets its store from `src/services.ts`; tests swap in a `MemoryModelStore`.
+- **Engine imports.** The app imports the engine's TypeScript source through the `source` export condition: `customConditions` in tsconfig, and `resolve.conditions` in `vite.config.ts`, which keeps Vite's defaults.
+- **Tests.** Vitest + Vue Test Utils (jsdom) in `test/`. Playwright in `e2e/` runs against a production build, and every external request is blocked except a mocked GitHub API.
+- **TypeScript is pinned to 6.x** for the whole workspace (root `overrides`). `vue-tsc` needs TypeScript's JavaScript API, which TypeScript 7 (the native Go compiler) doesn't ship.
 
 ## Commands (original stack; won't work until dependencies are modernized)
 

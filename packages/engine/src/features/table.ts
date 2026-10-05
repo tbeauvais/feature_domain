@@ -65,7 +65,9 @@ export const TableFeature: FeatureDefinition = {
 
     const operationName = asString(inputs.operation)
     const operation = resource.operations.find((o) => o.name === operationName) ?? (operationName ? undefined : resource.operations[0])
-    if (operation) {
+    if (operation && !/^https?:\/\//i.test(operation.endPoint)) {
+      ctx.report('warning', `Operation "${operation.name}" of ${resource.resource || resolved.id} has no http(s) URL`)
+    } else if (operation) {
       const schema = fromSchema(resource, operation)
       props.source = { feature: resolved.id, resource: resource.resource, operation: operation.name, endPoint: operation.endPoint }
       if (schema) {

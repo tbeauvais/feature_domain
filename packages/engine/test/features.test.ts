@@ -244,6 +244,15 @@ describe('TableFeature', () => {
     })
   })
 
+  it('has no source when the operation has no http(s) URL', () => {
+    const exports = exportsOf({ operations: [{ name: 'GET /', method: 'GET', endPoint: '' }, { name: 'GET /js', method: 'GET', endPoint: 'javascript:alert(1)' }] })
+    for (const operation of ['GET /', 'GET /js']) {
+      const { out, report } = run(TableFeature, { data_resource: 'r', operation }, resolveTo(exports))
+      expect(out.node?.props).not.toHaveProperty('source')
+      expect(report).toHaveBeenCalledWith('warning', `Operation "${operation}" of Repos has no http(s) URL`)
+    }
+  })
+
   it('reports operations the resource does not provide', () => {
     const { out, report } = run(TableFeature, { data_resource: 'r', operation: 'GET /nope', delete_operation: 'DELETE /nope' }, resolveTo(exportsOf()))
     expect(out.node?.props).not.toHaveProperty('source')
