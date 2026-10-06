@@ -80,11 +80,13 @@ test('opens the standalone preview in a new tab', async ({ page, context }) => {
 // positions that depend on the surrounding layout. Custom properties (--*) are excluded too: the editor defines
 // Tailwind's, generated pages only read their own --fd-* ones.
 const LAYOUT_DEPENDENT = /^(width|height|inline-size|block-size|transform-origin|perspective-origin|grid-template-columns|grid-template-rows)$/
+// Interaction properties the editor sets on purpose: it makes generated elements draggable (draggable="true").
+const EDITOR_INTERACTION = /^(-webkit-user-drag|user-select|-webkit-user-select)$/
 
 // Every computed property of every element in the generated document, in document order.
 const measureDocument = (target: Page) =>
-  target.evaluate((layoutDependent) => {
-    const skip = new RegExp(layoutDependent)
+  target.evaluate((skipPattern) => {
+    const skip = new RegExp(skipPattern)
     const root = document.querySelector('.fd-root')!
     // Placeholders for unported features exist only in the editor, by design.
     const elements = [root, ...root.querySelectorAll('*')].filter((el) => !el.closest('.fd-placeholder'))
@@ -101,7 +103,7 @@ const measureDocument = (target: Page) =>
       }
       return values
     })
-  }, LAYOUT_DEPENDENT.source)
+  }, `${LAYOUT_DEPENDENT.source}|${EDITOR_INTERACTION.source}`)
 
 const hasTailwindReset = (target: Page) =>
   target.evaluate(() =>

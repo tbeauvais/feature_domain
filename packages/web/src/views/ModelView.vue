@@ -5,17 +5,41 @@ import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter } from 'vue-router'
 import FeatureTree from '../editor/FeatureTree.vue'
 import Inspector from '../editor/Inspector.vue'
 import Palette from '../editor/Palette.vue'
+import DropIndicator from '../editor/DropIndicator.vue'
 import SelectionOverlay from '../editor/SelectionOverlay.vue'
+import { useEditorDnd } from '../editor/useEditorDnd'
 import DocumentView from '../renderer/DocumentView.vue'
 import { modelStore } from '../services'
+import { confirmAction } from '../editor/confirm'
 import { useDocumentStore } from '../stores/document'
 import DiagnosticsList from './DiagnosticsList.vue'
 
 const props = defineProps<{ id: string }>()
 const store = useDocumentStore()
 const router = useRouter()
-const { model, status, error, result, generateError, selectedId, saveState, saveError } = storeToRefs(store)
+const { model, status, error, result, generateError, selectedId, saveState, saveError, canUndo, canRedo } = storeToRefs(store)
 const canvas = ref<HTMLElement | null>(null)
+const tree = ref<HTMLElement | null>(null)
+const palette = ref<HTMLElement | null>(null)
+useEditorDnd({ canvas, tree, palette })
+
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+const undoHint = isMac ? '⌘Z' : 'Ctrl+Z'
+const redoHint = isMac ? '⇧⌘Z' : 'Ctrl+Y'
+
+/** Undo/redo shortcuts, except in text fields, where the browser's own undo applies to the text being typed. */
+function onKeydown(event: KeyboardEvent) {
+  if (!(event.metaKey || event.ctrlKey) || event.altKey) return
+  const target = event.target instanceof HTMLElement ? event.target : null
+  if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
+  const key = event.key.toLowerCase()
+  if (key === 'z' && !event.shiftKey) store.undo()
+  else if ((key === 'z' && event.shiftKey) || key === 'y') store.redo()
+  else return
+  event.preventDefault()
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 const previewUrl = (id: string) => `${import.meta.env.BASE_URL}preview.html?model=${encodeURIComponent(id)}`
 const saveLabel = { saved: 'Saved', pending: 'Unsaved changes', saving: 'Saving…', error: 'Save failed' } as const
@@ -29,7 +53,12 @@ const flush = () => void store.flush()
 /** Before opening another page: save pending edits, and if saving fails, ask before dropping them. */
 async function confirmLeave(): Promise<boolean> {
   if (await store.flush()) return true
-  return window.confirm(`Your latest changes could not be saved (${store.saveError}). Leave anyway and lose them?`)
+  return confirmAction({
+    title: 'Leave without saving?',
+    description: `Your latest changes could not be saved (${store.saveError}). Leave anyway and lose them?`,
+    confirmLabel: 'Leave',
+    destructive: true,
+  })
 }
 onBeforeRouteLeave(confirmLeave)
 onBeforeRouteUpdate(confirmLeave)
@@ -53,7 +82,14 @@ watch(selectedId, (id) => {
 })
 
 async function deleteModel() {
-  if (!model.value || !window.confirm(`Delete the model "${model.value.name}"? This cannot be undone.`)) return
+  if (!model.value) return
+  const confirmed = await confirmAction({
+    title: `Delete the model "${model.value.name}"?`,
+    description: 'This cannot be undone.',
+    confirmLabel: 'Delete model',
+    destructive: true,
+  })
+  if (!confirmed) return
   await modelStore().delete(props.id)
   await router.push('/')
 }
@@ -73,6 +109,28 @@ async function deleteModel() {
         :value="model.name"
         @input="store.rename(($event.target as HTMLInputElement).value)"
       />
+      <div class="flex gap-1">
+        <button
+          type="button"
+          class="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm hover:bg-slate-50 disabled:opacity-40"
+          data-testid="undo"
+          :disabled="!canUndo"
+          :title="`Undo (${undoHint})`"
+          @click="store.undo()"
+        >
+          Undo
+        </button>
+        <button
+          type="button"
+          class="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm hover:bg-slate-50 disabled:opacity-40"
+          data-testid="redo"
+          :disabled="!canRedo"
+          :title="`Redo (${redoHint})`"
+          @click="store.redo()"
+        >
+          Redo
+        </button>
+      </div>
       <span class="text-sm" :class="saveState === 'error' ? 'text-red-700' : 'text-slate-500'" data-testid="save-state" :title="saveError">
         {{ saveLabel[saveState] }}
       </span>
@@ -91,18 +149,19 @@ async function deleteModel() {
     <p v-if="generateError" class="text-red-700">Could not generate the model: {{ generateError }}</p>
     <div v-else-if="result" class="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)_19rem]">
       <aside class="space-y-5 rounded-lg border border-slate-200 bg-white p-3">
-        <Palette />
-        <FeatureTree />
+        <div ref="palette"><Palette /></div>
+        <div ref="tree"><FeatureTree /></div>
       </aside>
 
       <div
         ref="canvas"
-        class="relative cursor-default overflow-auto rounded-lg border border-slate-200 bg-white p-4"
+        class="fd-editor-canvas relative cursor-default overflow-auto rounded-lg border border-slate-200 bg-white p-4"
         data-testid="canvas"
         @click="onCanvasClick"
       >
         <DocumentView :root="result.root" />
         <SelectionOverlay :container="canvas" :selected-id="selectedId" :version="result" />
+        <DropIndicator :container="canvas" />
       </div>
 
       <aside class="space-y-5 rounded-lg border border-slate-200 bg-white p-3">

@@ -1,9 +1,27 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useDocumentStore } from '../stores/document'
+import { dragState } from './dndState'
 import type { TreeItem } from './featureTree'
 
-defineProps<{ item: TreeItem; depth: number }>()
+const props = defineProps<{ item: TreeItem; depth: number }>()
 const store = useDocumentStore()
+
+/** Drop feedback for this row while a drag hovers it in the tree. */
+const drop = computed(() => {
+  const state = dragState.value
+  if (!state || state.surface !== 'tree' || state.zone?.kind !== 'feature' || state.zone.id !== props.item.id || !state.evaluation) return null
+  if (state.evaluation.allowed && state.evaluation.noop) return null
+  return { operation: state.zone.operation, allowed: state.evaluation.allowed }
+})
+const dropClass = computed(() => {
+  const d = drop.value
+  if (!d) return ''
+  const color = d.allowed ? 'sky' : 'red'
+  if (d.operation === 'combine') return color === 'sky' ? 'ring-2 ring-sky-500 ring-inset' : 'ring-2 ring-red-500 ring-inset'
+  const edge = d.operation === 'reorder-before' ? 'shadow-[inset_0_2px_0_0]' : 'shadow-[inset_0_-2px_0_0]'
+  return `${edge} ${color === 'sky' ? 'shadow-sky-500' : 'shadow-red-500'}`
+})
 
 const badge: Record<string, string> = {
   skipped: 'bg-amber-100 text-amber-800',
@@ -17,7 +35,8 @@ const badge: Record<string, string> = {
     <button
       type="button"
       class="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-sm hover:bg-slate-100"
-      :class="{ 'bg-sky-100 hover:bg-sky-100': store.selectedId === item.id, 'text-slate-400': item.status === 'suppressed' }"
+      :class="[{ 'bg-sky-100 hover:bg-sky-100': store.selectedId === item.id, 'text-slate-400': item.status === 'suppressed' }, dropClass]"
+      :data-drop="drop ? `${drop.operation}${drop.allowed ? '' : ':blocked'}` : undefined"
       :style="{ paddingLeft: `${0.375 + depth * 0.875}rem` }"
       :data-tree-id="item.id"
       :title="item.reason"

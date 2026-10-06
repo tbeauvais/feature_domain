@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
+import ConfirmHost from './editor/ConfirmHost.vue'
 </script>
 
 <template>
@@ -13,5 +14,6 @@ import { RouterLink, RouterView } from 'vue-router'
     <main class="mx-auto max-w-7xl px-4 py-6">
       <RouterView />
     </main>
+    <ConfirmHost />
   </div>
 </template>

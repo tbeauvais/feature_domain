@@ -2,7 +2,7 @@ import { MemoryModelStore, type AppModel } from '@feature-domain/engine'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setModelStore } from '../src/services'
-import { SAVE_DELAY_MS, useDocumentStore } from '../src/stores/document'
+import { SAVE_DELAY_MS, UNDO_COALESCE_MS, UNDO_LIMIT, useDocumentStore } from '../src/stores/document'
 import { at, inst, model, page } from './helpers'
 
 describe('editing with useDocumentStore', () => {
@@ -152,5 +152,74 @@ describe('editing with useDocumentStore', () => {
     vi.spyOn(store, 'get').mockResolvedValue({ version: 2 } as unknown as AppModel)
     await doc.refresh()
     expect(doc.model?.name).toBe('From another tab')
+  })
+
+  describe('undo and redo', () => {
+    it('undoes and redoes edits, restoring the selection, and saves the result', async () => {
+      const doc = await open(model(page()))
+      expect(doc.canUndo).toBe(false)
+      const added = doc.add('TextFeature')
+      doc.select(null)
+      doc.undo()
+      expect(doc.model?.features.map((f) => f.id)).toEqual(['1'])
+      expect(doc.selectedId).toBeNull()
+      expect(doc.canRedo).toBe(true)
+      doc.redo()
+      expect(doc.model?.features.map((f) => f.id)).toEqual(['1', added])
+      await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS)
+      expect((await store.get(id))?.features).toHaveLength(2)
+    })
+
+    it('restores the selection that was current before the edit', async () => {
+      const doc = await open(model(page(), inst('TextFeature', 't')))
+      doc.select('t')
+      doc.remove('t')
+      expect(doc.selectedId).toBeNull()
+      doc.undo()
+      expect(doc.selectedId).toBe('t')
+    })
+
+    it('treats typing in one field as one step, but separate fields or pauses as separate steps', async () => {
+      const doc = await open(model(page(), inst('TextFeature', 't', { text: '' })))
+      for (const text of ['H', 'He', 'Hel']) doc.setInputs('t', { text })
+      doc.setInputs('t', { name: 'x' })
+      await vi.advanceTimersByTimeAsync(UNDO_COALESCE_MS + 1)
+      doc.setInputs('t', { name: 'xy' })
+      doc.undo()
+      expect(doc.model?.features[1]?.inputs).toMatchObject({ text: 'Hel', name: 'x' })
+      doc.undo()
+      expect(doc.model?.features[1]?.inputs).toMatchObject({ text: 'Hel', name: 'TextFeature t' })
+      doc.undo()
+      expect(doc.model?.features[1]?.inputs.text).toBe('')
+      expect(doc.canUndo).toBe(false)
+    })
+
+    it('drops redo after a new edit, and forgets history when another model loads', async () => {
+      const doc = await open(model(page()))
+      doc.rename('a')
+      doc.undo()
+      doc.add('TextFeature')
+      expect(doc.canRedo).toBe(false)
+      await doc.load(await store.create(model(page())))
+      expect(doc.canUndo).toBe(false)
+    })
+
+    it('keeps at most UNDO_LIMIT steps', async () => {
+      const doc = await open(model(page()))
+      for (let i = 0; i < UNDO_LIMIT + 5; i++) doc.add('TextFeature')
+      let steps = 0
+      while (doc.canUndo) {
+        doc.undo()
+        steps++
+      }
+      expect(steps).toBe(UNDO_LIMIT)
+    })
+
+    it('does not make the automatic upgrade on open undoable', async () => {
+      const legacyList = { feature: 'ListFeature', id: '7', inputs: { list: 'Red' } }
+      const doc = await open({ ...model(page()), features: [page(), { feature: 'ListFeature', id: '7', inputs: {}, placement: at('1', 'content'), cache: { legacy: legacyList } }] })
+      expect(doc.model?.features[1]?.inputs.items).toEqual(['Red'])
+      expect(doc.canUndo).toBe(false)
+    })
   })
 })
