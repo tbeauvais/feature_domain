@@ -15,6 +15,7 @@ const store = useDocumentStore()
         type="button"
         class="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-left text-sm hover:border-slate-400 hover:bg-slate-50"
         :data-testid="`palette-${def.type}`"
+        :data-palette-type="def.placement === 'none' ? undefined : def.type"
         :title="def.placement === 'none' ? `${def.name} (not placed on the page)` : `Add ${def.name}`"
         @click="store.add(def.type)"
       >

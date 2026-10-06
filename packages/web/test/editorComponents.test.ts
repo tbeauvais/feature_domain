@@ -1,8 +1,10 @@
 import { generate, MemoryModelStore, type InputDef, type InputValue } from '@feature-domain/engine'
-import { mount, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, ref, type Ref } from 'vue'
+import { confirmAction, pendingConfirm } from '../src/editor/confirm'
+import ConfirmHost from '../src/editor/ConfirmHost.vue'
 import Inspector from '../src/editor/Inspector.vue'
 import InputField from '../src/editor/InputField.vue'
 import DocumentView from '../src/renderer/DocumentView.vue'
@@ -158,13 +160,21 @@ describe('Inspector', () => {
     expect(w.get('#input-data_resource').findAll('option').map((o) => o.text())).toEqual(['None', 'Repos (#r)'])
   })
 
-  it('confirms deletes, listing what goes with the feature', async () => {
+  it('confirms deletes in the page, listing what goes with the feature', async () => {
     const { doc, w } = await inspect([page(), inst('ContainerFeature', 'c', { columns: 1 }), inst('TextFeature', 't', {}, at('c', 'r1c1'))], 'c')
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
     await w.get('[data-testid="delete-feature"]').trigger('click')
-    expect(confirm).toHaveBeenLastCalledWith('Delete "ContainerFeature c"?\n1 feature(s) inside it will be deleted too.')
+    expect(pendingConfirm.value).toMatchObject({
+      title: 'Delete "ContainerFeature c"?',
+      description: '1 feature(s) inside it will be deleted too.\nYou can undo this.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    })
+    pendingConfirm.value!.resolve(false)
+    await flushPromises()
     expect(doc.model?.features).toHaveLength(3)
     await w.get('[data-testid="delete-feature"]').trigger('click')
+    pendingConfirm.value!.resolve(true)
+    await flushPromises()
     expect(doc.model?.features.map((f) => f.id)).toEqual(['1'])
   })
 
@@ -184,5 +194,36 @@ describe('List and placeholder nodes', () => {
     const placeholder = w.get('[data-feature-id="m"]')
     expect(placeholder.classes()).toEqual(['fd-placeholder', 'fd-placeholder-unknown'])
     expect(placeholder.text()).toBe('MapFeature mMapFeature is not ported yet')
+  })
+})
+
+describe('confirmAction and ConfirmHost', () => {
+  it('shows an in-page dialog and resolves with the choice', async () => {
+    const w = mount(ConfirmHost, { attachTo: document.body })
+    try {
+      const answer = confirmAction({ title: 'Delete it?', description: 'Line one\nLine two', confirmLabel: 'Delete', destructive: true })
+      await flushPromises()
+      const dialog = document.querySelector('[data-testid="confirm-dialog"]')!
+      expect(dialog.textContent).toContain('Delete it?')
+      expect(dialog.textContent).toContain('Line one')
+      ;(document.querySelector('[data-testid="confirm-ok"]') as HTMLElement).click()
+      expect(await answer).toBe(true)
+      expect(pendingConfirm.value).toBeNull()
+
+      const cancelled = confirmAction({ title: 'Again?', description: '', confirmLabel: 'OK' })
+      await flushPromises()
+      ;(document.querySelector('[data-testid="confirm-cancel"]') as HTMLElement).click()
+      expect(await cancelled).toBe(false)
+    } finally {
+      w.unmount()
+    }
+  })
+
+  it('treats a new request, or cancelling, as "no" for the earlier one', async () => {
+    const first = confirmAction({ title: 'A', description: '', confirmLabel: 'OK' })
+    const second = confirmAction({ title: 'B', description: '', confirmLabel: 'OK' })
+    expect(await first).toBe(false)
+    pendingConfirm.value!.resolve(false)
+    expect(await second).toBe(false)
   })
 })

@@ -2,6 +2,8 @@
 import { canPlace, defaultRegistry, removeFeature, type InputValue } from '@feature-domain/engine'
 import { computed } from 'vue'
 import { useDocumentStore } from '../stores/document'
+import { confirmAction } from './confirm'
+import { siblingsIn } from './dnd'
 import DiagnosticsList from '../views/DiagnosticsList.vue'
 import InputField from './InputField.vue'
 
@@ -32,6 +34,20 @@ const location = computed(() => {
   return p ? encode(p.parent, p.slot) : ''
 })
 
+/** Move up/down among siblings in the same slot: the keyboard alternative to dragging. */
+const siblings = computed(() => {
+  const p = instance.value?.placement
+  return p && store.model ? siblingsIn(store.model, p.parent, p.slot) : []
+})
+const position = computed(() => (store.selectedId === null ? -1 : siblings.value.indexOf(store.selectedId)))
+function moveBy(delta: -1 | 1) {
+  const p = instance.value?.placement
+  if (!p || store.selectedId === null || position.value < 0) return
+  const others = siblings.value.filter((id) => id !== store.selectedId)
+  const before = others[position.value + delta]
+  store.moveTo(store.selectedId, before === undefined ? { parent: p.parent, slot: p.slot } : { parent: p.parent, slot: p.slot, before })
+}
+
 function moveTo(value: string) {
   const [parent, slot] = value.split('\u0000')
   if (store.selectedId !== null && parent !== undefined && slot !== undefined) store.moveTo(store.selectedId, { parent, slot })
@@ -48,16 +64,18 @@ function change(name: string, value: InputValue | undefined) {
   if (store.selectedId !== null) store.setInputs(store.selectedId, { [name]: value })
 }
 
-function remove() {
+async function remove() {
   const model = store.model
   const id = store.selectedId
   if (!model || id === null) return
   const preview = removeFeature(model, id)
   const label = meta.value?.name || def.value?.name || instance.value?.feature
-  const lines = [`Delete "${label}"?`]
+  const lines: string[] = []
   if (preview.removed.length > 1) lines.push(`${preview.removed.length - 1} feature(s) inside it will be deleted too.`)
   for (const broken of preview.brokenReferences) lines.push(`Feature ${broken.id} will lose its reference to ${broken.references.join(', ')}.`)
-  if (window.confirm(lines.join('\n'))) store.remove(id)
+  lines.push('You can undo this.')
+  const confirmed = await confirmAction({ title: `Delete "${label}"?`, description: lines.join('\n'), confirmLabel: 'Delete', destructive: true })
+  if (confirmed && store.model === model) store.remove(id)
 }
 </script>
 
@@ -93,6 +111,20 @@ function remove() {
             </option>
             <option v-for="option in locations" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select>
+          <div v-if="siblings.length > 1" class="flex gap-1 pt-1">
+            <button type="button" class="rounded border border-slate-300 px-2 py-0.5 text-xs disabled:opacity-40" data-testid="move-up" :disabled="position <= 0" @click="moveBy(-1)">
+              Move up
+            </button>
+            <button
+              type="button"
+              class="rounded border border-slate-300 px-2 py-0.5 text-xs disabled:opacity-40"
+              data-testid="move-down"
+              :disabled="position < 0 || position >= siblings.length - 1"
+              @click="moveBy(1)"
+            >
+              Move down
+            </button>
+          </div>
         </div>
         <InputField
           v-for="input in def.inputs"

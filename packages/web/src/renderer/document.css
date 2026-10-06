@@ -13,6 +13,16 @@
   all: revert;
 }
 
+/*
+ * The editor makes generated elements draggable. Chrome applies `-webkit-user-drag: element; user-select: none` to
+ * [draggable] elements as presentational hints, which `all: revert` discards, and without them no drag starts. Only
+ * the editor sets `draggable`, so generated pages elsewhere are unaffected.
+ */
+.fd-root [draggable='true'] {
+  -webkit-user-drag: element;
+  user-select: none;
+}
+
 .fd-root {
   all: initial;
   display: block;

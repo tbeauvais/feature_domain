@@ -7,9 +7,10 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
   resolve: {
-    // Read the engine's TypeScript source (its `source` export condition) instead of a built dist/.
+    // Read the engine's TypeScript source (its `@feature-domain/source` export condition) instead of a built dist/.
+    // The condition name is ours alone: a generic "source" would also pick up other packages' raw sources.
     // Setting conditions replaces Vite's defaults, so keep them.
-    conditions: ['source', ...defaultClientConditions],
+    conditions: ['@feature-domain/source', ...defaultClientConditions],
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   build: {

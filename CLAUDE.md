@@ -48,7 +48,7 @@ npm run typecheck           # tsc --noEmit, all workspaces
 npm run build               # emit packages/engine/dist (JS + .d.ts)
 npm run smoke               # build, then import the engine by package name from plain Node
 npm run e2e                 # Playwright end-to-end tests (packages/web; first run: npx playwright install chromium)
-npm run dev -w packages/web # editor at http://localhost:5173 (preview page: /preview.html?model=<id>)
+npm run dev -w packages/web # editor at http://localhost:5173 (preview page: /preview.html?model=<id>); the first load after adding dependencies may reload once while Vite optimizes them
 cd packages/engine && npx vitest run test/generate.test.ts -t "cycle"   # one file / one test
 cd packages/engine && npx vitest           # watch mode
 ```
@@ -89,7 +89,7 @@ cd packages/engine && npx vitest           # watch mode
   - Add tests: the contract tests in `test/features.test.ts` run automatically for every registered feature.
 - **Golden tests:** `test/fixtures.test.ts` migrates `sample.json` and every `app_models/*.json`, then snapshots the v2 model summary, migration notes, document outline and diagnostics. Snapshot diffs are the review record. Read them before running `vitest -u`.
 - **Storage:** `ModelStore` (`src/store.ts`) is the persistence interface for the browser store now and the Worker later. `MemoryModelStore` is the reference implementation. Every implementation must pass `test/store-contract.ts` (`describeModelStore`), which `packages/web` also imports.
-- **Packaging:** source uses `.js` import specifiers so `tsc -p tsconfig.build.json` emits runnable ESM to `dist/`. `exports` has a `source` condition (TS source, for Vite/Vitest via `resolve.conditions` / `customConditions`) and a `default` condition (built `dist/`). `npm run smoke` proves plain Node can import it.
+- **Packaging:** source uses `.js` import specifiers so `tsc -p tsconfig.build.json` emits runnable ESM to `dist/`. `exports` has an `@feature-domain/source` condition (TS source, for Vite/Vitest via `resolve.conditions` / `customConditions`; deliberately not a generic `source`, which other packages also define) and a `default` condition (built `dist/`). `npm run smoke` proves plain Node can import it.
 
 ### `packages/web`: the Vue app (Vite, Vue 3, Pinia, vue-router, Tailwind v4)
 - **Two pages.** `index.html` (`src/main.ts`) is the editor and uses Tailwind. `preview.html` (`src/preview.ts`) shows only the generated page and has no Tailwind, so it looks like a published site.
@@ -107,9 +107,20 @@ cd packages/engine && npx vitest           # watch mode
   - **Right: the schema-driven inspector** (`InputField` picks a control from each `InputDef`), a Location select limited to slots `canPlace` allows, delete (subtree, after a confirmation listing what goes), and the problem list.
   - **Inputs.** List and number fields keep a local draft while typing. Normalized values (trimmed lines, parsed numbers) go to the model, but they don't overwrite the field until blur. Selects show a disabled "Missing: …" option for values that no longer exist.
   - **Editing.** All edits go through `useDocumentStore` (`add`, `setInputs`, `moveTo`, `remove`, `rename`), which applies pure engine operations, regenerates with placeholders, and autosaves 400 ms after the last change (flushed on page hide). Saves are tied to the model they started on. Leaving the page after a failed save asks before dropping the changes. The preview tab listens for the `storage` event and calls `refresh()`, which never replaces unsaved local edits.
+- **Drag-and-drop** (Pragmatic drag and drop):
+  - `editor/dnd.ts` is pure and unit-tested. A drop zone is either an empty slot (append) or a feature (before, after, or "combine" = into its first slot). `evaluateDrop` maps the zone to a `PlacementTarget` and checks it with the engine's `canPlace`, detecting drops that change nothing.
+  - `editor/useEditorDnd.ts` registers draggables and drop targets on the canvas (`[data-feature-id]`, `[data-slot]`), the tree (`[data-tree-id]`) and the palette (`[data-palette-type]`), rebuilding them after each regeneration. It has one monitor that applies drops through the store (`moveTo` / `addAt`), so drops are validated and undoable.
+  - Drop feedback lives in `editor/dndState.ts`, drawn by `DropIndicator` (canvas overlay, outside `.fd-root`) and `TreeRow`.
+  - **Gotcha:** Chrome gives `[draggable]` elements `-webkit-user-drag: element; user-select: none` as presentational hints, which `all: revert` discards. `document.css` restores them inside `.fd-root`, or no drag ever starts.
+  - Empty slots get a drop area in the editor only (`main.css`, `.fd-editor-canvas`).
+  - Draggability is decided by feature type, so unplaced features can be dragged from the tree onto the page.
+  - Before or after a Page (the document root) is offered only when dragging a Page; anything else dropped at a page's edge goes into it.
+  - Links and images inside a feature are extra drag handles for that feature.
+- **Undo/redo.** The store records history at its single `apply()` point, with the selection. Consecutive edits of the same input (or the model name) within 1 s are one step, capped at 100 steps. Loading and the automatic upgrade are not undoable. Buttons, plus ⌘Z / ⇧⌘Z / Ctrl+Y, except in text-entry fields (selects and checkboxes do use them) and while a confirmation dialog is open. Deleting a model discards any pending save first (`store.discard()`). The inspector's Move up / Move down and Location select are the keyboard alternatives to dragging.
+- **UI components.** These are shadcn-vue components (Reka UI) in `src/components/ui/`. They're added with `npx shadcn-vue@latest add <name>` from `packages/web`. The CLI is deliberately not a dependency (it pulled in vulnerable packages); its Tailwind variants are vendored in `src/styles/shadcn.css`. **After `add`, check `src/main.css` and `package.json`:** the CLI re-inserts a Google Fonts `@import` and icon packages. The editor must load nothing from other sites, and an e2e test enforces that. Confirmations use `confirmAction()` with `<ConfirmHost>` (an in-page AlertDialog), never the browser's blocking `confirm()`.
 - **Validation at the boundary.** `useDocumentStore.load` checks models from storage with the engine's `validateModel` (later, the same check applies to Worker responses), and catches any exception from `generate`. Bad data shows an error, never a blank page.
 - **Storage.** Until the backend exists, models live in browser storage. `BrowserModelStore` implements `ModelStore` and is seeded once with the migrated sample models from `app_models/` and `sample.json` (`src/data/samples.ts`). The app gets its store from `src/services.ts`; tests swap in a `MemoryModelStore`.
-- **Engine imports.** The app imports the engine's TypeScript source through the `source` export condition: `customConditions` in tsconfig, and `resolve.conditions` in `vite.config.ts`, which keeps Vite's defaults.
+- **Engine imports.** The app imports the engine's TypeScript source through the `@feature-domain/source` export condition: `customConditions` in tsconfig, and `resolve.conditions` in `vite.config.ts`, which keeps Vite's defaults.
 - **Tests.** Vitest + Vue Test Utils (jsdom) in `test/`. Playwright in `e2e/` runs against a production build, and every external request is blocked except a mocked GitHub API.
 - **TypeScript is pinned to 6.x** for the whole workspace (root `overrides`). `vue-tsc` needs TypeScript's JavaScript API, which TypeScript 7 (the native Go compiler) doesn't ship.
 

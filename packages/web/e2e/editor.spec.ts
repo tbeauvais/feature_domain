@@ -76,13 +76,11 @@ test('deletes a feature with everything inside it, after confirming', async ({ p
   await page.getByTestId('palette-TextFeature').click()
   await tree(page).locator('[data-tree-id="2"]').click()
 
-  const dialogs: string[] = []
-  page.on('dialog', (dialog) => {
-    dialogs.push(dialog.message())
-    void dialog.accept()
-  })
   await inspector(page).getByTestId('delete-feature').click()
-  expect(dialogs).toEqual(['Delete "untitled"?\n1 feature(s) inside it will be deleted too.'])
+  const dialog = page.getByTestId('confirm-dialog')
+  await expect(dialog).toContainText('Delete "untitled"?')
+  await expect(dialog).toContainText('1 feature(s) inside it will be deleted too.')
+  await dialog.getByTestId('confirm-ok').click()
   await expect(canvas(page).locator('[data-feature-id="2"], [data-feature-id="3"]')).toHaveCount(0)
   await expect(inspector(page)).toContainText('Select a feature')
 })
@@ -116,8 +114,8 @@ test('the preview tab follows edits made in the editor', async ({ page, context 
 
 test('creates and deletes models', async ({ page }) => {
   await newModel(page)
-  page.on('dialog', (dialog) => void dialog.accept())
   await page.getByTestId('delete-model').click()
+  await page.getByTestId('confirm-dialog').getByTestId('confirm-ok').click()
   await expect(page).toHaveURL('/')
   await expect(page.getByTestId('model-list').getByRole('link')).toHaveCount(5)
 })
@@ -187,13 +185,11 @@ test('leaving after a failed save asks before losing the changes', async ({ page
   await page.getByTestId('model-name').fill('Will not save')
   await expect(page.getByTestId('save-state')).toHaveText('Save failed')
 
-  const dialogs: string[] = []
-  page.once('dialog', (dialog) => {
-    dialogs.push(dialog.message())
-    void dialog.dismiss()
-  })
   await page.getByRole('link', { name: 'Feature Domain' }).click()
-  await expect.poll(() => dialogs).toEqual(['Your latest changes could not be saved (QuotaExceededError). Leave anyway and lose them?'])
+  const dialog = page.getByTestId('confirm-dialog')
+  await expect(dialog).toContainText('Your latest changes could not be saved (QuotaExceededError). Leave anyway and lose them?')
+  await dialog.getByTestId('confirm-cancel').click()
+  await expect(page).not.toHaveURL('/')
   await expect(page.getByTestId('model-name')).toHaveValue('Will not save')
 })
 
@@ -239,4 +235,30 @@ test('responsive images keep their aspect ratio in a narrow cell', async ({ page
   expect(box.width).toBeLessThanOrEqual(cell.width)
   expect(box.width).toBeLessThan(300)
   expect(box.height).toBeCloseTo(box.width / 2, 0)
+})
+
+test('deleting a model with an unsaved edit goes straight back to the list', async ({ page }) => {
+  await newModel(page)
+  await page.getByTestId('model-name').fill('Renamed just now')
+  await page.getByTestId('delete-model').click()
+  await page.getByTestId('confirm-dialog').getByTestId('confirm-ok').click()
+  await expect(page).toHaveURL('/')
+  await expect(page.getByTestId('confirm-dialog')).toHaveCount(0)
+  await expect(page.getByTestId('model-list').getByRole('link')).toHaveCount(5)
+})
+
+test('the editor and preview load nothing from other sites', async ({ page, context }) => {
+  const external: string[] = []
+  await context.route('**/*', (route) => {
+    const url = new URL(route.request().url())
+    if (url.hostname === 'localhost') return route.continue()
+    external.push(url.href)
+    return route.abort()
+  })
+  await page.goto('/')
+  await page.getByTestId('new-model').click()
+  await page.getByTestId('palette-TextFeature').click()
+  await page.getByTestId('open-preview').click()
+  await page.waitForLoadState('networkidle')
+  expect(external).toEqual([])
 })
