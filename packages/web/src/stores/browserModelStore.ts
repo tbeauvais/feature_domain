@@ -1,6 +1,7 @@
 import { ModelNotFoundError, type AppModel, type ModelStore, type ModelSummary } from '@feature-domain/engine'
 
-const MODELS_KEY = 'feature-domain:models'
+/** The storage key holding all models; other tabs watch it (the `storage` event) to pick up saves. */
+export const MODELS_KEY = 'feature-domain:models'
 const SEEDED_KEY = 'feature-domain:seeded'
 
 interface Stored {

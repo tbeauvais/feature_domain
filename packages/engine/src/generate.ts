@@ -5,7 +5,8 @@ import { asBool, asString, resolveInputs, type Inputs } from './inputs.js'
 import { node, walkNodes } from './nodes.js'
 import { ROOT_ID, ROOT_SLOT, type AppModel, type Diagnostic, type DocNode, type FeatureInstance, type Placement } from './types.js'
 
-export type FeatureStatus = 'generated' | 'suppressed' | 'skipped'
+/** `unknown`: the feature type is not in the registry (e.g. not ported yet). */
+export type FeatureStatus = 'generated' | 'suppressed' | 'skipped' | 'unknown'
 
 export interface FeatureMetadata {
   id: string
@@ -18,6 +19,8 @@ export interface FeatureMetadata {
   slots: string[]
   /** Instance ids this feature references. */
   references: string[]
+  /** Why the feature was not generated (skipped, suppressed or unknown): the first problem found, not later effects. */
+  reason?: string
   /** Instance id of the Page this feature sits under, if any. */
   page?: string
 }
@@ -68,12 +71,22 @@ interface Entry {
  * model and registry always produce the same result. Never throws: every problem, including a feature that throws,
  * becomes a diagnostic.
  */
-export function generate(model: AppModel, registry: FeatureRegistry = defaultRegistry): GenerateResult {
+export interface GenerateOptions {
+  /**
+   * Editor mode: placed features that produced no node (unknown types, or skipped because of a problem) get a
+   * `placeholder` node where they would be, so they stay visible and selectable. Suppressed features do not.
+   */
+  placeholders?: boolean
+}
+
+export function generate(model: AppModel, registry: FeatureRegistry = defaultRegistry, options: GenerateOptions = {}): GenerateResult {
   const diagnostics: Diagnostic[] = []
   const report = (d: Diagnostic) => diagnostics.push(d)
   const status = new Map<string, FeatureStatus>()
+  const reasons = new Map<string, string>()
   const fail = (id: string, d: Omit<Diagnostic, 'featureInstanceId'>) => {
     status.set(id, 'skipped')
+    if (!reasons.has(id)) reasons.set(id, d.message)
     report({ ...d, featureInstanceId: id })
   }
   /** Runs feature code outside generate(); an exception skips the feature instead of escaping. */
@@ -88,6 +101,7 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
 
   // 1. Collect known features.
   const entries = new Map<string, Entry>()
+  const unknown = new Map<string, FeatureInstance>()
   const modelIds = new Set<string>()
   model.features.forEach((instance, index) => {
     const id = instance.id
@@ -98,6 +112,8 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
     modelIds.add(id)
     const def = registry.get(instance.feature)
     if (!def) {
+      unknown.set(id, instance)
+      reasons.set(id, `${instance.feature} is not ported yet`)
       report({ code: 'unknown-feature', severity: 'warning', featureInstanceId: id, message: `Unknown feature type "${instance.feature}"` })
       return
     }
@@ -193,6 +209,7 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
     const suppressedBy = parents.find((p) => status.get(p) === 'suppressed')
     if (asBool(e.inputs.disable) || suppressedBy !== undefined) {
       status.set(id, 'suppressed')
+      reasons.set(id, suppressedBy === undefined ? 'Feature is suppressed' : `${relation(suppressedBy)} ${describe(suppressedBy)} is suppressed`)
       const message = suppressedBy === undefined ? 'Feature is suppressed' : `${relation(suppressedBy)} ${describe(suppressedBy)} is suppressed`
       report({ code: 'suppressed', severity: 'info', featureInstanceId: id, message })
       continue
@@ -268,11 +285,35 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
   slotNodes.set(slotKey(ROOT_ID, ROOT_SLOT), template)
   const keyOfSlotNode = new Map([...slotNodes].map(([key, n]) => [n, key]))
   const placed = new Map<string, DocNode[]>()
-  for (const [id, e] of entries) {
+  const place = (p: Placement, n: DocNode) => {
+    const key = slotKey(p.parent, p.slot)
+    placed.set(key, [...(placed.get(key) ?? []), n])
+  }
+  for (const id of modelIds) {
+    const e = entries.get(id)
     const featureNode = generated.get(id)
-    if (!featureNode || !e.placement) continue
-    const key = slotKey(e.placement.parent, e.placement.slot)
-    placed.set(key, [...(placed.get(key) ?? []), featureNode])
+    if (featureNode && e?.placement) {
+      place(e.placement, featureNode)
+    } else if (options.placeholders) {
+      const stand = placeholderFor(id)
+      if (stand) place(stand.placement, stand.node)
+    }
+  }
+
+  function placeholderFor(id: string): { placement: Placement; node: DocNode } | undefined {
+    const e = entries.get(id)
+    const instance = e?.instance ?? unknown.get(id)!
+    const p = e ? e.placement : instance.placement
+    const known = e !== undefined
+    if (!p || (known && status.get(id) !== 'skipped') || !slotNodes.has(slotKey(p.parent, p.slot)) || nodeIds.has(id)) return undefined
+    nodeIds.add(id)
+    const props = {
+      feature: instance.feature,
+      name: asString(instance.inputs.name),
+      status: known ? ('skipped' as const) : ('unknown' as const),
+      reason: reasons.get(id) ?? 'Not generated',
+    }
+    return { placement: p, node: { ...node('placeholder', id, props), featureInstanceId: id } }
   }
   const assemble = (n: DocNode): DocNode => {
     const key = keyOfSlotNode.get(n)
@@ -282,7 +323,7 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
 
   return {
     root: assemble(template),
-    metadata: buildMetadata(entries, status, new Set(slotNodes.keys())),
+    metadata: buildMetadata(modelIds, entries, unknown, status, reasons, new Set(slotNodes.keys())),
     graph,
     edgeKinds,
     order,
@@ -290,18 +331,37 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
   }
 }
 
-function buildMetadata(entries: Map<string, Entry>, status: Map<string, FeatureStatus>, generatedSlots: Set<string>): AppMetadata {
+function buildMetadata(
+  modelIds: Set<string>,
+  entries: Map<string, Entry>,
+  unknown: Map<string, FeatureInstance>,
+  status: Map<string, FeatureStatus>,
+  reasons: Map<string, string>,
+  generatedSlots: Set<string>,
+): AppMetadata {
+  const placementOf = (id: string) => (entries.has(id) ? entries.get(id)!.placement : unknown.get(id)?.placement)
   const pageOf = (id: string, depth = 0): string | undefined => {
-    const e = entries.get(id)
-    if (!e || depth > entries.size) return undefined
-    if (e.instance.feature === 'PageFeature') return id
-    return e.placement && e.placement.parent !== ROOT_ID ? pageOf(e.placement.parent, depth + 1) : undefined
+    if (depth > modelIds.size) return undefined
+    const feature = entries.get(id)?.instance.feature ?? unknown.get(id)?.feature
+    if (feature === 'PageFeature') return id
+    const p = placementOf(id)
+    return p && p.parent !== ROOT_ID ? pageOf(p.parent, depth + 1) : undefined
   }
 
   const features: FeatureMetadata[] = []
   const pages: AppMetadata['pages'] = []
   const targets: TargetMetadata[] = [{ parent: ROOT_ID, slot: ROOT_SLOT, label: 'Document' }]
-  for (const [id, e] of entries) {
+  for (const id of modelIds) {
+    const e = entries.get(id)
+    if (!e) {
+      const instance = unknown.get(id)!
+      const f: FeatureMetadata = { id, feature: instance.feature, name: asString(instance.inputs.name), status: 'unknown', reason: reasons.get(id)!, slots: [], references: [] }
+      if (instance.placement) f.placement = instance.placement
+      const page = pageOf(id)
+      if (page !== undefined) f.page = page
+      features.push(f)
+      continue
+    }
     const name = asString(e.inputs.name)
     const f: FeatureMetadata = {
       id,
@@ -311,6 +371,8 @@ function buildMetadata(entries: Map<string, Entry>, status: Map<string, FeatureS
       slots: e.slots,
       references: [...e.declared],
     }
+    const reason = reasons.get(id)
+    if (f.status !== 'generated' && reason !== undefined) f.reason = reason
     if (e.placement) f.placement = e.placement
     const page = pageOf(id)
     if (page !== undefined) f.page = page

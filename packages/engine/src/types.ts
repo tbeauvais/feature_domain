@@ -66,6 +66,12 @@ export interface NodeKinds {
   'grid-cell': { row: number; column: number }
   panel: { heading: string; tone?: Tone }
   'panel-body': Record<string, never>
+  list: { items: string[]; align: Align }
+  /**
+   * Editor-only stand-in for a placed feature that produced no node: an unported (unknown) feature type, or a feature
+   * skipped because of a problem. Only generated with `generate(model, registry, { placeholders: true })`.
+   */
+  placeholder: { feature: string; name: string; status: 'unknown' | 'skipped'; reason: string }
   table: {
     /** Where rows come from at runtime. Absent when the operation could not be found. */
     source?: { feature: string; resource: string; operation: string; endPoint: string; path?: string }

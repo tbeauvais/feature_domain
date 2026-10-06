@@ -261,3 +261,55 @@ describe('legacy helpers', () => {
     expect(['text-info', 'bg-danger', 'panel-success', 'warning', '', 'text-bogus'].map(normalizeTone)).toEqual(['info', 'danger', 'success', 'warning', undefined, undefined])
   })
 })
+
+describe('migrate: upgrading v2 models when features get ported', () => {
+  // What migrate() produced for a feature whose type was not ported yet: scalar inputs, legacy instance in cache.
+  function asIfUnported(legacy: Legacy, migrated: FeatureInstance): FeatureInstance {
+    const scalar = Object.fromEntries(Object.entries(legacy.inputs ?? {}).filter(([, v]) => ['string', 'number', 'boolean'].includes(typeof v))) as FeatureInstance['inputs']
+    const unported: FeatureInstance = { feature: migrated.feature, id: migrated.id, inputs: scalar, cache: { legacy } }
+    if (migrated.placement) unported.placement = migrated.placement
+    return unported
+  }
+
+  it('re-migrates a feature from cache.legacy once its type is ported (e.g. List)', () => {
+    const legacyList: Legacy = { feature: 'ListFeature', id: '7', inputs: { name: 'Color list', list: 'Red,Green,Blue,Yellow', align: 'center-block', ...loc('#page_container') } }
+    const fresh = run(legacyPage, legacyList).model
+    const stored = { ...fresh, features: [fresh.features[0]!, asIfUnported(legacyList, fresh.features[1]!)] }
+    const upgraded = migrate(stored)
+    expect(upgraded.model.features[1]).toEqual({
+      feature: 'ListFeature',
+      id: '7',
+      inputs: { name: 'Color list', disable: false, items: ['Red', 'Green', 'Blue', 'Yellow'], align: 'center' },
+      placement: { parent: '15', slot: 'content' },
+    })
+    expect(upgraded.notes).toEqual([
+      { code: 'upgraded-feature', severity: 'info', featureInstanceId: '7', message: 'ListFeature is ported now; migrated from the legacy settings kept in cache.legacy' },
+    ])
+    expect(migrate(upgraded.model).model).toBe(upgraded.model)
+  })
+
+  it('leaves features that are still not ported alone', () => {
+    const legacyMap: Legacy = { feature: 'GoogleMapFeature', id: '16', inputs: { name: 'map', ...loc('#page_container') } }
+    const stored = run(legacyPage, legacyMap).model
+    expect(migrate(stored)).toEqual({ model: stored, notes: [] })
+    expect(migrate(stored).model).toBe(stored)
+  })
+
+  it.each(['sample.json', 'app_models/buy_deal_sample.json', 'app_models/google_map_sample.json', 'app_models/swagger_resource_sample.json', 'app_models/watson_sample.json'])(
+    'upgrading any feature migrated before it was ported gives the same model as migrating today (%s)',
+    async (path) => {
+      const { readFileSync } = await import('node:fs')
+      const { join } = await import('node:path')
+      const json: unknown = JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', '..', path), 'utf8'))
+      const legacyFeatures = (Array.isArray(json) ? json : (json as { features: Legacy[] }).features) as Legacy[]
+      const today = migrate(json).model
+      const legacyById = new Map(legacyFeatures.map((f) => [String(f.id), f]))
+      // Every feature that has an input migration today, pretended to have been unported when first migrated.
+      const ported = today.features.filter((f) => !f.cache?.legacy)
+      const stored = { ...today, features: today.features.map((f) => (f.cache?.legacy ? f : asIfUnported(legacyById.get(f.id)!, f))) }
+      const upgraded = migrate(stored)
+      expect(upgraded.model).toEqual(today)
+      expect(upgraded.notes.filter((n) => n.code === 'upgraded-feature').map((n) => n.featureInstanceId)).toEqual(ported.map((f) => f.id))
+    },
+  )
+})
