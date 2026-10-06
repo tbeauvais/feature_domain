@@ -80,10 +80,9 @@ test('opens the standalone preview in a new tab', async ({ page, context }) => {
 // positions that depend on the surrounding layout. Custom properties (--*) are excluded too: the editor defines
 // Tailwind's, generated pages only read their own --fd-* ones.
 const LAYOUT_DEPENDENT = /^(width|height|inline-size|block-size|transform-origin|perspective-origin|grid-template-columns|grid-template-rows)$/
-// Interaction properties the editor sets on purpose: it makes generated elements draggable (draggable="true").
-const EDITOR_INTERACTION = /^(-webkit-user-drag|user-select|-webkit-user-select)$/
 
-// Every computed property of every element in the generated document, in document order.
+// Every computed property of every element in the generated document, in document order, plus which properties
+// the editor changes on purpose for that element.
 const measureDocument = (target: Page) =>
   target.evaluate((skipPattern) => {
     const skip = new RegExp(skipPattern)
@@ -92,7 +91,7 @@ const measureDocument = (target: Page) =>
     const elements = [root, ...root.querySelectorAll('*')].filter((el) => !el.closest('.fd-placeholder'))
     return elements.map((el) => {
       const style = getComputedStyle(el)
-      const values: Record<string, string> = { node: el.getAttribute('data-node-id') ?? el.tagName.toLowerCase() }
+      const values: Record<string, string> = {}
       for (const name of Array.from(style)) {
         if (!name.startsWith('--') && !skip.test(name)) values[name] = style.getPropertyValue(name)
       }
@@ -101,9 +100,27 @@ const measureDocument = (target: Page) =>
       if (/\bfd-(image|list)-center\b/.test(el.className) && values['margin-left'] === values['margin-right']) {
         values['margin-left'] = values['margin-right'] = values['margin-inline-start'] = values['margin-inline-end'] = 'centred'
       }
-      return values
+      // What the editor changes on purpose, and only where it does: drag behaviour on draggable elements (user-select
+      // is inherited by their content), and a visible drop area on empty slots.
+      const editorOnly = [
+        ...(el.closest('[draggable="true"]') ? ['user-select', '-webkit-user-select'] : []),
+        ...(el.hasAttribute('draggable') ? ['-webkit-user-drag'] : []),
+        ...(el.matches('[data-slot]:empty') ? ['min-height', 'outline-color', 'outline-style', 'outline-width', 'outline-offset'] : []),
+      ]
+      return { node: el.getAttribute('data-node-id') ?? el.tagName.toLowerCase(), values, editorOnly }
     })
-  }, `${LAYOUT_DEPENDENT.source}|${EDITOR_INTERACTION.source}`)
+  }, LAYOUT_DEPENDENT.source)
+
+type Measured = Awaited<ReturnType<typeof measureDocument>>
+
+/** Both sides with the editor's deliberate per-element changes removed, ready to compare. */
+function comparable(preview: Measured, editor: Measured) {
+  const strip = (values: Record<string, string>, skip: string[]) => Object.fromEntries(Object.entries(values).filter(([k]) => !skip.includes(k)))
+  return {
+    preview: preview.map((p, i) => ({ node: p.node, ...strip(p.values, editor[i]?.editorOnly ?? []) })),
+    editor: editor.map((e) => ({ node: e.node, ...strip(e.values, e.editorOnly) })),
+  }
+}
 
 const hasTailwindReset = (target: Page) =>
   target.evaluate(() =>
@@ -124,14 +141,19 @@ test('renders generated pages identically in the editor and the preview', async 
   expect(await hasTailwindReset(editor)).toBe(true)
 
   expect(inPreview.length).toBeGreaterThan(40)
-  expect(Object.keys(inPreview[0]!).length).toBeGreaterThan(200)
-  expect(await measureDocument(editor)).toEqual(inPreview)
+  expect(Object.keys(inPreview[0]!.values).length).toBeGreaterThan(200)
+  const inEditor = await measureDocument(editor)
+  // The exclusions stay narrow: only the editor's drag behaviour (no empty slots in this sample).
+  expect(new Set(inEditor.flatMap((e) => e.editorOnly))).toEqual(new Set(['user-select', '-webkit-user-select', '-webkit-user-drag']))
+  const first = comparable(inPreview, inEditor)
+  expect(first.editor).toEqual(first.preview)
 
   // Utility classes on the editor's canvas wrapper must not leak into the generated page either.
   await editor
     .getByTestId('canvas')
     .evaluate((el) => el.classList.add('uppercase', 'italic', 'tracking-widest', 'whitespace-nowrap', 'select-none', 'cursor-pointer', 'text-red-500', 'leading-loose', 'text-right'))
-  expect(await measureDocument(editor)).toEqual(inPreview)
+  const second = comparable(inPreview, await measureDocument(editor))
+  expect(second.editor).toEqual(second.preview)
 })
 
 test('shows an error, not a blank page, for a malformed stored model', async ({ page }) => {

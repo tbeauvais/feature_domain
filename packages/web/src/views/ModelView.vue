@@ -10,7 +10,7 @@ import SelectionOverlay from '../editor/SelectionOverlay.vue'
 import { useEditorDnd } from '../editor/useEditorDnd'
 import DocumentView from '../renderer/DocumentView.vue'
 import { modelStore } from '../services'
-import { confirmAction } from '../editor/confirm'
+import { confirmAction, pendingConfirm } from '../editor/confirm'
 import { useDocumentStore } from '../stores/document'
 import DiagnosticsList from './DiagnosticsList.vue'
 
@@ -27,11 +27,19 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
 const undoHint = isMac ? '⌘Z' : 'Ctrl+Z'
 const redoHint = isMac ? '⇧⌘Z' : 'Ctrl+Y'
 
-/** Undo/redo shortcuts, except in text fields, where the browser's own undo applies to the text being typed. */
+const TEXT_INPUT_TYPES = ['text', 'search', 'url', 'tel', 'email', 'password', 'number']
+
+/** Text-entry fields have the browser's own undo for the text being typed; other controls (selects, checkboxes) don't. */
+function isTextEntry(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  if (target.isContentEditable || target instanceof HTMLTextAreaElement) return true
+  return target instanceof HTMLInputElement && TEXT_INPUT_TYPES.includes(target.type)
+}
+
+/** Undo/redo shortcuts, except in text fields and while a confirmation dialog is open. */
 function onKeydown(event: KeyboardEvent) {
   if (!(event.metaKey || event.ctrlKey) || event.altKey) return
-  const target = event.target instanceof HTMLElement ? event.target : null
-  if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
+  if (pendingConfirm.value !== null || isTextEntry(event.target)) return
   const key = event.key.toLowerCase()
   if (key === 'z' && !event.shiftKey) store.undo()
   else if ((key === 'z' && event.shiftKey) || key === 'y') store.redo()
@@ -90,6 +98,8 @@ async function deleteModel() {
     destructive: true,
   })
   if (!confirmed) return
+  // The model is going away: an edit still waiting to be saved must not be saved (or trip the leave guard).
+  store.discard()
   await modelStore().delete(props.id)
   await router.push('/')
 }

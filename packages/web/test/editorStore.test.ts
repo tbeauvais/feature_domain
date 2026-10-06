@@ -222,4 +222,14 @@ describe('editing with useDocumentStore', () => {
       expect(doc.canUndo).toBe(false)
     })
   })
+
+  it('discards a pending save, e.g. before deleting the model', async () => {
+    const doc = await open(model(page()))
+    doc.rename('never saved')
+    doc.discard()
+    expect(doc.saveState).toBe('saved')
+    await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS)
+    expect((await store.get(id))?.name).toBe('test')
+    expect(await doc.flush()).toBe(true)
+  })
 })

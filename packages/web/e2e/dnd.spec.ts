@@ -99,11 +99,13 @@ test('undoes and redoes with buttons and the keyboard', async ({ page }) => {
   await page.keyboard.press('ControlOrMeta+Shift+z')
   await expect.poll(() => pageOrder(page)).toEqual(['3', '2'])
 
-  // In a text field, the shortcut is the field's own undo, not the model's.
+  // In a text field, the shortcut is the field's own undo, not the model's: a model undo would make Redo available.
   await feature(page, '2').click()
   const text = page.getByTestId('inspector').getByLabel('Text', { exact: true })
   await text.fill('typed')
+  await expect(page.getByTestId('redo')).toBeDisabled()
   await text.press('ControlOrMeta+z')
+  await expect(page.getByTestId('redo')).toBeDisabled()
   await expect.poll(() => pageOrder(page)).toEqual(['3', '2'])
 })
 
@@ -118,4 +120,69 @@ test('moves features up and down with the keyboard-friendly buttons', async ({ p
   await expect(page.getByTestId('move-down')).toBeDisabled()
   await page.getByTestId('move-up').click()
   await expect.poll(() => pageOrder(page)).toEqual(['3', '2', '4'])
+})
+
+test('the undo shortcut works after using a select or checkbox, but not behind a dialog', async ({ page }) => {
+  await addToPage(page, 'ContainerFeature', 'TextFeature')
+  await tree(page).locator('[data-tree-id="3"]').click()
+  const inspector = page.getByTestId('inspector')
+  await inspector.getByLabel('Location').selectOption({ label: 'untitled › r1c1' })
+  await expect(canvas(page).locator('[data-node-id="2.r1c1"] > [data-feature-id="3"]')).toBeVisible()
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect.poll(() => pageOrder(page)).toEqual(['2', '3'])
+
+  await inspector.getByLabel('Disable').check()
+  await expect(feature(page, '3')).toHaveCount(0)
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect(feature(page, '3')).toBeVisible()
+
+  // Behind the dialog, the shortcut must do nothing (an undo here would remove the text added earlier).
+  await inspector.getByTestId('delete-feature').click()
+  await expect(page.getByTestId('confirm-dialog')).toBeVisible()
+  await page.keyboard.press('ControlOrMeta+z')
+  await page.getByTestId('confirm-cancel').click()
+  await expect.poll(() => pageOrder(page)).toEqual(['2', '3'])
+})
+
+test('drops near the edge of a page go into the page, not beside it', async ({ page }) => {
+  await drag(page, page.getByTestId('palette-TextFeature'), feature(page, '1'), 'top')
+  await expect(canvas(page).locator('[data-feature-id="1"] > [data-feature-id="2"]')).toBeVisible()
+  await drag(page, page.getByTestId('palette-TextFeature'), feature(page, '1'), 'bottom')
+  await expect.poll(() => pageOrder(page)).toEqual(['2', '3'])
+  // Pages themselves can still be ordered at the document root (in the tree, where the page row has edges).
+  await drag(page, page.getByTestId('palette-PageFeature'), tree(page).locator('[data-tree-id="1"]'), 'top')
+  await expect.poll(() => canvas(page).locator('.fd-root > [data-feature-id]').evaluateAll((els) => els.map((e) => e.getAttribute('data-feature-id')))).toEqual(['4', '1'])
+})
+
+test('drags a feature that is not on the page from the tree onto the page', async ({ page }) => {
+  await addToPage(page, 'TextFeature')
+  // Break its placement in storage, then reload: it is listed under "Not on the page".
+  await page.waitForTimeout(500)
+  await page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem('feature-domain:models')!)
+    const model = (Object.values(stored.models) as { name: string; features: { id: string; placement?: unknown }[] }[]).find((m) => m.name === 'Untitled model')!
+    delete model.features.find((f) => f.id === '2')!.placement
+    localStorage.setItem('feature-domain:models', JSON.stringify(stored))
+  })
+  await page.reload()
+  await expect(tree(page).getByRole('tree', { name: 'Not on the page' }).locator('[data-tree-id="2"]')).toBeVisible()
+  await drag(page, tree(page).locator('[data-tree-id="2"]'), feature(page, '1'))
+  await expect(canvas(page).locator('[data-feature-id="1"] > [data-feature-id="2"]')).toBeVisible()
+})
+
+test('a drag that starts on a link inside a feature moves the feature', async ({ page }) => {
+  await page.context().route('https://api.github.com/**', (route) => route.fulfill({ json: [{ name: 'engine', html_url: 'https://github.com/x/engine' }] }))
+  await addToPage(page, 'TextFeature')
+  await page.getByTestId('palette-DataResourceFeature').click()
+  const inspector = page.getByTestId('inspector')
+  await inspector.getByLabel('Resource URL').fill('https://api.github.com/users/x/repos')
+  await tree(page).locator('[data-tree-id="1"]').click()
+  await page.getByTestId('palette-TableFeature').click()
+  await inspector.getByLabel('Data Resource').selectOption({ label: 'untitled (#3)' })
+  await inspector.getByLabel('Fields').fill('name')
+  await inspector.getByLabel('Filters').fill('dataLink :data.html_url')
+  const link = feature(page, '4').getByRole('link', { name: 'engine' })
+  await expect(link).toBeVisible()
+  await drag(page, link, feature(page, '2'), 'top')
+  await expect.poll(() => pageOrder(page)).toEqual(['4', '2'])
 })

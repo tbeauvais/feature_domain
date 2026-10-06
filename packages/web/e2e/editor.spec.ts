@@ -236,3 +236,29 @@ test('responsive images keep their aspect ratio in a narrow cell', async ({ page
   expect(box.width).toBeLessThan(300)
   expect(box.height).toBeCloseTo(box.width / 2, 0)
 })
+
+test('deleting a model with an unsaved edit goes straight back to the list', async ({ page }) => {
+  await newModel(page)
+  await page.getByTestId('model-name').fill('Renamed just now')
+  await page.getByTestId('delete-model').click()
+  await page.getByTestId('confirm-dialog').getByTestId('confirm-ok').click()
+  await expect(page).toHaveURL('/')
+  await expect(page.getByTestId('confirm-dialog')).toHaveCount(0)
+  await expect(page.getByTestId('model-list').getByRole('link')).toHaveCount(5)
+})
+
+test('the editor and preview load nothing from other sites', async ({ page, context }) => {
+  const external: string[] = []
+  await context.route('**/*', (route) => {
+    const url = new URL(route.request().url())
+    if (url.hostname === 'localhost') return route.continue()
+    external.push(url.href)
+    return route.abort()
+  })
+  await page.goto('/')
+  await page.getByTestId('new-model').click()
+  await page.getByTestId('palette-TextFeature').click()
+  await page.getByTestId('open-preview').click()
+  await page.waitForLoadState('networkidle')
+  expect(external).toEqual([])
+})

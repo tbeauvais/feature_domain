@@ -138,6 +138,13 @@ export const useDocumentStore = defineStore('document', () => {
     }
   }
 
+  /** Drops an edit waiting to be saved, e.g. when the model is about to be deleted. */
+  function discard(): void {
+    clearTimeout(timer)
+    timer = undefined
+    saveState.value = 'saved'
+  }
+
   /** Saves now if an edit is waiting to be saved. Resolves to false if that save failed (the edits are not stored). */
   async function flush(): Promise<boolean> {
     if (timer !== undefined) {
@@ -256,6 +263,7 @@ export const useDocumentStore = defineStore('document', () => {
     load,
     refresh,
     flush,
+    discard,
     select,
     add,
     addAt,
