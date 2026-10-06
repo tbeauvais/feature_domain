@@ -57,6 +57,12 @@ describe('DocumentView', () => {
     expect(w.get('img').attributes('src')).toBeUndefined()
   })
 
+  it('gives responsive images no fixed height, so they keep their aspect ratio', () => {
+    const w = render(model(page(), inst('ImageFeature', 'i', { src: 'a.png', width: '300', height: '300', responsive: true }), inst('ImageFeature', 'j', { src: 'a.png', width: '300', height: '300', responsive: false })))
+    expect(w.get('[data-feature-id="i"]').attributes('style')).toBe('width: 300px;')
+    expect(w.get('[data-feature-id="j"]').attributes('style')).toBe('width: 300px; height: 300px;')
+  })
+
   it('sizes images with inline style, treating bare numbers as pixels', () => {
     const w = render(model(page(), inst('ImageFeature', 'i', { src: 'a.png', alt: 'A', width: '300', height: '', align: 'right', responsive: true })))
     const img = w.get('img')

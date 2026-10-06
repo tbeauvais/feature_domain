@@ -196,3 +196,47 @@ test('leaving after a failed save asks before losing the changes', async ({ page
   await expect.poll(() => dialogs).toEqual(['Your latest changes could not be saved (QuotaExceededError). Leave anyway and lose them?'])
   await expect(page.getByTestId('model-name')).toHaveValue('Will not save')
 })
+
+test('a sample stored before List was ported is upgraded when opened', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByTestId('model-list')).toBeVisible()
+  // Rewrite Data Sample's List the way it was stored before List was ported: scalar inputs, legacy instance in cache.
+  await page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem('feature-domain:models')!)
+    for (const model of Object.values(stored.models) as { name: string; features: { id: string; feature: string; inputs: object; cache?: object }[] }[]) {
+      if (model.name !== 'Data Sample') continue
+      const list = model.features.find((f) => f.id === '7')!
+      const legacy = { feature: 'ListFeature', id: '7', inputs: { name: 'Color list', list: 'Red,Green,Blue,Yellow', align: 'center-block' } }
+      list.inputs = { name: 'Color list', list: 'Red,Green,Blue,Yellow', align: 'center-block' }
+      list.cache = { legacy }
+    }
+    localStorage.setItem('feature-domain:models', JSON.stringify(stored))
+  })
+  await page.getByRole('link', { name: 'Data Sample', exact: true }).click()
+  await expect(canvas(page).locator('[data-feature-id="7"] li')).toHaveText(['Red', 'Green', 'Blue', 'Yellow'])
+  await expect(page.getByTestId('save-state')).toHaveText('Saved')
+  const saved = await page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem('feature-domain:models')!)
+    const model = (Object.values(stored.models) as { name: string; features: { id: string }[] }[]).find((m) => m.name === 'Data Sample')!
+    return model.features.find((f) => f.id === '7')
+  })
+  expect(saved).toEqual({ feature: 'ListFeature', id: '7', inputs: { name: 'Color list', disable: false, items: ['Red', 'Green', 'Blue', 'Yellow'], align: 'center' }, placement: { parent: '12', slot: 'r1c1' } })
+})
+
+test('responsive images keep their aspect ratio in a narrow cell', async ({ page }) => {
+  // The frog image in Data Sample is responsive, 300 x 300; serve it as a 2:1 picture.
+  await page.context().route('http://assets.kompas.com/**', (route) =>
+    route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="green"/></svg>' }),
+  )
+  await page.goto('/')
+  await page.getByRole('link', { name: 'Data Sample', exact: true }).click()
+  await tree(page).locator('[data-tree-id="12"]').click()
+  await inspector(page).getByLabel('Columns').fill('4')
+  const frog = canvas(page).locator('[data-feature-id="13"]')
+  await expect(frog).toHaveJSProperty('complete', true)
+  const box = (await frog.boundingBox())!
+  const cell = (await canvas(page).locator('[data-node-id="12.r1c2"]').boundingBox())!
+  expect(box.width).toBeLessThanOrEqual(cell.width)
+  expect(box.width).toBeLessThan(300)
+  expect(box.height).toBeCloseTo(box.width / 2, 0)
+})

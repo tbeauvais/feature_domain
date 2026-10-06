@@ -66,8 +66,8 @@ cd packages/engine && npx vitest           # watch mode
     - Containers with no valid rows or columns get the 1x2 default.
     - Bootstrap values (`text-center`, `pull-left`, `panel-success`) map to plain values.
   - Every interpretation is recorded as a note, and text using HTML or `{{...}}` bindings is flagged.
-  - Unported feature types keep their scalar inputs and their legacy instance in `cache.legacy`, so they can be migrated properly once ported.
-  - v2 models pass through unchanged.
+  - Unported feature types keep their scalar inputs and their legacy instance in `cache.legacy`.
+  - **v2 models are upgraded, not re-migrated:** any feature still carrying `cache.legacy` whose type now has an input migration is migrated from it, keeping its placement, with an `upgraded-feature` note. Otherwise the same object is returned. The editor applies this on load and saves the result; the preview upgrades in memory only. So porting a feature also fixes models stored before it was ported.
 - **`generate(model, registry?)`** (`src/generate.ts`) returns `{ root, metadata, graph, edgeKinds, order, diagnostics }`.
   - The graph has `placement` edges (parent -> child) and `reference` edges (referenced -> referencing).
   - Features generate in topological order. Siblings attach to their slot in **model order**.
@@ -99,7 +99,7 @@ cd packages/engine && npx vitest           # watch mode
   - `.fd-root` is a hard boundary. The root starts from `all: initial`, so nothing is inherited from the editor page, and everything inside is reverted to browser defaults (`all: revert`). Then `document.css` applies its own styles.
   - An e2e test compares *every* computed property of every element in the editor and the preview, except a short list of layout-dependent ones, including with leaky utility classes added to the canvas wrapper. It fails if the isolation breaks.
   - **Tailwind utilities have no effect inside `.fd-root`.** Editor overlays (selection outlines, drop indicators, inline editors) must live outside it, positioned from bounding boxes, or use plain CSS.
-  - Text is always plain text, never `v-html`. URL policies are in `renderer/urls.ts`: links and data fetches are http(s) only; image sources are http(s), relative or `data:image/`.
+  - Text is always plain text, never `v-html`. Responsive images get no fixed height (their height follows the width, like Bootstrap's `img-responsive`). URL policies are in `renderer/urls.ts`: links and data fetches are http(s) only; image sources are http(s), relative or `data:image/`.
 - **Tables.** Tables fetch rows at runtime (`renderer/rows.ts`, injectable through `FETCH_JSON`; phase 3 routes this via `/api/proxy`). Cells use a small filter language (`renderer/filters.ts`: `uppercase`, `lowercase`, `date`, `dataLink :path`), and links are only ever http(s).
 - **Editor** (`src/editor/`, `views/ModelView.vue`): three columns.
   - **Left: palette and feature tree.** The palette adds a feature into the selected feature's first slot, else after the selection, else on the first page (`editor/targets.ts`). The tree is built from generation metadata (`editor/featureTree.ts`), not the DOM, so skipped, unknown and suppressed features appear with their reasons; unplaced ones go under "Not on the page".

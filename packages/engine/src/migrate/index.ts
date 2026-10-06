@@ -15,6 +15,7 @@ export type MigrationNoteCode =
   | 'unresolved-operation'
   | 'markup-in-text'
   | 'data-binding'
+  | 'upgraded-feature'
 
 export interface MigrationNote {
   code: MigrationNoteCode
@@ -44,12 +45,15 @@ export function isV2Model(value: unknown): value is AppModel {
 }
 
 /**
- * Converts a legacy model (an `{ id, name, features }` object or a bare feature list) to the v2 format. Pure. v2
- * models are returned unchanged. Values are translated to what the legacy app actually rendered, and every
- * interpretation is recorded in `notes`.
+ * Converts a legacy model (an `{ id, name, features }` object or a bare feature list) to the v2 format. Pure. Values
+ * are translated to what the legacy app actually rendered, and every interpretation is recorded in `notes`.
+ *
+ * v2 models are upgraded instead: features that were not ported when the model was migrated kept their legacy
+ * instance in `cache.legacy`, and any whose type is ported now are migrated from it. A v2 model with nothing to
+ * upgrade is returned unchanged (the same object).
  */
 export function migrate(input: unknown): MigrationResult {
-  if (isV2Model(input)) return { model: input, notes: [] }
+  if (isV2Model(input)) return upgrade(input)
   const legacy: Raw = Array.isArray(input) ? { features: input } : typeof input === 'object' && input !== null ? (input as Raw) : {}
   if (!Array.isArray(legacy.features)) throw new TypeError('Not an application model: expected a features array')
 
@@ -130,6 +134,45 @@ export function migrate(input: unknown): MigrationResult {
   const model: AppModel = { version: 2, name: str(legacy.name) || 'Untitled', features }
   if (typeof legacy.id === 'string') model.id = legacy.id
   return { model, notes }
+}
+
+/** The legacy instance kept for a feature that was unported when migrated, if its type can be migrated now. */
+function pendingLegacy(f: FeatureInstance): Raw | undefined {
+  const legacy = f.cache?.legacy
+  return INPUTS[f.feature] && typeof legacy === 'object' && legacy !== null && !Array.isArray(legacy) ? (legacy as Raw) : undefined
+}
+
+function upgrade(model: AppModel): MigrationResult {
+  if (!model.features.some((f) => pendingLegacy(f))) return { model, notes: [] }
+  const notes: MigrationNote[] = []
+  const legacyInputs = (f: FeatureInstance): Raw => {
+    const raw = pendingLegacy(f)?.inputs
+    return typeof raw === 'object' && raw !== null ? (raw as Raw) : (f.inputs as Raw)
+  }
+
+  // References by data resource name resolve exactly as in a full migration: the first resource with the name wins.
+  const resources = new Map<string, string>()
+  const operations = new Map<string, { name: string; operations: string[] }>()
+  for (const f of model.features) {
+    const inputs = legacyInputs(f)
+    const name = str(inputs.name)
+    if (DATA_RESOURCE_TYPES.includes(f.feature) && !resources.has(name)) resources.set(name, f.id)
+    if (f.feature === 'DataResourceFeature') operations.set(f.id, { name, operations: [operationName(httpMethod(str(inputs.operation)), str(inputs.resource))] })
+  }
+
+  const features = model.features.map((f): FeatureInstance => {
+    const legacy = pendingLegacy(f)
+    if (!legacy) return f
+    const note = (code: MigrationNoteCode, severity: MigrationNote['severity'], message: string) => notes.push({ code, severity, message, featureInstanceId: f.id })
+    const ctx: Context = { note, resourceId: (name) => resources.get(name), resourceOperations: (rid) => operations.get(rid) }
+    const out: FeatureInstance = { feature: f.feature, id: f.id, inputs: INPUTS[f.feature]!(legacyInputs(f), ctx) }
+    // Placement was resolved when the model was first migrated (unported features were placed too).
+    if (f.placement && !DATA_RESOURCE_TYPES.includes(f.feature)) out.placement = f.placement
+    if (isNonEmptyObject(legacy.cache)) out.cache = legacy.cache
+    note('upgraded-feature', 'info', `${f.feature} is ported now; migrated from the legacy settings kept in cache.legacy`)
+    return out
+  })
+  return { model: { ...model, features }, notes }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

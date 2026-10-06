@@ -92,6 +92,28 @@ describe('editing with useDocumentStore', () => {
     expect(doc.result?.root.children[0]?.children).toEqual([])
   })
 
+  it('upgrades features stored before their type was ported, and saves the upgrade', async () => {
+    const legacyList = { feature: 'ListFeature', id: '7', inputs: { name: 'Color list', list: 'Red,Yellow' } }
+    const stored = { ...model(page()), features: [page(), { feature: 'ListFeature', id: '7', inputs: { name: 'Color list', list: 'Red,Yellow' }, placement: at('1', 'content'), cache: { legacy: legacyList } }] }
+    const doc = await open(stored)
+    expect(doc.model?.features[1]?.inputs.items).toEqual(['Red', 'Yellow'])
+    expect(doc.result?.root.children[0]?.children[0]?.props).toEqual({ items: ['Red', 'Yellow'], align: 'left' })
+    expect(doc.saveState).toBe('pending')
+    await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS)
+    expect((await store.get(id))?.features[1]).not.toHaveProperty('cache')
+  })
+
+  it('upgrades in memory only when not editing (the preview)', async () => {
+    const legacyList = { feature: 'ListFeature', id: '7', inputs: { list: 'Red' } }
+    id = await store.create({ ...model(page()), features: [page(), { feature: 'ListFeature', id: '7', inputs: {}, placement: at('1', 'content'), cache: { legacy: legacyList } }] })
+    const doc = useDocumentStore()
+    await doc.load(id)
+    expect(doc.model?.features[1]?.inputs.items).toEqual(['Red'])
+    expect(doc.saveState).toBe('saved')
+    await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS)
+    expect((await store.get(id))?.features[1]).toHaveProperty('cache')
+  })
+
   it('never lets refresh replace edits that are not saved yet', async () => {
     const doc = await open(model(page()))
     doc.rename('Local edit')

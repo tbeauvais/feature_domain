@@ -2,6 +2,7 @@ import {
   addFeature,
   defaultRegistry,
   generate,
+  migrate,
   moveFeature,
   removeFeature,
   updateInputs,
@@ -71,8 +72,15 @@ export const useDocumentStore = defineStore('document', () => {
         error.value = `the model is not valid (${problems.slice(0, 3).join('; ')}${problems.length > 3 ? `; ${problems.length - 3} more` : ''})`
         return
       }
+      // Features stored before their type was ported are migrated from their legacy settings now. The editor saves the
+      // upgrade so it happens once; the preview only reads.
+      const upgraded = migrate(loaded).model
       model.value = loaded as AppModel
       status.value = 'ready'
+      if (upgraded !== loaded) {
+        if (editing.value) apply(upgraded)
+        else model.value = upgraded
+      }
     } catch (e) {
       if (modelId.value !== id) return
       status.value = 'error'
@@ -89,7 +97,7 @@ export const useDocumentStore = defineStore('document', () => {
     if (id === null || saveState.value !== 'saved') return false
     const loaded: unknown = await modelStore().get(id)
     if (modelId.value !== id || saveState.value !== 'saved' || loaded === null || validateModel(loaded).length > 0) return false
-    model.value = loaded as AppModel
+    model.value = migrate(loaded).model
     status.value = 'ready'
     return true
   }

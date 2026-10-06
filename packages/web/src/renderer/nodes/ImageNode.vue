@@ -12,7 +12,12 @@ function cssSize(value: string): string | undefined {
 }
 
 // Sizes go in inline style rather than width/height attributes so no stylesheet (e.g. a CSS reset) can override them.
-const style = computed(() => ({ width: cssSize(props.node.props.width), height: cssSize(props.node.props.height) }))
+// Responsive images get no fixed height: like Bootstrap's img-responsive in the legacy app, their height follows the
+// width (max-width: 100%; height: auto), so they keep their aspect ratio when the container is narrower.
+const style = computed(() => ({
+  width: cssSize(props.node.props.width),
+  height: props.node.props.responsive ? undefined : cssSize(props.node.props.height),
+}))
 </script>
 
 <template>
