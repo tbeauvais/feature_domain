@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { InputDef, InputValue } from '@feature-domain/engine'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 // One editor control for one feature input, chosen from the input's schema. Emits the new value, or undefined to
 // clear the input (it then falls back to its default).
@@ -14,12 +14,32 @@ const isHexColor = computed(() => typeof current.value === 'string' && /^#[0-9a-
 
 const field = 'w-full rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-sky-500 focus:outline-none'
 
-function onNumber(raw: string) {
+// Lists and numbers are normalized before they reach the model (trimmed lines, parsed numbers), so the field keeps
+// what the user is typing in a local draft. Otherwise each keystroke would round-trip and the normalized value would
+// overwrite the field mid-edit (erasing a new line, or bringing back the default when the field is cleared).
+const parseNumber = (raw: string): number | undefined => {
   const n = Number(raw)
-  emit('change', raw.trim() === '' || !Number.isFinite(n) ? undefined : n)
+  return raw.trim() === '' || !Number.isFinite(n) ? undefined : n
 }
-function onList(raw: string) {
-  emit('change', raw.split('\n').map((line) => line.trim()).filter((line) => line !== ''))
+const parseList = (raw: string): string[] => raw.split('\n').map((line) => line.trim()).filter((line) => line !== '')
+const parse = (raw: string): InputValue | undefined => (props.def.type === 'list' ? parseList(raw) : parseNumber(raw))
+const same = (a: InputValue | undefined, b: InputValue | undefined) => JSON.stringify(a) === JSON.stringify(b)
+
+const draft = ref(text.value)
+// Adopt outside changes (another feature selected, a reset), but not the echo of our own edit.
+watch(
+  () => props.value,
+  (value) => {
+    if (!same(parse(draft.value), value)) draft.value = text.value
+  },
+)
+function onDraft(raw: string) {
+  draft.value = raw
+  emit('change', parse(raw))
+}
+/** On leaving the field, show the value the model actually holds. */
+function settle() {
+  draft.value = text.value
 }
 </script>
 
@@ -29,10 +49,12 @@ function onList(raw: string) {
 
     <select v-if="def.type === 'reference'" :id="id" :class="field" :value="text" @change="emit('change', ($event.target as HTMLSelectElement).value)">
       <option value="">None</option>
+      <option v-if="text !== '' && !(references ?? []).some((r) => r.id === text)" :value="text" disabled>Missing: #{{ text }}</option>
       <option v-for="ref in references ?? []" :key="ref.id" :value="ref.id">{{ ref.label }}</option>
     </select>
 
     <select v-else-if="def.options" :id="id" :class="field" :value="text" @change="emit('change', ($event.target as HTMLSelectElement).value)">
+      <option v-if="!def.options.some((o) => o.value === text)" :value="text" disabled>Unknown: {{ text || '(empty)' }}</option>
       <option v-for="option in def.options" :key="option.value" :value="option.value">{{ option.text }}</option>
     </select>
 
@@ -48,8 +70,9 @@ function onList(raw: string) {
       :class="field"
       :min="def.min"
       :max="def.max"
-      :value="text"
-      @input="onNumber(($event.target as HTMLInputElement).value)"
+      :value="draft"
+      @input="onDraft(($event.target as HTMLInputElement).value)"
+      @blur="settle"
     />
 
     <div v-else-if="def.type === 'color'" class="flex gap-2">
@@ -70,8 +93,9 @@ function onList(raw: string) {
       rows="4"
       :class="field"
       placeholder="One item per line"
-      :value="text"
-      @input="onList(($event.target as HTMLTextAreaElement).value)"
+      :value="draft"
+      @input="onDraft(($event.target as HTMLTextAreaElement).value)"
+      @blur="settle"
     />
 
     <textarea

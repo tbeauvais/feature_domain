@@ -11,6 +11,7 @@ import {
   nextInstanceId,
   normalizeOrder,
   removeFeature,
+  renderOutline,
   ROOT_ID,
   updateInputs,
   type AppModel,
@@ -41,11 +42,21 @@ describe('descendantsOf', () => {
 })
 
 describe('normalizeOrder', () => {
-  it('moves features after their parent and the features they reference, keeping sibling order', () => {
+  it('puts features after their parent and the features they reference, without changing the page', () => {
     const m = model(inst('TextFeature', 'a', {}, at('c', 'r1c1')), page(), inst('TableFeature', 't', { data_resource: 'r' }), inst('TextFeature', 'b', {}, at('c', 'r1c1')), inst('ContainerFeature', 'c'), resource('r'))
     const sorted = normalizeOrder(m)
-    expect(ids(sorted)).toEqual(['1', 'c', 'a', 'b', 'r', 't'])
+    // The page shows table t before container c; dependencies (page 1, resource r) are pulled forward instead.
+    expect(ids(sorted)).toEqual(['1', 'r', 't', 'c', 'a', 'b'])
     expect(generate(sorted).diagnostics.filter((d) => d.code === 'out-of-order')).toEqual([])
+    expect(renderOutline(generate(sorted).root)).toBe(renderOutline(generate(m).root))
+  })
+
+  it('pulls a referenced resource forward instead of pushing the table below its siblings', () => {
+    // Table 2 and Text 3 on the page; DataResource 4 added later, then linked to the table.
+    const m = model(page(), inst('TableFeature', '2', { data_resource: '' }), inst('TextFeature', '3'), resource('4'))
+    const linked = updateInputs(m, '2', { data_resource: '4' })
+    expect(ids(linked)).toEqual(['1', '4', '2', '3'])
+    expect(generate(linked).root.children[0]!.children.map((n) => n.featureInstanceId)).toEqual(['2', '3'])
   })
 
   it('returns the same object when the order is already valid', () => {
@@ -70,6 +81,13 @@ describe('insertFeature and addFeature', () => {
   it('ignores a target for features that are not placed', () => {
     const next = insertFeature(base(), resource('r'), at('1', 'content'))
     expect(next.features.at(-1)).toEqual(resource('r'))
+  })
+
+  it('validates the target like moveFeature does', () => {
+    const m = base()
+    expect(() => insertFeature(m, inst('TextFeature', 'n'), { ...at('c', 'r1c2'), before: 't' })).toThrow('Feature t is not in that slot')
+    expect(() => insertFeature(m, inst('TextFeature', 'n'), at('c', 'r9c9'))).toThrow('There is no slot "r9c9" in feature c')
+    expect(() => insertFeature(m, inst('MapFeature', 'n'), at('1', 'content'))).toThrow('Unknown feature type "MapFeature"')
   })
 
   it('refuses duplicate ids', () => {
@@ -186,6 +204,10 @@ describe('random edit sequences', () => {
         const res = m.features.find((f) => f.feature === 'DataResourceFeature')
         if (table && res) m = updateInputs(m, table.id, { data_resource: res.id })
       }
+
+      // Normalizing never changes the page, whatever order the features are listed in.
+      const shuffled = { ...m, features: [...m.features].sort(() => random() - 0.5) }
+      expect(renderOutline(generate(normalizeOrder(shuffled)).root), `step ${step}`).toBe(renderOutline(generate(shuffled).root))
 
       const after = generate(m)
       const codes = after.diagnostics.map((d) => d.code)

@@ -64,25 +64,36 @@ function dependenciesOf(instance: FeatureInstance, registry: FeatureRegistry): s
 }
 
 /**
- * Stable reorder so every feature comes after its parent and the features it references. Features already in a valid
- * order keep their relative order (siblings never swap); features on a dependency cycle keep their place at the end.
- * Returns the same model object when nothing moves.
+ * Stable reorder so every feature comes after its parent and the features it references, without changing the page:
+ * siblings in a slot keep their relative order (that order is what the page shows), so dependencies are pulled
+ * forward rather than dependents pushed back. Features on a dependency cycle go last, in model order. Returns the same
+ * model object when nothing moves.
  */
 export function normalizeOrder(model: AppModel, options: EditOptions = {}): AppModel {
   const registry = options.registry ?? defaultRegistry
   const ids = model.features.map((f) => f.id)
   const known = new Set(ids)
-  const edges: [string, string][] = []
+  const dependencyEdges: [string, string][] = []
+  const siblingEdges: [string, string][] = []
+  const lastInSlot = new Map<string, string>()
   for (const f of model.features) {
-    if (f.placement && f.placement.parent !== ROOT_ID && known.has(f.placement.parent)) edges.push([f.placement.parent, f.id])
-    for (const dep of dependenciesOf(f, registry)) if (known.has(dep)) edges.push([dep, f.id])
+    if (f.placement && f.placement.parent !== ROOT_ID && known.has(f.placement.parent)) dependencyEdges.push([f.placement.parent, f.id])
+    for (const dep of dependenciesOf(f, registry)) if (known.has(dep)) dependencyEdges.push([dep, f.id])
+    if (f.placement) {
+      const slot = `${f.placement.parent}/${f.placement.slot}`
+      const previous = lastInSlot.get(slot)
+      if (previous !== undefined) siblingEdges.push([previous, f.id])
+      lastInSlot.set(slot, f.id)
+    }
   }
-  const { order, cyclic, blocked } = topoSort(buildGraph(ids, edges))
-  const stuck = new Set([...cyclic, ...blocked])
-  const sorted = [...order, ...ids.filter((id) => stuck.has(id))]
-  if (sorted.every((id, i) => id === ids[i])) return model
+  // Sibling order can only conflict with dependencies when siblings reference each other in a cycle; then drop it.
+  let sorted = topoSort(buildGraph(ids, [...dependencyEdges, ...siblingEdges]))
+  if (sorted.cyclic.length > 0 || sorted.blocked.length > 0) sorted = topoSort(buildGraph(ids, dependencyEdges))
+  const stuck = new Set([...sorted.cyclic, ...sorted.blocked])
+  const order = [...sorted.order, ...ids.filter((id) => stuck.has(id))]
+  if (order.every((id, i) => id === ids[i])) return model
   const byId = new Map(model.features.map((f) => [f.id, f]))
-  return { ...model, features: sorted.map((id) => byId.get(id)!) }
+  return { ...model, features: order.map((id) => byId.get(id)!) }
 }
 
 /**
@@ -134,11 +145,23 @@ function insertionIndex(features: FeatureInstance[], target: PlacementTarget): n
   return parent >= 0 ? parent + 1 : features.length
 }
 
-/** Adds a feature instance. Placeable features need a target; data resources and the like ignore it. */
-export function insertFeature(model: AppModel, instance: FeatureInstance, target: PlacementTarget | undefined, options: EditOptions = {}): AppModel {
+/**
+ * Adds a feature instance. Placeable features go into `target`, which must pass `canPlace` (EditError otherwise);
+ * data resources and the like ignore it.
+ */
+export function insertFeature(
+  model: AppModel,
+  instance: FeatureInstance,
+  target: PlacementTarget | undefined,
+  options: EditOptions & { result?: GenerateResult } = {},
+): AppModel {
   const registry = options.registry ?? defaultRegistry
   if (model.features.some((f) => f.id === instance.id)) throw new EditError(`Instance id "${instance.id}" is already used`)
   const placeable = registry.get(instance.feature)?.placement !== 'none'
+  if (placeable && target) {
+    const check = canPlace(model, { feature: instance.feature }, target, options)
+    if (!check.ok) throw new EditError(check.reason)
+  }
   const { placement: _ignored, ...rest } = instance
   const added: FeatureInstance = placeable && target ? { ...rest, placement: { parent: target.parent, slot: target.slot } } : rest
   const features = [...model.features]
@@ -147,7 +170,12 @@ export function insertFeature(model: AppModel, instance: FeatureInstance, target
 }
 
 /** Adds a new instance of `featureType` with default inputs and the next free id. Returns the model and the new id. */
-export function addFeature(model: AppModel, featureType: string, target: PlacementTarget | undefined, options: EditOptions = {}): { model: AppModel; id: string } {
+export function addFeature(
+  model: AppModel,
+  featureType: string,
+  target: PlacementTarget | undefined,
+  options: EditOptions & { result?: GenerateResult } = {},
+): { model: AppModel; id: string } {
   const registry = options.registry ?? defaultRegistry
   const def = registry.get(featureType)
   if (!def) throw new EditError(`Unknown feature type "${featureType}"`)
@@ -156,7 +184,7 @@ export function addFeature(model: AppModel, featureType: string, target: Placeme
 }
 
 /** Moves a placed feature (and everything inside it) to another slot or position. Throws EditError when `canPlace` would refuse. */
-export function moveFeature(model: AppModel, id: string, target: PlacementTarget, options: EditOptions = {}): AppModel {
+export function moveFeature(model: AppModel, id: string, target: PlacementTarget, options: EditOptions & { result?: GenerateResult } = {}): AppModel {
   const check = canPlace(model, { id }, target, options)
   if (!check.ok) throw new EditError(check.reason)
   if (target.before === id) return model

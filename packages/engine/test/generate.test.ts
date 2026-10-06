@@ -405,10 +405,35 @@ describe('placeholders (editor mode)', () => {
   })
 })
 
+describe('skip reasons in metadata', () => {
+  it('record the first problem, not later effects such as out-of-order', () => {
+    // t is listed before its container c, and c itself cannot be placed.
+    const r = generate(model(page(), inst('TextFeature', 't', {}, at('c', 'r1c1')), inst('ContainerFeature', 'c', { columns: 1 }, at('nowhere', 'x')), inst('TextFeature', 'off', { disable: true })))
+    expect(r.diagnostics.filter((d) => d.featureInstanceId === 't').map((d) => d.code)).toEqual(['out-of-order', 'parent-skipped'])
+    const reasons = Object.fromEntries(r.metadata.features.map((f) => [f.id, f.reason]))
+    expect(reasons).toEqual({
+      '1': undefined,
+      t: 'Parent feature c ("ContainerFeature c") was not generated',
+      c: 'Parent feature nowhere does not exist',
+      off: 'Feature is suppressed',
+    })
+  })
+})
+
 describe('unknown features in metadata', () => {
   it('are listed in model order with status unknown, their placement and page', () => {
     const r = generate(model(page(), inst('TextFeature', 'a'), inst('MapFeature', 'map'), inst('TextFeature', 'b')))
     expect(r.metadata.features.map((f) => `${f.id}:${f.status}`)).toEqual(['1:generated', 'a:generated', 'map:unknown', 'b:generated'])
-    expect(r.metadata.features[2]).toEqual({ id: 'map', feature: 'MapFeature', name: 'MapFeature map', status: 'unknown', placement: at('1', 'content'), page: '1', slots: [], references: [] })
+    expect(r.metadata.features[2]).toEqual({
+      id: 'map',
+      feature: 'MapFeature',
+      name: 'MapFeature map',
+      status: 'unknown',
+      reason: 'MapFeature is not ported yet',
+      placement: at('1', 'content'),
+      page: '1',
+      slots: [],
+      references: [],
+    })
   })
 })

@@ -7,9 +7,18 @@ const props = defineProps<{ container: HTMLElement | null; selectedId: string | 
 
 const box = ref<{ top: number; left: number; width: number; height: number } | null>(null)
 
+let observer: ResizeObserver | undefined
+let observed: Element | null = null
+
 function measure() {
   const container = props.container
   const el = container && props.selectedId !== null ? container.querySelector(`[data-feature-id="${CSS.escape(props.selectedId)}"]`) : null
+  // Also watch the selected element itself: its size changes when content arrives later (table rows, images).
+  if (el !== observed) {
+    if (observed) observer?.unobserve(observed)
+    if (el) observer?.observe(el)
+    observed = el
+  }
   if (!container || !el) {
     box.value = null
     return
@@ -27,9 +36,18 @@ function measure() {
 
 watch(() => [props.container, props.selectedId, props.version], () => void nextTick(measure), { immediate: true })
 
-let observer: ResizeObserver | undefined
+// Images finishing loading inside the page (load events don't bubble, so listen while capturing).
+const onLoad = () => measure()
 onMounted(() => {
   window.addEventListener('resize', measure)
+  watch(
+    () => props.container,
+    (el, old) => {
+      old?.removeEventListener('load', onLoad, true)
+      el?.addEventListener('load', onLoad, true)
+    },
+    { immediate: true },
+  )
   if (typeof ResizeObserver !== 'undefined') {
     observer = new ResizeObserver(measure)
     watch(
@@ -44,6 +62,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', measure)
+  props.container?.removeEventListener('load', onLoad, true)
   observer?.disconnect()
 })
 </script>

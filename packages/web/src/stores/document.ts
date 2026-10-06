@@ -81,17 +81,17 @@ export const useDocumentStore = defineStore('document', () => {
   }
 
   /**
-   * Re-reads the current model without showing a loading state, e.g. when another tab saved it. Invalid or missing
-   * data leaves the current model in place.
+   * Re-reads the current model without showing a loading state, e.g. when another tab saved it. Never replaces local
+   * edits that aren't saved yet; invalid or missing data leaves the current model in place. Returns whether it did.
    */
-  async function refresh(): Promise<void> {
+  async function refresh(): Promise<boolean> {
     const id = modelId.value
-    if (id === null) return
+    if (id === null || saveState.value !== 'saved') return false
     const loaded: unknown = await modelStore().get(id)
-    if (modelId.value === id && loaded !== null && validateModel(loaded).length === 0) {
-      model.value = loaded as AppModel
-      status.value = 'ready'
-    }
+    if (modelId.value !== id || saveState.value !== 'saved' || loaded === null || validateModel(loaded).length > 0) return false
+    model.value = loaded as AppModel
+    status.value = 'ready'
+    return true
   }
 
   // --- Saving -------------------------------------------------------------------------------------------------------
@@ -106,18 +106,22 @@ export const useDocumentStore = defineStore('document', () => {
     saveState.value = 'saving'
     try {
       await modelStore().update(id, snapshot)
-      if (model.value === snapshot) saveState.value = timer === undefined ? 'saved' : 'pending'
+      // A save that finishes after another model was opened must not change that model's state.
+      if (modelId.value === id && model.value === snapshot) saveState.value = timer === undefined ? 'saved' : 'pending'
     } catch (e) {
+      if (modelId.value !== id) return
       saveState.value = 'error'
       saveError.value = e instanceof Error ? e.message : String(e)
     }
   }
 
-  /** Saves now if an edit is waiting to be saved. */
-  async function flush(): Promise<void> {
-    if (timer === undefined) return
-    clearTimeout(timer)
-    await save()
+  /** Saves now if an edit is waiting to be saved. Resolves to false if that save failed (the edits are not stored). */
+  async function flush(): Promise<boolean> {
+    if (timer !== undefined) {
+      clearTimeout(timer)
+      await save()
+    }
+    return saveState.value !== 'error'
   }
 
   function apply(next: AppModel): void {

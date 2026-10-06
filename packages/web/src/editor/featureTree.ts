@@ -32,12 +32,6 @@ export function buildFeatureTree(result: GenerateResult): FeatureTree {
   }
   const slotCount = new Map(meta.map((f) => [f.id, f.slots.length]))
 
-  const reasonFor = (id: string, status: FeatureStatus) => {
-    if (status === 'generated') return undefined
-    const problem = result.diagnostics.find((d) => d.featureInstanceId === id && (status === 'suppressed' ? d.code === 'suppressed' : d.severity !== 'info'))
-    return problem?.message ?? (status === 'unknown' ? 'Not ported yet' : undefined)
-  }
-
   const reached = new Set<string>()
   const item = (f: (typeof meta)[number]): TreeItem => {
     reached.add(f.id)
@@ -49,8 +43,7 @@ export function buildFeatureTree(result: GenerateResult): FeatureTree {
       status: f.status,
       children: (byParent.get(f.id) ?? []).filter((c) => !reached.has(c.id)).map(item),
     }
-    const reason = reasonFor(f.id, f.status)
-    if (reason !== undefined) out.reason = reason
+    if (f.reason !== undefined) out.reason = f.reason
     if (f.placement && f.placement.parent !== ROOT_ID && (slotCount.get(f.placement.parent) ?? 0) > 1) out.slot = f.placement.slot
     return out
   }

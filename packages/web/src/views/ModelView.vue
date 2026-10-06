@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter } from 'vue-router'
 import FeatureTree from '../editor/FeatureTree.vue'
 import Inspector from '../editor/Inspector.vue'
 import Palette from '../editor/Palette.vue'
@@ -25,6 +25,14 @@ watch(() => props.id, (id) => store.load(id), { immediate: true })
 
 // Save anything pending before the page goes away (browser storage writes synchronously).
 const flush = () => void store.flush()
+
+/** Before opening another page: save pending edits, and if saving fails, ask before dropping them. */
+async function confirmLeave(): Promise<boolean> {
+  if (await store.flush()) return true
+  return window.confirm(`Your latest changes could not be saved (${store.saveError}). Leave anyway and lose them?`)
+}
+onBeforeRouteLeave(confirmLeave)
+onBeforeRouteUpdate(confirmLeave)
 onMounted(() => window.addEventListener('pagehide', flush))
 onBeforeUnmount(() => {
   window.removeEventListener('pagehide', flush)

@@ -92,6 +92,35 @@ describe('editing with useDocumentStore', () => {
     expect(doc.result?.root.children[0]?.children).toEqual([])
   })
 
+  it('never lets refresh replace edits that are not saved yet', async () => {
+    const doc = await open(model(page()))
+    doc.rename('Local edit')
+    await store.update(id, { ...model(page()), name: 'From another tab' })
+    expect(await doc.refresh()).toBe(false)
+    expect(doc.model?.name).toBe('Local edit')
+  })
+
+  it('reports a failed flush, and a late failure does not touch the next model', async () => {
+    const doc = await open(model(page()))
+    const update = vi.spyOn(store, 'update').mockRejectedValue(new Error('quota exceeded'))
+    doc.rename('x')
+    expect(await doc.flush()).toBe(false)
+    expect(doc.saveState).toBe('error')
+
+    // An in-flight save that fails after another model opened.
+    let fail!: (e: Error) => void
+    update.mockImplementation(() => new Promise((_, reject) => (fail = reject)))
+    doc.rename('y')
+    vi.advanceTimersByTime(SAVE_DELAY_MS)
+    update.mockResolvedValue(undefined)
+    const other = await store.create(model(page()))
+    const loading = doc.load(other)
+    fail(new Error('late failure'))
+    await loading
+    expect(doc.modelId).toBe(other)
+    expect(doc.saveState).toBe('saved')
+  })
+
   it('refreshes from storage without a loading state, ignoring invalid data', async () => {
     const doc = await open(model(page()))
     await store.update(id, { ...model(page()), name: 'From another tab' })

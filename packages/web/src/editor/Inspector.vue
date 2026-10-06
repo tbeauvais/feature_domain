@@ -88,6 +88,9 @@ function remove() {
             @change="moveTo(($event.target as HTMLSelectElement).value)"
           >
             <option v-if="location === ''" value="" disabled>Not placed</option>
+            <option v-else-if="!locations.some((o) => o.value === location)" :value="location" disabled>
+              Missing: {{ instance.placement?.parent }} › {{ instance.placement?.slot }}
+            </option>
             <option v-for="option in locations" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select>
         </div>

@@ -1,7 +1,8 @@
-import { generate, MemoryModelStore, type InputDef } from '@feature-domain/engine'
-import { mount } from '@vue/test-utils'
+import { generate, MemoryModelStore, type InputDef, type InputValue } from '@feature-domain/engine'
+import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h, ref, type Ref } from 'vue'
 import Inspector from '../src/editor/Inspector.vue'
 import InputField from '../src/editor/InputField.vue'
 import DocumentView from '../src/renderer/DocumentView.vue'
@@ -55,6 +56,64 @@ describe('InputField', () => {
   })
 })
 
+describe('InputField while typing', () => {
+  // Like the editor: every emitted value goes into the model and comes straight back as the field's value.
+  function controlled(d: InputDef, initial: InputValue | undefined) {
+    const value: Ref<InputValue | undefined> = ref(initial)
+    const Host = defineComponent(() => () => h(InputField, { def: d, value: value.value, onChange: (v: InputValue | undefined) => (value.value = v) }))
+    return { value, w: mount(Host) }
+  }
+  async function type(w: VueWrapper, selector: string, keys: string) {
+    const el = w.get(selector).element as HTMLInputElement | HTMLTextAreaElement
+    for (const key of keys) {
+      el.value += key
+      await w.get(selector).trigger('input')
+    }
+  }
+
+  it('keeps a new line and spaces while typing list items, storing trimmed items', async () => {
+    const { value, w } = controlled(def({ type: 'list' }), ['Red', 'Green', 'Blue'])
+    await type(w, 'textarea', '\nNew York')
+    expect((w.get('textarea').element as HTMLTextAreaElement).value).toBe('Red\nGreen\nBlue\nNew York')
+    expect(value.value).toEqual(['Red', 'Green', 'Blue', 'New York'])
+    await type(w, 'textarea', '\n')
+    expect((w.get('textarea').element as HTMLTextAreaElement).value).toBe('Red\nGreen\nBlue\nNew York\n')
+  })
+
+  it('lets a number be cleared and retyped without the default coming back', async () => {
+    const { value, w } = controlled(def({ type: 'integer', default: 2 }), 2)
+    const input = w.get('input')
+    await input.setValue('')
+    expect((input.element as HTMLInputElement).value).toBe('')
+    expect(value.value).toBeUndefined()
+    await type(w, 'input', '3')
+    expect((input.element as HTMLInputElement).value).toBe('3')
+    expect(value.value).toBe(3)
+  })
+
+  it('shows the stored value again on blur, and adopts outside changes', async () => {
+    const { value, w } = controlled(def({ type: 'integer', default: 2 }), 5)
+    await w.get('input').setValue('')
+    await w.get('input').trigger('blur')
+    expect((w.get('input').element as HTMLInputElement).value).toBe('2')
+    value.value = 7
+    await w.vm.$nextTick()
+    expect((w.get('input').element as HTMLInputElement).value).toBe('7')
+  })
+
+  it('shows values that are no longer among the options', () => {
+    const ref = mount(InputField, { props: { def: def({ type: 'reference' }), value: 'gone', references: [{ id: 'r', label: 'Repos (#r)' }] } })
+    expect(ref.findAll('option').map((o) => [o.text(), o.attributes('disabled') !== undefined])).toEqual([
+      ['None', false],
+      ['Missing: #gone', true],
+      ['Repos (#r)', false],
+    ])
+    expect((ref.get('select').element as HTMLSelectElement).value).toBe('gone')
+    const options = mount(InputField, { props: { def: def({ type: 'string', options: [{ value: 'a', text: 'A' }] }), value: 'text-info' } })
+    expect(options.findAll('option').map((o) => o.text())).toEqual(['Unknown: text-info', 'A'])
+  })
+})
+
 describe('Inspector', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
@@ -85,6 +144,13 @@ describe('Inspector', () => {
     await w.vm.$nextTick()
     await w.get('#input-location').setValue('c\u0000r1c2')
     expect(doc.model?.features.find((f) => f.id === 't')?.placement).toEqual(at('c', 'r1c2'))
+  })
+
+  it('shows a broken placement instead of a blank Location', async () => {
+    const { w } = await inspect([page(), inst('TextFeature', 't', {}, at('nowhere', 'x'))], 't')
+    const select = w.get('#input-location')
+    expect(select.findAll('option')[0]!.text()).toBe('Missing: nowhere › x')
+    expect((select.element as HTMLSelectElement).value).toBe('nowhere\u0000x')
   })
 
   it('lists matching features for references', async () => {
