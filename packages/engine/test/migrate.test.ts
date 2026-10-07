@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generate, migrate, ROOT_ID, type FeatureInstance } from '../src'
+import { generate, migrate, ROOT_ID, type AppModel, type FeatureInstance } from '../src'
 import { legacyDomId, legacyGrid, normalizeAlign, normalizeTone } from '../src/migrate/legacy'
 import { deepFreeze } from './helpers'
 
@@ -285,6 +285,24 @@ describe('migrate: upgrading v2 models when features get ported', () => {
     expect(upgraded.notes).toEqual([
       { code: 'upgraded-feature', severity: 'info', featureInstanceId: '7', message: 'ListFeature is ported now; migrated from the legacy settings kept in cache.legacy' },
     ])
+    expect(migrate(upgraded.model).model).toBe(upgraded.model)
+  })
+
+  it('drops legacy colours from Pages stored before pages were themed, with a note', () => {
+    const stored: AppModel = {
+      version: 2,
+      name: 'Old',
+      features: [
+        { feature: 'PageFeature', id: '15', inputs: { name: 'Page', border_color: '#00a3ff', background_color: '', background_image: 'bg.png' }, placement: { parent: '$root', slot: 'content' } },
+      ],
+    }
+    const upgraded = migrate(stored)
+    expect(upgraded.model.features[0]!.inputs).toEqual({ name: 'Page', background_image: 'bg.png' })
+    expect(upgraded.model.features[0]!.placement).toEqual({ parent: '$root', slot: 'content' })
+    expect(upgraded.notes).toEqual([
+      { code: 'dropped-style', severity: 'info', featureInstanceId: '15', message: 'Dropped legacy page border_color "#00a3ff"; pages are styled by their theme' },
+    ])
+    expect(stored.features[0]!.inputs).toHaveProperty('border_color')
     expect(migrate(upgraded.model).model).toBe(upgraded.model)
   })
 

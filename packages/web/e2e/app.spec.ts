@@ -1,22 +1,17 @@
 import { expect, test, type Page } from '@playwright/test'
+import { isolateNetwork } from './network'
 
 // Every request leaves localhost only to the GitHub API, which is mocked, so runs are deterministic and offline-safe.
-async function isolateNetwork(page: Page) {
-  await page.context().route('**/*', async (route) => {
-    const url = new URL(route.request().url())
-    if (url.hostname === 'localhost') return route.continue()
-    if (url.hostname === 'api.github.com') {
-      const user = url.pathname.split('/')[2]
-      return route.fulfill({
-        json: [
-          { name: `${user}-engine`, description: 'Parametric engine', language: 'TypeScript', updated_at: '2015-03-07T10:00:00Z', html_url: `https://github.com/${user}/engine` },
-          { name: `${user}-web`, description: null, language: 'Vue', updated_at: '2016-12-17T08:48:05Z', html_url: `https://github.com/${user}/web` },
-        ],
-      })
-    }
-    return route.abort()
+isolateNetwork((route, url) => {
+  if (url.hostname !== 'api.github.com') return undefined
+  const user = url.pathname.split('/')[2]
+  return route.fulfill({
+    json: [
+      { name: `${user}-engine`, description: 'Parametric engine', language: 'TypeScript', updated_at: '2015-03-07T10:00:00Z', html_url: `https://github.com/${user}/engine` },
+      { name: `${user}-web`, description: null, language: 'Vue', updated_at: '2016-12-17T08:48:05Z', html_url: `https://github.com/${user}/web` },
+    ],
   })
-}
+})
 
 async function openSample(page: Page, name: string): Promise<string> {
   await page.goto('/')
@@ -25,9 +20,6 @@ async function openSample(page: Page, name: string): Promise<string> {
   return decodeURIComponent(new URL(page.url()).pathname.split('/').pop()!)
 }
 
-test.beforeEach(async ({ page }) => {
-  await isolateNetwork(page)
-})
 
 test('lists the migrated sample models', async ({ page }) => {
   await page.goto('/')
@@ -97,7 +89,9 @@ const measureDocument = (target: Page) =>
       }
       // Centred boxes (pages, images, lists) use auto margins, which resolve to pixels that depend on the container
       // width; compare "centred" instead.
-      if (/\bfd-((image|list)-center|page)\b/.test(el.className) && values['margin-left'] === values['margin-right']) {
+      // (Auto margins can differ by a sub-pixel rounding step.)
+      const centred = Math.abs(parseFloat(values['margin-left']!) - parseFloat(values['margin-right']!)) < 0.5
+      if (/\bfd-((image|list)-center|page)\b/.test(el.className) && centred) {
         values['margin-left'] = values['margin-right'] = values['margin-inline-start'] = values['margin-inline-end'] = 'centred'
       }
       // What the editor changes on purpose, and only where it does: drag behaviour on draggable elements (user-select

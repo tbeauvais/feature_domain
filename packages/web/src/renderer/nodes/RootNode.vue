@@ -1,22 +1,15 @@
 <script setup lang="ts">
-import { deriveTokens, type DocNodeOf } from '@feature-domain/engine'
+import type { DocNodeOf } from '@feature-domain/engine'
+import { computed } from 'vue'
+import { DEFAULT_TOKENS, provideTheme } from '../theme'
 
 defineProps<{ node: DocNodeOf<'root'> }>()
 
-// The default theme (Warm Editorial) until pages reference a Theme feature: its tokens become custom properties and
-// its component styles `data-fd-*` attributes, which document.css reads.
-const theme = deriveTokens()
+// The default theme: its tokens become custom properties here, and components below read its style choices.
+const theme = computed(() => DEFAULT_TOKENS)
+provideTheme(theme)
 </script>
 
 <template>
-  <div
-    class="fd-root"
-    :style="theme.vars"
-    :data-fd-scheme="theme.scheme"
-    :data-fd-panel="theme.styles.panel"
-    :data-fd-table="theme.styles.table"
-    :data-fd-well="theme.styles.well"
-  >
-    <slot />
-  </div>
+  <div class="fd-root" :style="theme.vars" :data-fd-scheme="theme.scheme"><slot /></div>
 </template>

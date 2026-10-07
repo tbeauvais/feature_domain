@@ -2,9 +2,13 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { deriveTokens, generate, THEME_OPTIONS, THEME_STYLE_KEYS } from '@feature-domain/engine'
 import { mount } from '@vue/test-utils'
+import { computed, defineComponent, h } from 'vue'
 import { describe, expect, it } from 'vitest'
 import DocumentView from '../src/renderer/DocumentView.vue'
-import { model, page } from './helpers'
+import NodeView from '../src/renderer/NodeView.vue'
+import { FETCH_JSON } from '../src/renderer/rows'
+import { provideTheme } from '../src/renderer/theme'
+import { at, inst, model, page } from './helpers'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const css = read('../src/renderer/document.css')
@@ -49,19 +53,46 @@ describe('document.css and the theme tokens', () => {
   })
 })
 
-describe('RootNode', () => {
-  it('applies the default theme as custom properties and style attributes', () => {
-    const w = mount(DocumentView, { props: { root: generate(model(page())).root } })
+describe('theme in the renderer', () => {
+  const sample = () =>
+    model(
+      page(),
+      inst('PanelFeature', 'p', { heading: 'Panel' }),
+      inst('ContainerFeature', 'c', { well: true }),
+      inst('DataResourceFeature', 'r', { name: 'Repos', resource: 'https://api.github.com/users/x/repos', operation: 'GET' }, null),
+      inst('TableFeature', 't', { data_resource: 'r', fields: ['name'], labels: ['Name'] }, at('p', 'body')),
+    )
+  const global = { provide: { [FETCH_JSON as symbol]: async () => [] } }
+
+  it('the root carries the default tokens; components carry their own style choice', () => {
+    const w = mount(DocumentView, { props: { root: generate(sample()).root }, global })
     const root = w.get('.fd-root')
     const tokens = deriveTokens()
-    expect(root.attributes()).toMatchObject({
-      'data-fd-scheme': 'light',
-      'data-fd-panel': tokens.styles.panel,
-      'data-fd-table': tokens.styles.table,
-      'data-fd-well': tokens.styles.well,
-    })
+    expect(root.attributes('data-fd-scheme')).toBe('light')
+    expect(root.attributes('data-fd-panel')).toBeUndefined()
     const style = (root.element as HTMLElement).style
     expect(style.getPropertyValue('--fd-accent-solid')).toBe('#e5531a')
     expect(style.getPropertyValue('--fd-font-display')).toContain('Newsreader Variable')
+    expect(w.get('[data-feature-id="p"]').attributes('data-fd-panel')).toBe(tokens.styles.panel)
+    expect(w.get('[data-feature-id="c"]').attributes('data-fd-well')).toBe(tokens.styles.well)
+    expect(w.get('.fd-table-wrap').attributes('data-fd-table')).toBe(tokens.styles.table)
+  })
+
+  it('components follow the nearest provided theme', () => {
+    const nested = deriveTokens({ panel: 'bare', table: 'striped', well: 'band' })
+    const Themed = defineComponent({
+      setup(_, { slots }) {
+        provideTheme(computed(() => nested))
+        return () => h('div', slots.default?.())
+      },
+    })
+    const root = generate(sample()).root
+    const w = mount(Themed, { slots: { default: () => h(DocumentView, { root }) }, global })
+    // DocumentView's root provides the default again, so to test nesting, render the page subtree directly.
+    expect(w.get('[data-feature-id="p"]').attributes('data-fd-panel')).toBe('card')
+    const inner = mount(Themed, { slots: { default: () => h(NodeView, { node: root.children[0]! }) }, global })
+    expect(inner.get('[data-feature-id="p"]').attributes('data-fd-panel')).toBe('bare')
+    expect(inner.get('[data-feature-id="c"]').attributes('data-fd-well')).toBe('band')
+    expect(inner.get('.fd-table-wrap').attributes('data-fd-table')).toBe('striped')
   })
 })

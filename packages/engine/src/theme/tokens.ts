@@ -1,5 +1,5 @@
 import { asInt, asString } from '../inputs.js'
-import { ensureContrast, hexToOklch, oklchToHex, type Oklch } from './color.js'
+import { contrast, fitContrast, hexToOklch, oklchToHex, type Oklch } from './color.js'
 
 // A theme has two layers:
 // - settings (accent colour, scheme, sizes, radius, density, shadow) from which `deriveTokens` computes CSS custom
@@ -77,6 +77,8 @@ export interface ThemeTokens {
   styles: ThemeStyles
   /** CSS custom properties, applied to the element that carries the theme. */
   vars: Record<TokenName, string>
+  /** Changes made to the chosen colours so text stays readable, in words, for the editor to show. */
+  adjustments: string[]
 }
 
 const RATIOS: Record<ThemeChoice<'scale'>, number> = { 'minor-third': 1.2, 'major-third': 1.25, 'perfect-fourth': 1.333 }
@@ -105,7 +107,8 @@ const TONE_HUES = { success: [148, 0.13], warning: [70, 0.13], danger: [27, 0.17
 
 /**
  * Computes the CSS custom properties for a theme. Deterministic, and every text colour reaches 4.5:1 contrast against
- * each surface it is used on (see the contrast pairs in the tests).
+ * each surface it is used on (see the contrast pairs in the tests). Colours changed to get there are listed in
+ * `adjustments`.
  */
 export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_THEME): ThemeTokens {
   const p = clampThemeParams(input)
@@ -116,6 +119,12 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
   const nc = Math.min(accent.c, 0.2) * 0.065
   const at = (l: number, c: number, h = hue): Oklch => ({ l, c, h })
   const hex = (color: Oklch) => oklchToHex(color)
+  const adjustments: string[] = []
+  const ensureContrast = (fg: Oklch, backgrounds: string[]) => {
+    const fitted = fitContrast(fg, backgrounds)
+    if (!fitted.reached) adjustments.push(`A text colour (${fitted.hex}) could not reach 4.5:1 contrast on ${backgrounds.join(', ')}`)
+    return fitted.hex
+  }
 
   const bg = hex(dark ? at(0.17, nc) : at(0.972, nc))
   const surface = hex(dark ? at(0.21, nc) : at(1, 0))
@@ -131,6 +140,10 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
 
   const accentSolid = hex(accent)
   const onAccent = ensureContrast(at(dark ? 0.15 : 1, 0), [accentSolid])
+  if (onAccent !== hex(at(dark ? 0.15 : 1, 0))) {
+    const preferred = dark ? 'Dark' : 'White'
+    adjustments.push(`${preferred} text on the accent ${accentSolid} would be ${contrast(hex(at(dark ? 0.15 : 1, 0)), accentSolid).toFixed(1)}:1, so text on it uses ${onAccent}`)
+  }
   const vars: Record<TokenName, string> = {
     '--fd-bg': bg,
     '--fd-surface': surface,
@@ -161,6 +174,9 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
   const bandIsDark = chosenBand.l < 0.6
   const bandColor = { ...chosenBand, l: bandIsDark ? Math.min(chosenBand.l, 0.4) : Math.max(chosenBand.l, 0.82) }
   const band = hex(bandColor)
+  if (bandColor.l !== chosenBand.l) {
+    adjustments.push(`Band colour ${p.band} ${bandIsDark ? 'darkened' : 'lightened'} to ${band} so text on it stays readable`)
+  }
   const bandRaised = hex({ ...bandColor, l: bandColor.l + (bandIsDark ? 0.05 : -0.04) })
   const bandSurfaces = [band, bandRaised]
   const bc = Math.min(bandColor.c, 0.2) * 0.25
@@ -211,5 +227,5 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
     }[p.shadow],
   })
 
-  return { scheme: p.scheme, styles: { panel: p.panel, table: p.table, well: p.well }, vars }
+  return { scheme: p.scheme, styles: { panel: p.panel, table: p.table, well: p.well }, vars, adjustments }
 }

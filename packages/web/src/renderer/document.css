@@ -10,8 +10,9 @@
  * Then everything is styled here.
  *
  * The look comes from the theme (packages/engine/src/theme): colours, type and spacing are `--fd-*` custom properties
- * set on .fd-root, and each component style the theme selects is a `data-fd-<component>` attribute with one rule
- * block per option below. Tests check that every `var(--fd-*)` here is a token the engine emits and that every style
+ * set on the element that carries the theme (`[data-fd-scheme]`: the root now, pages later). Each component style the
+ * theme selects is a `data-fd-<component>` attribute on the component's own element (never an ancestor, so a nested
+ * theme wins over an outer one), with one rule block per option below. Tests check that every `var(--fd-*)` here is a token the engine emits and that every style
  * option has rules.
  */
 :where(.fd-root *) {
@@ -32,17 +33,22 @@
   all: initial;
   display: block;
   min-height: 100%;
-  font-family: var(--fd-font-body);
-  font-size: var(--fd-size);
   line-height: 1.6;
-  color: var(--fd-text);
-  background: var(--fd-bg);
   -webkit-font-smoothing: antialiased;
   /* Long unbroken text (URLs, legacy bindings) wraps instead of spilling into the next grid cell. */
   overflow-wrap: anywhere;
 }
-.fd-root[data-fd-scheme='light'] { color-scheme: light; }
-.fd-root[data-fd-scheme='dark'] { color-scheme: dark; }
+
+/* Any element carrying a theme paints with it (after .fd-root's `all: initial`, which has the same specificity). */
+.fd-root[data-fd-scheme],
+.fd-root [data-fd-scheme] {
+  font-family: var(--fd-font-body);
+  font-size: var(--fd-size);
+  color: var(--fd-text);
+  background: var(--fd-bg);
+}
+[data-fd-scheme='light'] { color-scheme: light; }
+[data-fd-scheme='dark'] { color-scheme: dark; }
 
 .fd-root a {
   color: var(--fd-ink);
@@ -117,23 +123,28 @@ h6.fd-heading { font-size: var(--fd-h6); }
 /* Containers */
 .fd-grid {
   display: grid;
-  gap: calc(var(--fd-space) * 5);
+  gap: clamp(calc(var(--fd-space) * 2), 3vw, calc(var(--fd-space) * 5));
   margin-bottom: calc(var(--fd-space) * 6);
 }
 .fd-cell {
   display: block;
   min-width: 0;
 }
+/* On phones, container columns stack in reading order (row by row). Overrides the inline grid placement. */
+@media (max-width: 640px) {
+  .fd-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .fd-cell { grid-row: auto !important; grid-column: auto !important; }
+}
 .fd-well {
   min-height: 20px;
-  padding: calc(var(--fd-space) * 7);
+  padding: clamp(calc(var(--fd-space) * 2), 5vw, calc(var(--fd-space) * 7));
   border-radius: var(--fd-radius-xl);
 }
-[data-fd-well='tint'] .fd-well {
+.fd-well[data-fd-well='tint'] {
   background: var(--fd-sunken);
 }
 /* A band re-points the colour tokens, so everything inside reads correctly on the band colour. */
-[data-fd-well='band'] .fd-well {
+.fd-well[data-fd-well='band'] {
   background: var(--fd-band);
   --fd-bg: var(--fd-band);
   --fd-surface: var(--fd-band-raised);
@@ -195,14 +206,14 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-panel-body {
   display: block;
 }
-[data-fd-panel='card'] .fd-panel-body {
+.fd-panel[data-fd-panel='card'] > .fd-panel-body {
   padding: calc(var(--fd-space) * 1.5) calc(var(--fd-space) * 3);
   background: var(--fd-surface);
   border: 1px solid var(--fd-border);
   border-radius: var(--fd-radius-lg);
   box-shadow: var(--fd-shadow);
 }
-[data-fd-panel='bare'] .fd-panel-body {
+.fd-panel[data-fd-panel='bare'] > .fd-panel-body {
   padding: calc(var(--fd-space) * 1.5) 0;
   border-top: 1px solid var(--fd-border);
 }
@@ -231,7 +242,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-table td:last-child { padding-right: 0; }
 .fd-table th {
   font-family: var(--fd-font-mono);
-  font-size: 11px;
+  font-size: calc(var(--fd-size) * 0.6875);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -242,12 +253,12 @@ h6.fd-heading { font-size: var(--fd-h6); }
 }
 .fd-table td { color: var(--fd-text); }
 .fd-table td:first-child { font-weight: 600; color: var(--fd-ink); }
-[data-fd-table='hairline'] .fd-table tbody tr + tr td { border-top: 1px solid var(--fd-border-subtle); }
-[data-fd-table='striped'] .fd-table tbody tr:nth-child(odd) { background: var(--fd-stripe); }
-[data-fd-table='striped'] .fd-table th:first-child,
-[data-fd-table='striped'] .fd-table td:first-child { padding-left: calc(var(--fd-space) * 1.5); }
-[data-fd-table='striped'] .fd-table th:last-child,
-[data-fd-table='striped'] .fd-table td:last-child { padding-right: calc(var(--fd-space) * 1.5); }
+.fd-table-wrap[data-fd-table='hairline'] tbody tr + tr td { border-top: 1px solid var(--fd-border-subtle); }
+.fd-table-wrap[data-fd-table='striped'] tbody tr:nth-child(odd) { background: var(--fd-stripe); }
+.fd-table-wrap[data-fd-table='striped'] th:first-child,
+.fd-table-wrap[data-fd-table='striped'] td:first-child { padding-left: calc(var(--fd-space) * 1.5); }
+.fd-table-wrap[data-fd-table='striped'] th:last-child,
+.fd-table-wrap[data-fd-table='striped'] td:last-child { padding-right: calc(var(--fd-space) * 1.5); }
 .fd-table-note {
   margin: calc(var(--fd-space) * 1.5) 0;
   color: var(--fd-muted);
@@ -256,7 +267,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-table-error { color: var(--fd-danger); }
 
 /* Lists: numbered mono markers between hairlines, aligned like the legacy pull-left / center-block / pull-right box. */
-.fd-list { display: block; width: 100%; max-width: 24rem; }
+.fd-list { display: block; width: 100%; max-width: calc(var(--fd-size) * 24); }
 .fd-list-left { float: left; }
 .fd-list-center { margin-left: auto; margin-right: auto; }
 .fd-list-right { float: right; }
@@ -278,24 +289,24 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-list li::before {
   content: counter(fd-list, decimal-leading-zero);
   font-family: var(--fd-font-mono);
-  font-size: 12px;
+  font-size: 0.75em;
   color: var(--fd-accent);
 }
 
-/* Editor-only placeholders for features that produced nothing */
+/* Editor-only placeholders for features that produced nothing; themed so they read on light and dark pages. */
 .fd-placeholder {
   display: flex;
   flex-direction: column;
   gap: 2px;
   margin: 6px 0;
   padding: 8px 10px;
-  border: 1px dashed #9ca3af;
-  border-radius: 4px;
-  background: repeating-linear-gradient(-45deg, #f9fafb, #f9fafb 6px, #f3f4f6 6px, #f3f4f6 12px);
-  color: #4b5563;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  border: 1px dashed var(--fd-muted);
+  border-radius: var(--fd-radius-sm);
+  background: repeating-linear-gradient(-45deg, var(--fd-bg), var(--fd-bg) 6px, var(--fd-sunken) 6px, var(--fd-sunken) 12px);
+  color: var(--fd-muted);
+  font-family: var(--fd-font-body);
   font-size: 12px;
   line-height: 1.4;
 }
-.fd-placeholder strong { font-size: 13px; color: #111827; }
-.fd-placeholder-skipped { border-color: #f59e0b; color: #92400e; }
+.fd-placeholder strong { font-size: 13px; color: var(--fd-ink); }
+.fd-placeholder-skipped { border-color: var(--fd-warning); color: var(--fd-warning); }

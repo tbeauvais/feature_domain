@@ -97,17 +97,24 @@ export function contrast(a: string, b: string): number {
 /**
  * `fg` as hex, with its lightness moved (hue and chroma kept where the gamut allows) until it reaches `min` contrast
  * against every background. It moves towards whichever of black or white contrasts more with the backgrounds, which
- * can always reach 4.5:1 against a single background (max(black, white) contrast is at least sqrt(21) ≈ 4.58).
+ * can always reach 4.5:1 against a single background (max(black, white) contrast is at least sqrt(21) ≈ 4.58), but
+ * not necessarily against several very different ones: `reached` says whether it got there.
  */
-export function ensureContrast(fg: Oklch, backgrounds: string[], min = 4.5): string {
+export function fitContrast(fg: Oklch, backgrounds: string[], min = 4.5): { hex: string; reached: boolean } {
   const worst = (hex: string) => Math.min(...backgrounds.map((bg) => contrast(hex, bg)))
   let hex = oklchToHex(fg)
-  if (worst(hex) >= min) return hex
+  if (worst(hex) >= min) return { hex, reached: true }
   const darker = Math.min(...backgrounds.map((bg) => contrast('#000000', bg))) >= Math.min(...backgrounds.map((bg) => contrast('#ffffff', bg)))
   for (let step = 1; step <= 100; step++) {
     const l = darker ? fg.l - step * 0.01 : fg.l + step * 0.01
     hex = oklchToHex({ ...fg, l })
-    if (worst(hex) >= min || l <= 0 || l >= 1) break
+    if (worst(hex) >= min) return { hex, reached: true }
+    if (l <= 0 || l >= 1) break
   }
-  return hex
+  return { hex, reached: false }
+}
+
+/** `fitContrast`, returning only the colour. */
+export function ensureContrast(fg: Oklch, backgrounds: string[], min = 4.5): string {
+  return fitContrast(fg, backgrounds, min).hex
 }

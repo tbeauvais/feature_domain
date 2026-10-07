@@ -4,6 +4,7 @@ import {
   contrast,
   DEFAULT_THEME,
   deriveTokens,
+  fitContrast,
   hexToOklch,
   oklchToHex,
   THEME_OPTIONS,
@@ -35,7 +36,11 @@ const v = (t: ThemeTokens, name: string) => {
   return value
 }
 
-/** Every text colour and the surfaces it is drawn on, as used by document.css. */
+/**
+ * Every text colour and the surfaces it is drawn on, as used by document.css. Keep this in step with the stylesheet:
+ * a new `color:` (or a text colour on a new `background:`) there needs its pair here, or the contrast check below
+ * won't cover it.
+ */
 function contrastPairs(t: ThemeTokens): [string, string, string, string][] {
   const pairs: [string, string, string, string][] = []
   const add = (fg: string, bgs: string[]) => {
@@ -56,6 +61,20 @@ describe('colour maths', () => {
     for (const hex of ['#000000', '#ffffff', '#e5531a', '#3a1128', '#2563eb', '#808080']) {
       expect(oklchToHex(hexToOklch(hex)!)).toBe(hex)
     }
+  })
+
+  it('round-trips 2,000 random colours', () => {
+    const random = rng(99)
+    for (let i = 0; i < 2000; i++) {
+      const hex = `#${Math.floor(random() * 0x1000000).toString(16).padStart(6, '0')}`
+      expect(oklchToHex(hexToOklch(hex)!)).toBe(hex)
+    }
+  })
+
+  it('reports when a contrast target cannot be reached', () => {
+    // Mid grey against both black and white: no colour reaches 4.5:1 on both.
+    expect(fitContrast({ l: 0.6, c: 0, h: 0 }, ['#000000', '#ffffff']).reached).toBe(false)
+    expect(fitContrast({ l: 0.6, c: 0, h: 0 }, ['#ffffff'])).toEqual({ hex: expect.any(String), reached: true })
   })
 
   it('maps out-of-gamut colours into sRGB keeping lightness and hue', () => {
@@ -102,6 +121,13 @@ describe('deriveTokens', () => {
     expect(v(t, 'size')).toBe('16px')
   })
 
+  it('reports colours it changed for readability', () => {
+    expect(deriveTokens().adjustments).toEqual(['White text on the accent #e5531a would be 3.8:1, so text on it uses #1b1b1b'])
+    expect(deriveTokens({ band: '#808080' }).adjustments).toContain('Band colour #808080 darkened to #484848 so text on it stays readable')
+    expect(deriveTokens({ band: '#999999' }).adjustments.some((a) => a.startsWith('Band colour #999999 lightened'))).toBe(true)
+    expect(deriveTokens({ accent: '#1d4ed8' }).adjustments).toEqual([])
+  })
+
   it('is deterministic and does not depend on key order', () => {
     const p = randomParams(rng(7))
     const reversed = Object.fromEntries(Object.entries(p).reverse())
@@ -118,6 +144,7 @@ describe('deriveTokens', () => {
         const ratio = contrast(fgHex, bgHex)
         if (ratio < 4.5) throw new Error(`${fg} ${fgHex} on ${bg} ${bgHex} is ${ratio.toFixed(2)}:1 for ${JSON.stringify(params)}`)
       }
+      expect(t.adjustments.filter((a) => a.includes('could not reach'))).toEqual([])
     }
   })
 
