@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   createFeatureInstance,
   createRegistry,
+  DataResourceFeature,
   defaultRegistry,
   dependentsOf,
+  disableInput,
   generate,
   node,
   renderOutline,
@@ -172,11 +174,20 @@ describe('references', () => {
   })
 
   it('suppresses features that reference a suppressed feature', () => {
-    const r = generate(model(page(), { ...resource('r'), inputs: { ...resource('r').inputs, disable: true } }, table('t')))
+    // Core data resources can't be disabled, so use one that declares a `disable` input.
+    const Disableable: FeatureDefinition = { ...DataResourceFeature, inputs: [...DataResourceFeature.inputs, disableInput] }
+    const registry = createRegistry([...defaultRegistry.values()].map((d) => (d.type === 'DataResourceFeature' ? Disableable : d)))
+    const r = generate(model(page(), { ...resource('r'), inputs: { ...resource('r').inputs, disable: true } }, table('t')), registry)
     expect(r.diagnostics.map((d) => `${d.code}:${d.featureInstanceId}: ${d.message}`)).toEqual([
       'suppressed:r: Feature is suppressed',
       'suppressed:t: Referenced feature r ("Repos") is suppressed',
     ])
+  })
+
+  it('ignores a stored disable on features that do not declare one (e.g. data resources, themes)', () => {
+    const r = generate(model(page(), { ...resource('r'), inputs: { ...resource('r').inputs, disable: true } }, table('t')))
+    expect(r.diagnostics).toEqual([])
+    expect(r.metadata.features.find((f) => f.id === 'r')).toMatchObject({ status: 'generated' })
   })
 
   it('skips features whose reference is missing, of the wrong type, or empty when required', () => {

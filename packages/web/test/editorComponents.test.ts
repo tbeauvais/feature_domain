@@ -50,6 +50,8 @@ describe('InputField', () => {
     expect((color.get('input[type="color"]').element as HTMLInputElement).value).toBe('#00a3ff')
     await color.get('input[type="text"]').setValue('red')
     expect(lastChange(color)).toBe('red')
+    const short = mount(InputField, { props: { def: def({ type: 'color' }), value: '#ABC' } })
+    expect((short.get('input[type="color"]').element as HTMLInputElement).value).toBe('#aabbcc')
 
     const ref = mount(InputField, { props: { def: def({ type: 'reference' }), value: '', references: [{ id: 'r', label: 'Repos (#r)' }] } })
     expect(ref.findAll('option').map((o) => o.text())).toEqual(['None', 'Repos (#r)'])
@@ -153,6 +155,19 @@ describe('Inspector', () => {
     const select = w.get('#input-location')
     expect(select.findAll('option')[0]!.text()).toBe('Missing: nowhere › x')
     expect((select.element as HTMLSelectElement).value).toBe('nowhere\u0000x')
+  })
+
+  it('offers Themes for a Page, and shows a theme that no longer exists as Missing', async () => {
+    const themed = await inspect([inst('ThemeFeature', 'th', { name: 'Warm' }, null), page({ theme: 'th' }), inst('TextFeature', 'x')], '1')
+    expect(themed.w.get('#input-theme').findAll('option').map((o) => o.text())).toEqual(['None', 'Warm (#th)'])
+    expect((themed.w.get('#input-theme').element as HTMLSelectElement).value).toBe('th')
+
+    const stale = await inspect([page({ theme: 'gone' })], '1')
+    const options = stale.w.get('#input-theme').findAll('option')
+    expect(options.map((o) => [o.text(), o.attributes('disabled') !== undefined])).toEqual([
+      ['None', false],
+      ['Missing: #gone', true],
+    ])
   })
 
   it('lists matching features for references', async () => {

@@ -10,7 +10,13 @@ const emit = defineEmits<{ change: [value: InputValue | undefined] }>()
 const id = computed(() => `input-${props.def.name}`)
 const current = computed(() => props.value ?? props.def.default)
 const text = computed(() => (current.value === undefined ? '' : Array.isArray(current.value) ? current.value.join('\n') : String(current.value)))
-const isHexColor = computed(() => typeof current.value === 'string' && /^#[0-9a-f]{6}$/i.test(current.value))
+// The swatch needs #rrggbb; short #rgb values (which themes accept) are expanded for it.
+const swatch = computed(() => {
+  const value = typeof current.value === 'string' ? current.value.trim() : ''
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase()
+  if (/^#[0-9a-f]{3}$/i.test(value)) return `#${[...value.slice(1)].map((ch) => ch + ch).join('')}`.toLowerCase()
+  return '#ffffff'
+})
 
 const field = 'w-full rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-sky-500 focus:outline-none'
 
@@ -81,7 +87,7 @@ function settle() {
         type="color"
         class="h-8 w-10 rounded border border-slate-300"
         :aria-label="`${def.label} swatch`"
-        :value="isHexColor ? text : '#ffffff'"
+        :value="swatch"
         @input="emit('change', ($event.target as HTMLInputElement).value)"
       />
       <input :id="id" type="text" :class="field" placeholder="none" :value="text" @input="emit('change', ($event.target as HTMLInputElement).value)" />

@@ -40,6 +40,8 @@ export interface AppModel {
 // Document tree
 // ---------------------------------------------------------------------------------------------------------------------
 
+import type { ThemeTokens } from './theme/tokens.js'
+
 export type Align = 'left' | 'center' | 'right'
 
 export const TONES = ['muted', 'primary', 'success', 'info', 'warning', 'danger'] as const
@@ -58,7 +60,8 @@ export interface TableColumn {
  */
 export interface NodeKinds {
   root: Record<string, never>
-  page: Record<string, never>
+  /** `theme`: the tokens of the Theme the page references; absent means the default theme. */
+  page: { theme?: ThemeTokens }
   text: { text: string }
   heading: { text: string; level: number; align: Align; tone?: Tone; background?: Tone }
   image: { src: string; alt: string; width: string; height: string; responsive: boolean; align: Align }

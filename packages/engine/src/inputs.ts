@@ -22,6 +22,12 @@ export interface InputDef {
   accepts?: string[]
   /** For `reference` inputs: generation fails (the feature is skipped) when no instance is referenced. */
   required?: boolean
+  /**
+   * For `reference` inputs: a soft reference. If the referenced feature is missing, of the wrong type, suppressed or
+   * not generated, this feature still generates (with a warning) and `ctx.resolve` returns undefined for it, so the
+   * feature falls back (e.g. a Page without its Theme uses the default theme).
+   */
+  soft?: boolean
 }
 
 export type Inputs = Readonly<Record<string, InputValue | undefined>>

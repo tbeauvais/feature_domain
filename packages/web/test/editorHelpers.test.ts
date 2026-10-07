@@ -37,16 +37,19 @@ describe('buildFeatureTree', () => {
     const tree = buildFeatureTree(result)
     expect(shape(tree.roots)).toEqual([['1', 'generated', [['c', 'generated', [['t', 'generated', 'r1c2']]], ['u', 'generated']]]])
     expect(tree.roots[0]!.children[0]!.label).toBe('Grid')
+    expect(tree.resources).toEqual([])
     expect(tree.unplaced).toEqual([])
   })
 
-  it('lists skipped, unknown and suppressed features with why, and unplaced features separately', () => {
+  it('lists skipped, unknown and suppressed features with why; resources and themes, and unplaced features, separately', () => {
     const tricky = model(
       page(),
       inst('MapFeature', 'map'),
       inst('TableFeature', 'tbl', { data_resource: '' }),
       inst('TextFeature', 'off', { disable: true }),
       inst('DataResourceFeature', 'r', { name: 'Repos' }, null),
+      inst('ThemeFeature', 'th', { name: 'Warm' }, null),
+      inst('TextFeature', 'nowhere-text', {}, null),
       inst('ContainerFeature', 'lost', { columns: 1 }, at('nowhere', 'x')),
       inst('TextFeature', 'in-lost', {}, at('lost', 'r1c1')),
     )
@@ -62,8 +65,13 @@ describe('buildFeatureTree', () => {
         ],
       ],
     ])
-    expect(shape(tree.unplaced)).toEqual([
+    expect(shape(tree.resources)).toEqual([
       ['r', 'generated'],
+      ['th', 'generated'],
+    ])
+    expect(tree.resources[1]!.label).toBe('Warm')
+    expect(shape(tree.unplaced)).toEqual([
+      ['nowhere-text', 'skipped', 'Feature has no placement'],
       ['lost', 'skipped', 'Parent feature nowhere does not exist', [['in-lost', 'skipped', 'Parent feature lost ("ContainerFeature lost") was not generated']]],
     ])
   })

@@ -91,8 +91,9 @@ test('a table shows what it needs until it gets a data resource', async ({ page 
   await inspector(page).getByLabel('Data Resource').selectOption({ label: 'untitled (#3)' })
   await inspector(page).getByLabel('Fields').fill('name')
   await expect(canvas(page).locator('[data-feature-id="2"] tbody td')).toHaveText(['engine'])
-  // The resource is not on the page, so the tree lists it separately.
-  await expect(tree(page).getByRole('tree', { name: 'Not on the page' })).toContainText('untitled')
+  // Resources are never placed, so the tree lists them in their own section (not as a problem).
+  await expect(tree(page).getByRole('tree', { name: 'Resources and themes' })).toContainText('untitled')
+  await expect(tree(page).getByRole('tree', { name: 'Not on the page' })).toHaveCount(0)
 })
 
 test('the preview tab follows edits made in the editor', async ({ page, context }) => {
@@ -255,4 +256,31 @@ test('the editor and preview load nothing from other sites', async ({ page, cont
   await page.getByTestId('open-preview').click()
   await page.waitForLoadState('networkidle')
   expect(external).toEqual([])
+})
+
+test('adding a Theme restyles the page at once, and its settings drive the preview', async ({ page, context }) => {
+  await newModel(page)
+  await page.getByTestId('palette-HeaderFeature').click()
+  const root = page.getByTestId('canvas').locator('.fd-root')
+  await expect(root).toHaveAttribute('data-fd-scheme', 'light')
+
+  await page.getByTestId('palette-ThemeFeature').click()
+  await expect(inspector(page).getByLabel('Scheme')).toHaveValue('light')
+  await inspector(page).getByLabel('Scheme').selectOption('dark')
+  await expect(root).toHaveAttribute('data-fd-scheme', 'dark')
+  const darkBg = await root.evaluate((el) => getComputedStyle(el).backgroundColor)
+  // A dark scheme paints a dark background: every channel well below mid-grey.
+  expect(darkBg.match(/\d+/g)!.slice(0, 3).map(Number).every((channel) => channel < 64), darkBg).toBe(true)
+
+  const [preview] = await Promise.all([context.waitForEvent('page'), page.getByTestId('open-preview').click()])
+  await expect(preview.locator('.fd-root')).toHaveAttribute('data-fd-scheme', 'dark')
+  await expect.poll(() => preview.locator('.fd-root').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(darkBg)
+
+  // Undo the scheme change, then the Theme itself: the page goes back to the default theme.
+  await page.getByRole('button', { name: 'Undo' }).click()
+  await expect(root).toHaveAttribute('data-fd-scheme', 'light')
+  await expect(tree(page).getByRole('tree', { name: 'Resources and themes' }).locator('[data-tree-id="3"]')).toHaveCount(1)
+  await page.getByRole('button', { name: 'Undo' }).click()
+  await expect(tree(page).locator('[data-tree-id="3"]')).toHaveCount(0)
+  await expect(root).toHaveAttribute('data-fd-scheme', 'light')
 })

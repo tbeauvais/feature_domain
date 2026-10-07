@@ -17,7 +17,7 @@ export interface FeatureMetadata {
   placement?: Placement
   /** Slot keys this feature provides. */
   slots: string[]
-  /** Instance ids this feature references. */
+  /** Instance ids this feature references (inputs and `dependencies()`), including ones that could not be resolved. */
   references: string[]
   /** Why the feature was not generated (skipped, suppressed or unknown): the first problem found, not later effects. */
   reason?: string
@@ -63,6 +63,8 @@ interface Entry {
   slots: string[]
   /** Instance ids this feature may resolve. */
   declared: Set<string>
+  /** Every instance id it references, resolvable or not. */
+  referenced: Set<string>
   placement?: Placement
 }
 
@@ -119,7 +121,7 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
     }
     const inputs = resolveInputs(def.inputs, instance.inputs)
     const slots = attempt(id, 'slots()', () => def.slots?.(inputs) ?? [], [])
-    entries.set(id, { instance, def, inputs, index, slots, declared: new Set() })
+    entries.set(id, { instance, def, inputs, index, slots, declared: new Set(), referenced: new Set() })
   })
   const describe = (id: string) => {
     const e = entries.get(id)
@@ -130,6 +132,10 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
   // 2. Resolve placements and references into dependency edges.
   const edges: [string, string][] = []
   const edgeKinds = new Map<string, EdgeKind>()
+  /** Edges from soft references: they order generation but never skip or suppress the referencing feature. */
+  const softEdges = new Set<string>()
+  /** Broken soft references: reading them resolves to undefined without a further problem. */
+  const unresolvedSoft = new Set<string>()
   const addEdge = (from: string, to: string, kind: EdgeKind) => {
     const key = edgeKey(from, to)
     if (edgeKinds.get(key) === 'placement') return
@@ -165,24 +171,40 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
       }
     }
     const refs = [
-      ...referencedIds(e.def, e.inputs).map((r) => ({ ...r, accepts: e.def.inputs.find((i) => i.name === r.input)?.accepts })),
-      ...attempt(id, 'dependencies()', () => e.def.dependencies?.(e.inputs) ?? [], []).map((refId) => ({ input: 'dependencies', id: refId, accepts: undefined })),
+      ...referencedIds(e.def, e.inputs).map((r) => {
+        const def = e.def.inputs.find((i) => i.name === r.input)
+        return { ...r, accepts: def?.accepts, soft: def?.soft === true }
+      }),
+      ...attempt(id, 'dependencies()', () => e.def.dependencies?.(e.inputs) ?? [], []).map((refId) => ({ input: 'dependencies', id: refId, accepts: undefined, soft: false })),
     ]
     for (const ref of refs) {
+      e.referenced.add(ref.id)
       const target = entries.get(ref.id)
+      // A broken soft reference is a warning; the feature generates without it.
+      const problem = (message: string) => {
+        if (!ref.soft) return fail(id, { code: 'unresolved-reference', severity: 'error', message })
+        unresolvedSoft.add(edgeKey(ref.id, id))
+        report({ code: 'unresolved-reference', severity: 'warning', featureInstanceId: id, message: `${message}; generating without it` })
+      }
       if (!target) {
-        fail(id, { code: 'unresolved-reference', severity: 'error', message: `Input "${ref.input}" references feature ${ref.id}, which ${modelIds.has(ref.id) ? 'is not a known feature type' : 'does not exist'}` })
+        problem(`Input "${ref.input}" references feature ${ref.id}, which ${modelIds.has(ref.id) ? 'is not a known feature type' : 'does not exist'}`)
       } else if (ref.accepts && !ref.accepts.includes(target.instance.feature)) {
-        fail(id, { code: 'unresolved-reference', severity: 'error', message: `Input "${ref.input}" must reference one of ${ref.accepts.join(', ')}, not ${target.instance.feature}` })
+        problem(`Input "${ref.input}" must reference one of ${ref.accepts.join(', ')}, not ${target.instance.feature}`)
       } else {
         e.declared.add(ref.id)
         addEdge(ref.id, id, 'reference')
+        if (ref.soft) softEdges.add(edgeKey(ref.id, id))
       }
     }
   }
 
   const graph = buildGraph([...entries.keys()], edges)
-  const { order, cyclic, blocked } = topoSort(graph)
+  // Soft references order generation but never skip a feature, so cycles are detected without them. If a cycle only
+  // closes through a soft reference, that reference is ordered after its referrer, which then generates without it.
+  let { order, cyclic, blocked } = topoSort(graph)
+  if (cyclic.length > 0 && softEdges.size > 0) {
+    ;({ order, cyclic, blocked } = topoSort(buildGraph([...entries.keys()], edges.filter(([from, to]) => !softEdges.has(edgeKey(from, to))))))
+  }
   for (const id of cyclic) fail(id, { code: 'cycle', severity: 'error', message: 'Feature depends on itself (dependency cycle)' })
   for (const id of blocked) fail(id, { code: 'dependency-skipped', severity: 'warning', message: 'Feature depends on a feature in a dependency cycle' })
 
@@ -203,11 +225,15 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
   for (const id of order) {
     if (status.has(id)) continue
     const e = entries.get(id)!
-    const parents = graph.parents.get(id) ?? []
+    const allParents = graph.parents.get(id) ?? []
     const relation = (p: string) => (edgeKinds.get(edgeKey(p, id)) === 'placement' ? 'Parent' : 'Referenced')
+    // Soft references never suppress or skip this feature: it generates without them.
+    const parents = allParents.filter((p) => !softEdges.has(edgeKey(p, id)))
 
     const suppressedBy = parents.find((p) => status.get(p) === 'suppressed')
-    if (asBool(e.inputs.disable) || suppressedBy !== undefined) {
+    // Only features that declare a `disable` input can be disabled (a stray stored value is ignored).
+    const disabled = e.def.inputs.some((i) => i.name === 'disable') && asBool(e.inputs.disable)
+    if (disabled || suppressedBy !== undefined) {
       status.set(id, 'suppressed')
       reasons.set(id, suppressedBy === undefined ? 'Feature is suppressed' : `${relation(suppressedBy)} ${describe(suppressedBy)} is suppressed`)
       const message = suppressedBy === undefined ? 'Feature is suppressed' : `${relation(suppressedBy)} ${describe(suppressedBy)} is suppressed`
@@ -224,6 +250,13 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
       fail(id, { code: 'parent-skipped', severity: 'warning', message: `Parent ${describe(e.placement.parent)} did not generate slot "${e.placement.slot}"` })
       continue
     }
+    // Reported only now that the feature does generate.
+    for (const p of allParents) {
+      if (softEdges.has(edgeKey(p, id)) && status.get(p) !== 'generated') {
+        const why = status.get(p) === 'suppressed' ? 'is suppressed' : 'was not generated'
+        report({ code: 'dependency-skipped', severity: 'warning', featureInstanceId: id, message: `Referenced ${describe(p)} ${why}; generating without it` })
+      }
+    }
 
     const undeclared = new Set<string>()
     let out: FeatureOutput
@@ -233,6 +266,7 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
       nodeId: (part) => (part === undefined ? id : `${id}.${part}`),
       resolve: (refId) => {
         if (e.declared.has(refId)) return resolved.get(refId)
+        if (unresolvedSoft.has(edgeKey(refId, id))) return undefined
         if (!undeclared.has(refId)) {
           undeclared.add(refId)
           report({ code: 'undeclared-dependency', severity: 'error', featureInstanceId: id, message: `Tried to read feature ${refId} without declaring it as a dependency` })
@@ -369,7 +403,7 @@ function buildMetadata(
       name,
       status: status.get(id) ?? 'skipped',
       slots: e.slots,
-      references: [...e.declared],
+      references: [...e.referenced],
     }
     const reason = reasons.get(id)
     if (f.status !== 'generated' && reason !== undefined) f.reason = reason

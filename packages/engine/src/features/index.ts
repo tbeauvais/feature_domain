@@ -8,6 +8,7 @@ import { PageFeature } from './page.js'
 import { PanelFeature } from './panel.js'
 import { TableFeature } from './table.js'
 import { TextFeature } from './text.js'
+import { ThemeFeature } from './theme.js'
 
 export { ContainerFeature, cellSlot, MAX_COLUMNS, MAX_ROWS } from './container.js'
 export {
@@ -29,6 +30,7 @@ export { PageFeature } from './page.js'
 export { PanelFeature } from './panel.js'
 export { TableFeature } from './table.js'
 export { TextFeature } from './text.js'
+export { isThemeExports, ThemeFeature, type ThemeExports } from './theme.js'
 
 export const coreFeatures = [
   PageFeature,
@@ -40,6 +42,7 @@ export const coreFeatures = [
   ListFeature,
   DataResourceFeature,
   TableFeature,
+  ThemeFeature,
 ]
 
 export const defaultRegistry = createRegistry(coreFeatures)

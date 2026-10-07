@@ -156,6 +156,9 @@ describe('removeFeature', () => {
       { id: 't', references: ['r'] },
       { id: 'o', references: ['r'] },
     ])
+    // Their reference inputs are cleared, so they report a missing selection rather than a missing feature.
+    expect(result.model.features.find((f) => f.id === 'o')!.inputs.data_resource).toBe('')
+    expect(m.features.find((f) => f.id === 'o')!.inputs.data_resource).toBe('r')
     expect(() => removeFeature(m, 'nope')).toThrow(EditError)
   })
 })

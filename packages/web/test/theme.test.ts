@@ -95,4 +95,63 @@ describe('theme in the renderer', () => {
     expect(inner.get('[data-feature-id="c"]').attributes('data-fd-well')).toBe('band')
     expect(inner.get('.fd-table-wrap').attributes('data-fd-table')).toBe('striped')
   })
+
+  it('a page with a Theme applies its tokens and components inside use its styles; the root adopts the first page\'s theme', () => {
+    const m = model(
+      inst('ThemeFeature', 'th', { scheme: 'dark', accent: '#2563eb', panel: 'bare' }, null),
+      page({ theme: 'th' }),
+      inst('PanelFeature', 'p', { heading: 'Panel' }),
+      inst('PageFeature', '2', { name: 'Plain' }, at('$root', 'content')),
+      inst('PanelFeature', 'q', { heading: 'Other' }, at('2', 'content')),
+    )
+    const w = mount(DocumentView, { props: { root: generate(m).root }, global })
+    const dark = deriveTokens({ scheme: 'dark', accent: '#2563eb', panel: 'bare' })
+    const themed = w.get('[data-feature-id="1"]')
+    expect(themed.attributes('data-fd-scheme')).toBe('dark')
+    expect((themed.element as HTMLElement).style.getPropertyValue('--fd-bg')).toBe(dark.vars['--fd-bg'])
+    expect(w.get('[data-feature-id="p"]').attributes('data-fd-panel')).toBe('bare')
+    // The root follows the first page, so the second (unthemed) page inherits that theme too.
+    expect(w.get('.fd-root').attributes('data-fd-scheme')).toBe('dark')
+    expect(w.get('[data-feature-id="2"]').attributes('data-fd-scheme')).toBeUndefined()
+    expect(w.get('[data-feature-id="q"]').attributes('data-fd-panel')).toBe('bare')
+  })
+
+  it('a second page can use a different theme from the first', () => {
+    const m = model(
+      page(),
+      inst('ThemeFeature', 'th', { panel: 'bare' }, null),
+      inst('PageFeature', '2', { name: 'Themed', theme: 'th' }, at('$root', 'content')),
+      inst('PanelFeature', 'p', { heading: 'One' }),
+      inst('PanelFeature', 'q', { heading: 'Two' }, at('2', 'content')),
+    )
+    const w = mount(DocumentView, { props: { root: generate(m).root }, global })
+    expect(w.get('[data-feature-id="p"]').attributes('data-fd-panel')).toBe('card')
+    expect(w.get('[data-feature-id="q"]').attributes('data-fd-panel')).toBe('bare')
+  })
+
+  it('a band well inside a themed page uses that theme\'s band colours', () => {
+    const m = model(
+      inst('ThemeFeature', 'th', { band: '#123456', well: 'band' }, null),
+      page({ theme: 'th' }),
+      inst('ContainerFeature', 'c', { well: true }),
+    )
+    const w = mount(DocumentView, { props: { root: generate(m).root }, global })
+    const themed = deriveTokens({ band: '#123456', well: 'band' })
+    expect(w.get('[data-feature-id="c"]').attributes('data-fd-well')).toBe('band')
+    // The page sets the band tokens the well's rule re-points to; the root (first page's theme) matches.
+    expect((w.get('[data-feature-id="1"]').element as HTMLElement).style.getPropertyValue('--fd-band')).toBe(themed.vars['--fd-band'])
+    expect(css).toMatch(/\.fd-well\[data-fd-well='band'\] \{[^}]*--fd-text: var\(--fd-band-text\)/)
+  })
+
+  it('the root takes its theme from the first actual page, skipping placeholders', () => {
+    const m = model(
+      inst('ThemeFeature', 'th', { scheme: 'dark' }, null),
+      inst('UnportedFeature', 'u', {}, at('$root', 'content')),
+      inst('PageFeature', '2', { name: 'Themed', theme: 'th' }, at('$root', 'content')),
+    )
+    const root = generate(m, undefined, { placeholders: true }).root
+    expect(root.children.map((c) => c.kind)).toEqual(['placeholder', 'page'])
+    const w = mount(DocumentView, { props: { root }, global })
+    expect(w.get('.fd-root').attributes('data-fd-scheme')).toBe('dark')
+  })
 })
