@@ -3,16 +3,20 @@ import {
   createRegistry,
   defaultRegistry,
   deriveTokens,
+  disableInput,
   EditError,
   formatDiagnostic,
   generate,
+  PageFeature,
+  removeFeature,
+  ThemeFeature,
   type DocNodeOf,
   type FeatureDefinition,
   useThemeOnUnthemedPages,
 } from '../src'
 import { at, deepFreeze, inst, model, page } from './helpers'
 
-const theme = (id: string, inputs: Record<string, string | number> = {}) => inst('ThemeFeature', id, inputs, null)
+const theme = (id: string, inputs: Record<string, string | number | boolean> = {}) => inst('ThemeFeature', id, inputs, null)
 const pageNode = (root: ReturnType<typeof generate>['root']) => root.children[0] as DocNodeOf<'page'>
 const messages = (r: ReturnType<typeof generate>) => r.diagnostics.map(formatDiagnostic)
 
@@ -107,9 +111,73 @@ describe('useThemeOnUnthemedPages', () => {
     expect(generate(after).diagnostics.filter((d) => d.severity !== 'info')).toEqual([])
   })
 
-  it('returns the same model when every page already has a theme, and refuses unknown themes', () => {
-    const m = model(theme('a'), page({ theme: 'a' }))
+  it('returns the same model when every page already has a theme, and refuses ids that are not Themes', () => {
+    const m = model(theme('a'), page({ theme: 'a' }), inst('TextFeature', 'x'))
     expect(useThemeOnUnthemedPages(m, 'a')).toBe(m)
     expect(() => useThemeOnUnthemedPages(m, 'zz')).toThrow(EditError)
+    expect(() => useThemeOnUnthemedPages(m, 'x')).toThrow(EditError)
+  })
+
+  it('counts a page whose theme points at something that is not a Theme as unthemed', () => {
+    const m = model(inst('TextFeature', 'x', {}, null), theme('a'), page({ theme: 'x' }))
+    expect(useThemeOnUnthemedPages(m, 'a').features.find((f) => f.id === '1')!.inputs.theme).toBe('a')
+  })
+})
+
+describe('review fixes', () => {
+  it('deleting a Theme clears it from its pages, which fall back to the default without warnings', () => {
+    const m = model(theme('t'), page({ theme: 't' }), page({ theme: 't' }, '2'))
+    const removed = removeFeature(m, 't')
+    expect(removed.brokenReferences).toEqual([
+      { id: '1', references: ['t'] },
+      { id: '2', references: ['t'] },
+    ])
+    expect(removed.model.features.map((f) => f.inputs.theme)).toEqual(['', ''])
+    const r = generate(removed.model)
+    expect(r.diagnostics).toEqual([])
+    expect(pageNode(r.root).props).toEqual({})
+  })
+
+  it('a suppressed page whose theme is suppressed too only reports its own suppression', () => {
+    // Neither core Pages nor Themes can be disabled, so use versions that declare a `disable` input.
+    const withDisable = (d: FeatureDefinition): FeatureDefinition => ({ ...d, inputs: [...d.inputs, disableInput] })
+    const registry = createRegistry([...defaultRegistry.values()].map((d) => (d === ThemeFeature || d === PageFeature ? withDisable(d) : d)))
+    const r = generate(model(theme('t', { disable: true }), page({ theme: 't', disable: true })), registry)
+    expect(r.metadata.features.find((f) => f.id === 't')!.status).toBe('suppressed')
+    expect(messages(r).filter((m) => m.includes('[1]'))).toEqual(['info suppressed [1]: Feature is suppressed'])
+  })
+
+  it('a Theme cannot be disabled by a stray stored value', () => {
+    const r = generate(model(inst('ThemeFeature', 't', { disable: true }, null), page({ theme: 't' })))
+    expect(r.metadata.features.find((f) => f.id === 't')).toMatchObject({ status: 'generated' })
+    expect(pageNode(r.root).props.theme).toBeDefined()
+  })
+
+  it('lists broken soft references in metadata', () => {
+    const r = generate(model(page({ theme: 'gone' })))
+    expect(r.metadata.features.find((f) => f.id === '1')!.references).toEqual(['gone'])
+  })
+
+  it('a cycle that only closes through a soft reference skips nothing', () => {
+    const Soft: FeatureDefinition = {
+      type: 'SoftRef',
+      name: 'Soft',
+      icon: 'x',
+      placement: 'none',
+      inputs: [{ name: 'other', label: 'Other', type: 'reference', soft: true, default: '', control: 'select' }],
+      generate: (inputs, ctx) => ({ exports: { saw: ctx.resolve(String(inputs.other)) !== undefined } }),
+    }
+    const Hard: FeatureDefinition = {
+      type: 'HardRef',
+      name: 'Hard',
+      icon: 'x',
+      placement: 'none',
+      inputs: [{ name: 'other', label: 'Other', type: 'reference', default: '', control: 'select' }],
+      generate: () => ({ exports: {} }),
+    }
+    const registry = createRegistry([...defaultRegistry.values(), Soft, Hard])
+    const r = generate(model(page(), inst('SoftRef', 'a', { other: 'b' }, null), inst('HardRef', 'b', { other: 'a' }, null)), registry)
+    expect(r.metadata.features.filter((f) => f.id === 'a' || f.id === 'b').map((f) => f.status)).toEqual(['generated', 'generated'])
+    expect(r.diagnostics.some((d) => d.code === 'cycle')).toBe(false)
   })
 })

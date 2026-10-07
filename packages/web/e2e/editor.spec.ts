@@ -269,7 +269,8 @@ test('adding a Theme restyles the page at once, and its settings drive the previ
   await inspector(page).getByLabel('Scheme').selectOption('dark')
   await expect(root).toHaveAttribute('data-fd-scheme', 'dark')
   const darkBg = await root.evaluate((el) => getComputedStyle(el).backgroundColor)
-  expect(darkBg).not.toBe('rgb(254, 243, 240)')
+  // A dark scheme paints a dark background: every channel well below mid-grey.
+  expect(darkBg.match(/\d+/g)!.slice(0, 3).map(Number).every((channel) => channel < 64), darkBg).toBe(true)
 
   const [preview] = await Promise.all([context.waitForEvent('page'), page.getByTestId('open-preview').click()])
   await expect(preview.locator('.fd-root')).toHaveAttribute('data-fd-scheme', 'dark')

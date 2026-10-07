@@ -199,21 +199,36 @@ export interface RemoveResult {
   model: AppModel
   /** The feature and everything placed inside it, in model order. */
   removed: string[]
-  /** Remaining features that referenced a removed feature, with the ids they lose. */
+  /** Remaining features that referenced a removed feature, with the ids they lose (their reference inputs are cleared). */
   brokenReferences: { id: string; references: string[] }[]
 }
 
-/** Removes a feature and everything placed inside it, and reports which remaining features lose a reference. */
+/**
+ * Removes a feature and everything placed inside it, and reports which remaining features lose a reference. Reference
+ * inputs that pointed at a removed feature are cleared, so e.g. pages whose Theme is deleted fall back to the default
+ * instead of warning about a missing feature forever. (`dependencies()` ids can't be cleared; they are only reported.)
+ */
 export function removeFeature(model: AppModel, id: string, options: EditOptions = {}): RemoveResult {
   const registry = options.registry ?? defaultRegistry
   if (!model.features.some((f) => f.id === id)) throw new EditError(`Feature ${id} does not exist`)
   const removed = [id, ...descendantsOf(model, id)]
   const gone = new Set(removed)
-  const features = model.features.filter((f) => !gone.has(f.id))
-  const brokenReferences = features
+  const features = model.features.filter((f) => !gone.has(f.id)).map((f) => clearReferencesTo(f, gone, registry))
+  const brokenReferences = model.features
+    .filter((f) => !gone.has(f.id))
     .map((f) => ({ id: f.id, references: dependenciesOf(f, registry).filter((dep) => gone.has(dep)) }))
     .filter((b) => b.references.length > 0)
   return { model: { ...model, features }, removed: model.features.map((f) => f.id).filter((fid) => gone.has(fid)), brokenReferences }
+}
+
+function clearReferencesTo(instance: FeatureInstance, gone: Set<string>, registry: FeatureRegistry): FeatureInstance {
+  const def = registry.get(instance.feature)
+  if (!def) return instance
+  const cleared = referencedIds(def, resolveInputs(def.inputs, instance.inputs)).filter((r) => gone.has(r.id))
+  if (cleared.length === 0) return instance
+  const inputs = { ...instance.inputs }
+  for (const r of cleared) inputs[r.input] = ''
+  return { ...instance, inputs }
 }
 
 /** Updates a feature's inputs: `undefined` values remove an input (so it falls back to its default). */
@@ -233,17 +248,19 @@ export function updateInputs(model: AppModel, id: string, changes: Record<string
 }
 
 /**
- * Points every Page that has no theme (or one whose theme no longer exists) at `themeId`, e.g. right after a Theme is
+ * Points every Page that has no working theme (none, or a reference to a missing feature or one that isn't a Theme) at
+ * `themeId`, e.g. right after a Theme is
  * added from the palette, so the new theme shows at once. Pages that already use another existing theme keep it.
  */
 export function useThemeOnUnthemedPages(model: AppModel, themeId: string, options: EditOptions = {}): AppModel {
-  const ids = new Set(model.features.map((f) => f.id))
-  if (!ids.has(themeId)) throw new EditError(`Feature ${themeId} does not exist`)
+  const themes = new Set(model.features.filter((f) => f.feature === 'ThemeFeature').map((f) => f.id))
+  if (!themes.has(themeId)) throw new EditError(`Feature ${themeId} is not a Theme`)
   let changed = false
   const features = model.features.map((f) => {
     if (f.feature !== 'PageFeature') return f
+    // A reference to something that isn't a Theme (or no longer exists) renders the default, so it counts as none.
     const current = typeof f.inputs.theme === 'string' ? f.inputs.theme : ''
-    if (current !== '' && ids.has(current)) return f
+    if (themes.has(current)) return f
     changed = true
     return { ...f, inputs: { ...f.inputs, theme: themeId } }
   })

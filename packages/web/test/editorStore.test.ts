@@ -165,6 +165,21 @@ describe('editing with useDocumentStore', () => {
     expect(doc.model!.features.some((f) => f.feature === 'ThemeFeature')).toBe(false)
     expect(themeOf('1')).toBeUndefined()
     expect(doc.canUndo).toBe(false)
+    doc.redo()
+    expect([themeOf('1'), themeOf('2')]).toEqual([themeId, themeId])
+    expect(doc.selectedId).toBe(themeId)
+  })
+
+  it('deleting a Theme returns its pages to the default theme without leaving warnings', async () => {
+    const doc = await open(model(page()))
+    const themeId = doc.add('ThemeFeature')
+    doc.setInputs(themeId, { scheme: 'dark' })
+    expect(doc.result!.root.children[0]!.kind === 'page' && doc.result!.root.children[0]!.props.theme?.scheme).toBe('dark')
+    const removed = doc.remove(themeId)
+    expect(removed.brokenReferences).toEqual([{ id: '1', references: [themeId] }])
+    expect(doc.model!.features.find((f) => f.id === '1')!.inputs.theme).toBe('')
+    expect(doc.result!.root.children[0]!.props).toEqual({})
+    expect(doc.result!.diagnostics).toEqual([])
   })
 
   describe('undo and redo', () => {
