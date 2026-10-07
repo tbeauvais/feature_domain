@@ -1,6 +1,7 @@
 import type { FeatureDefinition } from '../feature.js'
 import { asString, nameInput } from '../inputs.js'
 import { node } from '../nodes.js'
+import { isThemeExports } from './theme.js'
 
 export const PageFeature: FeatureDefinition = {
   type: 'PageFeature',
@@ -9,6 +10,15 @@ export const PageFeature: FeatureDefinition = {
   placement: 'required',
   inputs: [
     nameInput('Page'),
+    {
+      name: 'theme',
+      label: 'Theme',
+      type: 'reference',
+      accepts: ['ThemeFeature'],
+      soft: true,
+      default: '',
+      control: 'theme-select',
+    },
     { name: 'background_image', label: 'Background Image', type: 'string', default: '', control: 'text-input' },
   ],
 
@@ -21,6 +31,10 @@ export const PageFeature: FeatureDefinition = {
     const image = asString(inputs.background_image)
     if (image) style.backgroundImage = `url(${JSON.stringify(image)})`
 
-    return { node: node('page', ctx.nodeId(), {}, { slot: 'content', style }) }
+    // No theme, or one that is missing or broken (a soft reference): the default theme applies.
+    const themeId = asString(inputs.theme)
+    const theme = themeId === '' ? undefined : ctx.resolve(themeId)?.exports
+    const props = isThemeExports(theme) ? { theme: theme.tokens } : {}
+    return { node: node('page', ctx.nodeId(), props, { slot: 'content', style }) }
   },
 }

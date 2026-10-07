@@ -59,11 +59,10 @@
 }
 .fd-root a:hover { color: var(--fd-accent); }
 
+/* Full width, so a page with its own theme paints its background edge to edge; its content stays within 1120px. */
 .fd-page {
   display: block;
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: calc(var(--fd-space) * 6) clamp(16px, 4vw, calc(var(--fd-space) * 5)) calc(var(--fd-space) * 10);
+  padding: calc(var(--fd-space) * 6) max(clamp(16px, 4vw, calc(var(--fd-space) * 5)), (100% - 1120px) / 2) calc(var(--fd-space) * 10);
 }
 
 .fd-text {

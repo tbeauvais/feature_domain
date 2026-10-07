@@ -154,6 +154,19 @@ describe('editing with useDocumentStore', () => {
     expect(doc.model?.name).toBe('From another tab')
   })
 
+  it('adding a Theme from the palette makes every page without one use it, in one undo step', async () => {
+    const doc = await open(model(page(), inst('PageFeature', '2', { name: 'Second' }, at('$root', 'content'))))
+    const themeId = doc.add('ThemeFeature')
+    const themeOf = (pageId: string) => doc.model!.features.find((f) => f.id === pageId)!.inputs.theme
+    expect([themeOf('1'), themeOf('2')]).toEqual([themeId, themeId])
+    expect(doc.selectedId).toBe(themeId)
+    expect(doc.result!.root.children.map((p) => (p.kind === 'page' ? p.props.theme?.scheme : undefined))).toEqual(['light', 'light'])
+    doc.undo()
+    expect(doc.model!.features.some((f) => f.feature === 'ThemeFeature')).toBe(false)
+    expect(themeOf('1')).toBeUndefined()
+    expect(doc.canUndo).toBe(false)
+  })
+
   describe('undo and redo', () => {
     it('undoes and redoes edits, restoring the selection, and saves the result', async () => {
       const doc = await open(model(page()))

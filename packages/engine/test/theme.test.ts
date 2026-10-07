@@ -122,7 +122,7 @@ describe('deriveTokens', () => {
   })
 
   it('reports colours it changed for readability', () => {
-    expect(deriveTokens().adjustments).toEqual(['White text on the accent #e5531a would be 3.8:1, so text on it uses #1b1b1b'])
+    expect(deriveTokens().adjustments).toEqual([])
     expect(deriveTokens({ band: '#808080' }).adjustments).toContain('Band colour #808080 darkened to #484848 so text on it stays readable')
     expect(deriveTokens({ band: '#999999' }).adjustments.some((a) => a.startsWith('Band colour #999999 lightened'))).toBe(true)
     expect(deriveTokens({ accent: '#1d4ed8' }).adjustments).toEqual([])

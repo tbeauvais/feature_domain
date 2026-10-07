@@ -231,3 +231,21 @@ export function updateInputs(model: AppModel, id: string, changes: Record<string
   // A changed reference can change dependency order.
   return normalizeOrder({ ...model, features }, options)
 }
+
+/**
+ * Points every Page that has no theme (or one whose theme no longer exists) at `themeId`, e.g. right after a Theme is
+ * added from the palette, so the new theme shows at once. Pages that already use another existing theme keep it.
+ */
+export function useThemeOnUnthemedPages(model: AppModel, themeId: string, options: EditOptions = {}): AppModel {
+  const ids = new Set(model.features.map((f) => f.id))
+  if (!ids.has(themeId)) throw new EditError(`Feature ${themeId} does not exist`)
+  let changed = false
+  const features = model.features.map((f) => {
+    if (f.feature !== 'PageFeature') return f
+    const current = typeof f.inputs.theme === 'string' ? f.inputs.theme : ''
+    if (current !== '' && ids.has(current)) return f
+    changed = true
+    return { ...f, inputs: { ...f.inputs, theme: themeId } }
+  })
+  return changed ? normalizeOrder({ ...model, features }, options) : model
+}

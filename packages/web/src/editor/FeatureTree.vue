@@ -5,7 +5,7 @@ import { buildFeatureTree } from './featureTree'
 import TreeRow from './TreeRow.vue'
 
 const store = useDocumentStore()
-const tree = computed(() => (store.result ? buildFeatureTree(store.result) : { roots: [], unplaced: [] }))
+const tree = computed(() => (store.result ? buildFeatureTree(store.result) : { roots: [], resources: [], unplaced: [] }))
 </script>
 
 <template>
@@ -14,6 +14,12 @@ const tree = computed(() => (store.result ? buildFeatureTree(store.result) : { r
     <ul role="tree" aria-labelledby="tree-heading">
       <TreeRow v-for="item in tree.roots" :key="item.id" :item="item" :depth="0" />
     </ul>
+    <template v-if="tree.resources.length > 0">
+      <h3 class="mt-3 mb-1 text-xs font-medium text-slate-500">Resources and themes</h3>
+      <ul role="tree" aria-label="Resources and themes">
+        <TreeRow v-for="item in tree.resources" :key="item.id" :item="item" :depth="0" />
+      </ul>
+    </template>
     <template v-if="tree.unplaced.length > 0">
       <h3 class="mt-3 mb-1 text-xs font-medium text-slate-500">Not on the page</h3>
       <ul role="tree" aria-label="Not on the page">

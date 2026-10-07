@@ -6,6 +6,7 @@ import {
   moveFeature,
   removeFeature,
   updateInputs,
+  useThemeOnUnthemedPages,
   validateModel,
   type AppModel,
   type GenerateResult,
@@ -212,11 +213,14 @@ export const useDocumentStore = defineStore('document', () => {
     selectedId.value = id
   }
 
-  /** Adds a feature from the palette (see `paletteTarget`) and selects it. */
+  /**
+   * Adds a feature from the palette (see `paletteTarget`) and selects it. A new Theme is also used by every page that
+   * has none, in the same undo step, so adding one restyles the page at once.
+   */
   function add(featureType: string): string {
     const target = result.value ? paletteTarget(current(), result.value, selectedId.value, featureType) : undefined
     const added = addFeature(current(), featureType, target)
-    apply(added.model)
+    apply(featureType === 'ThemeFeature' ? useThemeOnUnthemedPages(added.model, added.id) : added.model)
     selectedId.value = added.id
     return added.id
   }

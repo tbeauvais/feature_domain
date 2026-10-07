@@ -15,7 +15,9 @@ export interface TreeItem {
 export interface FeatureTree {
   /** Features placed at the document root, with everything inside them. */
   roots: TreeItem[]
-  /** Features that aren't on the page: data resources, and features whose placement is missing or broken. */
+  /** Features that are never placed, by design: data resources and themes. */
+  resources: TreeItem[]
+  /** Features that should be on the page but aren't: their placement is missing or broken. */
   unplaced: TreeItem[]
 }
 
@@ -50,7 +52,12 @@ export function buildFeatureTree(result: GenerateResult): FeatureTree {
 
   const roots = (byParent.get(ROOT_ID) ?? []).map(item)
   // One at a time: an unplaced container brings its children along, so they must not be listed again.
+  const resources: TreeItem[] = []
   const unplaced: TreeItem[] = []
-  for (const f of meta) if (!reached.has(f.id)) unplaced.push(item(f))
-  return { roots, unplaced }
+  for (const f of meta) {
+    if (reached.has(f.id)) continue
+    if (defaultRegistry.get(f.feature)?.placement === 'none') resources.push(item(f))
+    else unplaced.push(item(f))
+  }
+  return { roots, resources, unplaced }
 }

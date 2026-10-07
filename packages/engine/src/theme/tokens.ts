@@ -1,5 +1,5 @@
 import { asInt, asString } from '../inputs.js'
-import { contrast, fitContrast, hexToOklch, oklchToHex, type Oklch } from './color.js'
+import { fitContrast, hexToOklch, oklchToHex, type Oklch } from './color.js'
 
 // A theme has two layers:
 // - settings (accent colour, scheme, sizes, radius, density, shadow) from which `deriveTokens` computes CSS custom
@@ -77,7 +77,7 @@ export interface ThemeTokens {
   styles: ThemeStyles
   /** CSS custom properties, applied to the element that carries the theme. */
   vars: Record<TokenName, string>
-  /** Changes made to the chosen colours so text stays readable, in words, for the editor to show. */
+  /** Changes made to colours the user chose (not derived ones) so text stays readable, in words, for the editor. */
   adjustments: string[]
 }
 
@@ -140,10 +140,6 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
 
   const accentSolid = hex(accent)
   const onAccent = ensureContrast(at(dark ? 0.15 : 1, 0), [accentSolid])
-  if (onAccent !== hex(at(dark ? 0.15 : 1, 0))) {
-    const preferred = dark ? 'Dark' : 'White'
-    adjustments.push(`${preferred} text on the accent ${accentSolid} would be ${contrast(hex(at(dark ? 0.15 : 1, 0)), accentSolid).toFixed(1)}:1, so text on it uses ${onAccent}`)
-  }
   const vars: Record<TokenName, string> = {
     '--fd-bg': bg,
     '--fd-surface': surface,

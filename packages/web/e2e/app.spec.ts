@@ -87,12 +87,14 @@ const measureDocument = (target: Page) =>
       for (const name of Array.from(style)) {
         if (!name.startsWith('--') && !skip.test(name)) values[name] = style.getPropertyValue(name)
       }
-      // Centred boxes (pages, images, lists) use auto margins, which resolve to pixels that depend on the container
-      // width; compare "centred" instead.
-      // (Auto margins can differ by a sub-pixel rounding step.)
-      const centred = Math.abs(parseFloat(values['margin-left']!) - parseFloat(values['margin-right']!)) < 0.5
-      if (/\bfd-((image|list)-center|page)\b/.test(el.className) && centred) {
+      // Centred boxes use space that depends on the container width: images and lists auto margins, pages equal
+      // side padding. Compare "centred" instead (allowing a sub-pixel rounding step).
+      const equal = (a: string, b: string) => Math.abs(parseFloat(values[a]!) - parseFloat(values[b]!)) < 0.5
+      if (/\bfd-(image|list)-center\b/.test(el.className) && equal('margin-left', 'margin-right')) {
         values['margin-left'] = values['margin-right'] = values['margin-inline-start'] = values['margin-inline-end'] = 'centred'
+      }
+      if (/\bfd-page\b/.test(el.className) && equal('padding-left', 'padding-right')) {
+        values['padding-left'] = values['padding-right'] = values['padding-inline-start'] = values['padding-inline-end'] = 'centred'
       }
       // What the editor changes on purpose, and only where it does: drag behaviour on draggable elements (user-select
       // is inherited by their content), and a visible drop area on empty slots.
