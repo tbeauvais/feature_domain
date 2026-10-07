@@ -16,6 +16,7 @@ export type MigrationNoteCode =
   | 'markup-in-text'
   | 'data-binding'
   | 'upgraded-feature'
+  | 'dropped-style'
 
 export interface MigrationNote {
   code: MigrationNoteCode
@@ -136,6 +137,21 @@ export function migrate(input: unknown): MigrationResult {
   return { model, notes }
 }
 
+// Page colours came from the legacy Bootstrap look; pages are now styled by their theme.
+const LEGACY_PAGE_COLOURS = ['border_color', 'background_color'] as const
+
+function notePageColours(inputs: Raw, note: Context['note']): void {
+  const dropped = LEGACY_PAGE_COLOURS.filter((name) => str(inputs[name]).trim() !== '')
+  if (dropped.length > 0) {
+    note('dropped-style', 'info', `Dropped legacy page ${dropped.map((name) => `${name} "${str(inputs[name])}"`).join(' and ')}; pages are styled by their theme`)
+  }
+}
+
+/** A v2 Page saved before page colours were dropped: it still carries them, though nothing renders them. */
+function hasLegacyPageColours(f: FeatureInstance): boolean {
+  return f.feature === 'PageFeature' && LEGACY_PAGE_COLOURS.some((name) => name in f.inputs)
+}
+
 /** The legacy instance kept for a feature that was unported when migrated, if its type can be migrated now. */
 function pendingLegacy(f: FeatureInstance): Raw | undefined {
   const legacy = f.cache?.legacy
@@ -143,7 +159,7 @@ function pendingLegacy(f: FeatureInstance): Raw | undefined {
 }
 
 function upgrade(model: AppModel): MigrationResult {
-  if (!model.features.some((f) => pendingLegacy(f))) return { model, notes: [] }
+  if (!model.features.some((f) => pendingLegacy(f) || hasLegacyPageColours(f))) return { model, notes: [] }
   const notes: MigrationNote[] = []
   const legacyInputs = (f: FeatureInstance): Raw => {
     const raw = pendingLegacy(f)?.inputs
@@ -162,8 +178,13 @@ function upgrade(model: AppModel): MigrationResult {
 
   const features = model.features.map((f): FeatureInstance => {
     const legacy = pendingLegacy(f)
-    if (!legacy) return f
     const note = (code: MigrationNoteCode, severity: MigrationNote['severity'], message: string) => notes.push({ code, severity, message, featureInstanceId: f.id })
+    if (!legacy) {
+      if (!hasLegacyPageColours(f)) return f
+      notePageColours(f.inputs as Raw, note)
+      const inputs = Object.fromEntries(Object.entries(f.inputs).filter(([name]) => !(LEGACY_PAGE_COLOURS as readonly string[]).includes(name)))
+      return { ...f, inputs }
+    }
     const ctx: Context = { note, resourceId: (name) => resources.get(name), resourceOperations: (rid) => operations.get(rid) }
     const out: FeatureInstance = { feature: f.feature, id: f.id, inputs: INPUTS[f.feature]!(legacyInputs(f), ctx) }
     // Placement was resolved when the model was first migrated (unported features were placed too).
@@ -180,12 +201,10 @@ function upgrade(model: AppModel): MigrationResult {
 // ---------------------------------------------------------------------------------------------------------------------
 
 const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, InputValue>> = {
-  PageFeature: (i) => ({
-    name: str(i.name),
-    border_color: str(i.border_color),
-    background_color: str(i.background_color),
-    background_image: str(i.background_image),
-  }),
+  PageFeature: (i, ctx) => {
+    notePageColours(i, ctx.note)
+    return { name: str(i.name), background_image: str(i.background_image) }
+  },
 
   TextFeature: (i, ctx) => ({ name: str(i.name), disable: disable(i.disable, ctx), text: text(i.text, ctx) }),
 

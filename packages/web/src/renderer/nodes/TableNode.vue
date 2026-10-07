@@ -3,15 +3,17 @@ import type { DocNodeOf } from '@feature-domain/engine'
 import { computed } from 'vue'
 import { cellContent } from '../filters'
 import { useTableRows } from '../rows'
+import { useTheme } from '../theme'
 
 const props = defineProps<{ node: DocNodeOf<'table'> }>()
 
+const theme = useTheme()
 const state = useTableRows(computed(() => props.node.props.source))
 const rows = computed(() => (state.value.status === 'loaded' ? state.value.rows : []))
 </script>
 
 <template>
-  <div class="fd-table-wrap">
+  <div class="fd-table-wrap" :data-fd-table="theme.styles.table">
     <table class="fd-table">
       <thead>
         <tr>

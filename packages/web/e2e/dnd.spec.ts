@@ -1,8 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { isolateNetwork } from './network'
 
 // Drag-and-drop, undo/redo and keyboard moves, on fresh models. External requests are blocked.
+isolateNetwork()
+
 test.beforeEach(async ({ page }) => {
-  await page.context().route('**/*', (route) => (new URL(route.request().url()).hostname === 'localhost' ? route.continue() : route.abort()))
   await page.goto('/')
   await page.getByTestId('new-model').click()
   await expect(page.getByTestId('model-name')).toHaveValue('Untitled model')

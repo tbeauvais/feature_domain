@@ -129,6 +129,6 @@
  */
 .fd-editor-canvas .fd-root [data-slot]:empty {
   min-height: 2.5rem;
-  outline: 1px dashed #cbd5e1;
+  outline: 1px dashed var(--fd-border);
   outline-offset: -4px;
 }

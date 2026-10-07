@@ -1,14 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
+import { isolateNetwork } from './network'
 
 // Editor flows on a fresh model. All external requests are blocked except a mocked GitHub API.
-test.beforeEach(async ({ page }) => {
-  await page.context().route('**/*', async (route) => {
-    const url = new URL(route.request().url())
-    if (url.hostname === 'localhost') return route.continue()
-    if (url.hostname === 'api.github.com') return route.fulfill({ json: [{ name: 'engine', html_url: 'https://github.com/x/engine' }] })
-    return route.abort()
-  })
-})
+isolateNetwork((route, url) => (url.hostname === 'api.github.com' ? route.fulfill({ json: [{ name: 'engine', html_url: 'https://github.com/x/engine' }] }) : undefined))
 
 async function newModel(page: Page) {
   await page.goto('/')
