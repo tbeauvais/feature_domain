@@ -52,7 +52,7 @@ test('drags features into container cells and panels', async ({ page }) => {
   await expect(canvas(page).locator('[data-node-id="2.r1c2"] > [data-feature-id="3"]')).toBeVisible()
   await drag(page, feature(page, '3'), feature(page, '4'))
   await expect(canvas(page).locator('[data-node-id="4.body"] > [data-feature-id="3"]')).toBeVisible()
-  await expect(tree(page).locator('[data-tree-id="4"] + ul [data-tree-id="3"]')).toBeVisible()
+  await expect(tree(page).locator('[role="treeitem"]:has(> div [data-tree-id="4"]) > [role="group"] [data-tree-id="3"]')).toBeVisible()
 })
 
 test('refuses to drop a container inside itself, explaining why', async ({ page }) => {

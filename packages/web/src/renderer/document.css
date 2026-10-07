@@ -32,6 +32,11 @@
 .fd-root {
   all: initial;
   display: block;
+  /*
+   * Generated pages size themselves from the document's width, not the window's (cqi units and @container below),
+   * so the editor's Tablet and Phone canvas widths show exactly what a tablet or phone would.
+   */
+  container: fd-document / inline-size;
   min-height: 100%;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -62,7 +67,7 @@
 /* Full width, so a page with its own theme paints its background edge to edge; its content stays within 1120px. */
 .fd-page {
   display: block;
-  padding: calc(var(--fd-space) * 6) max(clamp(16px, 4vw, calc(var(--fd-space) * 5)), (100% - 1120px) / 2) calc(var(--fd-space) * 10);
+  padding: calc(var(--fd-space) * 6) max(clamp(16px, 4cqi, calc(var(--fd-space) * 5)), (100% - 1120px) / 2) calc(var(--fd-space) * 10);
 }
 
 .fd-text {
@@ -122,21 +127,21 @@ h6.fd-heading { font-size: var(--fd-h6); }
 /* Containers */
 .fd-grid {
   display: grid;
-  gap: clamp(calc(var(--fd-space) * 2), 3vw, calc(var(--fd-space) * 5));
+  gap: clamp(calc(var(--fd-space) * 2), 3cqi, calc(var(--fd-space) * 5));
   margin-bottom: calc(var(--fd-space) * 6);
 }
 .fd-cell {
   display: block;
   min-width: 0;
 }
-/* On phones, container columns stack in reading order (row by row). Overrides the inline grid placement. */
-@media (max-width: 640px) {
+/* On phone-width documents, container columns stack in reading order (row by row). Overrides the inline placement. */
+@container fd-document (max-width: 520px) {
   .fd-grid { grid-template-columns: minmax(0, 1fr) !important; }
   .fd-cell { grid-row: auto !important; grid-column: auto !important; }
 }
 .fd-well {
   min-height: 20px;
-  padding: clamp(calc(var(--fd-space) * 2), 5vw, calc(var(--fd-space) * 7));
+  padding: clamp(calc(var(--fd-space) * 2), 5cqi, calc(var(--fd-space) * 7));
   border-radius: var(--fd-radius-xl);
 }
 .fd-well[data-fd-well='tint'] {

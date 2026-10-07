@@ -2,6 +2,7 @@
 import { ROOT_ID, ROOT_SLOT, type ModelSummary } from '@feature-domain/engine'
 import { onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import BrandLink from '../components/BrandLink.vue'
 import { modelStore } from '../services'
 
 const models = ref<ModelSummary[] | null>(null)
@@ -23,7 +24,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section>
+  <header class="border-b border-slate-200 bg-white">
+    <div class="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
+      <BrandLink />
+      <span class="text-sm text-slate-500">Parametric application models</span>
+    </div>
+  </header>
+  <section class="mx-auto max-w-7xl px-4 py-6">
     <div class="mb-4 flex items-center justify-between">
       <h1 class="text-2xl font-semibold">Models</h1>
       <button type="button" class="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700" data-testid="new-model" @click="createModel">

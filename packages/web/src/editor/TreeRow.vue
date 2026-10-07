@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useDocumentStore } from '../stores/document'
 import { dragState } from './dndState'
-import type { TreeItem } from './featureTree'
+import { descendantCount, type TreeItem } from './featureTree'
+import { THEME_ACCENTS, TREE_COLLAPSE } from './treeCollapse'
 
 const props = defineProps<{ item: TreeItem; depth: number }>()
 const store = useDocumentStore()
+const collapse = inject(TREE_COLLAPSE, { isCollapsed: () => false, toggle: () => {} })
+const accents = inject(THEME_ACCENTS, undefined)
+
+const hasChildren = computed(() => props.item.children.length > 0)
+const collapsed = computed(() => hasChildren.value && collapse.isCollapsed(props.item.id))
+const swatch = computed(() => (props.item.feature === 'ThemeFeature' ? accents?.value.get(props.item.id) : undefined))
 
 /** Drop feedback for this row while a drag hovers it in the tree. */
 const drop = computed(() => {
@@ -25,30 +32,48 @@ const dropClass = computed(() => {
 
 const badge: Record<string, string> = {
   skipped: 'bg-amber-100 text-amber-800',
-  unknown: 'bg-slate-200 text-slate-700',
+  unknown: 'bg-slate-100 text-slate-600',
   suppressed: 'bg-slate-100 text-slate-500',
 }
+const badgeText: Record<string, string> = { skipped: 'skipped', unknown: 'not ported', suppressed: 'suppressed' }
+const selected = computed(() => store.selectedId === props.item.id)
 </script>
 
 <template>
-  <li role="treeitem" :aria-selected="store.selectedId === item.id" :aria-expanded="item.children.length > 0 ? true : undefined">
-    <button
-      type="button"
-      class="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-sm hover:bg-slate-100"
-      :class="[{ 'bg-sky-100 hover:bg-sky-100': store.selectedId === item.id, 'text-slate-400': item.status === 'suppressed' }, dropClass]"
-      :data-drop="drop ? `${drop.operation}${drop.allowed ? '' : ':blocked'}` : undefined"
-      :style="{ paddingLeft: `${0.375 + depth * 0.875}rem` }"
-      :data-tree-id="item.id"
-      :title="item.reason"
-      @click="store.select(item.id)"
-    >
-      <span v-if="item.slot" class="font-mono text-[10px] text-slate-400">{{ item.slot }}</span>
-      <span class="min-w-0 flex-auto truncate">{{ item.label }}</span>
-      <!-- The type yields space to the name; a status badge replaces it (the row's tooltip says why). -->
-      <span v-if="item.status === 'generated'" class="min-w-0 shrink-[4] truncate text-[10px] text-slate-400">{{ item.feature.replace(/Feature$/, '') }}</span>
-      <span v-if="item.status !== 'generated'" class="shrink-0 rounded px-1 text-[10px]" :class="badge[item.status]">{{ item.status }}</span>
-    </button>
-    <ul v-if="item.children.length > 0" role="group">
+  <li role="treeitem" :aria-selected="selected" :aria-expanded="hasChildren ? !collapsed : undefined">
+    <div class="flex items-center" :style="{ paddingLeft: `${depth * 0.875}rem` }">
+      <button
+        v-if="hasChildren"
+        type="button"
+        class="grid size-5 shrink-0 place-items-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+        :aria-label="`${collapsed ? 'Expand' : 'Collapse'} ${item.label}`"
+        :data-testid="`tree-toggle-${item.id}`"
+        @click="collapse.toggle(item.id)"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" :class="collapsed ? '-rotate-90' : ''">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      <span v-else class="size-5 shrink-0" aria-hidden="true" />
+      <button
+        type="button"
+        class="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[13px] hover:bg-slate-100"
+        :class="[{ 'bg-sky-50 shadow-[inset_2px_0_0_0] shadow-sky-600 hover:bg-sky-50': selected, 'text-slate-400': item.status === 'suppressed' }, dropClass]"
+        :data-drop="drop ? `${drop.operation}${drop.allowed ? '' : ':blocked'}` : undefined"
+        :data-tree-id="item.id"
+        :title="item.reason"
+        @click="store.select(item.id)"
+      >
+        <span v-if="swatch" aria-hidden="true" class="size-3 shrink-0 rounded" :style="{ background: swatch }" />
+        <span v-if="item.slot" class="font-mono text-[10px] text-slate-400">{{ item.slot }}</span>
+        <span class="min-w-0 flex-auto truncate" :class="{ 'font-medium': depth === 0 && hasChildren }">{{ item.label }}</span>
+        <span v-if="collapsed" class="shrink-0 text-[11px] text-slate-500" :title="`${descendantCount(item)} features inside`">{{ descendantCount(item) }}</span>
+        <!-- The type (or a page's theme) yields space to the name; a status badge replaces it (the tooltip says why). -->
+        <span v-else-if="item.status === 'generated'" class="min-w-0 shrink-[4] truncate text-[11px] text-slate-500">{{ item.detail ?? item.type }}</span>
+        <span v-if="item.status !== 'generated'" class="shrink-0 rounded-full px-1.5 text-[11px]" :class="badge[item.status]">{{ badgeText[item.status] }}</span>
+      </button>
+    </div>
+    <ul v-if="hasChildren && !collapsed" role="group">
       <TreeRow v-for="child in item.children" :key="child.id" :item="child" :depth="depth + 1" />
     </ul>
   </li>

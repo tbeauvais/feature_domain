@@ -55,7 +55,10 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
   await expect(canvas.locator('[data-feature-id="7"] li')).toHaveText(['Red', 'Green', 'Blue', 'Yellow'])
   await expect(canvas.locator('.fd-placeholder[data-feature-id="16"]')).toContainText('GoogleMapFeature is not ported yet')
 
-  const diagnostics = page.getByTestId('diagnostics').last()
+  // Problems open from the status bar.
+  await expect(page.getByTestId('problems-toggle')).toContainText('not ported yet')
+  await page.getByTestId('problems-toggle').click()
+  const diagnostics = page.getByTestId('diagnostics')
   await expect(diagnostics.locator('[data-code="out-of-order"]')).toHaveCount(3)
   await expect(diagnostics).toContainText('Listed before feature 36 ("repo panel"), which it is placed in')
 })
@@ -126,15 +129,20 @@ const hasTailwindReset = (target: Page) =>
 test('renders generated pages identically in the editor and the preview', async ({ page, context }) => {
   const id = await openSample(page, 'Data Sample')
 
-  await page.goto(`/preview.html?model=${encodeURIComponent(id)}`)
-  await expect(page.locator('[data-feature-id="24"] tbody tr')).toHaveCount(2)
-  expect(await hasTailwindReset(page)).toBe(false)
-  const inPreview = await measureDocument(page)
-
   const editor = await context.newPage()
   await editor.goto(`/models/${encodeURIComponent(id)}`)
   await expect(editor.locator('[data-feature-id="24"] tbody tr')).toHaveCount(2)
   expect(await hasTailwindReset(editor)).toBe(true)
+  // Generated pages size themselves from the document's width (container queries), so render the preview's document
+  // at exactly the editor canvas's width.
+  const width = await editor.locator('.fd-root').evaluate((el) => el.getBoundingClientRect().width)
+
+  await page.goto(`/preview.html?model=${encodeURIComponent(id)}`)
+  await expect(page.locator('[data-feature-id="24"] tbody tr')).toHaveCount(2)
+  await page.locator('#app').evaluate((el, w) => ((el as HTMLElement).style.width = `${w}px`), width)
+  expect(await page.locator('.fd-root').evaluate((el) => el.getBoundingClientRect().width)).toBe(width)
+  expect(await hasTailwindReset(page)).toBe(false)
+  const inPreview = await measureDocument(page)
 
   expect(inPreview.length).toBeGreaterThan(40)
   expect(Object.keys(inPreview[0]!.values).length).toBeGreaterThan(200)

@@ -189,7 +189,8 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
     vars[`--fd-band-${tone}`] = ensureContrast(at(bandIsDark ? 0.8 : 0.45, c, h), bandSurfaces)
   }
 
-  // Type: a modular scale from the base size. h1/h2 shrink on narrow screens but never below h3.
+  // Type: a modular scale from the base size. h1/h2 shrink on narrow documents (cqi: the document's own width, so the
+  // editor's phone-width canvas matches a phone) but never below h3.
   const ratio = RATIOS[p.scale]
   const size = (step: number) => Math.round(p.baseSize * ratio ** step)
   const fonts = FONTS[p.fonts]
@@ -201,8 +202,8 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
     '--fd-display-tracking': fonts.tracking,
     '--fd-size': `${p.baseSize}px`,
     '--fd-size-small': `${Math.round(p.baseSize * 0.8125)}px`,
-    '--fd-h1': `clamp(${size(3)}px, 9vw, ${size(6)}px)`,
-    '--fd-h2': `clamp(${size(3)}px, 6vw, ${size(4)}px)`,
+    '--fd-h1': `clamp(${size(3)}px, 9cqi, ${size(6)}px)`,
+    '--fd-h2': `clamp(${size(3)}px, 6cqi, ${size(4)}px)`,
     '--fd-h3': `${size(3)}px`,
     '--fd-h4': `${size(2)}px`,
     '--fd-h5': `${size(1)}px`,

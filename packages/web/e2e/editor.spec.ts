@@ -284,3 +284,46 @@ test('adding a Theme restyles the page at once, and its settings drive the previ
   await expect(tree(page).locator('[data-tree-id="3"]')).toHaveCount(0)
   await expect(root).toHaveAttribute('data-fd-scheme', 'light')
 })
+
+test('the canvas shows the page at desktop, tablet and phone widths, and remembers the choice', async ({ page }) => {
+  await newModel(page)
+  await page.getByTestId('palette-ContainerFeature').click()
+  const cells = canvas(page).locator('[data-node-id="2.r1c1"], [data-node-id="2.r1c2"]')
+  const tops = async () => Promise.all((await cells.all()).map(async (c) => (await c.boundingBox())!.y))
+
+  // Side by side on desktop...
+  let [first, second] = await tops()
+  expect(first).toBe(second)
+  // ...stacked at phone width, because the page sizes itself from its own width.
+  await page.getByTestId('canvas-width-phone').click()
+  await expect(canvas(page)).toHaveAttribute('data-canvas-width', 'phone')
+  expect((await canvas(page).boundingBox())!.width).toBeLessThanOrEqual(390)
+  ;[first, second] = await tops()
+  expect(second).toBeGreaterThan(first!)
+
+  await page.reload()
+  await expect(canvas(page)).toHaveAttribute('data-canvas-width', 'phone')
+  await page.getByTestId('canvas-width-desktop').click()
+})
+
+test('the status bar opens the problems list, and ? shows the keyboard shortcuts', async ({ page }) => {
+  await newModel(page)
+  await page.getByTestId('palette-TableFeature').click()
+  await expect(page.getByTestId('problems-toggle')).toHaveText('1 problem')
+  await expect(page.getByTestId('status-counts')).toHaveText('2 features · 0 data resources · 0 themes')
+  await page.getByTestId('problems-toggle').click()
+  // (The inspector lists the selected table's own problems too; this is the model-wide list.)
+  const panel = page.locator('#problems-panel')
+  await expect(panel.getByTestId('diagnostics')).toContainText('No Data Resource selected')
+  await page.getByTestId('problems-toggle').click()
+  await expect(panel).toHaveCount(0)
+
+  await page.getByTestId('canvas').click()
+  await page.keyboard.press('?')
+  await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeHidden()
+  // Typing ? into a text field types it.
+  await page.getByTestId('model-name').fill('What?')
+  await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeHidden()
+})
