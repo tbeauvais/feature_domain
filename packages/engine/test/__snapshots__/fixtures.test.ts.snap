@@ -2,7 +2,7 @@
 
 exports[`app_models/buy_deal_sample.json > generates the golden document 1`] = `
 "root #$root <content>
-  page #15 <content> [15] style={"border":"5px solid #00a3ff","borderRadius":"5px","padding":"8px","backgroundColor":"#e6fcfc"}
+  page #15 <content> [15]
     image #36 [36] {"src":"https://www.nard.ma/images/english/web-application-header.jpg","alt":"some cool image","width":"100%","height":"200","responsive":false,"align":"center"}
     grid #29 [29] {"rows":1,"columns":3,"well":true}
       grid-cell #29.r1c1 <r1c1> {"row":1,"column":1}
@@ -36,7 +36,7 @@ exports[`app_models/buy_deal_sample.json > generates the golden document 2`] = `
 `;
 
 exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 1`] = `
-"15 PageFeature @$root/content {"name":"Page","border_color":"#00a3ff","background_color":"#e6fcfc","background_image":""}
+"15 PageFeature @$root/content {"name":"Page","background_image":""}
 21 DataResourceFeature {"name":"Weather Service","resource":"https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%202415484&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys","operation":"GET"}
 34 DataResourceFeature {"name":"Weather Service FL","resource":"https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%2091560673&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys","operation":"GET"}
 36 ImageFeature @15/content {"name":"Header Image","disable":false,"src":"https://www.nard.ma/images/english/web-application-header.jpg","alt":"some cool image","height":"200","width":"100%","responsive":false,"align":"center"}
@@ -61,6 +61,7 @@ exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 1`] =
 
 exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 2`] = `
 [
+  "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
   "info unported-feature [30]: ListGroupFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [31]: ButtonFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [32]: ListGroupFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
@@ -79,7 +80,7 @@ exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 2`] =
 
 exports[`app_models/google_map_sample.json > generates the golden document 1`] = `
 "root #$root <content>
-  page #15 <content> [15] style={"border":"5px solid #00a3ff","borderRadius":"5px","padding":"8px","backgroundColor":"#e6fcfc"}
+  page #15 <content> [15]
     image #25 [25] {"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","width":"100%","height":"150","responsive":false,"align":"center"}
     panel #36 [36] {"heading":"My GitHub Repos","tone":"success"}
       panel-body #36.body <body>
@@ -120,7 +121,7 @@ exports[`app_models/google_map_sample.json > generates the golden document 2`] =
 `;
 
 exports[`app_models/google_map_sample.json > migrates to the golden v2 model 1`] = `
-"15 PageFeature @$root/content {"name":"Page","border_color":"#00a3ff","background_color":"#e6fcfc","background_image":""}
+"15 PageFeature @$root/content {"name":"Page","background_image":""}
 21 DataResourceFeature {"name":"Weather Service","resource":"https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%202415484&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys","operation":"GET"}
 34 DataResourceFeature {"name":"Weather Service FL","resource":"https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%2091560673&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys","operation":"GET"}
 23 DataResourceFeature {"name":"TomsRepos","resource":"https://api.github.com/users/tbeauvais/repos?per_page=5","operation":"GET"}
@@ -150,6 +151,7 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 1`]
 
 exports[`app_models/google_map_sample.json > migrates to the golden v2 model 2`] = `
 [
+  "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
   "info unported-feature [27]: SeparatorFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "warning data-binding [35]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
   "info unported-feature [16]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
@@ -163,7 +165,7 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 2`]
 
 exports[`app_models/swagger_resource_sample.json > generates the golden document 1`] = `
 "root #$root <content>
-  page #15 <content> [15] style={"border":"5px solid #00a3ff","borderRadius":"5px","padding":"8px","backgroundColor":"#e6fcfc"}
+  page #15 <content> [15]
     image #25 [25] {"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","width":"100%","height":"150","responsive":false,"align":"center"}
     panel #46 [46] {"heading":"Monthly Sales","tone":"success"}
       panel-body #46.body <body>
@@ -182,7 +184,7 @@ exports[`app_models/swagger_resource_sample.json > generates the golden document
 `;
 
 exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 model 1`] = `
-"15 PageFeature @$root/content {"name":"Page","border_color":"#00a3ff","background_color":"#e6fcfc","background_image":""}
+"15 PageFeature @$root/content {"name":"Page","background_image":""}
 42 SwaggerDataResourceFeature {"name":"Sales API","resource":"http://sales-api.mybluemix.net/swagger_doc/sales.json"} cache=legacy
 25 ImageFeature @15/content {"name":"header image","disable":false,"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","height":"150","width":"100%","responsive":false,"align":"center"}
 27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center","color":"#2fa7eb","width":"80","height":"5"} cache=legacy
@@ -195,6 +197,7 @@ exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 mod
 
 exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 model 2`] = `
 [
+  "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
   "info unported-feature [42]: SwaggerDataResourceFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [27]: SeparatorFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [44]: FormFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
@@ -204,7 +207,7 @@ exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 mod
 
 exports[`app_models/watson_sample.json > generates the golden document 1`] = `
 "root #$root <content>
-  page #15 <content> [15] style={"border":"5px solid #00a3ff","borderRadius":"5px","padding":"8px","backgroundColor":"#e6fcfc"}
+  page #15 <content> [15]
     heading #29 [29] {"text":"Leverage IBM's Watson Services","level":1,"align":"center","tone":"info"}
     image #25 [25] {"src":"http://www.dotpod.com.ar/wp-content/uploads/ibm-silvergate-argentina-02-710x242.jpg","alt":"some cool image","width":"100%","height":"250","responsive":false,"align":"left"}"
 `;
@@ -217,7 +220,7 @@ exports[`app_models/watson_sample.json > generates the golden document 2`] = `
 `;
 
 exports[`app_models/watson_sample.json > migrates to the golden v2 model 1`] = `
-"15 PageFeature @$root/content {"name":"Page","border_color":"#00a3ff","background_color":"#e6fcfc","background_image":""}
+"15 PageFeature @$root/content {"name":"Page","background_image":""}
 29 HeaderFeature @15/content {"name":"header","disable":false,"text":"Leverage IBM's Watson Services","size":1,"align":"center","text_style":"info","background":""}
 25 ImageFeature @15/content {"name":"header image","disable":false,"src":"http://www.dotpod.com.ar/wp-content/uploads/ibm-silvergate-argentina-02-710x242.jpg","alt":"some cool image","height":"250","width":"100%","responsive":false,"align":"left"}
 27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center","color":"#2fa7eb","width":"80","height":"5"} cache=legacy
@@ -226,6 +229,7 @@ exports[`app_models/watson_sample.json > migrates to the golden v2 model 1`] = `
 
 exports[`app_models/watson_sample.json > migrates to the golden v2 model 2`] = `
 [
+  "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
   "info unported-feature [27]: SeparatorFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [28]: WatsonTextToSpeechFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
 ]
@@ -264,7 +268,7 @@ exports[`sample.json > generates the golden document 2`] = `
 `;
 
 exports[`sample.json > migrates to the golden v2 model 1`] = `
-"15 PageFeature @$root/content {"name":"Page","border_color":"","background_color":"","background_image":""}
+"15 PageFeature @$root/content {"name":"Page","background_image":""}
 1 HeaderFeature @15/content {"name":"Top Header","disable":false,"text":"Here is some content for ya...gfdgfd","size":1,"align":"left","text_style":"","background":""}
 12 ContainerFeature @15/content {"name":"My Container","disable":false,"rows":1,"columns":2,"well":false}
 8 HeaderFeature @12/r1c1 {"name":"Small header","disable":false,"text":"Here's a list of colors","size":4,"align":"left","text_style":"","background":""}

@@ -95,9 +95,9 @@ const measureDocument = (target: Page) =>
       for (const name of Array.from(style)) {
         if (!name.startsWith('--') && !skip.test(name)) values[name] = style.getPropertyValue(name)
       }
-      // Centred boxes (images, lists) use auto margins, which resolve to pixels that depend on the container width;
-      // compare "centred" instead.
-      if (/\bfd-(image|list)-center\b/.test(el.className) && values['margin-left'] === values['margin-right']) {
+      // Centred boxes (pages, images, lists) use auto margins, which resolve to pixels that depend on the container
+      // width; compare "centred" instead.
+      if (/\bfd-((image|list)-center|page)\b/.test(el.className) && values['margin-left'] === values['margin-right']) {
         values['margin-left'] = values['margin-right'] = values['margin-inline-start'] = values['margin-inline-end'] = 'centred'
       }
       // What the editor changes on purpose, and only where it does: drag behaviour on draggable elements (user-select

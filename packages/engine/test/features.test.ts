@@ -81,15 +81,9 @@ describe('PageFeature', () => {
     expect(run(PageFeature).out.node).toMatchObject({ kind: 'page', id: '7', slot: 'content' })
   })
 
-  it('turns colour inputs into style', () => {
+  it('turns a background image into style and ignores legacy colours (the theme styles pages)', () => {
     const { out } = run(PageFeature, { border_color: '#00a3ff', background_color: '#e6fcfc', background_image: 'a.png' })
-    expect(out.node?.style).toEqual({
-      border: '5px solid #00a3ff',
-      borderRadius: '5px',
-      padding: '8px',
-      backgroundColor: '#e6fcfc',
-      backgroundImage: 'url("a.png")',
-    })
+    expect(out.node?.style).toEqual({ backgroundImage: 'url("a.png")' })
   })
 
   it('omits style when no style inputs are set', () => {

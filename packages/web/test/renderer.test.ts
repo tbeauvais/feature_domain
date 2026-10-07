@@ -13,7 +13,7 @@ describe('DocumentView', () => {
   it('renders the document tree with one element per node and model ids on feature and slot nodes', () => {
     const w = render(
       model(
-        page({ background_color: '#eee' }),
+        page({ background_image: 'bg.png' }),
         inst('HeaderFeature', '2', { text: 'Title', size: 3, align: 'right', text_style: 'success' }),
         inst('ContainerFeature', 'c', { columns: 2, well: true }),
         inst('TextFeature', 't', { text: 'In a cell' }, at('c', 'r1c2')),
@@ -22,7 +22,7 @@ describe('DocumentView', () => {
     )
     const root = w.get('.fd-root')
     expect(root.attributes()).toMatchObject({ 'data-node-id': '$root', 'data-slot': 'content', 'data-slot-parent': '$root' })
-    expect(w.get('[data-feature-id="1"]').attributes('style')).toContain('background-color: rgb(238, 238, 238)')
+    expect(w.get('[data-feature-id="1"]').attributes('style')).toContain('background-image: url("bg.png")')
     expect(w.get('[data-feature-id="1"]').attributes()).toMatchObject({ 'data-slot': 'content', 'data-slot-parent': '1' })
 
     const heading = w.get('[data-feature-id="2"]')

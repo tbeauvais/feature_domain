@@ -16,6 +16,7 @@ export type MigrationNoteCode =
   | 'markup-in-text'
   | 'data-binding'
   | 'upgraded-feature'
+  | 'dropped-style'
 
 export interface MigrationNote {
   code: MigrationNoteCode
@@ -180,12 +181,14 @@ function upgrade(model: AppModel): MigrationResult {
 // ---------------------------------------------------------------------------------------------------------------------
 
 const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, InputValue>> = {
-  PageFeature: (i) => ({
-    name: str(i.name),
-    border_color: str(i.border_color),
-    background_color: str(i.background_color),
-    background_image: str(i.background_image),
-  }),
+  // Page colours came from the legacy Bootstrap look; pages are now styled by their theme.
+  PageFeature: (i, ctx) => {
+    const dropped = (['border_color', 'background_color'] as const).filter((name) => str(i[name]).trim() !== '')
+    if (dropped.length > 0) {
+      ctx.note('dropped-style', 'info', `Dropped legacy page ${dropped.map((name) => `${name} "${str(i[name])}"`).join(' and ')}; pages are styled by their theme`)
+    }
+    return { name: str(i.name), background_image: str(i.background_image) }
+  },
 
   TextFeature: (i, ctx) => ({ name: str(i.name), disable: disable(i.disable, ctx), text: text(i.text, ctx) }),
 
