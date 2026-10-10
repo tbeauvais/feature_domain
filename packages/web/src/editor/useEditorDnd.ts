@@ -7,6 +7,7 @@ import { onBeforeUnmount, onMounted, watch, type Ref } from 'vue'
 import { useDocumentStore } from '../stores/document'
 import { evaluateDrop, intoSlot, type DragSource, type DropZone } from './dnd'
 import { dragState } from './dndState'
+import { collapsedRows } from './treeCollapse'
 
 // Marks drag data as ours, so other drags (files, text) are ignored.
 const OURS = 'featureDomain'
@@ -126,7 +127,8 @@ export function useEditorDnd(roots: { canvas: Ref<HTMLElement | null>; tree: Ref
       },
     })
   })
-  watch(() => [store.result, roots.canvas.value, roots.tree.value, roots.palette.value], register, { flush: 'post' })
+  // Re-register whenever the elements change: a regeneration, or tree rows re-created by collapsing or expanding.
+  watch(() => [store.result, roots.canvas.value, roots.tree.value, roots.palette.value, collapsedRows.value], register, { flush: 'post' })
   onBeforeUnmount(() => {
     cleanup()
     stopMonitor()

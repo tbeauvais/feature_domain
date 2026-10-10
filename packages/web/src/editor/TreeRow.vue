@@ -3,15 +3,14 @@ import { computed, inject } from 'vue'
 import { useDocumentStore } from '../stores/document'
 import { dragState } from './dndState'
 import { descendantCount, type TreeItem } from './featureTree'
-import { THEME_ACCENTS, TREE_COLLAPSE } from './treeCollapse'
+import { collapsedRows, THEME_ACCENTS, toggleCollapsed } from './treeCollapse'
 
 const props = defineProps<{ item: TreeItem; depth: number }>()
 const store = useDocumentStore()
-const collapse = inject(TREE_COLLAPSE, { isCollapsed: () => false, toggle: () => {} })
 const accents = inject(THEME_ACCENTS, undefined)
 
 const hasChildren = computed(() => props.item.children.length > 0)
-const collapsed = computed(() => hasChildren.value && collapse.isCollapsed(props.item.id))
+const collapsed = computed(() => hasChildren.value && collapsedRows.value.has(props.item.id))
 const swatch = computed(() => (props.item.feature === 'ThemeFeature' ? accents?.value.get(props.item.id) : undefined))
 
 /** Drop feedback for this row while a drag hovers it in the tree. */
@@ -40,15 +39,15 @@ const selected = computed(() => store.selectedId === props.item.id)
 </script>
 
 <template>
-  <li role="treeitem" :aria-selected="selected" :aria-expanded="hasChildren ? !collapsed : undefined">
+  <li role="treeitem" :aria-label="item.label" :aria-selected="selected" :aria-expanded="hasChildren ? !collapsed : undefined">
     <div class="flex items-center" :style="{ paddingLeft: `${depth * 0.875}rem` }">
       <button
         v-if="hasChildren"
         type="button"
-        class="grid size-5 shrink-0 place-items-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+        class="grid size-5 shrink-0 place-items-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-800"
         :aria-label="`${collapsed ? 'Expand' : 'Collapse'} ${item.label}`"
         :data-testid="`tree-toggle-${item.id}`"
-        @click="collapse.toggle(item.id)"
+        @click="toggleCollapsed(item.id)"
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" :class="collapsed ? '-rotate-90' : ''">
           <path d="m6 9 6 6 6-6" />
@@ -64,7 +63,7 @@ const selected = computed(() => store.selectedId === props.item.id)
         :title="item.reason"
         @click="store.select(item.id)"
       >
-        <span v-if="swatch" aria-hidden="true" class="size-3 shrink-0 rounded" :style="{ background: swatch }" />
+        <span v-if="swatch" aria-hidden="true" class="size-3 shrink-0 rounded" :style="{ backgroundColor: swatch }" />
         <span v-if="item.slot" class="font-mono text-[10px] text-slate-400">{{ item.slot }}</span>
         <span class="min-w-0 flex-auto truncate" :class="{ 'font-medium': depth === 0 && hasChildren }">{{ item.label }}</span>
         <span v-if="collapsed" class="shrink-0 text-[11px] text-slate-500" :title="`${descendantCount(item)} features inside`">{{ descendantCount(item) }}</span>

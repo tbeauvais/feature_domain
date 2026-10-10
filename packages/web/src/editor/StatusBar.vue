@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { GenerateResult } from '@feature-domain/engine'
 import { computed } from 'vue'
+import { UNDO_KEYS } from './keys'
 import { summarize } from './status'
 
 const props = defineProps<{ result: GenerateResult; problemsOpen: boolean }>()
 defineEmits<{ toggleProblems: [] }>()
 
 const summary = computed(() => summarize(props.result))
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 </script>
 
 <template>
@@ -31,6 +31,6 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
     </button>
     <span data-testid="status-counts">{{ summary.countsLabel }}</span>
     <span class="flex-1" />
-    <span class="hidden sm:inline">Drag to move · {{ isMac ? '⌘Z' : 'Ctrl+Z' }} undo · ? shortcuts</span>
+    <span class="hidden sm:inline">Drag to move · {{ UNDO_KEYS }} undo · ? shortcuts</span>
   </footer>
 </template>

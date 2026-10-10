@@ -301,9 +301,34 @@ test('the canvas shows the page at desktop, tablet and phone widths, and remembe
   ;[first, second] = await tops()
   expect(second).toBeGreaterThan(first!)
 
+  // Tablet is 820px wide even when the window leaves less room (the canvas scrolls sideways).
+  await page.getByTestId('canvas-width-tablet').click()
+  expect((await canvas(page).boundingBox())!.width).toBe(820)
+  ;[first, second] = await tops()
+  expect(first).toBe(second)
+
+  await page.getByTestId('canvas-width-phone').click()
   await page.reload()
   await expect(canvas(page)).toHaveAttribute('data-canvas-width', 'phone')
   await page.getByTestId('canvas-width-desktop').click()
+})
+
+test('on a short window the feature tree stays usable, and the palette folds away', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 500 })
+  await newModel(page)
+  for (let i = 0; i < 8; i++) await page.getByTestId('palette-TextFeature').click()
+  const lastRow = tree(page).locator('[data-tree-id="9"]')
+  await lastRow.scrollIntoViewIfNeeded()
+  await lastRow.click()
+  await expect(inspector(page)).toContainText('Text #9')
+  expect((await tree(page).boundingBox())!.height).toBeGreaterThan(150)
+
+  await page.getByTestId('palette-toggle').click()
+  await expect(page.getByTestId('palette-TextFeature')).toBeHidden()
+  await page.reload()
+  await expect(page.getByTestId('palette-TextFeature')).toBeHidden()
+  await page.getByTestId('palette-toggle').click()
+  await expect(page.getByTestId('palette-TextFeature')).toBeVisible()
 })
 
 test('the status bar opens the problems list, and ? shows the keyboard shortcuts', async ({ page }) => {
@@ -323,7 +348,17 @@ test('the status bar opens the problems list, and ? shows the keyboard shortcuts
   await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeHidden()
-  // Typing ? into a text field types it.
-  await page.getByTestId('model-name').fill('What?')
+  // Typing ? into a text field types it (real key presses, so the shortcut handler sees them).
+  await page.getByTestId('model-name').click()
+  await page.keyboard.press('End')
+  await page.keyboard.type('?')
+  await expect(page.getByTestId('model-name')).toHaveValue('Untitled model?')
   await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeHidden()
+
+  // While the shortcuts are open, undo doesn't act behind them.
+  await page.getByTestId('canvas').click()
+  await page.keyboard.press('?')
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect(page.getByTestId('model-name')).toHaveValue('Untitled model?')
+  await page.keyboard.press('Escape')
 })

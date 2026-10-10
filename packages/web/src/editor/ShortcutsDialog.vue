@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { REDO_KEYS, UNDO_KEYS } from './keys'
 
 // Keyboard shortcuts reference. A native <dialog>: modal, closes with Escape, and returns focus by itself.
 const dialog = ref<HTMLDialogElement | null>(null)
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
-const mod = isMac ? '⌘' : 'Ctrl+'
 
 const shortcuts = [
-  { keys: `${mod}Z`, does: 'Undo' },
-  { keys: isMac ? '⇧⌘Z' : 'Ctrl+Y', does: 'Redo' },
+  { keys: UNDO_KEYS, does: 'Undo' },
+  { keys: REDO_KEYS, does: 'Redo' },
   { keys: '?', does: 'Show these shortcuts' },
   { keys: 'Esc', does: 'Close this dialog' },
 ]
@@ -18,7 +17,12 @@ const tips = [
   'Move up, Move down and Location in the inspector move a feature without dragging.',
 ]
 
-defineExpose({ open: () => dialog.value?.showModal() })
+defineExpose({
+  open: () => {
+    if (dialog.value && !dialog.value.open) dialog.value.showModal()
+  },
+  isOpen: () => dialog.value?.open === true,
+})
 </script>
 
 <template>

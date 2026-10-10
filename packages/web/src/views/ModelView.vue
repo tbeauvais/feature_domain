@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter } from 'vue-router'
 import BrandLink from '../components/BrandLink.vue'
 import FeatureTree from '../editor/FeatureTree.vue'
@@ -10,6 +10,8 @@ import DropIndicator from '../editor/DropIndicator.vue'
 import SelectionOverlay from '../editor/SelectionOverlay.vue'
 import ShortcutsDialog from '../editor/ShortcutsDialog.vue'
 import StatusBar from '../editor/StatusBar.vue'
+import { REDO_KEYS, UNDO_KEYS } from '../editor/keys'
+import { themeSummary } from '../editor/status'
 import { CANVAS_WIDTHS, loadCanvasWidth, saveCanvasWidth, type CanvasWidth } from '../editor/canvasWidth'
 import { useEditorDnd } from '../editor/useEditorDnd'
 import DocumentView from '../renderer/DocumentView.vue'
@@ -27,9 +29,6 @@ const tree = ref<HTMLElement | null>(null)
 const palette = ref<HTMLElement | null>(null)
 useEditorDnd({ canvas, tree, palette })
 
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
-const undoHint = isMac ? '⌘Z' : 'Ctrl+Z'
-const redoHint = isMac ? '⇧⌘Z' : 'Ctrl+Y'
 
 const TEXT_INPUT_TYPES = ['text', 'search', 'url', 'tel', 'email', 'password', 'number']
 
@@ -44,7 +43,7 @@ const shortcuts = ref<InstanceType<typeof ShortcutsDialog> | null>(null)
 
 /** Undo/redo shortcuts and `?` for the shortcuts list, except in text fields and while a confirmation dialog is open. */
 function onKeydown(event: KeyboardEvent) {
-  if (pendingConfirm.value !== null || isTextEntry(event.target)) return
+  if (pendingConfirm.value !== null || shortcuts.value?.isOpen() || isTextEntry(event.target)) return
   if (event.key === '?' && !event.metaKey && !event.ctrlKey && !event.altKey) {
     shortcuts.value?.open()
     event.preventDefault()
@@ -106,15 +105,13 @@ watch(canvasWidth, saveCanvasWidth)
 
 const problemsOpen = ref(false)
 
-/** Which themes style the pages, for the canvas toolbar. */
-const themeSummary = computed(() => {
-  const features = result.value?.metadata.features ?? []
-  const themes = features.filter((f) => f.feature === 'ThemeFeature')
-  const pages = features.filter((f) => f.feature === 'PageFeature')
-  const used = themes.filter((t) => pages.some((p) => p.references.includes(t.id)))
-  if (used.length === 0) return 'Default theme (Warm Editorial)'
-  return `Theme: ${used.map((t) => t.name || 'Untitled').join(', ')}`
-})
+const themes = computed(() => (result.value ? themeSummary(result.value) : ''))
+
+/** Closing the problems panel returns focus to the status bar button that opened it. */
+function closeProblems() {
+  problemsOpen.value = false
+  void nextTick(() => document.querySelector<HTMLElement>('[data-testid="problems-toggle"]')?.focus())
+}
 
 async function deleteModel() {
   if (!model.value) return
@@ -154,10 +151,10 @@ async function deleteModel() {
         </span>
         <span class="flex-1" />
         <div class="flex gap-1">
-          <button type="button" class="grid size-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40" data-testid="undo" aria-label="Undo" :title="`Undo (${undoHint})`" :disabled="!canUndo" @click="store.undo()">
+          <button type="button" class="grid size-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40" data-testid="undo" aria-label="Undo" :title="`Undo (${UNDO_KEYS})`" :disabled="!canUndo" @click="store.undo()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>
           </button>
-          <button type="button" class="grid size-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40" data-testid="redo" aria-label="Redo" :title="`Redo (${redoHint})`" :disabled="!canRedo" @click="store.redo()">
+          <button type="button" class="grid size-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40" data-testid="redo" aria-label="Redo" :title="`Redo (${REDO_KEYS})`" :disabled="!canRedo" @click="store.redo()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" /></svg>
           </button>
         </div>
@@ -184,9 +181,10 @@ async function deleteModel() {
     <p v-else-if="model && generateError" class="p-6 text-red-700">Could not generate the model: {{ generateError }}</p>
     <template v-else-if="model && result">
       <div class="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <aside class="flex flex-col border-b border-slate-200 bg-white lg:w-72 lg:shrink-0 lg:border-r lg:border-b-0">
-          <div ref="palette" class="px-3.5 pt-3.5 pb-3"><Palette /></div>
-          <div ref="tree" class="min-h-0 flex-1 overflow-auto border-t border-slate-200 px-2 pt-3 pb-4"><FeatureTree /></div>
+        <!-- On short windows the tree keeps a usable height and the whole column scrolls instead. -->
+        <aside class="flex flex-col border-b border-slate-200 bg-white lg:min-h-0 lg:w-72 lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-b-0">
+          <div ref="palette" class="shrink-0 px-3.5 pt-3.5 pb-3"><Palette /></div>
+          <div ref="tree" class="flex-1 border-t border-slate-200 px-2 pt-3 pb-4 lg:min-h-48 lg:overflow-auto"><FeatureTree /></div>
         </aside>
 
         <main class="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -206,13 +204,13 @@ async function deleteModel() {
               </button>
             </div>
             <span class="flex-1" />
-            <span class="text-xs text-slate-600" data-testid="theme-summary">{{ themeSummary }}</span>
+            <span class="text-xs text-slate-600" data-testid="theme-summary">{{ themes }}</span>
           </div>
           <div class="min-h-0 flex-1 overflow-auto bg-slate-100 p-4 lg:p-6">
             <div
               ref="canvas"
               class="fd-editor-canvas relative mx-auto cursor-default border border-slate-200 bg-white shadow-sm"
-              :style="{ maxWidth: CANVAS_WIDTHS[canvasWidth].maxWidth }"
+              :style="{ width: CANVAS_WIDTHS[canvasWidth].width }"
               data-testid="canvas"
               :data-canvas-width="canvasWidth"
               @click="onCanvasClick"
@@ -237,7 +235,7 @@ async function deleteModel() {
       >
         <div class="mb-2 flex items-center justify-between">
           <h2 id="problems-heading" class="text-xs font-semibold tracking-wide text-slate-600 uppercase">Problems</h2>
-          <button type="button" class="text-xs text-slate-500 hover:text-slate-900" @click="problemsOpen = false">Close</button>
+          <button type="button" class="text-xs text-slate-500 hover:text-slate-900" @click="closeProblems">Close</button>
         </div>
         <DiagnosticsList :diagnostics="result.diagnostics" />
       </section>

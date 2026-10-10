@@ -85,6 +85,21 @@ test('reorders and nests features by dragging in the feature tree', async ({ pag
   await expect(canvas(page).locator('[data-node-id="4.body"] > [data-feature-id="2"]')).toBeVisible()
 })
 
+test('tree rows still drag after collapsing and expanding them', async ({ page }) => {
+  await addToPage(page, 'TextFeature', 'HeaderFeature')
+  const row = (id: string) => tree(page).locator(`[data-tree-id="${id}"]`)
+  // Collapsing and expanding re-creates the rows; they must be draggable and accept drops again.
+  await page.getByTestId('tree-toggle-1').click()
+  await expect(row('2')).toHaveCount(0)
+  await page.getByTestId('tree-toggle-1').click()
+  await drag(page, row('3'), row('2'), 'top')
+  await expect.poll(() => pageOrder(page)).toEqual(['3', '2'])
+  await page.getByTestId('tree-toggle-all').click()
+  await page.getByTestId('tree-toggle-all').click()
+  await drag(page, row('2'), row('3'), 'top')
+  await expect.poll(() => pageOrder(page)).toEqual(['2', '3'])
+})
+
 test('undoes and redoes with buttons and the keyboard', async ({ page }) => {
   await addToPage(page, 'TextFeature', 'HeaderFeature')
   await drag(page, feature(page, '3'), feature(page, '2'), 'top')
