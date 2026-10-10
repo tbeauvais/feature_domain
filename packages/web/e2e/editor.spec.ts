@@ -284,3 +284,81 @@ test('adding a Theme restyles the page at once, and its settings drive the previ
   await expect(tree(page).locator('[data-tree-id="3"]')).toHaveCount(0)
   await expect(root).toHaveAttribute('data-fd-scheme', 'light')
 })
+
+test('the canvas shows the page at desktop, tablet and phone widths, and remembers the choice', async ({ page }) => {
+  await newModel(page)
+  await page.getByTestId('palette-ContainerFeature').click()
+  const cells = canvas(page).locator('[data-node-id="2.r1c1"], [data-node-id="2.r1c2"]')
+  const tops = async () => Promise.all((await cells.all()).map(async (c) => (await c.boundingBox())!.y))
+
+  // Side by side on desktop...
+  let [first, second] = await tops()
+  expect(first).toBe(second)
+  // ...stacked at phone width, because the page sizes itself from its own width.
+  await page.getByTestId('canvas-width-phone').click()
+  await expect(canvas(page)).toHaveAttribute('data-canvas-width', 'phone')
+  expect((await canvas(page).boundingBox())!.width).toBeLessThanOrEqual(390)
+  ;[first, second] = await tops()
+  expect(second).toBeGreaterThan(first!)
+
+  // Tablet is 820px wide even when the window leaves less room (the canvas scrolls sideways).
+  await page.getByTestId('canvas-width-tablet').click()
+  expect((await canvas(page).boundingBox())!.width).toBe(820)
+  ;[first, second] = await tops()
+  expect(first).toBe(second)
+
+  await page.getByTestId('canvas-width-phone').click()
+  await page.reload()
+  await expect(canvas(page)).toHaveAttribute('data-canvas-width', 'phone')
+  await page.getByTestId('canvas-width-desktop').click()
+})
+
+test('on a short window the feature tree stays usable, and the palette folds away', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 500 })
+  await newModel(page)
+  for (let i = 0; i < 8; i++) await page.getByTestId('palette-TextFeature').click()
+  const lastRow = tree(page).locator('[data-tree-id="9"]')
+  await lastRow.scrollIntoViewIfNeeded()
+  await lastRow.click()
+  await expect(inspector(page)).toContainText('Text #9')
+  expect((await tree(page).boundingBox())!.height).toBeGreaterThan(150)
+
+  await page.getByTestId('palette-toggle').click()
+  await expect(page.getByTestId('palette-TextFeature')).toBeHidden()
+  await page.reload()
+  await expect(page.getByTestId('palette-TextFeature')).toBeHidden()
+  await page.getByTestId('palette-toggle').click()
+  await expect(page.getByTestId('palette-TextFeature')).toBeVisible()
+})
+
+test('the status bar opens the problems list, and ? shows the keyboard shortcuts', async ({ page }) => {
+  await newModel(page)
+  await page.getByTestId('palette-TableFeature').click()
+  await expect(page.getByTestId('problems-toggle')).toHaveText('1 problem')
+  await expect(page.getByTestId('status-counts')).toHaveText('2 features · 0 data resources · 0 themes')
+  await page.getByTestId('problems-toggle').click()
+  // (The inspector lists the selected table's own problems too; this is the model-wide list.)
+  const panel = page.locator('#problems-panel')
+  await expect(panel.getByTestId('diagnostics')).toContainText('No Data Resource selected')
+  await page.getByTestId('problems-toggle').click()
+  await expect(panel).toHaveCount(0)
+
+  await page.getByTestId('canvas').click()
+  await page.keyboard.press('?')
+  await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeHidden()
+  // Typing ? into a text field types it (real key presses, so the shortcut handler sees them).
+  await page.getByTestId('model-name').click()
+  await page.keyboard.press('End')
+  await page.keyboard.type('?')
+  await expect(page.getByTestId('model-name')).toHaveValue('Untitled model?')
+  await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeHidden()
+
+  // While the shortcuts are open, undo doesn't act behind them.
+  await page.getByTestId('canvas').click()
+  await page.keyboard.press('?')
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect(page.getByTestId('model-name')).toHaveValue('Untitled model?')
+  await page.keyboard.press('Escape')
+})
