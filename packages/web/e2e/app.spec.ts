@@ -32,6 +32,26 @@ test('lists the migrated sample models', async ({ page }) => {
   ])
 })
 
+test('a table that really scrolls is a named, focusable region, until phone width shows every row', async ({ page }) => {
+  await page.context().route('https://api.github.com/**', (route) =>
+    route.fulfill({ json: Array.from({ length: 30 }, (_, i) => ({ name: `repo-${i}`, description: '', language: 'Vue', updated_at: '2015-03-07T10:00:00Z', html_url: 'https://github.com/x/r' })) }),
+  )
+  await openSample(page, 'Data Sample')
+  const wrap = page.getByTestId('canvas').locator('[data-feature-id="24"] .fd-table-wrap')
+  await expect(wrap.locator('tbody tr')).toHaveCount(30)
+  await expect(wrap).toHaveAttribute('tabindex', '0')
+  await expect(wrap).toHaveAttribute('role', 'region')
+  await expect(wrap).toHaveAccessibleName(/table$/)
+  // The header stays in view while the rows scroll.
+  await wrap.evaluate((el) => (el.scrollTop = 200))
+  const offset = await wrap.evaluate((el) => el.querySelector('th')!.getBoundingClientRect().top - el.getBoundingClientRect().top)
+  expect(Math.abs(offset)).toBeLessThan(2)
+  // At phone width every row shows and the page scrolls instead, so the box is no longer a tab stop.
+  await page.getByTestId('canvas-width-phone').click()
+  await expect(wrap).not.toHaveAttribute('tabindex')
+  await expect(wrap).not.toHaveAttribute('role')
+})
+
 test('renders a sample with containers, panels, live tables and diagnostics', async ({ page }) => {
   await openSample(page, 'Data Sample')
   const canvas = page.getByTestId('canvas')
@@ -42,12 +62,47 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
   const marker = await canvas.locator('.fd-panel-heading h4', { hasText: 'My GitHub Repos' }).evaluate((h) => getComputedStyle(h, '::before').content)
   expect(marker).toBe('none')
 
-  // Repo Table: fields name/description/language/updated_at with filters uppercase / dataLink / none / date.
+  // Repo Table: fields name/description/language/updated_at with filters none / dataLink / badge / date (samples v4).
   const table = canvas.locator('[data-feature-id="24"]')
   await expect(table.locator('th')).toHaveText(['Name', 'Description', 'Language', 'Updated At'])
-  await expect(table.locator('tbody tr').first().locator('td')).toHaveText(['TBEAUVAIS-ENGINE', 'Parametric engine', 'TypeScript', 'Mar 7, 2015'])
+  await expect(table.locator('tbody tr').first().locator('td')).toHaveText(['tbeauvais-engine', 'Parametric engine', 'TypeScript', 'Mar 7, 2015'])
   await expect(table.getByRole('link', { name: 'Parametric engine' })).toHaveAttribute('href', 'https://github.com/tbeauvais/engine')
+  await expect(table.locator('.fd-badge')).toHaveText(['TypeScript', 'Vue'])
+  await expect(table.locator('.fd-table-foot')).toHaveText('2 rows')
+  // Two rows don't fill a table that scrolls after 10: no tab stop with nothing to scroll.
+  await expect(table.locator('.fd-table-wrap')).not.toHaveAttribute('tabindex')
   await expect(canvas.locator('[data-feature-id="38"] tbody tr')).toHaveCount(2)
+  const look = await table.evaluate((block) => {
+    const body = block.closest('.fd-panel-body')!
+    const th = block.querySelector('th')!
+    const date = block.querySelector('tbody td:last-child')!
+    return {
+      // The panel holding only this table draws no card of its own: the table is the card.
+      panelBody: [getComputedStyle(body).paddingTop, getComputedStyle(body).borderTopStyle, getComputedStyle(body).boxShadow],
+      tableBorder: getComputedStyle(block).borderTopStyle,
+      // Labels in the body font, not spaced capitals; the header row stays in view while rows scroll.
+      label: [getComputedStyle(th).textTransform, getComputedStyle(th).letterSpacing, getComputedStyle(th).position],
+      date: [getComputedStyle(date).textAlign, getComputedStyle(date).fontVariantNumeric],
+    }
+  })
+  expect(look).toEqual({
+    panelBody: ['0px', 'none', 'none'],
+    tableBorder: 'solid',
+    label: ['none', 'normal', 'sticky'],
+    date: ['right', 'tabular-nums'],
+  })
+
+  // At phone width each row is a small card: no header row, and labelled values.
+  await page.getByTestId('canvas-width-phone').click()
+  await expect(table.locator('thead')).toHaveCSS('position', 'absolute')
+  await expect(table.locator('tbody tr').first()).toHaveCSS('display', 'block')
+  const label = await table.locator('tbody td').nth(2).evaluate((td) => getComputedStyle(td, '::before').content)
+  expect(label).toBe('"Language"')
+  // Badges keep their own width, and a scrolling table shows every row (the page scrolls instead).
+  const badge = table.locator('.fd-badge').first()
+  expect((await badge.boundingBox())!.width).toBeLessThan(120)
+  await expect(table.locator('.fd-table-wrap')).toHaveCSS('max-height', 'none')
+  await page.getByTestId('canvas-width-desktop').click()
 
   // Legacy {{...}} bindings are shown literally, never evaluated, and their long tokens wrap inside the cell.
   await expect(canvas.locator('[data-feature-id="2"]')).toContainText('Temp {{DataResource.WeatherService')

@@ -4,7 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "customConditions": ["@feature-domain/source"],
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "ES2023.Intl", "DOM", "DOM.Iterable"],
     "types": ["vite/client", "node"],
     "jsx": "preserve",
     "strict": true,

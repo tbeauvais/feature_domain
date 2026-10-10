@@ -215,58 +215,191 @@ h6.fd-heading { font-size: var(--fd-h6); }
   border-radius: var(--fd-radius-lg);
   box-shadow: var(--fd-shadow);
 }
+/* A panel holding only a table: the table is the card. */
+.fd-panel[data-fd-panel='card'] > .fd-panel-body:has(> .fd-table-block:only-child) {
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
 .fd-panel[data-fd-panel='bare'] > .fd-panel-body {
   padding: calc(var(--fd-space) * 1.5) 0;
   border-top: 1px solid var(--fd-border);
 }
 
-/* Tables: mono column labels, hairline rows. */
+/*
+ * Tables: a card with an optional title and the row count, labels in the body font on a tinted band (sticky while
+ * the rows scroll), dense rows with a hover highlight, figures right-aligned with tabular digits, and badges for
+ * categories. A Panel that holds only a table lets the table be the card (see the panel rules).
+ */
+.fd-table-block {
+  display: block;
+  margin-bottom: calc(var(--fd-space) * 4);
+  overflow: hidden;
+  background: var(--fd-surface);
+  border: 1px solid var(--fd-border);
+  border-radius: var(--fd-radius-lg);
+  box-shadow: var(--fd-shadow);
+}
+.fd-table-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--fd-space) * 0.5) calc(var(--fd-space) * 2);
+  padding: calc(var(--fd-space) * 2) calc(var(--fd-space) * 3) calc(var(--fd-space) * 1.75);
+}
+.fd-table-title {
+  margin: 0;
+  font-family: var(--fd-font-display);
+  font-size: var(--fd-h4);
+  font-weight: var(--fd-display-weight);
+  letter-spacing: var(--fd-display-tracking);
+  line-height: 1.15;
+  color: var(--fd-ink);
+}
+.fd-table-count { margin-left: auto; font-size: var(--fd-size-small); color: var(--fd-muted); }
 .fd-table-wrap {
   display: block;
   overflow-x: auto;
 }
+/* About this many rows, then the rows scroll under the header. */
+.fd-table-scroll {
+  overflow: auto;
+  max-height: calc((var(--table-rows) + 1) * 2.75em);
+}
 .fd-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
   border-spacing: 0;
+  font-size: calc(var(--fd-size) * 0.9375);
   /* Wrap at spaces only: a long name keeps its column wide and the table scrolls instead of breaking mid-word. */
   overflow-wrap: break-word;
 }
 .fd-table th,
 .fd-table td {
-  padding: calc(var(--fd-space) * 2) calc(var(--fd-space) * 1.5);
+  padding: calc(var(--fd-space) * 1.25) calc(var(--fd-space) * 1.5);
   text-align: left;
   vertical-align: top;
 }
 .fd-table th:first-child,
-.fd-table td:first-child { padding-left: 0; }
+.fd-table td:first-child { padding-left: calc(var(--fd-space) * 3); }
 .fd-table th:last-child,
-.fd-table td:last-child { padding-right: 0; }
+.fd-table td:last-child { padding-right: calc(var(--fd-space) * 3); }
 .fd-table th {
-  font-family: var(--fd-font-mono);
-  font-size: calc(var(--fd-size) * 0.6875);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-family: var(--fd-font-body);
+  font-size: var(--fd-size-small);
   font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   white-space: nowrap;
   overflow-wrap: normal;
-  color: var(--fd-muted);
+  color: var(--fd-text);
+  background: var(--fd-sunken);
+  border-top: 1px solid var(--fd-border);
   border-bottom: 1px solid var(--fd-border);
 }
+.fd-table-block > .fd-table-wrap:first-child th { border-top: 0; }
 .fd-table td { color: var(--fd-text); }
 .fd-table td:first-child { font-weight: 600; color: var(--fd-ink); }
-.fd-table-wrap[data-fd-table='hairline'] tbody tr + tr td { border-top: 1px solid var(--fd-border-subtle); }
-.fd-table-wrap[data-fd-table='striped'] tbody tr:nth-child(odd) { background: var(--fd-stripe); }
-.fd-table-wrap[data-fd-table='striped'] th:first-child,
-.fd-table-wrap[data-fd-table='striped'] td:first-child { padding-left: calc(var(--fd-space) * 1.5); }
-.fd-table-wrap[data-fd-table='striped'] th:last-child,
-.fd-table-wrap[data-fd-table='striped'] td:last-child { padding-right: calc(var(--fd-space) * 1.5); }
-.fd-table-note {
-  margin: calc(var(--fd-space) * 1.5) 0;
-  color: var(--fd-muted);
-  font-size: var(--fd-size-small);
+.fd-table .fd-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fd-table-block[data-fd-table='hairline'] tbody tr + tr td { border-top: 1px solid var(--fd-border-subtle); }
+.fd-table-block[data-fd-table='striped'] tbody tr:nth-child(even) td { background: var(--fd-stripe); }
+.fd-table-block tbody:not(.fd-table-skeleton) tr:hover td { background: var(--fd-stripe); }
+.fd-table-block[data-fd-table='striped'] tbody:not(.fd-table-skeleton) tr:hover td { background: var(--fd-sunken); }
+/* Categories as tinted chips: the theme's badge tints, given out per column in order of first appearance. */
+.fd-badge {
+  display: inline-block;
+  padding: 0.125em 0.625em;
+  border-radius: 999px;
+  font-size: 0.875em;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
 }
-.fd-table-error { color: var(--fd-danger); }
+.fd-badge-0 { background: var(--fd-badge-0-bg); color: var(--fd-badge-0); }
+.fd-badge-1 { background: var(--fd-badge-1-bg); color: var(--fd-badge-1); }
+.fd-badge-2 { background: var(--fd-badge-2-bg); color: var(--fd-badge-2); }
+.fd-badge-3 { background: var(--fd-badge-3-bg); color: var(--fd-badge-3); }
+/* Loading: placeholder bars under the real header, so the table keeps its shape when the rows arrive. */
+.fd-skeleton {
+  display: block;
+  width: 70%;
+  height: 0.625em;
+  margin: 0.4em 0;
+  border-radius: 999px;
+  background: var(--fd-sunken);
+}
+.fd-table-skeleton tr:nth-child(2) .fd-skeleton { width: 55%; }
+.fd-table-skeleton tr:nth-child(3) .fd-skeleton { width: 80%; }
+.fd-table-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--fd-space) * 0.75);
+  padding: calc(var(--fd-space) * 3);
+  text-align: center;
+}
+.fd-table-state p { margin: 0; }
+.fd-table-state-title { font-weight: 600; color: var(--fd-ink); }
+.fd-table-state-text { font-size: var(--fd-size-small); color: var(--fd-muted); }
+.fd-table-empty-picture { display: block; width: 7.5rem; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--fd-radius-sm); }
+.fd-table-empty-picture > svg { display: block; width: 100%; height: 100%; }
+.fd-table-problem { align-items: flex-start; text-align: left; }
+.fd-table-problem .fd-table-state-title { color: var(--fd-danger); }
+.fd-table-retry {
+  min-height: 44px;
+  margin-top: calc(var(--fd-space) * 0.5);
+  padding: 0 calc(var(--fd-space) * 2);
+  border: 1px solid var(--fd-border);
+  border-radius: 999px;
+  background: var(--fd-surface);
+  color: var(--fd-ink);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.fd-table-foot,
+.fd-table-note {
+  margin: 0;
+  padding: calc(var(--fd-space) * 1.25) calc(var(--fd-space) * 3);
+  font-size: var(--fd-size-small);
+  color: var(--fd-muted);
+  border-top: 1px solid var(--fd-border-subtle);
+}
+/* On phone-width pages each row becomes a small card: its first cell as the title, the others as label and value. */
+@container fd-document (max-width: 520px) {
+  .fd-table,
+  .fd-table tbody,
+  .fd-table tr,
+  .fd-table td { display: block; }
+  .fd-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .fd-table tbody tr { padding: calc(var(--fd-space) * 1.5) calc(var(--fd-space) * 2); }
+  .fd-table-block[data-fd-table] tbody tr + tr td { border-top: 0; }
+  .fd-table tbody tr + tr { border-top: 1px solid var(--fd-border-subtle); }
+  .fd-table td,
+  .fd-table td:first-child,
+  .fd-table td:last-child { padding: 0.15em 0; }
+  .fd-table td:not(:first-child) {
+    display: grid;
+    grid-template-columns: minmax(5.5rem, auto) minmax(0, 1fr);
+    gap: calc(var(--fd-space) * 1.5);
+    font-size: var(--fd-size-small);
+  }
+  .fd-table td:not(:first-child)::before { content: attr(data-label); color: var(--fd-muted); }
+  .fd-table td:not(:first-child) > * { justify-self: start; }
+  /* No scroll box inside the page on phones: the page itself scrolls. */
+  .fd-table-scroll { max-height: none; }
+  .fd-table .fd-num { text-align: left; }
+  .fd-table td:first-child { margin-bottom: 0.25em; }
+}
 
 /* Lists: numbered mono markers between hairlines, aligned like the legacy pull-left / center-block / pull-right box. */
 .fd-list { display: block; width: 100%; max-width: calc(var(--fd-size) * 24); }

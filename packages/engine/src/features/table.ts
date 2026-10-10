@@ -1,5 +1,5 @@
 import type { FeatureDefinition } from '../feature.js'
-import { asList, asString, disableInput, nameInput } from '../inputs.js'
+import { asInt, asList, asString, clamp, disableInput, nameInput } from '../inputs.js'
 import { node } from '../nodes.js'
 import type { NodeKinds, TableColumn } from '../types.js'
 import { DATA_RESOURCE_TYPES, isDataResourceExports, type DataResourceExports, type DataOperation } from './data-resource.js'
@@ -36,6 +36,7 @@ export const TableFeature: FeatureDefinition = {
   inputs: [
     nameInput(),
     disableInput,
+    { name: 'title', label: 'Title', type: 'string', default: '', control: 'text-input' },
     {
       name: 'data_resource',
       label: 'Data Resource',
@@ -50,6 +51,8 @@ export const TableFeature: FeatureDefinition = {
     { name: 'fields', label: 'Fields', type: 'list', default: [], control: 'list-input' },
     { name: 'labels', label: 'Labels', type: 'list', default: [], control: 'list-input' },
     { name: 'filters', label: 'Filters', type: 'list', default: [], control: 'list-input' },
+    // 0 shows every row. Stored tables without it show every row, as before; new ones scroll after 10.
+    { name: 'scroll_rows', label: 'Scroll after (rows)', type: 'integer', default: 0, initial: 10, min: 0, max: 100, control: 'text-input' },
   ],
 
   generate(inputs, ctx) {
@@ -57,6 +60,10 @@ export const TableFeature: FeatureDefinition = {
     const props: NodeKinds['table'] = {
       columns: fromInputs(asList(inputs.fields), asList(inputs.labels), asList(inputs.filters)),
     }
+    const title = asString(inputs.title).trim()
+    if (title) props.title = title
+    const scrollRows = clamp(asInt(inputs.scroll_rows, 0), 0, 100)
+    if (scrollRows > 0) props.scrollRows = scrollRows
     if (!resolved || !isDataResourceExports(resolved.exports)) {
       ctx.report('error', 'Data resource did not export any operations')
       return { node: node('table', ctx.nodeId(), props) }

@@ -291,6 +291,7 @@ describe('TableFeature', () => {
       resolveTo(exportsOf()),
     )
     expect(out.node?.props).toEqual({
+      scrollRows: 10,
       source: { feature: 'r', resource: 'Repos', operation: 'GET /repos', endPoint: 'https://api/repos' },
       columns: [
         { field: 'name', label: 'Name', filter: 'uppercase' },
@@ -298,6 +299,15 @@ describe('TableFeature', () => {
       ],
     })
     expect(report).not.toHaveBeenCalled()
+  })
+
+  it('shows a title, and scrolls after 10 rows when new; stored tables without the input show every row', () => {
+    expect(run(TableFeature, { data_resource: 'r', title: ' Repos ' }, resolveTo(exportsOf())).out.node?.props).toMatchObject({ title: 'Repos', scrollRows: 10 })
+    const stored = runStored(TableFeature, { data_resource: 'r' })
+    expect(stored.out.node?.props).not.toHaveProperty('scrollRows')
+    expect(stored.out.node?.props).not.toHaveProperty('title')
+    expect(run(TableFeature, { scroll_rows: 500 }).out.node?.props).toMatchObject({ scrollRows: 100 })
+    expect(run(TableFeature, { scroll_rows: 0 }).out.node?.props).not.toHaveProperty('scrollRows')
   })
 
   it('uses the first operation when none is chosen, and adds a delete action', () => {

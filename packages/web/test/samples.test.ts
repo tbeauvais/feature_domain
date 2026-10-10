@@ -35,6 +35,19 @@ describe('sampleModels', () => {
 })
 
 describe('upgradeSample', () => {
+  const repoTable = (filters: string[]) =>
+    model(page(), inst('TableFeature', 't', { fields: ['name', 'description', 'language', 'updated_at'], filters }))
+
+  it('gives the legacy repo tables language badges, plain names and scrolling', () => {
+    const upgraded = upgradeSample(repoTable(['uppercase', 'dataLink :data.html_url', '', 'date']))
+    expect(upgraded.features[1]!.inputs).toMatchObject({ filters: ['', 'dataLink :data.html_url', 'badge', 'date'], scroll_rows: 10 })
+  })
+
+  it('leaves tables the user has changed alone', () => {
+    const changed = repoTable(['', 'dataLink :data.html_url', '', 'date'])
+    expect(upgradeSample(changed)).toBe(changed)
+  })
+
   const header = 'http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg'
 
   it('turns a legacy header photo into its banner, keeping the address for switching back', () => {

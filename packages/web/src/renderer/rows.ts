@@ -34,29 +34,27 @@ export function selectRows(response: unknown, path?: string): unknown[] {
   return rows
 }
 
-export function useTableRows(source: Ref<TableSource | undefined>): Ref<RowsState> {
+/** A table's rows as they load, and `reload` to fetch them again (e.g. after an error). */
+export function useTableRows(source: Ref<TableSource | undefined>): { state: Ref<RowsState>; reload: () => Promise<void> } {
   const fetchJson = inject(FETCH_JSON, browserFetchJson)
   const state = ref<RowsState>({ status: 'idle' })
   let request = 0
 
-  watch(
-    () => (source.value ? `${source.value.endPoint}\n${source.value.path ?? ''}` : ''),
-    async () => {
-      const current = ++request
-      const s = source.value
-      if (!s) {
-        state.value = { status: 'idle' }
-        return
-      }
-      state.value = { status: 'loading' }
-      try {
-        const rows = selectRows(await fetchJson(s.endPoint), s.path)
-        if (current === request) state.value = { status: 'loaded', rows }
-      } catch (error) {
-        if (current === request) state.value = { status: 'error', message: error instanceof Error ? error.message : String(error) }
-      }
-    },
-    { immediate: true },
-  )
-  return state
+  const load = async () => {
+    const current = ++request
+    const s = source.value
+    if (!s) {
+      state.value = { status: 'idle' }
+      return
+    }
+    state.value = { status: 'loading' }
+    try {
+      const rows = selectRows(await fetchJson(s.endPoint), s.path)
+      if (current === request) state.value = { status: 'loaded', rows }
+    } catch (error) {
+      if (current === request) state.value = { status: 'error', message: error instanceof Error ? error.message : String(error) }
+    }
+  }
+  watch(() => (source.value ? `${source.value.endPoint}\n${source.value.path ?? ''}` : ''), load, { immediate: true })
+  return { state, reload: load }
 }
