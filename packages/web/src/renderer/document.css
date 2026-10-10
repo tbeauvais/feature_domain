@@ -321,7 +321,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-badge-1 { background: var(--fd-badge-1-bg); color: var(--fd-badge-1); }
 .fd-badge-2 { background: var(--fd-badge-2-bg); color: var(--fd-badge-2); }
 .fd-badge-3 { background: var(--fd-badge-3-bg); color: var(--fd-badge-3); }
-/* Loading: placeholder bars under the real header, so nothing jumps when the rows arrive. */
+/* Loading: placeholder bars under the real header, so the table keeps its shape when the rows arrive. */
 .fd-skeleton {
   display: block;
   width: 70%;

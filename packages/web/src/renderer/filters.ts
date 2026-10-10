@@ -1,6 +1,6 @@
 // Display filters for table cells. Legacy models used AngularJS filter expressions ("uppercase", "date",
 // "dataLink :data.html_url"); this is a small, safe language with the same names: `name` or `name :argument`.
-// Added since: "number" (grouped digits) and "badge" (a tinted chip for categories such as a language).
+// Added since: "number" (grouped digits; "number :2" for fixed places) and "badge" (a tinted chip for categories such as a language).
 
 import { BADGE_COUNT } from '@feature-domain/engine'
 import { safeHref } from './urls'
@@ -35,7 +35,17 @@ export const badgeKey = (value: string) => value.trim().toLowerCase()
 /** Filters whose cells are figures: right-aligned with tabular digits. */
 export const NUMERIC_FILTERS: readonly string[] = ['number', 'date']
 
-const numberFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
+/**
+ * The number filter's formatter: every decimal the value has, or exactly `:n` places (0-20). Text is formatted as text,
+ * so long ids and amounts keep every digit.
+ */
+function numberFormat(argument: string | undefined): Intl.NumberFormat {
+  const places = argument !== undefined && /^\d{1,2}$/.test(argument) ? Math.min(Number(argument), 20) : undefined
+  return new Intl.NumberFormat('en-US', places === undefined ? { maximumFractionDigits: 20 } : { minimumFractionDigits: places, maximumFractionDigits: places })
+}
+
+/** Plain decimals only: "0x10", "1e3" and "Infinity" are text, not numbers. */
+const DECIMAL = /^-?\d+(\.\d+)?$/
 
 export interface FilterSpec {
   name: string
@@ -53,7 +63,8 @@ export function getPath(row: unknown, path: string): unknown {
   return path
     .replace(/^data\./, '')
     .split('.')
-    .reduce<unknown>((value, key) => (typeof value === 'object' && value !== null ? (value as Record<string, unknown>)[key] : undefined), row)
+    // Own keys only: a field named "constructor" or "toString" is not the row's.
+    .reduce<unknown>((value, key) => (typeof value === 'object' && value !== null && Object.hasOwn(value, key) ? (value as Record<string, unknown>)[key] : undefined), row)
 }
 
 export function toText(value: unknown): string {
@@ -77,8 +88,10 @@ export function cellContent(row: unknown, field: string, filter?: string): CellC
       return { text: Number.isNaN(time) ? toText(value) : dateFormat.format(time) }
     }
     case 'number': {
-      const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN
-      return { text: Number.isFinite(n) ? numberFormat.format(n) : toText(value) }
+      const decimal = typeof value === 'string' ? value.trim() : ''
+      if (typeof value === 'number' && Number.isFinite(value)) return { text: numberFormat(spec.argument).format(value) }
+      if (DECIMAL.test(decimal)) return { text: numberFormat(spec.argument).format(decimal as `${number}`) }
+      return { text: toText(value) }
     }
     case 'badge': {
       const text = toText(value)

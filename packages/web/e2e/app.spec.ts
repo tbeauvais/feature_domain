@@ -32,6 +32,26 @@ test('lists the migrated sample models', async ({ page }) => {
   ])
 })
 
+test('a table that really scrolls is a named, focusable region, until phone width shows every row', async ({ page }) => {
+  await page.context().route('https://api.github.com/**', (route) =>
+    route.fulfill({ json: Array.from({ length: 30 }, (_, i) => ({ name: `repo-${i}`, description: '', language: 'Vue', updated_at: '2015-03-07T10:00:00Z', html_url: 'https://github.com/x/r' })) }),
+  )
+  await openSample(page, 'Data Sample')
+  const wrap = page.getByTestId('canvas').locator('[data-feature-id="24"] .fd-table-wrap')
+  await expect(wrap.locator('tbody tr')).toHaveCount(30)
+  await expect(wrap).toHaveAttribute('tabindex', '0')
+  await expect(wrap).toHaveAttribute('role', 'region')
+  await expect(wrap).toHaveAccessibleName(/table$/)
+  // The header stays in view while the rows scroll.
+  await wrap.evaluate((el) => (el.scrollTop = 200))
+  const offset = await wrap.evaluate((el) => el.querySelector('th')!.getBoundingClientRect().top - el.getBoundingClientRect().top)
+  expect(Math.abs(offset)).toBeLessThan(2)
+  // At phone width every row shows and the page scrolls instead, so the box is no longer a tab stop.
+  await page.getByTestId('canvas-width-phone').click()
+  await expect(wrap).not.toHaveAttribute('tabindex')
+  await expect(wrap).not.toHaveAttribute('role')
+})
+
 test('renders a sample with containers, panels, live tables and diagnostics', async ({ page }) => {
   await openSample(page, 'Data Sample')
   const canvas = page.getByTestId('canvas')
@@ -49,6 +69,8 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
   await expect(table.getByRole('link', { name: 'Parametric engine' })).toHaveAttribute('href', 'https://github.com/tbeauvais/engine')
   await expect(table.locator('.fd-badge')).toHaveText(['TypeScript', 'Vue'])
   await expect(table.locator('.fd-table-foot')).toHaveText('2 rows')
+  // Two rows don't fill a table that scrolls after 10: no tab stop with nothing to scroll.
+  await expect(table.locator('.fd-table-wrap')).not.toHaveAttribute('tabindex')
   await expect(canvas.locator('[data-feature-id="38"] tbody tr')).toHaveCount(2)
   const look = await table.evaluate((block) => {
     const body = block.closest('.fd-panel-body')!

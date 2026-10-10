@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DocNodeOf } from '@feature-domain/engine'
-import { computed, useId } from 'vue'
+import { computed, onBeforeUnmount, onMounted, onUpdated, ref, useId } from 'vue'
 import { badgeKey, badgeTints, cellContent, getPath, NUMERIC_FILTERS, parseFilter } from '../filters'
 import SpotEmpty from '../illustrations/SpotEmpty.vue'
 import { useTableRows } from '../rows'
@@ -13,7 +13,10 @@ const titleId = `fd-${useId()}`
 const { state, reload } = useTableRows(computed(() => props.node.props.source))
 const rows = computed(() => (state.value.status === 'loaded' ? state.value.rows : []))
 
-/** Figures (numbers, dates) are right-aligned with tabular digits: by filter, or when every loaded value is a number. */
+/**
+ * Figures (numbers, dates) are right-aligned with tabular digits: by filter, or when every loaded value is a number
+ * (so such a column's header moves right when its rows arrive).
+ */
 const numeric = computed(() =>
   props.node.props.columns.map((column) => {
     const filter = parseFilter(column.filter)?.name
@@ -54,6 +57,27 @@ const host = computed(() => {
 
 // A scrolling table shows this many rows before it scrolls; its header stays in view.
 const scrollStyle = computed(() => (props.node.props.scrollRows ? { '--table-rows': String(props.node.props.scrollRows) } : undefined))
+
+// The scroll box is a named, focusable region only while it really scrolls (not with fewer rows, at phone width, or
+// while loading), so keyboard users don't meet tab stops with nothing to scroll.
+const wrap = ref<HTMLElement>()
+const overflows = ref(false)
+function measure() {
+  const el = wrap.value
+  overflows.value = Boolean(props.node.props.scrollRows) && el !== undefined && el.scrollHeight > el.clientHeight
+}
+let observer: ResizeObserver | undefined
+onMounted(() => {
+  measure()
+  if (typeof ResizeObserver === 'undefined' || !wrap.value) return
+  observer = new ResizeObserver(measure)
+  observer.observe(wrap.value)
+  const table = wrap.value.querySelector('table')
+  if (table) observer.observe(table)
+})
+onUpdated(measure)
+onBeforeUnmount(() => observer?.disconnect())
+const regionLabel = computed(() => (props.node.props.source?.resource ? `${props.node.props.source.resource} table` : 'Table'))
 </script>
 
 <template>
@@ -63,18 +87,20 @@ const scrollStyle = computed(() => (props.node.props.scrollRows ? { '--table-row
       <span class="fd-table-count">{{ count }}</span>
     </header>
     <div
+      ref="wrap"
       class="fd-table-wrap"
       :class="{ 'fd-table-scroll': node.props.scrollRows }"
       :style="scrollStyle"
-      :tabindex="node.props.scrollRows ? 0 : undefined"
-      :role="node.props.scrollRows ? 'region' : undefined"
-      :aria-labelledby="node.props.scrollRows && node.props.title ? titleId : undefined"
-      :aria-label="node.props.scrollRows && !node.props.title ? 'Table' : undefined"
+      :tabindex="overflows ? 0 : undefined"
+      :role="overflows ? 'region' : undefined"
+      :aria-labelledby="overflows && node.props.title ? titleId : undefined"
+      :aria-label="overflows && !node.props.title ? regionLabel : undefined"
     >
-      <table class="fd-table" :aria-labelledby="node.props.title ? titleId : undefined">
-        <thead>
-          <tr>
-            <th v-for="(column, c) in node.props.columns" :key="column.field" scope="col" :class="{ 'fd-num': numeric[c] }">{{ column.label }}</th>
+      <!-- Explicit roles: at phone width rows are display: block, and some screen readers then stop treating it as a table. -->
+      <table class="fd-table" role="table" :aria-labelledby="node.props.title ? titleId : undefined">
+        <thead role="rowgroup">
+          <tr role="row">
+            <th v-for="(column, c) in node.props.columns" :key="column.field" scope="col" role="columnheader" :class="{ 'fd-num': numeric[c] }">{{ column.label }}</th>
           </tr>
         </thead>
         <tbody v-if="state.status === 'loading'" class="fd-table-skeleton" aria-hidden="true">
@@ -82,9 +108,9 @@ const scrollStyle = computed(() => (props.node.props.scrollRows ? { '--table-row
             <td v-for="column in node.props.columns" :key="column.field"><span class="fd-skeleton" /></td>
           </tr>
         </tbody>
-        <tbody v-else>
-          <tr v-for="(row, index) in rows" :key="index">
-            <td v-for="(column, c) in node.props.columns" :key="column.field" :data-label="column.label" :class="{ 'fd-num': numeric[c] }">
+        <tbody v-else role="rowgroup">
+          <tr v-for="(row, index) in rows" :key="index" role="row">
+            <td v-for="(column, c) in node.props.columns" :key="column.field" role="cell" :data-label="column.label" :class="{ 'fd-num': numeric[c] }">
               <template v-for="cell in [cellContent(row, column.field, column.filter)]" :key="column.field">
                 <a v-if="cell.href" :href="cell.href" target="_blank" rel="noopener noreferrer">{{ cell.text }}</a>
                 <span v-else-if="cell.badge" class="fd-badge" :class="`fd-badge-${tints[c]?.get(badgeKey(cell.text)) ?? 0}`">{{ cell.text }}</span>

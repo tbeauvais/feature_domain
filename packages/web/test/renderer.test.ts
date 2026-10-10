@@ -127,12 +127,47 @@ describe('tables', () => {
     expect(w.find('.fd-table-foot').exists()).toBe(false)
   })
 
-  it('scrolls after the chosen number of rows, as a keyboard-reachable region', async () => {
-    const w = render(tableModel({ title: 'My repos', scroll_rows: '5' } as never), async () => [])
-    const wrap = w.get('.fd-table-wrap')
-    expect(wrap.classes()).toContain('fd-table-scroll')
-    expect(wrap.attributes('style')).toContain('--table-rows: 5')
-    expect(wrap.attributes()).toMatchObject({ tabindex: '0', role: 'region', 'aria-labelledby': w.get('.fd-table-title').attributes('id') })
+  it('scrolls after the chosen number of rows, as a keyboard-reachable region only while it really scrolls', async () => {
+    // jsdom has no layout: say how tall the scroll box's content is.
+    let content = 0
+    const scrollHeight = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(() => content)
+    const clientHeight = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(() => 200)
+    try {
+      const rows = Array.from({ length: 12 }, (_, i) => ({ name: `r${i}` }))
+      const wrapOf = async (inputs: Record<string, string>, height: number) => {
+        content = height
+        const w = render(tableModel(inputs), async () => rows)
+        const wrap = w.get('.fd-table-wrap')
+        // While loading there is nothing to scroll yet.
+        expect(wrap.attributes('tabindex')).toBeUndefined()
+        await flushPromises()
+        return { w, wrap }
+      }
+      const { w, wrap } = await wrapOf({ title: 'My repos', scroll_rows: '5' }, 500)
+      expect(wrap.classes()).toContain('fd-table-scroll')
+      expect(wrap.attributes('style')).toContain('--table-rows: 5')
+      expect(wrap.attributes()).toMatchObject({ tabindex: '0', role: 'region', 'aria-labelledby': w.get('.fd-table-title').attributes('id') })
+      // Untitled: named after its data resource.
+      expect((await wrapOf({ scroll_rows: '5' }, 500)).wrap.attributes()).toMatchObject({ tabindex: '0', role: 'region', 'aria-label': 'Repos table' })
+      // Everything fits (fewer rows, or phone width): no tab stop, no region.
+      const fits = (await wrapOf({ scroll_rows: '20' }, 200)).wrap.attributes()
+      expect(fits.tabindex).toBeUndefined()
+      expect(fits.role).toBeUndefined()
+      expect((await wrapOf({ scroll_rows: '0' }, 500)).wrap.attributes('tabindex')).toBeUndefined()
+    } finally {
+      scrollHeight.mockRestore()
+      clientHeight.mockRestore()
+    }
+  })
+
+  it('keeps table roles explicit, so screen readers still see a table when phone rows become cards', async () => {
+    const w = render(tableModel(), async () => [{ name: 'one' }])
+    await flushPromises()
+    expect(w.get('table').attributes('role')).toBe('table')
+    expect(w.findAll('thead, tbody').map((g) => g.attributes('role'))).toEqual(['rowgroup', 'rowgroup'])
+    expect(w.findAll('tr').map((tr) => tr.attributes('role'))).toEqual(['row', 'row'])
+    expect(w.findAll('th').map((th) => th.attributes('role'))).toEqual(['columnheader', 'columnheader'])
+    expect(w.findAll('td').map((td) => td.attributes('role'))).toEqual(['cell', 'cell'])
   })
 
   it('right-aligns figures (number and date filters, or all-number columns) and shows badges', async () => {

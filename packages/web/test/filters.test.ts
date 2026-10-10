@@ -19,6 +19,11 @@ describe('getPath', () => {
     expect(getPath(row, 'data.name')).toBe('repo')
     expect(getPath(row, 'missing.deep')).toBeUndefined()
   })
+
+  it("reads only the row's own keys, never built-in properties", () => {
+    for (const field of ['constructor', 'toString', '__proto__', 'name.length.constructor']) expect(getPath({ name: 'repo' }, field)).toBeUndefined()
+    expect(getPath({ list: ['a', 'b'] }, 'list.1')).toBe('b')
+  })
 })
 
 describe('cellContent', () => {
@@ -55,6 +60,23 @@ describe('cellContent', () => {
     expect(cellContent({ n: '98765' }, 'n', 'number')).toEqual({ text: '98,765' })
     expect(cellContent({ n: 'n/a' }, 'n', 'number')).toEqual({ text: 'n/a' })
     expect(cellContent({ n: '' }, 'n', 'number')).toEqual({ text: '' })
+  })
+
+  it('never rounds or reinterprets a number, unless asked for fixed places', () => {
+    const number = (n: unknown, filter = 'number') => cellContent({ n }, 'n', filter).text
+    expect(number(0.001)).toBe('0.001')
+    expect(number(1.005)).toBe('1.005')
+    expect(number(-1234.25)).toBe('-1,234.25')
+    // Text keeps every digit: long ids and amounts are not squeezed through a float.
+    expect(number('12345678901234567890')).toBe('12,345,678,901,234,567,890')
+    expect(number(' 0.000001 ')).toBe('0.000001')
+    // Only plain decimals count as numbers.
+    for (const text of ['0x10', '1e3', 'Infinity', '1,000', '12abc']) expect(number(text)).toBe(text)
+    expect(number(Number.NaN)).toBe('NaN')
+    expect(number(1.005, 'number :2')).toBe('1.01')
+    expect(number(3, 'number :2')).toBe('3.00')
+    expect(number('2.5', 'number :0')).toBe('3')
+    expect(number(1.5, 'number :x')).toBe('1.5')
   })
 
   it('marks badge cells, but not empty ones', () => {
