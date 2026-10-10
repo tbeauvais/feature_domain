@@ -297,6 +297,62 @@ h6.fd-heading { font-size: var(--fd-h6); }
   color: var(--fd-accent);
 }
 
+/* Separators: a rule in the theme's border colour unless the feature sets one; thickness and width are inline. */
+.fd-separator {
+  display: block;
+  margin: calc(var(--fd-space) * 4) auto;
+  border: 0;
+  border-radius: 999px;
+  background-color: var(--fd-border);
+}
+.fd-separator-left { margin-left: 0; }
+.fd-separator-right { margin-right: 0; }
+
+/* Links */
+.fd-root .fd-link {
+  display: inline-block;
+  margin: calc(var(--fd-space) * 1) 0;
+  font-weight: 500;
+}
+.fd-root a.fd-link::after { content: ' \2197'; color: var(--fd-accent); }
+
+/* Buttons: our own styles, in theme colours (text/background pairs the contrast tests cover). */
+.fd-button-row {
+  display: block;
+  margin: calc(var(--fd-space) * 1.5) 0;
+}
+.fd-root .fd-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  padding: 0.6em 1.15em;
+  border: 1px solid transparent;
+  border-radius: var(--fd-radius-sm);
+  font-family: var(--fd-font-body);
+  font-size: var(--fd-size);
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+}
+.fd-root .fd-button-small { padding: 0.4em 0.8em; font-size: var(--fd-size-small); }
+.fd-root .fd-button-large { padding: 0.8em 1.5em; font-size: calc(var(--fd-size) * 1.125); }
+.fd-root .fd-button-primary { background: var(--fd-primary-bg); color: var(--fd-primary-on); }
+.fd-root .fd-button-secondary { background: var(--fd-surface); color: var(--fd-ink); border-color: var(--fd-border); }
+.fd-root .fd-button-soft { background: var(--fd-accent-soft); color: var(--fd-accent); }
+.fd-root .fd-button-link {
+  padding-left: 0;
+  padding-right: 0;
+  background: none;
+  color: var(--fd-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+.fd-root a.fd-button:hover { box-shadow: inset 0 0 0 999px rgb(0 0 0 / 0.06); }
+.fd-root a.fd-button-link:hover { box-shadow: none; color: var(--fd-ink); }
+.fd-root span.fd-button { cursor: default; opacity: 0.7; }
+
 /* Editor-only placeholders for features that produced nothing; themed so they read on light and dark pages. */
 .fd-placeholder {
   display: flex;

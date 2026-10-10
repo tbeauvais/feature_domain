@@ -6,8 +6,12 @@ exports[`app_models/buy_deal_sample.json > generates the golden document 1`] = `
     image #36 [36] {"src":"https://www.nard.ma/images/english/web-application-header.jpg","alt":"some cool image","width":"100%","height":"200","responsive":false,"align":"center"}
     grid #29 [29] {"rows":1,"columns":3,"well":true}
       grid-cell #29.r1c1 <r1c1> {"row":1,"column":1}
+        button #26 [26] {"text":"Buy Now!","href":"http://www.google.com","variant":"primary","size":"medium","align":"center"}
       grid-cell #29.r1c2 <r1c2> {"row":1,"column":2}
+        button #31 [31] {"text":"Buy Now!","href":"http://www.google.com","variant":"primary","size":"medium","align":"center"}
       grid-cell #29.r1c3 <r1c3> {"row":1,"column":3}
+        button #33 [33] {"text":"Buy Now!","href":"http://www.google.com","variant":"primary","size":"medium","align":"center"}
+    separator #27 [27] {"color":"","thickness":1,"width":100,"align":"center"}
     grid #18 [18] {"rows":2,"columns":1,"well":true}
       grid-cell #18.r1c1 <r1c1> {"row":1,"column":1}
         heading #20 [20] {"text":"Two New Locations","level":1,"align":"center","tone":"info"}
@@ -22,12 +26,8 @@ exports[`app_models/buy_deal_sample.json > generates the golden document 1`] = `
 exports[`app_models/buy_deal_sample.json > generates the golden document 2`] = `
 [
   "warning unknown-feature [30]: Unknown feature type "ListGroupFeature"",
-  "warning unknown-feature [31]: Unknown feature type "ButtonFeature"",
   "warning unknown-feature [32]: Unknown feature type "ListGroupFeature"",
-  "warning unknown-feature [33]: Unknown feature type "ButtonFeature"",
   "warning unknown-feature [28]: Unknown feature type "ListGroupFeature"",
-  "warning unknown-feature [26]: Unknown feature type "ButtonFeature"",
-  "warning unknown-feature [27]: Unknown feature type "SeparatorFeature"",
   "warning unknown-feature [16]: Unknown feature type "GoogleMapFeature"",
   "warning unknown-feature [6]: Unknown feature type "GoogleMapFeature"",
   "warning unknown-feature [10]: Unknown feature type "TextWithParagraphFeature"",
@@ -42,12 +42,12 @@ exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 1`] =
 36 ImageFeature @15/content {"name":"Header Image","disable":false,"src":"https://www.nard.ma/images/english/web-application-header.jpg","alt":"some cool image","height":"200","width":"100%","responsive":false,"align":"center"}
 29 ContainerFeature @15/content {"name":"buy_pannels","disable":false,"rows":1,"columns":3,"well":true}
 30 ListGroupFeature @29/r1c2 {"name":"silver","disable":"","heading":"Silver","list":"24x7 Phone Support,2 TB Data,4 GB Memory,\\n  \\n  $50.00/Month\\n\\n","align":"center-block","price":"25.99","description":"This is our best offer ever. Don't wait to get this exciting new product. Time is limited.","style":"panel-success"} cache=legacy
-31 ButtonFeature @29/r1c2 {"name":"My Button","disable":"","text":"Buy Now!","href":"http://www.google.com","align":"text-center","style":"btn-success","size":""} cache=legacy
+31 ButtonFeature @29/r1c2 {"name":"My Button","disable":false,"text":"Buy Now!","href":"http://www.google.com","align":"center"}
 32 ListGroupFeature @29/r1c3 {"name":"gold","disable":"","heading":"Gold","list":"24x7 Phone Support,8 TB Data,16 GB Memory,\\n  \\n  $100.00/Month\\n","align":"center-block","price":"25.99","description":"This is our best offer ever. Don't wait to get this exciting new product. Time is limited.","style":"panel-danger"} cache=legacy
-33 ButtonFeature @29/r1c3 {"name":"My Button","disable":"","text":"Buy Now!","href":"http://www.google.com","align":"text-center","style":"btn-danger","size":""} cache=legacy
+33 ButtonFeature @29/r1c3 {"name":"My Button","disable":false,"text":"Buy Now!","href":"http://www.google.com","align":"center"}
 28 ListGroupFeature @29/r1c1 {"name":"bronze","disable":"","heading":"Bronze","list":"Email Support,1 TB Data,2 GB Memory,\\n  \\n  \\n  $25.00/Month\\n\\n\\n","align":"center-block","price":"25.99","description":"This is our best offer ever. Don't wait to get this exciting new  product. Time is limited.","style":"panel-warning"} cache=legacy
-26 ButtonFeature @29/r1c1 {"name":"My Button","disable":"","text":"Buy Now!","href":"http://www.google.com","align":"text-center","style":"btn-warning","size":""} cache=legacy
-27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center","color":"#2fa7eb","width":"80","height":"5"} cache=legacy
+26 ButtonFeature @29/r1c1 {"name":"My Button","disable":false,"text":"Buy Now!","href":"http://www.google.com","align":"center"}
+27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center"}
 18 ContainerFeature @15/content {"name":"top container","disable":false,"rows":2,"columns":1,"well":true}
 20 HeaderFeature @18/r1c1 {"name":"container header","disable":false,"text":"Two New Locations","size":1,"align":"center","text_style":"info","background":""}
 19 ContainerFeature @18/r2c1 {"name":"inner container","disable":false,"rows":1,"columns":2,"well":false}
@@ -63,12 +63,12 @@ exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 2`] =
 [
   "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
   "info unported-feature [30]: ListGroupFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [31]: ButtonFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [31]: Dropped legacy button styling (style "btn-success"); it uses our own defaults and the theme",
   "info unported-feature [32]: ListGroupFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [33]: ButtonFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [33]: Dropped legacy button styling (style "btn-danger"); it uses our own defaults and the theme",
   "info unported-feature [28]: ListGroupFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [26]: ButtonFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [27]: SeparatorFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [26]: Dropped legacy button styling (style "btn-warning"); it uses our own defaults and the theme",
+  "info dropped-style [27]: Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme",
   "warning data-binding [35]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
   "info unported-feature [16]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "warning data-binding [2]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
@@ -82,6 +82,7 @@ exports[`app_models/google_map_sample.json > generates the golden document 1`] =
 "root #$root <content>
   page #15 <content> [15]
     image #25 [25] {"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","width":"100%","height":"150","responsive":false,"align":"center"}
+    separator #27 [27] {"color":"","thickness":1,"width":100,"align":"center"}
     panel #36 [36] {"heading":"My GitHub Repos","tone":"success"}
       panel-body #36.body <body>
         table #24 [24] {"columns":[{"field":"name","label":"Name","filter":"uppercase"},{"field":"description","label":"Description","filter":"dataLink :data.html_url"},{"field":"language","label":"Language"},{"field":"updated_at","label":"Updated At","filter":"date"}],"source":{"feature":"23","resource":"TomsRepos","operation":"GET /users/tbeauvais/repos","endPoint":"https://api.github.com/users/tbeauvais/repos?per_page=5"}}
@@ -103,17 +104,16 @@ exports[`app_models/google_map_sample.json > generates the golden document 1`] =
         list #7 [7] {"items":["Red","Green","Blue","Yellow"],"align":"center"}
       grid-cell #12.r1c2 <r1c2> {"row":1,"column":2}
         heading #17 [17] {"text":"I'm just a little frog","level":4,"align":"center"}
-        image #13 [13] {"src":"http://assets.kompas.com/data/photo/2014/04/07/2002239katak-kulit-paling-kasar780x390.jpg","alt":"Frog","width":"300","height":"300","responsive":true,"align":"center"}"
+        image #13 [13] {"src":"http://assets.kompas.com/data/photo/2014/04/07/2002239katak-kulit-paling-kasar780x390.jpg","alt":"Frog","width":"300","height":"300","responsive":true,"align":"center"}
+    link #4 [4] {"text":"GitHub","href":"https://github.com"}"
 `;
 
 exports[`app_models/google_map_sample.json > generates the golden document 2`] = `
 [
-  "warning unknown-feature [27]: Unknown feature type "SeparatorFeature"",
   "warning unknown-feature [16]: Unknown feature type "GoogleMapFeature"",
   "warning unknown-feature [6]: Unknown feature type "GoogleMapFeature"",
   "warning unknown-feature [10]: Unknown feature type "TextWithParagraphFeature"",
   "warning unknown-feature [11]: Unknown feature type "ImageWithParagraphFeature"",
-  "warning unknown-feature [4]: Unknown feature type "LinkFeature"",
   "warning out-of-order [24]: Listed before feature 36 ("repo panel"), which it is placed in",
   "warning out-of-order [17]: Listed before feature 12 ("My Container"), which it is placed in",
   "warning out-of-order [13]: Listed before feature 12 ("My Container"), which it is placed in",
@@ -127,7 +127,7 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 1`]
 23 DataResourceFeature {"name":"TomsRepos","resource":"https://api.github.com/users/tbeauvais/repos?per_page=5","operation":"GET"}
 37 DataResourceFeature {"name":"TorqueboxRepos","resource":"https://api.github.com/users/torquebox/repos?per_page=5","operation":"GET"}
 25 ImageFeature @15/content {"name":"header image","disable":false,"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","height":"150","width":"100%","responsive":false,"align":"center"}
-27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center","color":"#2fa7eb","width":"80","height":"5"} cache=legacy
+27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center"}
 24 TableFeature @36/body {"name":"Repo Table","disable":false,"data_resource":"23","operation":"GET /users/tbeauvais/repos","delete_operation":"","fields":["name","description","language","updated_at"],"labels":["Name","Description","Language","Updated At"],"filters":["uppercase","dataLink :data.html_url","","date"]}
 36 PanelFeature @15/content {"name":"repo panel","disable":false,"style":"success","heading":"My GitHub Repos"}
 39 PanelFeature @15/content {"name":"tb","disable":false,"style":"success","heading":"Torquebox GitHub Repos"}
@@ -146,20 +146,19 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 1`]
 6 GoogleMapFeature @19/r1c1 {"name":"Home Map","title":"Too Cold Here","address":"131 Willow Rd. Guilford, CT","height":"200","width":"400"} cache=legacy
 10 TextWithParagraphFeature @15/content {"name":"Info","title":"Company Info","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","style":"panel-success"} cache=legacy
 11 ImageWithParagraphFeature @15/content {"name":"pet","title":"Our New Mascot ","src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","text":"La ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum olore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","style":"panel-success"} cache=legacy
-4 LinkFeature @15/content {"name":"Github link","href":"https://github.com","text":"GitHub"} cache=legacy"
+4 LinkFeature @15/content {"name":"Github link","disable":false,"text":"GitHub","href":"https://github.com"}"
 `;
 
 exports[`app_models/google_map_sample.json > migrates to the golden v2 model 2`] = `
 [
   "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
-  "info unported-feature [27]: SeparatorFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [27]: Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme",
   "warning data-binding [35]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
   "info unported-feature [16]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "warning data-binding [2]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
   "info unported-feature [6]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [10]: TextWithParagraphFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [11]: ImageWithParagraphFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [4]: LinkFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
 ]
 `;
 
@@ -167,6 +166,7 @@ exports[`app_models/swagger_resource_sample.json > generates the golden document
 "root #$root <content>
   page #15 <content> [15]
     image #25 [25] {"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","width":"100%","height":"150","responsive":false,"align":"center"}
+    separator #27 [27] {"color":"","thickness":1,"width":100,"align":"center"}
     panel #46 [46] {"heading":"Monthly Sales","tone":"success"}
       panel-body #46.body <body>
     panel #45 [45] {"heading":"Add Sales Data","tone":"success"}
@@ -176,7 +176,6 @@ exports[`app_models/swagger_resource_sample.json > generates the golden document
 exports[`app_models/swagger_resource_sample.json > generates the golden document 2`] = `
 [
   "warning unknown-feature [42]: Unknown feature type "SwaggerDataResourceFeature"",
-  "warning unknown-feature [27]: Unknown feature type "SeparatorFeature"",
   "warning unknown-feature [44]: Unknown feature type "FormFeature"",
   "warning unknown-feature [47]: Unknown feature type "GoogleChartFeature"",
   "error unresolved-reference [43]: Input "data_resource" references feature 42, which is not a known feature type",
@@ -187,7 +186,7 @@ exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 mod
 "15 PageFeature @$root/content {"name":"Page","background_image":""}
 42 SwaggerDataResourceFeature {"name":"Sales API","resource":"http://sales-api.mybluemix.net/swagger_doc/sales.json"} cache=legacy
 25 ImageFeature @15/content {"name":"header image","disable":false,"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","height":"150","width":"100%","responsive":false,"align":"center"}
-27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center","color":"#2fa7eb","width":"80","height":"5"} cache=legacy
+27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center"}
 46 PanelFeature @15/content {"name":"sales","disable":false,"style":"success","heading":"Monthly Sales"}
 45 PanelFeature @15/content {"name":"Add","disable":false,"style":"success","heading":"Add Sales Data"}
 44 FormFeature @45/body {"name":"Add Sale","disable":"","fields":"","labels":"","filters":""} cache=legacy
@@ -199,7 +198,7 @@ exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 mod
 [
   "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
   "info unported-feature [42]: SwaggerDataResourceFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [27]: SeparatorFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [27]: Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme",
   "info unported-feature [44]: FormFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [47]: GoogleChartFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
 ]
@@ -209,12 +208,12 @@ exports[`app_models/watson_sample.json > generates the golden document 1`] = `
 "root #$root <content>
   page #15 <content> [15]
     heading #29 [29] {"text":"Leverage IBM's Watson Services","level":1,"align":"center","tone":"info"}
-    image #25 [25] {"src":"http://www.dotpod.com.ar/wp-content/uploads/ibm-silvergate-argentina-02-710x242.jpg","alt":"some cool image","width":"100%","height":"250","responsive":false,"align":"left"}"
+    image #25 [25] {"src":"http://www.dotpod.com.ar/wp-content/uploads/ibm-silvergate-argentina-02-710x242.jpg","alt":"some cool image","width":"100%","height":"250","responsive":false,"align":"left"}
+    separator #27 [27] {"color":"","thickness":1,"width":100,"align":"center"}"
 `;
 
 exports[`app_models/watson_sample.json > generates the golden document 2`] = `
 [
-  "warning unknown-feature [27]: Unknown feature type "SeparatorFeature"",
   "warning unknown-feature [28]: Unknown feature type "WatsonTextToSpeechFeature"",
 ]
 `;
@@ -223,14 +222,14 @@ exports[`app_models/watson_sample.json > migrates to the golden v2 model 1`] = `
 "15 PageFeature @$root/content {"name":"Page","background_image":""}
 29 HeaderFeature @15/content {"name":"header","disable":false,"text":"Leverage IBM's Watson Services","size":1,"align":"center","text_style":"info","background":""}
 25 ImageFeature @15/content {"name":"header image","disable":false,"src":"http://www.dotpod.com.ar/wp-content/uploads/ibm-silvergate-argentina-02-710x242.jpg","alt":"some cool image","height":"250","width":"100%","responsive":false,"align":"left"}
-27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center","color":"#2fa7eb","width":"80","height":"5"} cache=legacy
+27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center"}
 28 WatsonTextToSpeechFeature @15/content {"name":"Text 2 Speech","disable":"","text":"The Text to Speech service uses IBM's speech synthesis capabilities to convert English or Spanish text to an audio signal. The audio is streamed back to the client with minimal delay. The service can be accessed via a REST interface.","voice":"VoiceEnUsLisa","align":"center-block"} cache=legacy"
 `;
 
 exports[`app_models/watson_sample.json > migrates to the golden v2 model 2`] = `
 [
   "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
-  "info unported-feature [27]: SeparatorFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [27]: Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme",
   "info unported-feature [28]: WatsonTextToSpeechFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
 ]
 `;
@@ -254,7 +253,8 @@ exports[`sample.json > generates the golden document 1`] = `
           grid-cell #19.r1c1 <r1c1> {"row":1,"column":1}
           grid-cell #19.r1c2 <r1c2> {"row":1,"column":2}
     text #5 [5] {"text":"This is a simple line of text"}
-    text #2 [2] {"text":"This is from Feature #1"}"
+    text #2 [2] {"text":"This is from Feature #1"}
+    link #4 [4] {"text":"GitHub","href":"https://github.com"}"
 `;
 
 exports[`sample.json > generates the golden document 2`] = `
@@ -263,7 +263,6 @@ exports[`sample.json > generates the golden document 2`] = `
   "warning unknown-feature [6]: Unknown feature type "GoogleMapFeature"",
   "warning unknown-feature [10]: Unknown feature type "TextWithParagraphFeature"",
   "warning unknown-feature [11]: Unknown feature type "ImageWithParagraphFeature"",
-  "warning unknown-feature [4]: Unknown feature type "LinkFeature"",
 ]
 `;
 
@@ -284,7 +283,7 @@ exports[`sample.json > migrates to the golden v2 model 1`] = `
 11 ImageWithParagraphFeature @15/content {"name":"pet","title":"My New Pet","src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."} cache=legacy
 5 TextFeature @15/content {"name":"More text","disable":false,"text":"This is a simple line of text"}
 2 TextFeature @15/content {"name":"Simple text","disable":false,"text":"This is from Feature #1"}
-4 LinkFeature @15/content {"name":"Github link","href":"https://github.com","text":"GitHub"} cache=legacy"
+4 LinkFeature @15/content {"name":"Github link","disable":false,"text":"GitHub","href":"https://github.com"}"
 `;
 
 exports[`sample.json > migrates to the golden v2 model 2`] = `
@@ -293,6 +292,5 @@ exports[`sample.json > migrates to the golden v2 model 2`] = `
   "info unported-feature [6]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [10]: TextWithParagraphFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [11]: ImageWithParagraphFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [4]: LinkFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
 ]
 `;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generate, migrate, ROOT_ID, type AppModel, type FeatureInstance } from '../src'
+import { generate, migrate, renderOutline, ROOT_ID, type AppModel, type FeatureInstance } from '../src'
 import { legacyDomId, legacyGrid, normalizeAlign, normalizeTone } from '../src/migrate/legacy'
 import { deepFreeze } from './helpers'
 
@@ -330,4 +330,30 @@ describe('migrate: upgrading v2 models when features get ported', () => {
       expect(upgraded.notes.filter((n) => n.code === 'upgraded-feature').map((n) => n.featureInstanceId)).toEqual(ported.map((f) => f.id))
     },
   )
+})
+
+describe('migrate: Separator, Link and Button', () => {
+  it('carries over content and placement, not the legacy look', () => {
+    const r = run(
+      legacyPage,
+      { feature: 'SeparatorFeature', id: '27', inputs: { name: 'Separator', disable: false, align: 'left', color: '#2fa7eb', width: '80', height: '5', ...loc('#page_container') } },
+      { feature: 'ButtonFeature', id: '33', inputs: { name: 'B', disable: '', text: 'Buy', href: 'http://x.test', align: 'text-right', style: 'btn-danger', size: 'btn-lg', ...loc('#page_container') } },
+    )
+    expect(feature(r, '27').inputs).toEqual({ name: 'Separator', disable: false, align: 'left' })
+    expect(feature(r, '33').inputs).toEqual({ name: 'B', disable: false, text: 'Buy', href: 'http://x.test', align: 'right' })
+    expect(r.notes.filter((n) => n.code === 'dropped-style').map((n) => n.message)).toEqual([
+      'Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme',
+      'Dropped legacy button styling (style "btn-danger", size "btn-lg"); it uses our own defaults and the theme',
+    ])
+    // Generated with our defaults: a theme hairline and a medium primary button.
+    const doc = renderOutline(generate(r.model).root)
+    expect(doc).toContain('separator #27 [27] {"color":"","thickness":1,"width":100,"align":"left"}')
+    expect(doc).toContain('"variant":"primary","size":"medium","align":"right"')
+  })
+
+  it('migrates links, flagging markup in their text', () => {
+    const r = run(legacyPage, { feature: 'LinkFeature', id: '4', inputs: { name: 'Github link', href: 'https://github.com', text: '<b>GitHub</b>', ...loc('#page_container') } })
+    expect(feature(r, '4').inputs).toEqual({ name: 'Github link', disable: false, text: '<b>GitHub</b>', href: 'https://github.com' })
+    expect(notes(r)).toContain('markup-in-text:4')
+  })
 })

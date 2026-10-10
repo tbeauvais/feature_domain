@@ -1,15 +1,18 @@
 import { describe, expect, it, vi } from 'vitest'
 import { deepFreeze } from './helpers'
 import {
+  ButtonFeature,
   ContainerFeature,
   coreFeatures,
   DataResourceFeature,
   defaultInputs,
   HeaderFeature,
   ImageFeature,
+  LinkFeature,
   PageFeature,
   PanelFeature,
   pathname,
+  SeparatorFeature,
   TableFeature,
   TextFeature,
   walkNodes,
@@ -260,5 +263,39 @@ describe('TableFeature', () => {
     const { out, report } = run(TableFeature, { data_resource: 'r' }, resolveTo({}))
     expect(out.node?.kind).toBe('table')
     expect(report).toHaveBeenCalledWith('error', 'Data resource did not export any operations')
+  })
+})
+
+describe('SeparatorFeature', () => {
+  it('is a themed hairline by default and clamps its sizes', () => {
+    expect(run(SeparatorFeature).out.node).toMatchObject({ kind: 'separator', props: { color: '', thickness: 1, width: 100, align: 'center' } })
+    expect(run(SeparatorFeature, { thickness: 99, width: 0, align: 'right', color: ' #123456 ' }).out.node?.props).toEqual({
+      color: '#123456',
+      thickness: 24,
+      width: 5,
+      align: 'right',
+    })
+  })
+})
+
+describe('LinkFeature', () => {
+  it('renders text and an http(s) link, warning about any other address', () => {
+    const ok = run(LinkFeature, { text: 'GitHub', href: ' https://github.com ' })
+    expect(ok.out.node).toMatchObject({ kind: 'link', props: { text: 'GitHub', href: 'https://github.com' } })
+    expect(ok.report).not.toHaveBeenCalled()
+    const bad = run(LinkFeature, { href: 'javascript:alert(1)' })
+    expect(bad.report).toHaveBeenCalledWith('warning', 'Link URL "javascript:alert(1)" is not an http(s) address, so the link is shown without it')
+  })
+})
+
+describe('ButtonFeature', () => {
+  it('defaults to a medium primary button and falls back for unknown styles and sizes', () => {
+    expect(run(ButtonFeature).out.node).toMatchObject({ kind: 'button', props: { text: 'Get started', variant: 'primary', size: 'medium', align: 'center' } })
+    expect(run(ButtonFeature, { style: 'btn-success', size: 'huge' }).out.node?.props).toMatchObject({ variant: 'primary', size: 'medium' })
+    expect(run(ButtonFeature, { style: 'soft', size: 'small', align: 'left' }).out.node?.props).toMatchObject({ variant: 'soft', size: 'small', align: 'left' })
+    expect(run(ButtonFeature, { href: 'mailto:x@example.com' }).report).toHaveBeenCalledWith(
+      'warning',
+      'Link URL "mailto:x@example.com" is not an http(s) address, so the button is shown without it',
+    )
   })
 })

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { deriveTokens, generate, THEME_OPTIONS, THEME_STYLE_KEYS } from '@feature-domain/engine'
+import { BUTTON_SIZES, BUTTON_VARIANTS, deriveTokens, generate, THEME_OPTIONS, THEME_STYLE_KEYS } from '@feature-domain/engine'
 import { mount } from '@vue/test-utils'
 import { computed, defineComponent, h } from 'vue'
 import { describe, expect, it } from 'vitest'
@@ -25,6 +25,10 @@ describe('document.css and the theme tokens', () => {
     // Stylesheet-local properties must not shadow theme tokens by accident (bands re-point them on purpose).
     const local = [...declared].filter((name) => !emitted.has(name))
     expect(local).toEqual(['--fd-panel-tone'])
+  })
+
+  it('has rules for every button style and size', () => {
+    for (const option of [...BUTTON_VARIANTS, ...BUTTON_SIZES.filter((size) => size !== 'medium')]) expect(css).toContain(`.fd-button-${option} {`)
   })
 
   it('has rules for every component style option the engine offers', () => {
