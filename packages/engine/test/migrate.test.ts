@@ -347,7 +347,7 @@ describe('migrate: Separator, Link and Button', () => {
     ])
     // Generated with our defaults: a theme hairline and a medium primary button.
     const doc = renderOutline(generate(r.model).root)
-    expect(doc).toContain('separator #27 [27] {"color":"","thickness":1,"width":100,"align":"left"}')
+    expect(doc).toContain('separator #27 [27] {"style":"line","color":"","thickness":1,"width":100,"align":"left"}')
     expect(doc).toContain('"variant":"primary","size":"medium","align":"right"')
   })
 

@@ -15,8 +15,20 @@
  * theme wins over an outer one), with one rule block per option below. Tests check that every `var(--fd-*)` here is a token the engine emits and that every style
  * option has rules.
  */
-:where(.fd-root *) {
+:where(.fd-root *:not(svg *)) {
   all: revert;
+}
+/*
+ * Shapes inside an <svg> (built-in illustrations) are left out of that revert: their geometry and paint (`r`, `d`,
+ * `fill`...) are CSS properties set by presentation attributes, and reverting them would erase the drawing. Only the
+ * box properties the editor's base styles set on every element are reverted for them.
+ */
+:where(.fd-root svg *) {
+  border: revert;
+  outline: revert;
+  box-sizing: revert;
+  margin: revert;
+  padding: revert;
 }
 
 /*
@@ -174,17 +186,11 @@ h6.fd-heading { font-size: var(--fd-h6); }
   color: var(--fd-text);
 }
 
-/* Panels: a display heading with a tone dot, above the body. */
+/* Panels: a display heading above the body. */
 .fd-panel {
   display: block;
   margin-bottom: calc(var(--fd-space) * 6);
-  --fd-panel-tone: var(--fd-accent);
 }
-.fd-panel-primary { --fd-panel-tone: var(--fd-primary); }
-.fd-panel-success { --fd-panel-tone: var(--fd-success); }
-.fd-panel-info { --fd-panel-tone: var(--fd-info); }
-.fd-panel-warning { --fd-panel-tone: var(--fd-warning); }
-.fd-panel-danger { --fd-panel-tone: var(--fd-danger); }
 .fd-panel-heading {
   display: block;
   margin-bottom: calc(var(--fd-space) * 2);
@@ -199,16 +205,6 @@ h6.fd-heading { font-size: var(--fd-h6); }
   color: var(--fd-ink);
 }
 .fd-panel-heading h4 strong { font-weight: inherit; }
-.fd-panel-heading h4::before {
-  content: '';
-  display: inline-block;
-  width: 0.3em;
-  height: 0.3em;
-  margin-right: 0.35em;
-  border-radius: 50%;
-  vertical-align: 0.2em;
-  background: var(--fd-panel-tone);
-}
 .fd-panel-body {
   display: block;
 }
@@ -303,6 +299,23 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-list-check li:last-child { border: 0; }
 .fd-list-check li::before { content: '\2713'; font-family: var(--fd-font-body); font-size: 1em; font-weight: 600; }
 
+/* Illustrations: built-in SVG, coloured by the theme tokens (see the revert at the top). */
+.fd-illustration {
+  position: relative;
+  display: block;
+  max-width: 100%;
+  margin: 0 auto calc(var(--fd-space) * 4);
+  overflow: hidden;
+  border-radius: var(--fd-radius-lg);
+}
+.fd-illustration-left { margin-left: 0; }
+.fd-illustration-right { margin-right: 0; }
+/* Banners stack a background layer and a drawing layer; both fill the frame. */
+.fd-illustration > svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+/* Short banners on narrow pages would be slivers. */
+.fd-illustration-banner { min-height: 6rem; }
+.fd-media > .fd-illustration { margin: 0; }
+
 /* Separators: a rule in the theme's border colour unless the feature sets one; thickness and width are inline. */
 .fd-separator {
   display: block;
@@ -313,6 +326,14 @@ h6.fd-heading { font-size: var(--fd-h6); }
 }
 .fd-separator-left { margin-left: 0; }
 .fd-separator-right { margin-right: 0; }
+/* Divider illustrations draw in the current colour: the feature's colour, else the accent. */
+.fd-separator-divider {
+  height: auto;
+  border-radius: 0;
+  background: none;
+  color: var(--fd-accent-solid);
+}
+.fd-separator-divider > svg { display: block; width: 100%; height: calc(var(--fd-space) * 3); }
 
 /* Links */
 .fd-root .fd-link {

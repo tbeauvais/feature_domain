@@ -38,6 +38,9 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
 
   await expect(canvas.getByRole('heading', { name: 'Two New Locations', level: 1 })).toBeVisible()
   await expect(canvas.locator('.fd-panel-heading', { hasText: 'My GitHub Repos' })).toBeVisible()
+  // Panel headings are plain text: no decorative dot before them.
+  const marker = await canvas.locator('.fd-panel-heading h4', { hasText: 'My GitHub Repos' }).evaluate((h) => getComputedStyle(h, '::before').content)
+  expect(marker).toBe('none')
 
   // Repo Table: fields name/description/language/updated_at with filters uppercase / dataLink / none / date.
   const table = canvas.locator('[data-feature-id="24"]')
@@ -61,6 +64,36 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
   const diagnostics = page.getByTestId('diagnostics')
   await expect(diagnostics.locator('[data-code="out-of-order"]')).toHaveCount(3)
   await expect(diagnostics).toContainText('Listed before feature 36 ("repo panel"), which it is placed in')
+})
+
+test('draws built-in illustrations in the theme\'s colours, in the editor and the preview', async ({ page, context }) => {
+  const id = await openSample(page, 'Data Sample')
+  const preview = await context.newPage()
+  await preview.goto(`/preview.html?model=${encodeURIComponent(id)}`)
+  for (const p of [page, preview]) {
+    const banner = p.getByRole('img', { name: 'A drafted part with dimensions on a blueprint grid' })
+    await expect(banner).toBeVisible()
+    // Inside .fd-root everything is reset (`all: revert`); SVG geometry and paint are CSS properties, so a reset that
+    // reached into the drawing would leave zero-sized circles and default black fills.
+    const drawn = await banner.evaluate((frame) => {
+      const circle = frame.querySelector('circle')!
+      const background = frame.querySelector('rect')!
+      const box = frame.getBoundingClientRect()
+      return {
+        circle: circle.getBoundingClientRect().width,
+        fill: getComputedStyle(background).fill,
+        band: getComputedStyle(frame).getPropertyValue('--fd-band').trim(),
+        aspect: getComputedStyle(frame).aspectRatio,
+        height: box.height,
+      }
+    })
+    expect(drawn.circle).toBeGreaterThan(10)
+    expect(drawn.fill).toBe('rgb(58, 17, 40)')
+    expect(drawn.band).toBe('#3a1128')
+    // The samples' banners are short (6:1), but never slivers on narrow pages.
+    expect(drawn.aspect).toBe('6 / 1')
+    expect(drawn.height).toBeGreaterThanOrEqual(96)
+  }
 })
 
 test('opens the standalone preview in a new tab', async ({ page, context }) => {

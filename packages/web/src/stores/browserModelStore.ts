@@ -3,6 +3,8 @@ import { ModelNotFoundError, type AppModel, type ModelStore, type ModelSummary }
 /** The storage key holding all models; other tabs watch it (the `storage` event) to pick up saves. */
 export const MODELS_KEY = 'feature-domain:models'
 const SEEDED_KEY = 'feature-domain:seeded'
+/** The samples version this storage was seeded with or last upgraded to; absent means 1 (seeded before versions). */
+const SAMPLES_VERSION_KEY = 'feature-domain:samples-version'
 
 interface Stored {
   order: string[]
@@ -54,10 +56,30 @@ export class BrowserModelStore implements ModelStore {
   /**
    * Adds `models` the first time this storage is used. Runs once: models the user deletes later do not come back.
    */
-  async seedOnce(models: AppModel[]): Promise<void> {
+  async seedOnce(models: AppModel[], version = 1): Promise<void> {
     if (this.storage.getItem(SEEDED_KEY) !== null) return
     for (const model of models) await this.create(model)
     this.storage.setItem(SEEDED_KEY, new Date().toISOString())
+    this.storage.setItem(SAMPLES_VERSION_KEY, String(version))
+  }
+
+  /**
+   * Brings storage seeded with older samples up to `version`, once: `upgrade` sees every stored model (the samples'
+   * ids are not recorded, so it must change only what it recognises) and returns the same object to leave one alone.
+   * Does nothing before the first seeding, which seeds current samples.
+   */
+  async upgradeSeeded(version: number, upgrade: (model: AppModel) => AppModel): Promise<void> {
+    if (this.storage.getItem(SEEDED_KEY) === null) return
+    const stored = Number(this.storage.getItem(SAMPLES_VERSION_KEY) ?? '1')
+    if (stored >= version) return
+    const { order, models } = this.read()
+    for (const id of order) {
+      const model = models[id]
+      if (!model) continue
+      const next = upgrade(model)
+      if (next !== model) await this.update(id, next)
+    }
+    this.storage.setItem(SAMPLES_VERSION_KEY, String(version))
   }
 
   // Every call re-reads storage, so the editor and preview tabs always see each other's saves. Parsing also means

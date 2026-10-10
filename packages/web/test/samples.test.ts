@@ -1,6 +1,7 @@
-import { generate } from '@feature-domain/engine'
+import { generate, walkNodes, type DocNode } from '@feature-domain/engine'
 import { describe, expect, it } from 'vitest'
-import { sampleModels } from '../src/data/samples'
+import { sampleModels, upgradeSample } from '../src/data/samples'
+import { inst, model, page } from './helpers'
 
 describe('sampleModels', () => {
   const samples = sampleModels()
@@ -18,6 +19,41 @@ describe('sampleModels', () => {
       expect(errors).toEqual(
         m.name === 'Swagger Data Sample' ? ['Swagger Data Sample #43: Input "data_resource" references feature 42, which is not a known feature type'] : [],
       )
+    }
+  })
+
+  it('shows built-in banners instead of the legacy stock header photos, and keeps the other pictures', () => {
+    const kinds = (name: string) => {
+      const nodes: DocNode[] = []
+      walkNodes(generate(samples.find((m) => m.name === name)!).root, (n) => nodes.push(n))
+      return nodes.filter((n) => n.kind === 'image' || n.kind === 'illustration').map((n) => (n.kind === 'illustration' ? n.props.name : n.kind))
+    }
+    expect(kinds('Data Sample')).toEqual(['banner/blueprint', 'image', 'image'])
+    expect(kinds('Buy Deal')).toEqual(['banner/shapes', 'image'])
+    expect(kinds('Watson Sample')).toEqual(['banner/data-dots'])
+  })
+})
+
+describe('upgradeSample', () => {
+  const header = 'http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg'
+
+  it('turns a legacy header photo into its banner, keeping the address for switching back', () => {
+    const upgraded = upgradeSample(model(page(), inst('ImageFeature', 'i', { src: header, alt: 'some cool image', responsive: false })))
+    expect(upgraded.features[1]!.inputs).toMatchObject({ source: 'illustration', illustration: 'banner/blueprint', banner_height: 'short', responsive: true, alt: '', src: header })
+  })
+
+  it('makes banners from the first upgrade short, keeping the illustration chosen', () => {
+    const upgraded = upgradeSample(model(page(), inst('ImageFeature', 'i', { src: header, source: 'illustration', illustration: 'spot/map' })))
+    expect(upgraded.features[1]!.inputs).toMatchObject({ illustration: 'spot/map', banner_height: 'short' })
+  })
+
+  it('returns the same model when there is nothing to change, including images already switched or chosen by the user', () => {
+    for (const m of [
+      model(page(), inst('ImageFeature', 'i', { src: 'https://example.com/mine.jpg' })),
+      model(page(), inst('ImageFeature', 'i', { src: header, source: 'illustration', illustration: 'spot/map', banner_height: 'tall' })),
+      model(page(), inst('TextFeature', 't', { src: header })),
+    ]) {
+      expect(upgradeSample(m)).toBe(m)
     }
   })
 })

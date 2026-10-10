@@ -1,4 +1,4 @@
-import { asString, defaultInputs, type InputDef, type Inputs } from './inputs.js'
+import { asString, initialInputs, type InputDef, type Inputs } from './inputs.js'
 import type { DocNode, FeatureInstance, Placement, Severity } from './types.js'
 
 /** A generated feature as seen by features that depend on it. */
@@ -56,9 +56,9 @@ export function createRegistry(defs: readonly FeatureDefinition[]): FeatureRegis
   return new Map(defs.map((d) => [d.type, d]))
 }
 
-/** A new instance of `def` with default inputs, e.g. when a feature is dropped from the palette. */
+/** A new instance of `def` with its initial inputs, e.g. when a feature is dropped from the palette. */
 export function createFeatureInstance(def: FeatureDefinition, id: string, placement?: Placement): FeatureInstance {
-  const instance: FeatureInstance = { feature: def.type, id, inputs: defaultInputs(def.inputs) }
+  const instance: FeatureInstance = { feature: def.type, id, inputs: initialInputs(def.inputs) }
   if (def.placement === 'required' && placement) instance.placement = { ...placement }
   return instance
 }

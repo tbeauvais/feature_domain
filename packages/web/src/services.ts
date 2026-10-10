@@ -1,5 +1,5 @@
 import type { ModelStore } from '@feature-domain/engine'
-import { sampleModels } from './data/samples'
+import { sampleModels, SAMPLES_VERSION, upgradeSample } from './data/samples'
 import { BrowserModelStore } from './stores/browserModelStore'
 
 let store: ModelStore | undefined
@@ -14,9 +14,10 @@ export function setModelStore(next: ModelStore): void {
   store = next
 }
 
-/** Startup for both pages: browser storage, seeded with the sample models on first use. */
+/** Startup for both pages: browser storage, seeded with the sample models on first use (or brought up to date). */
 export async function initBrowserModelStore(): Promise<void> {
   const browser = new BrowserModelStore()
-  await browser.seedOnce(sampleModels())
+  await browser.upgradeSeeded(SAMPLES_VERSION, upgradeSample)
+  await browser.seedOnce(sampleModels(), SAMPLES_VERSION)
   setModelStore(browser)
 }

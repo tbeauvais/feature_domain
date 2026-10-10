@@ -60,6 +60,46 @@ describe('InputField', () => {
   })
 })
 
+describe('InputField choices drawn as buttons', () => {
+  const options = [
+    { value: 'illustration', text: 'Illustration' },
+    { value: 'link', text: 'Link' },
+  ]
+
+  it('shows a segmented control labelled as a group, marking the current option', async () => {
+    const w = mount(InputField, { props: { def: def({ name: 'source', label: 'Source', type: 'string', control: 'segmented', default: 'link', options }), value: undefined } })
+    const group = w.get('[role="group"]')
+    expect(w.get(`#${group.attributes('aria-labelledby')}`).text()).toBe('Source')
+    expect(w.findAll('button').map((b) => [b.text(), b.attributes('aria-pressed')])).toEqual([
+      ['Illustration', 'false'],
+      ['Link', 'true'],
+    ])
+    await w.findAll('button')[0]!.trigger('click')
+    expect(lastChange(w)).toBe('illustration')
+  })
+
+  it('shows the illustration gallery with real drawings in the given theme, grouped by kind', async () => {
+    const gallery = def({ name: 'illustration', label: 'Illustration', type: 'string', control: 'illustration-gallery', options: [
+      { value: 'banner/blueprint', text: 'Blueprint' },
+      { value: 'spot/map', text: 'Map' },
+    ] })
+    const w = mount(InputField, { props: { def: gallery, value: 'spot/map', themeVars: { '--fd-band': '#123456' } } })
+    expect(w.get('[data-testid="illustration-gallery"]').attributes('aria-labelledby')).toBe('input-illustration-label')
+    expect(w.findAll('p').map((p) => p.text())).toEqual(['Banners', 'Spots'])
+    const map = w.get('[data-illustration="spot/map"]')
+    expect(map.attributes('aria-pressed')).toBe('true')
+    expect(map.find('svg').exists()).toBe(true)
+    expect(w.get('[data-illustration="banner/blueprint"] span').attributes('style')).toContain('--fd-band: #123456')
+    await w.get('[data-illustration="banner/blueprint"]').trigger('click')
+    expect(lastChange(w)).toBe('banner/blueprint')
+  })
+
+  it('says when the stored illustration is not in the gallery', () => {
+    const gallery = def({ type: 'string', control: 'illustration-gallery', options: [{ value: 'spot/map', text: 'Map' }] })
+    expect(mount(InputField, { props: { def: gallery, value: 'spot/gone' } }).text()).toContain('Missing: spot/gone')
+  })
+})
+
 describe('InputField while typing', () => {
   // Like the editor: every emitted value goes into the model and comes straight back as the field's value.
   function controlled(d: InputDef, initial: InputValue | undefined) {
@@ -137,6 +177,22 @@ describe('Inspector', () => {
     expect(w.findAll('label').map((l) => l.text())).toContain('Text Style')
     await w.get('#input-text').setValue('Hello')
     expect(doc.result?.root.children[0]?.children[0]?.props).toMatchObject({ text: 'Hello' })
+  })
+
+  it('shows only the inputs that apply: the gallery for illustrations, the address for links', async () => {
+    const { doc, w } = await inspect([page(), inst('ImageFeature', 'i', { source: 'illustration' })], 'i')
+    expect(w.find('[data-testid="illustration-gallery"]').exists()).toBe(true)
+    expect(w.find('#input-src').exists()).toBe(false)
+    await w.findAll('button').find((b) => b.text() === 'Link')!.trigger('click')
+    expect(doc.model?.features.find((f) => f.id === 'i')?.inputs.source).toBe('link')
+    expect(w.find('[data-testid="illustration-gallery"]').exists()).toBe(false)
+    expect(w.find('#input-src').exists()).toBe(true)
+  })
+
+  it('treats a stored image without a Source as a link', async () => {
+    const { w } = await inspect([page(), inst('ImageFeature', 'i', { src: 'x.jpg' })], 'i')
+    expect(w.find('#input-src').exists()).toBe(true)
+    expect(w.findAll('[aria-pressed="true"]').map((b) => b.text())).toEqual(['Link'])
   })
 
   it('offers only valid locations and moves the feature', async () => {

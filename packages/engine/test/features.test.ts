@@ -5,7 +5,12 @@ import {
   ContainerFeature,
   coreFeatures,
   DataResourceFeature,
-  defaultInputs,
+  BANNER_HEIGHTS,
+  ILLUSTRATIONS,
+  showConditions,
+  initialInputs,
+  isInputShown,
+  resolveInputs,
   HeaderFeature,
   ImageFeature,
   ImageWithParagraphFeature,
@@ -32,11 +37,19 @@ function context(resolve: (id: string) => ResolvedFeature | undefined = () => un
   return { ctx, report }
 }
 
-/** Runs a feature as a newly created instance would: defaults, overridden by `raw`. */
+/** Runs a feature as a newly created instance would: initial inputs, overridden by `raw`. */
 function run(def: FeatureDefinition, raw: Record<string, unknown> = {}, resolve?: (id: string) => ResolvedFeature | undefined) {
-  const inputs = deepFreeze({ ...defaultInputs(def.inputs), ...raw }) as Parameters<FeatureDefinition['generate']>[0]
+  const inputs = deepFreeze({ ...initialInputs(def.inputs), ...raw }) as Parameters<FeatureDefinition['generate']>[0]
   const { ctx, report } = context(resolve)
   return { out: def.generate(inputs, ctx), slots: def.slots?.(inputs) ?? [], report }
+}
+
+const names = (def: FeatureDefinition) => def.inputs.map((i) => i.name)
+
+/** Runs a feature as a stored instance with exactly these inputs would (absent ones read as their defaults). */
+function runStored(def: FeatureDefinition, stored: Record<string, unknown>) {
+  const { ctx, report } = context()
+  return { out: def.generate(deepFreeze(resolveInputs(def.inputs, stored as never)) as never, ctx), report }
 }
 
 const allNodes = (root: DocNode) => {
@@ -51,7 +64,15 @@ describe.each(coreFeatures.map((f) => [f.type, f] as const))('%s contract', (_, 
     expect(new Set(names).size).toBe(names.length)
     expect(names).not.toContain('page_location')
     for (const input of def.inputs) {
-      if (input.options && input.default !== undefined) expect(input.options.map((o) => o.value), input.name).toContain(input.default)
+      for (const value of [input.default, input.initial]) {
+        if (input.options && value !== undefined) expect(input.options.map((o) => o.value), input.name).toContain(value)
+      }
+    }
+  })
+
+  it('conditions inputs only on other inputs it declares', () => {
+    for (const input of def.inputs) {
+      for (const condition of showConditions(input)) expect(names(def).filter((n) => n !== input.name), input.name).toContain(condition.input)
     }
   })
 
@@ -125,13 +146,65 @@ describe('HeaderFeature', () => {
 })
 
 describe('ImageFeature', () => {
+  it('starts new images as the Blueprint banner, full width, described by its alt text', () => {
+    const { out, report } = run(ImageFeature)
+    expect(out.node).toMatchObject({ kind: 'illustration', id: '7', props: { name: 'banner/blueprint', alt: 'A drafted part with dimensions on a blueprint grid', width: '', align: 'center' } })
+    expect(report).not.toHaveBeenCalled()
+  })
+
+  it('keeps stored images without a Source as links', () => {
+    const { out } = runStored(ImageFeature, { src: 'x.jpg', alt: 'x', responsive: true })
+    expect(out.node).toMatchObject({ kind: 'image', props: { src: 'x.jpg', alt: 'x', responsive: true } })
+  })
+
+  it('prefers the user\'s alt text, and drops it for a decorative illustration', () => {
+    expect(run(ImageFeature, { illustration: 'spot/map', alt: ' Our office ' }).out.node?.props).toMatchObject({ name: 'spot/map', alt: 'Our office' })
+    expect(run(ImageFeature, { alt: 'Our office', decorative: true }).out.node?.props).toMatchObject({ alt: '' })
+  })
+
+  it('gives a non-responsive illustration the width input; the height follows its shape', () => {
+    expect(run(ImageFeature, { responsive: false, width: '320', illustration: 'spot/map' }).out.node?.props).toEqual({ name: 'spot/map', alt: expect.any(String), width: '320', align: 'center' })
+  })
+
+  it('makes banners short, medium (the default, also for unknown values) or tall', () => {
+    expect(run(ImageFeature).out.node?.props).toMatchObject({ aspect: 4 })
+    expect(run(ImageFeature, { banner_height: 'short' }).out.node?.props).toMatchObject({ aspect: 6 })
+    expect(run(ImageFeature, { banner_height: 'tall' }).out.node?.props).toMatchObject({ aspect: 16 / 5 })
+    expect(run(ImageFeature, { banner_height: 'huge' }).out.node?.props).toMatchObject({ aspect: BANNER_HEIGHTS.medium })
+    expect(run(ImageFeature, { illustration: 'spot/map', banner_height: 'short' }).out.node?.props).not.toHaveProperty('aspect')
+  })
+
+  it('shows the Height choice only for banners', () => {
+    const height = ImageFeature.inputs.find((i) => i.name === 'banner_height')!
+    expect(isInputShown(height, ImageFeature.inputs, { source: 'illustration', illustration: 'banner/shapes' })).toBe(true)
+    expect(isInputShown(height, ImageFeature.inputs, { source: 'illustration', illustration: 'spot/map' })).toBe(false)
+    expect(isInputShown(height, ImageFeature.inputs, { source: 'link', illustration: 'banner/shapes' })).toBe(false)
+  })
+
+  it('warns about unknown illustrations and dividers, and still generates (the renderer shows an empty frame)', () => {
+    for (const [illustration, message] of [
+      ['banner/nope', 'Unknown illustration "banner/nope"'],
+      ['divider/wave', 'Unknown illustration "divider/wave"'],
+      ['', 'No illustration chosen'],
+    ] as const) {
+      const { out, report } = run(ImageFeature, { illustration })
+      expect(out.node).toMatchObject({ kind: 'illustration', props: { name: illustration, alt: '' } })
+      expect(report).toHaveBeenCalledWith('warning', message)
+    }
+  })
+
+  it('offers every banner and spot in the gallery, and no dividers', () => {
+    const gallery = ImageFeature.inputs.find((i) => i.name === 'illustration')!
+    expect(gallery.options?.map((o) => o.value)).toEqual(ILLUSTRATIONS.filter((i) => i.kind !== 'divider').map((i) => i.id))
+  })
+
   it('reads plain v2 values', () => {
-    const { out } = run(ImageFeature, { src: 'x.jpg', alt: 'x', align: 'right', responsive: true, width: '100%' })
+    const { out } = run(ImageFeature, { source: 'link', src: 'x.jpg', alt: 'x', align: 'right', responsive: true, width: '100%' })
     expect(out.node?.props).toEqual({ src: 'x.jpg', alt: 'x', width: '100%', height: '200', responsive: true, align: 'right' })
   })
 
   it('treats only boolean true as responsive', () => {
-    expect(run(ImageFeature, { responsive: 'true' }).out.node?.props).toMatchObject({ responsive: false })
+    expect(run(ImageFeature, { source: 'link', responsive: 'true' }).out.node?.props).toMatchObject({ responsive: false })
   })
 })
 
@@ -271,13 +344,19 @@ describe('TableFeature', () => {
 
 describe('SeparatorFeature', () => {
   it('is a themed hairline by default and clamps its sizes', () => {
-    expect(run(SeparatorFeature).out.node).toMatchObject({ kind: 'separator', props: { color: '', thickness: 1, width: 100, align: 'center' } })
+    expect(run(SeparatorFeature).out.node).toMatchObject({ kind: 'separator', props: { style: 'line', color: '', thickness: 1, width: 100, align: 'center' } })
     expect(run(SeparatorFeature, { thickness: 99, width: 0, align: 'right', color: ' #123456 ' }).out.node?.props).toEqual({
+      style: 'line',
       color: '#123456',
       thickness: 24,
       width: 5,
       align: 'right',
     })
+  })
+
+  it('draws a divider illustration for the other styles, and a line for unknown ones', () => {
+    expect(run(SeparatorFeature, { style: 'wave' }).out.node?.props).toMatchObject({ style: 'wave' })
+    expect(run(SeparatorFeature, { style: 'zigzag' }).out.node?.props).toMatchObject({ style: 'line' })
   })
 
   it('warns about colours that are not hex, and uses the theme colour instead', () => {

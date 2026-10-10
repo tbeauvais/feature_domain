@@ -26,7 +26,7 @@ exports[`app_models/buy_deal_sample.json > generates the golden document 1`] = `
           list #32.items {"items":["24x7 Phone Support","8 TB Data","16 GB Memory"],"align":"left","marker":"check"}
           paragraph #32.highlight {"text":"$100.00/Month","emphasis":"highlight"}
         button #33 [33] {"text":"Buy Now!","href":"http://www.google.com","variant":"primary","size":"medium","align":"center"}
-    separator #27 [27] {"color":"","thickness":1,"width":100,"align":"center"}
+    separator #27 [27] {"style":"line","color":"","thickness":1,"width":100,"align":"center"}
     grid #18 [18] {"rows":2,"columns":1,"well":true}
       grid-cell #18.r1c1 <r1c1> {"row":1,"column":1}
         heading #20 [20] {"text":"Two New Locations","level":1,"align":"center","tone":"info"}
@@ -103,7 +103,7 @@ exports[`app_models/google_map_sample.json > generates the golden document 1`] =
 "root #$root <content>
   page #15 <content> [15]
     image #25 [25] {"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","width":"100%","height":"150","responsive":false,"align":"center"}
-    separator #27 [27] {"color":"","thickness":1,"width":100,"align":"center"}
+    separator #27 [27] {"style":"line","color":"","thickness":1,"width":100,"align":"center"}
     panel #36 [36] {"heading":"My GitHub Repos","tone":"success"}
       panel-body #36.body <body>
         table #24 [24] {"columns":[{"field":"name","label":"Name","filter":"uppercase"},{"field":"description","label":"Description","filter":"dataLink :data.html_url"},{"field":"language","label":"Language"},{"field":"updated_at","label":"Updated At","filter":"date"}],"source":{"feature":"23","resource":"TomsRepos","operation":"GET /users/tbeauvais/repos","endPoint":"https://api.github.com/users/tbeauvais/repos?per_page=5"}}
@@ -193,7 +193,7 @@ exports[`app_models/swagger_resource_sample.json > generates the golden document
 "root #$root <content>
   page #15 <content> [15]
     image #25 [25] {"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","width":"100%","height":"150","responsive":false,"align":"center"}
-    separator #27 [27] {"color":"","thickness":1,"width":100,"align":"center"}
+    separator #27 [27] {"style":"line","color":"","thickness":1,"width":100,"align":"center"}
     panel #46 [46] {"heading":"Monthly Sales","tone":"success"}
       panel-body #46.body <body>
     panel #45 [45] {"heading":"Add Sales Data","tone":"success"}
@@ -236,7 +236,7 @@ exports[`app_models/watson_sample.json > generates the golden document 1`] = `
   page #15 <content> [15]
     heading #29 [29] {"text":"Leverage IBM's Watson Services","level":1,"align":"center","tone":"info"}
     image #25 [25] {"src":"http://www.dotpod.com.ar/wp-content/uploads/ibm-silvergate-argentina-02-710x242.jpg","alt":"some cool image","width":"100%","height":"250","responsive":false,"align":"left"}
-    separator #27 [27] {"color":"","thickness":1,"width":100,"align":"center"}"
+    separator #27 [27] {"style":"line","color":"","thickness":1,"width":100,"align":"center"}"
 `;
 
 exports[`app_models/watson_sample.json > generates the golden document 2`] = `
