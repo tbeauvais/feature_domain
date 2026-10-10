@@ -97,7 +97,7 @@ describe('insertFeature and addFeature', () => {
   it('adds a new instance with default inputs and the next id', () => {
     const { model: next, id } = addFeature(model(page()), 'HeaderFeature', at('1', 'content'))
     expect(id).toBe('2')
-    expect(next.features[1]).toMatchObject({ feature: 'HeaderFeature', id: '2', inputs: { text: 'Enter your header text here' }, placement: at('1', 'content') })
+    expect(next.features[1]).toMatchObject({ feature: 'HeaderFeature', id: '2', inputs: { text: 'Your headline goes here' }, placement: at('1', 'content') })
     expect(() => addFeature(model(page()), 'NopeFeature', at('1', 'content'))).toThrow('Unknown feature type "NopeFeature"')
   })
 })

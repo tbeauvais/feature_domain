@@ -161,18 +161,33 @@ describe('migrate: values reproduce legacy rendering', () => {
       text: 'Hi',
       size: 3,
       align: 'right',
-      text_style: 'success',
-      background: 'info',
+      colour: 'accent',
+      background: 'tint',
     })
     const absent = one('HeaderFeature', { text: 'Hi' })
-    expect(feature(absent, 'x').inputs).toMatchObject({ size: 1, align: 'left', text_style: '', background: '' })
+    expect(feature(absent, 'x').inputs).toMatchObject({ size: 1, align: 'left', colour: 'ink', background: 'none' })
     expect(notes(absent)).toEqual(['invalid-value:x'])
+  })
+
+  it("maps header tones to our own colours, noting status colours that became the accent", () => {
+    const looks = (text_style: string, background = '') => feature(one('HeaderFeature', { text: 'Hi', size: '1', text_style, background }), 'x').inputs
+    expect(looks('text-primary')).toMatchObject({ colour: 'accent', background: 'none' })
+    expect(looks('text-info', 'bg-primary')).toMatchObject({ colour: 'accent', background: 'tint' })
+    expect(looks('text-muted')).toMatchObject({ colour: 'muted' })
+    expect(looks('text-bogus', 'bg-bogus')).toMatchObject({ colour: 'ink', background: 'none' })
+    for (const tone of ['success', 'warning', 'danger']) expect(looks(`text-${tone}`)).toMatchObject({ colour: 'accent' })
+    const status = one('HeaderFeature', { text: 'Hi', size: '1', text_style: 'text-danger', background: 'bg-warning' })
+    expect(notes(status)).toEqual(['mapped-style:x', 'mapped-style:x'])
+    expect(status.notes.map((n) => n.message).join(' ')).toMatch(/"danger".*accent colour.*"warning".*accent tint/)
+    expect(notes(one('HeaderFeature', { text: 'Hi', size: '1', text_style: 'text-info', background: 'bg-primary' }))).toEqual([])
   })
 
   it('maps image and panel styles', () => {
     expect(feature(one('ImageFeature', { src: 's', align: 'pull-right', responsive: true }), 'x').inputs).toMatchObject({ align: 'right', responsive: true, width: '', height: '' })
     expect(feature(one('ImageFeature', { src: 's' }), 'x').inputs).toMatchObject({ align: 'left' })
-    expect(feature(one('PanelFeature', { style: 'panel-warning', heading: 'H' }), 'x').inputs).toEqual({ name: '', disable: false, style: 'warning', heading: 'H' })
+    const panel = one('PanelFeature', { style: 'panel-warning', heading: 'H' })
+    expect(feature(panel, 'x').inputs).toEqual({ name: '', disable: false, heading: 'H' })
+    expect(notes(panel)).toEqual(['dropped-style:x'])
   })
 
   it('flags text that relied on HTML or AngularJS bindings', () => {
@@ -304,6 +319,70 @@ describe('migrate: upgrading v2 models when features get ported', () => {
     ])
     expect(stored.features[0]!.inputs).toHaveProperty('border_color')
     expect(migrate(upgraded.model).model).toBe(upgraded.model)
+  })
+
+  it('upgrades Headers and Panels stored with Bootstrap tones to our own options, once', () => {
+    const at = { parent: '15', slot: 'content' }
+    const stored: AppModel = {
+      version: 2,
+      name: 'Old',
+      features: [
+        { feature: 'PageFeature', id: '15', inputs: { name: 'Page' }, placement: { parent: '$root', slot: 'content' } },
+        { feature: 'HeaderFeature', id: '1', inputs: { name: 'h', text: 'Hi', text_style: 'info', background: '', size: 2, align: 'left' }, placement: at },
+        { feature: 'HeaderFeature', id: '2', inputs: { name: 'h', text: 'Hi', text_style: 'muted', background: 'danger' }, placement: at },
+        { feature: 'HeaderFeature', id: '3', inputs: { name: 'h', text: 'Hi', colour: 'accent', background: 'band' }, placement: at },
+        { feature: 'PanelFeature', id: '4', inputs: { name: 'p', heading: 'Repos', style: 'primary' }, placement: at },
+        { feature: 'PanelFeature', id: '5', inputs: { name: 'p', heading: 'Repos', emphasis: 'quiet' }, placement: at },
+      ],
+    }
+    const upgraded = migrate(stored)
+    const inputs = (id: string) => upgraded.model.features.find((f) => f.id === id)!.inputs
+    expect(inputs('1')).toEqual({ name: 'h', text: 'Hi', colour: 'accent', background: 'none', size: 2, align: 'left' })
+    expect(inputs('2')).toEqual({ name: 'h', text: 'Hi', colour: 'muted', background: 'tint' })
+    expect(inputs('4')).toEqual({ name: 'p', heading: 'Repos' })
+    // Current instances stay the same objects.
+    for (const i of [0, 3, 5]) expect(upgraded.model.features[i]).toBe(stored.features[i])
+    expect(upgraded.notes.map((n) => `${n.code}:${n.featureInstanceId}`)).toEqual(['mapped-style:2', 'dropped-style:4'])
+    expect(upgraded.model.features[4]!.placement).toEqual(at)
+    expect(generate(upgraded.model).root.children[0]!.children.map((n) => n.props)).toEqual([
+      { text: 'Hi', level: 2, align: 'left', colour: 'accent' },
+      { text: 'Hi', level: 1, align: 'center', colour: 'muted', background: 'tint' },
+      { text: 'Hi', level: 1, align: 'center', colour: 'accent', background: 'band' },
+      { heading: 'Repos' },
+      { heading: 'Repos', emphasis: 'quiet' },
+    ])
+    expect(migrate(upgraded.model).model).toBe(upgraded.model)
+  })
+
+  it('keeps a Colour or Background already chosen when a Header also carries the old inputs', () => {
+    const at = { parent: '15', slot: 'content' }
+    const header = (inputs: Record<string, string>) => ({
+      version: 2 as const,
+      name: 'Mixed',
+      features: [
+        { feature: 'PageFeature', id: '15', inputs: { name: 'Page' }, placement: { parent: '$root', slot: 'content' } },
+        { feature: 'HeaderFeature', id: '1', inputs: { name: 'h', text: 'Hi', ...inputs }, placement: at },
+      ],
+    })
+    const upgraded = (inputs: Record<string, string>) => migrate(header(inputs))
+    expect(upgraded({ text_style: 'info', colour: 'muted', background: 'band' }).model.features[1]!.inputs).toEqual({ name: 'h', text: 'Hi', colour: 'muted', background: 'band' })
+    // Only the part still in the old shape is converted, and only that part is noted.
+    const mixed = upgraded({ text_style: 'danger', colour: 'muted', background: 'warning' })
+    expect(mixed.model.features[1]!.inputs).toEqual({ name: 'h', text: 'Hi', colour: 'muted', background: 'tint' })
+    expect(mixed.notes.map((n) => n.message)).toEqual(['Header background "warning" is now the accent tint; status colours are kept for status'])
+    expect(upgraded({ text_style: 'danger', background: 'band' }).model.features[1]!.inputs).toEqual({ name: 'h', text: 'Hi', colour: 'accent', background: 'band' })
+  })
+
+  it('never treats an Object property name as a ported feature type', () => {
+    const stored: AppModel = {
+      version: 2,
+      name: 'Odd',
+      features: [{ feature: 'constructor', id: '1', inputs: { name: 'x' }, cache: { legacy: { inputs: { name: 'x', page_location: { target: '#page_container' } } } } }],
+    }
+    expect(migrate(stored).model).toBe(stored)
+    const legacy = migrate({ features: [{ feature: 'constructor', id: '1', inputs: { name: 'x', nested: { a: 1 } } }] })
+    expect(legacy.model.features[0]!.inputs).toEqual({ name: 'x' })
+    expect(legacy.notes.map((n) => n.code)).toContain('unported-feature')
   })
 
   it('leaves features that are still not ported alone', () => {

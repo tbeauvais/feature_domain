@@ -7,13 +7,19 @@ const legacySample = import.meta.glob<unknown>('../../../../sample.json', { eage
 /**
  * Bumped whenever `upgradeSample` changes, so browsers that seeded older samples get the change once
  * (`BrowserModelStore.upgradeSeeded`). 2: stock header photos became built-in banners. 3: those banners are short.
- * 4: the GitHub repo tables show languages as badges, names as they are, and scroll after 10 rows.
+ * 4: the GitHub repo tables show languages as badges, names as they are, and scroll after 10 rows. 5: their date column
+ * is labelled "Updated", and Getting Started's headline loses its stray keystrokes.
  */
-export const SAMPLES_VERSION = 4
+export const SAMPLES_VERSION = 5
 
 /** The samples' GitHub repo tables, exactly as migrated, and what they become. */
 const LEGACY_REPO_TABLE = { fields: ['name', 'description', 'language', 'updated_at'], filters: ['uppercase', 'dataLink :data.html_url', '', 'date'] }
 const REPO_TABLE_FILTERS = ['', 'dataLink :data.html_url', 'badge', 'date']
+const LEGACY_REPO_LABELS = ['Name', 'Description', 'Language', 'Updated At']
+const REPO_TABLE_LABELS = ['Name', 'Description', 'Language', 'Updated']
+
+/** Sample texts with typos from the legacy samples, and their fixes. */
+const TEXT_FIXES: Readonly<Record<string, string>> = { 'Here is some content for ya...gfdgfd': 'Here is some content for ya...' }
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
 /** The samples' header photos (stock images from other sites, mostly gone) and the banner that replaces each. */
@@ -26,6 +32,8 @@ const LEGACY_HEADERS: Readonly<Record<string, IllustrationId>> = {
 /**
  * A sample brought up to date. Returns the same object when nothing changes.
  * - Repo tables still exactly as migrated show languages as badges and names as they are, and scroll after 10 rows.
+ * - Repo tables still labelled as migrated label their date column "Updated".
+ * - Headers with a known typo from the legacy samples are fixed.
  * - Image features still showing one of the legacy header photos as a link show the matching banner instead, full
  *   width and short (the photos were 150px tall), described by its own alt text. The address stays, so switching
  *   Source back to Link restores it.
@@ -36,9 +44,20 @@ export function upgradeSample(model: AppModel): AppModel {
   const features = model.features.map((f) => {
     if (typeof f?.inputs !== 'object' || f.inputs === null) return f
     if (f.feature === 'TableFeature') {
-      if (!same(f.inputs.fields, LEGACY_REPO_TABLE.fields) || !same(f.inputs.filters, LEGACY_REPO_TABLE.filters)) return f
+      let inputs = f.inputs
+      if (same(inputs.fields, LEGACY_REPO_TABLE.fields) && same(inputs.filters, LEGACY_REPO_TABLE.filters)) {
+        inputs = { ...inputs, filters: REPO_TABLE_FILTERS, scroll_rows: inputs.scroll_rows ?? 10 }
+      }
+      if (same(inputs.fields, LEGACY_REPO_TABLE.fields) && same(inputs.labels, LEGACY_REPO_LABELS)) inputs = { ...inputs, labels: REPO_TABLE_LABELS }
+      if (inputs === f.inputs) return f
       changed = true
-      return { ...f, inputs: { ...f.inputs, filters: REPO_TABLE_FILTERS, scroll_rows: f.inputs.scroll_rows ?? 10 } }
+      return { ...f, inputs }
+    }
+    if (f.feature === 'HeaderFeature') {
+      const text = f.inputs.text
+      if (typeof text !== 'string' || !Object.hasOwn(TEXT_FIXES, text)) return f
+      changed = true
+      return { ...f, inputs: { ...f.inputs, text: TEXT_FIXES[text]! } }
     }
     if (f.feature !== 'ImageFeature') return f
     const src = f.inputs.src

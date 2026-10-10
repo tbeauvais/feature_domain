@@ -18,7 +18,7 @@ test('adds features from the palette, edits them live, and saves', async ({ page
   await newModel(page)
   await page.getByTestId('palette-HeaderFeature').click()
   const heading = canvas(page).locator('[data-feature-id="2"]')
-  await expect(heading).toHaveText('Enter your header text here')
+  await expect(heading).toHaveText('Your headline goes here')
   await expect(tree(page).getByRole('treeitem', { selected: true })).toContainText('untitled')
 
   await inspector(page).getByLabel('Text', { exact: true }).fill('Hello parametric world')
@@ -100,7 +100,7 @@ test('the preview tab follows edits made in the editor', async ({ page, context 
   await newModel(page)
   await page.getByTestId('palette-TextFeature').click()
   const [preview] = await Promise.all([context.waitForEvent('page'), page.getByTestId('open-preview').click()])
-  await expect(preview.locator('[data-feature-id="2"]')).toHaveText('Lorem ipsum dolor sit amet, consectetur adipisicing elit')
+  await expect(preview.locator('[data-feature-id="2"]')).toHaveText('Say what this part of the page is about in a sentence or two.')
 
   await inspector(page).getByLabel('Text', { exact: true }).fill('Updated in the editor')
   await expect(preview.locator('[data-feature-id="2"]')).toHaveText('Updated in the editor')
@@ -288,6 +288,9 @@ test('adding a Theme restyles the page at once, and its settings drive the previ
 test('the canvas shows the page at desktop, tablet and phone widths, and remembers the choice', async ({ page }) => {
   await newModel(page)
   await page.getByTestId('palette-ContainerFeature').click()
+  // An empty container keeps its space below in the editor (the page itself collapses it), so its drop cells stand apart.
+  const marginBottom = await canvas(page).locator('[data-feature-id="2"]').evaluate((el) => parseFloat(getComputedStyle(el).marginBottom))
+  expect(marginBottom).toBeGreaterThan(20)
   const cells = canvas(page).locator('[data-node-id="2.r1c1"], [data-node-id="2.r1c2"]')
   const tops = async () => Promise.all((await cells.all()).map(async (c) => (await c.boundingBox())!.y))
 

@@ -21,6 +21,11 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    # The Playwright image (browsers and fonts included) that `npm run e2e:docker` uses too, so screenshots match the
+    # committed baselines exactly. Keep its version equal to @playwright/test in packages/web/package.json.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,8 +33,6 @@ jobs:
           node-version: lts/*
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-        working-directory: packages/web
       - run: npm run e2e
       - uses: actions/upload-artifact@v4
         if: failure()

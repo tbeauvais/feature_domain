@@ -52,6 +52,29 @@ test('a table that really scrolls is a named, focusable region, until phone widt
   await expect(wrap).not.toHaveAttribute('role')
 })
 
+test('neighbouring texts and links sit on their own lines, and empty containers and panels leave no gaps or empty cards', async ({ page }) => {
+  await openSample(page, 'Getting Started')
+  const canvas = page.getByTestId('canvas')
+  // Two Text features and a Link in a row: each starts on its own line, instead of "textThis is from Feature #1GitHub".
+  const tops = await Promise.all(['5', '2', '4'].map(async (id) => (await canvas.locator(`[data-feature-id="${id}"]`).boundingBox())!.y))
+  expect(tops[1]!).toBeGreaterThan(tops[0]! + 10)
+  expect(tops[2]!).toBeGreaterThan(tops[1]! + 10)
+
+  // In the preview, a container holding only unported maps adds no margin, and panels holding only unported charts and
+  // forms draw no empty card.
+  const id = await openSample(page, 'Getting Started')
+  await page.goto(`/preview.html?model=${encodeURIComponent(id)}`)
+  await expect(page.locator('[data-feature-id="19"]')).toHaveCSS('margin-bottom', '0px')
+  const swagger = await openSample(page, 'Swagger Data Sample')
+  await page.goto(`/preview.html?model=${encodeURIComponent(swagger)}`)
+  const bodies = page.locator('.fd-panel-body')
+  await expect(bodies).toHaveCount(2)
+  for (const body of await bodies.all()) {
+    await expect(body).toHaveCSS('border-top-style', 'none')
+    await expect(body).toHaveCSS('padding-top', '0px')
+  }
+})
+
 test('renders a sample with containers, panels, live tables and diagnostics', async ({ page }) => {
   await openSample(page, 'Data Sample')
   const canvas = page.getByTestId('canvas')
@@ -64,7 +87,7 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
 
   // Repo Table: fields name/description/language/updated_at with filters none / dataLink / badge / date (samples v4).
   const table = canvas.locator('[data-feature-id="24"]')
-  await expect(table.locator('th')).toHaveText(['Name', 'Description', 'Language', 'Updated At'])
+  await expect(table.locator('th')).toHaveText(['Name', 'Description', 'Language', 'Updated'])
   await expect(table.locator('tbody tr').first().locator('td')).toHaveText(['tbeauvais-engine', 'Parametric engine', 'TypeScript', 'Mar 7, 2015'])
   await expect(table.getByRole('link', { name: 'Parametric engine' })).toHaveAttribute('href', 'https://github.com/tbeauvais/engine')
   await expect(table.locator('.fd-badge')).toHaveText(['TypeScript', 'Vue'])
@@ -298,4 +321,10 @@ test('cards and the buttons under them stay inside their container, and cards si
   }
   const heights = await Promise.all((await cards.all()).map(async (card) => (await card.boundingBox())!.height))
   expect(new Set(heights.map(Math.round)).size).toBe(1)
+
+  // A Text feature in a card's cell (a paragraph of its own) doesn't stop that cell lining up with its neighbours.
+  await page.getByTestId('palette-TextFeature').click()
+  const cell = canvas.locator('.fd-cell:has([data-feature-id="28"])')
+  await expect(cell.locator('.fd-text')).toHaveCount(1)
+  await expect(cell).toHaveCSS('display', 'flex')
 })

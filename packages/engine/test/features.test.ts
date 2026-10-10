@@ -123,25 +123,27 @@ describe('TextFeature', () => {
     expect(run(TextFeature).out.node).toEqual({
       id: '7',
       kind: 'text',
-      props: { text: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit' },
+      props: { text: 'Say what this part of the page is about in a sentence or two.' },
       children: [],
     })
   })
 })
 
 describe('HeaderFeature', () => {
-  it('defaults new instances to centred info level-1 headings', () => {
-    expect(run(HeaderFeature).out.node?.props).toEqual({ text: 'Enter your header text here', level: 1, align: 'center', tone: 'info', background: undefined })
+  it('defaults new instances to centred level-1 headlines in ink, on nothing', () => {
+    expect(run(HeaderFeature).out.node?.props).toEqual({ text: 'Your headline goes here', level: 1, align: 'center' })
   })
 
   it('reads plain v2 values', () => {
-    const { out } = run(HeaderFeature, { text: 'Hi', size: 3, align: 'left', text_style: 'success', background: 'info' })
-    expect(out.node?.props).toEqual({ text: 'Hi', level: 3, align: 'left', tone: 'success', background: 'info' })
+    const { out } = run(HeaderFeature, { text: 'Hi', size: 3, align: 'left', colour: 'accent', background: 'band' })
+    expect(out.node?.props).toEqual({ text: 'Hi', level: 3, align: 'left', colour: 'accent', background: 'band' })
+    expect(run(HeaderFeature, { colour: 'muted', background: 'tint' }).out.node?.props).toMatchObject({ colour: 'muted', background: 'tint' })
   })
 
   it('clamps the level and ignores unknown values', () => {
     expect(run(HeaderFeature, { size: 9 }).out.node?.props).toMatchObject({ level: 6 })
-    expect(run(HeaderFeature, { size: 0, align: 'text-left', text_style: 'text-info' }).out.node?.props).toMatchObject({ level: 1, align: 'center', tone: undefined })
+    const props = run(HeaderFeature, { size: 0, align: 'text-left', colour: 'info', background: 'primary' }).out.node?.props
+    expect(props).toEqual({ text: 'Your headline goes here', level: 1, align: 'center' })
   })
 })
 
@@ -233,14 +235,20 @@ describe('ContainerFeature', () => {
 
 describe('PanelFeature', () => {
   it('provides a body slot under a heading', () => {
-    const { out, slots } = run(PanelFeature, { heading: 'Repos', style: 'success' })
+    const { out, slots } = run(PanelFeature, { heading: 'Repos', emphasis: 'highlight' })
     expect(slots).toEqual(['body'])
     expect(out.node).toEqual({
       id: '7',
       kind: 'panel',
-      props: { heading: 'Repos', tone: 'success' },
+      props: { heading: 'Repos', emphasis: 'highlight' },
       children: [{ id: '7.body', kind: 'panel-body', props: {}, slot: 'body', children: [] }],
     })
+  })
+
+  it('starts as "Details" with normal emphasis, and ignores unknown emphases', () => {
+    expect(run(PanelFeature).out.node?.props).toEqual({ heading: 'Details' })
+    expect(run(PanelFeature, { emphasis: 'quiet' }).out.node?.props).toEqual({ heading: 'Details', emphasis: 'quiet' })
+    expect(run(PanelFeature, { emphasis: 'primary' }).out.node?.props).toEqual({ heading: 'Details' })
   })
 })
 

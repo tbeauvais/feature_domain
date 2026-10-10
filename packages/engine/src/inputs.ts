@@ -1,4 +1,4 @@
-import { TONES, type Align, type InputValue, type Tone } from './types.js'
+import type { Align, InputValue } from './types.js'
 
 export type InputType = 'string' | 'text' | 'boolean' | 'integer' | 'color' | 'list' | 'reference'
 
@@ -122,8 +122,9 @@ export function asAlign(value: unknown, fallback: Align): Align {
   return value === 'left' || value === 'center' || value === 'right' ? value : fallback
 }
 
-export function asTone(value: unknown): Tone | undefined {
-  return (TONES as readonly unknown[]).includes(value) ? (value as Tone) : undefined
+/** `value` if it is one of `options`, else `fallback`. */
+export function asOneOf<T extends string>(value: unknown, options: readonly T[], fallback: T): T {
+  return (options as readonly unknown[]).includes(value) ? (value as T) : fallback
 }
 
 // Inputs shared by most features.
@@ -157,7 +158,5 @@ export const alignInput = (defaultAlign: Align): InputDef => ({
   ],
 })
 
-export const toneOptions = (tones: readonly Tone[], withNone: boolean): InputOption[] => [
-  ...(withNone ? [{ value: '', text: 'None' }] : []),
-  ...tones.map((t) => ({ value: t, text: t[0]!.toUpperCase() + t.slice(1) })),
-]
+/** Options labelled by their value, capitalised: "accent" -> "Accent". */
+export const capitalisedOptions = (values: readonly string[]): InputOption[] => values.map((value) => ({ value, text: value[0]!.toUpperCase() + value.slice(1) }))

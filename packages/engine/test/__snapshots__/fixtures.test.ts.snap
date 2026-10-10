@@ -29,7 +29,7 @@ exports[`app_models/buy_deal_sample.json > generates the golden document 1`] = `
     separator #27 [27] {"style":"line","color":"","thickness":1,"width":100,"align":"center"}
     grid #18 [18] {"rows":2,"columns":1,"well":true}
       grid-cell #18.r1c1 <r1c1> {"row":1,"column":1}
-        heading #20 [20] {"text":"Two New Locations","level":1,"align":"center","tone":"info"}
+        heading #20 [20] {"text":"Two New Locations","level":1,"align":"center","colour":"accent"}
       grid-cell #18.r2c1 <r2c1> {"row":2,"column":1}
         grid #19 [19] {"rows":1,"columns":2,"well":false}
           grid-cell #19.r1c1 <r1c1> {"row":1,"column":1}
@@ -67,7 +67,7 @@ exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 1`] =
 26 ButtonFeature @29/r1c1 {"name":"My Button","disable":false,"text":"Buy Now!","href":"http://www.google.com","align":"center"}
 27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center"}
 18 ContainerFeature @15/content {"name":"top container","disable":false,"rows":2,"columns":1,"well":true}
-20 HeaderFeature @18/r1c1 {"name":"container header","disable":false,"text":"Two New Locations","size":1,"align":"center","text_style":"info","background":""}
+20 HeaderFeature @18/r1c1 {"name":"container header","disable":false,"text":"Two New Locations","size":1,"align":"center","colour":"accent","background":"none"}
 19 ContainerFeature @18/r2c1 {"name":"inner container","disable":false,"rows":1,"columns":2,"well":false}
 35 TextFeature @19/r1c2 {"name":"Weather Text","disable":false,"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
 16 GoogleMapFeature @19/r1c2 {"name":"map","title":"Where it's Warm","address":"Palm Beach, FL","height":"200","width":"400"} cache=legacy
@@ -104,15 +104,15 @@ exports[`app_models/google_map_sample.json > generates the golden document 1`] =
   page #15 <content> [15]
     image #25 [25] {"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","width":"100%","height":"150","responsive":false,"align":"center"}
     separator #27 [27] {"style":"line","color":"","thickness":1,"width":100,"align":"center"}
-    panel #36 [36] {"heading":"My GitHub Repos","tone":"success"}
+    panel #36 [36] {"heading":"My GitHub Repos"}
       panel-body #36.body <body>
         table #24 [24] {"columns":[{"field":"name","label":"Name","filter":"uppercase"},{"field":"description","label":"Description","filter":"dataLink :data.html_url"},{"field":"language","label":"Language"},{"field":"updated_at","label":"Updated At","filter":"date"}],"source":{"feature":"23","resource":"TomsRepos","operation":"GET /users/tbeauvais/repos","endPoint":"https://api.github.com/users/tbeauvais/repos?per_page=5"}}
-    panel #39 [39] {"heading":"Torquebox GitHub Repos","tone":"success"}
+    panel #39 [39] {"heading":"Torquebox GitHub Repos"}
       panel-body #39.body <body>
         table #38 [38] {"columns":[{"field":"name","label":"Name","filter":"uppercase"},{"field":"description","label":"Description","filter":"dataLink :data.html_url"},{"field":"language","label":"Language"},{"field":"updated_at","label":"Updated At","filter":"date"}],"source":{"feature":"37","resource":"TorqueboxRepos","operation":"GET /users/torquebox/repos","endPoint":"https://api.github.com/users/torquebox/repos?per_page=5"}}
     grid #18 [18] {"rows":2,"columns":1,"well":true}
       grid-cell #18.r1c1 <r1c1> {"row":1,"column":1}
-        heading #20 [20] {"text":"Two New Locations","level":1,"align":"center","tone":"info"}
+        heading #20 [20] {"text":"Two New Locations","level":1,"align":"center","colour":"accent"}
       grid-cell #18.r2c1 <r2c1> {"row":2,"column":1}
         grid #19 [19] {"rows":1,"columns":2,"well":false}
           grid-cell #19.r1c1 <r1c1> {"row":1,"column":1}
@@ -156,16 +156,16 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 1`]
 25 ImageFeature @15/content {"name":"header image","disable":false,"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","height":"150","width":"100%","responsive":false,"align":"center"}
 27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center"}
 24 TableFeature @36/body {"name":"Repo Table","disable":false,"data_resource":"23","operation":"GET /users/tbeauvais/repos","delete_operation":"","fields":["name","description","language","updated_at"],"labels":["Name","Description","Language","Updated At"],"filters":["uppercase","dataLink :data.html_url","","date"]}
-36 PanelFeature @15/content {"name":"repo panel","disable":false,"style":"success","heading":"My GitHub Repos"}
-39 PanelFeature @15/content {"name":"tb","disable":false,"style":"success","heading":"Torquebox GitHub Repos"}
+36 PanelFeature @15/content {"name":"repo panel","disable":false,"heading":"My GitHub Repos"}
+39 PanelFeature @15/content {"name":"tb","disable":false,"heading":"Torquebox GitHub Repos"}
 38 TableFeature @39/body {"name":"Torquebox Repo Table","disable":false,"data_resource":"37","operation":"GET /users/torquebox/repos","delete_operation":"","fields":["name","description","language","updated_at"],"labels":["Name","Description","Language","Updated At"],"filters":["uppercase","dataLink :data.html_url","","date"]}
-17 HeaderFeature @12/r1c2 {"name":"frog label","disable":false,"text":"I'm just a little frog","size":4,"align":"center","text_style":"","background":""}
+17 HeaderFeature @12/r1c2 {"name":"frog label","disable":false,"text":"I'm just a little frog","size":4,"align":"center","colour":"ink","background":"none"}
 13 ImageFeature @12/r1c2 {"name":"Frog","disable":false,"src":"http://assets.kompas.com/data/photo/2014/04/07/2002239katak-kulit-paling-kasar780x390.jpg","alt":"Frog","height":"300","width":"300","responsive":true,"align":"center"}
 18 ContainerFeature @15/content {"name":"top container","disable":false,"rows":2,"columns":1,"well":true}
 12 ContainerFeature @15/content {"name":"My Container","disable":false,"rows":1,"columns":2,"well":true}
-8 HeaderFeature @12/r1c1 {"name":"Small header","disable":false,"text":"Here's a list of colors","size":4,"align":"center","text_style":"","background":""}
+8 HeaderFeature @12/r1c1 {"name":"Small header","disable":false,"text":"Here's a list of colors","size":4,"align":"center","colour":"ink","background":"none"}
 7 ListFeature @12/r1c1 {"name":"Color list","disable":false,"items":["Red","Green","Blue","Yellow"],"align":"center"}
-20 HeaderFeature @18/r1c1 {"name":"container header","disable":false,"text":"Two New Locations","size":1,"align":"center","text_style":"info","background":""}
+20 HeaderFeature @18/r1c1 {"name":"container header","disable":false,"text":"Two New Locations","size":1,"align":"center","colour":"accent","background":"none"}
 19 ContainerFeature @18/r2c1 {"name":"inner container","disable":false,"rows":1,"columns":2,"well":false}
 35 TextFeature @19/r1c2 {"name":"Weather Text","disable":false,"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
 16 GoogleMapFeature @19/r1c2 {"name":"map","title":"Where it's Warm","address":"Palm Beach, FL","height":"200","width":"400"} cache=legacy
@@ -180,6 +180,8 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 2`]
 [
   "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
   "info dropped-style [27]: Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme",
+  "info dropped-style [36]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
+  "info dropped-style [39]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
   "warning data-binding [35]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
   "info unported-feature [16]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "warning data-binding [2]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
@@ -194,9 +196,9 @@ exports[`app_models/swagger_resource_sample.json > generates the golden document
   page #15 <content> [15]
     image #25 [25] {"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","width":"100%","height":"150","responsive":false,"align":"center"}
     separator #27 [27] {"style":"line","color":"","thickness":1,"width":100,"align":"center"}
-    panel #46 [46] {"heading":"Monthly Sales","tone":"success"}
+    panel #46 [46] {"heading":"Monthly Sales"}
       panel-body #46.body <body>
-    panel #45 [45] {"heading":"Add Sales Data","tone":"success"}
+    panel #45 [45] {"heading":"Add Sales Data"}
       panel-body #45.body <body>"
 `;
 
@@ -214,8 +216,8 @@ exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 mod
 42 SwaggerDataResourceFeature {"name":"Sales API","resource":"http://sales-api.mybluemix.net/swagger_doc/sales.json"} cache=legacy
 25 ImageFeature @15/content {"name":"header image","disable":false,"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","height":"150","width":"100%","responsive":false,"align":"center"}
 27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center"}
-46 PanelFeature @15/content {"name":"sales","disable":false,"style":"success","heading":"Monthly Sales"}
-45 PanelFeature @15/content {"name":"Add","disable":false,"style":"success","heading":"Add Sales Data"}
+46 PanelFeature @15/content {"name":"sales","disable":false,"heading":"Monthly Sales"}
+45 PanelFeature @15/content {"name":"Add","disable":false,"heading":"Add Sales Data"}
 44 FormFeature @45/body {"name":"Add Sale","disable":"","fields":"","labels":"","filters":""} cache=legacy
 43 TableFeature @46/body {"name":"Sales Table","disable":false,"data_resource":"42","operation":"GET /v1/sales","delete_operation":"DELETE /v1/sales/{id}","fields":[],"labels":[],"filters":[]}
 47 GoogleChartFeature @45/body {"name":"Sales Chart","disable":"","type":"p","color":"#179de8","field":"amount","label":"name","filters":"","alt":"Cool chart","height":"200","width":"300","align":"center-block"} cache=legacy"
@@ -226,6 +228,8 @@ exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 mod
   "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
   "info unported-feature [42]: SwaggerDataResourceFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info dropped-style [27]: Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme",
+  "info dropped-style [46]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
+  "info dropped-style [45]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
   "info unported-feature [44]: FormFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [47]: GoogleChartFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
 ]
@@ -234,7 +238,7 @@ exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 mod
 exports[`app_models/watson_sample.json > generates the golden document 1`] = `
 "root #$root <content>
   page #15 <content> [15]
-    heading #29 [29] {"text":"Leverage IBM's Watson Services","level":1,"align":"center","tone":"info"}
+    heading #29 [29] {"text":"Leverage IBM's Watson Services","level":1,"align":"center","colour":"accent"}
     image #25 [25] {"src":"http://www.dotpod.com.ar/wp-content/uploads/ibm-silvergate-argentina-02-710x242.jpg","alt":"some cool image","width":"100%","height":"250","responsive":false,"align":"left"}
     separator #27 [27] {"style":"line","color":"","thickness":1,"width":100,"align":"center"}"
 `;
@@ -247,7 +251,7 @@ exports[`app_models/watson_sample.json > generates the golden document 2`] = `
 
 exports[`app_models/watson_sample.json > migrates to the golden v2 model 1`] = `
 "15 PageFeature @$root/content {"name":"Page","background_image":""}
-29 HeaderFeature @15/content {"name":"header","disable":false,"text":"Leverage IBM's Watson Services","size":1,"align":"center","text_style":"info","background":""}
+29 HeaderFeature @15/content {"name":"header","disable":false,"text":"Leverage IBM's Watson Services","size":1,"align":"center","colour":"accent","background":"none"}
 25 ImageFeature @15/content {"name":"header image","disable":false,"src":"http://www.dotpod.com.ar/wp-content/uploads/ibm-silvergate-argentina-02-710x242.jpg","alt":"some cool image","height":"250","width":"100%","responsive":false,"align":"left"}
 27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center"}
 28 WatsonTextToSpeechFeature @15/content {"name":"Text 2 Speech","disable":"","text":"The Text to Speech service uses IBM's speech synthesis capabilities to convert English or Spanish text to an audio signal. The audio is streamed back to the client with minimal delay. The service can be accessed via a REST interface.","voice":"VoiceEnUsLisa","align":"center-block"} cache=legacy"
@@ -301,16 +305,16 @@ exports[`sample.json > generates the golden document 2`] = `
 
 exports[`sample.json > migrates to the golden v2 model 1`] = `
 "15 PageFeature @$root/content {"name":"Page","background_image":""}
-1 HeaderFeature @15/content {"name":"Top Header","disable":false,"text":"Here is some content for ya...gfdgfd","size":1,"align":"left","text_style":"","background":""}
+1 HeaderFeature @15/content {"name":"Top Header","disable":false,"text":"Here is some content for ya...gfdgfd","size":1,"align":"left","colour":"ink","background":"none"}
 12 ContainerFeature @15/content {"name":"My Container","disable":false,"rows":1,"columns":2,"well":false}
-8 HeaderFeature @12/r1c1 {"name":"Small header","disable":false,"text":"Here's a list of colors","size":4,"align":"left","text_style":"","background":""}
+8 HeaderFeature @12/r1c1 {"name":"Small header","disable":false,"text":"Here's a list of colors","size":4,"align":"left","colour":"ink","background":"none"}
 7 ListFeature @12/r1c1 {"name":"Color list","disable":false,"items":["Red","Green","Blue"],"align":"left"}
-17 HeaderFeature @12/r1c2 {"name":"frog label","disable":false,"text":"I'm a Frog","size":3,"align":"left","text_style":"","background":""}
+17 HeaderFeature @12/r1c2 {"name":"frog label","disable":false,"text":"I'm a Frog","size":3,"align":"left","colour":"ink","background":"none"}
 13 ImageFeature @12/r1c2 {"name":"Frog","disable":false,"src":"http://assets.kompas.com/data/photo/2014/04/07/2002239katak-kulit-paling-kasar780x390.jpg","alt":"Frog","height":"300","width":"300","responsive":false,"align":"left"}
 18 ContainerFeature @15/content {"name":"top container","disable":false,"rows":2,"columns":1,"well":false}
 16 GoogleMapFeature @19/r1c1 {"name":"map","title":"Where it's Warm","address":"Palm Beach, FL","height":"200","width":"400"} cache=legacy
 19 ContainerFeature @18/r2c1 {"name":"inner container","disable":false,"rows":1,"columns":2,"well":false}
-20 HeaderFeature @18/r1c1 {"name":"container header","disable":false,"text":"Moving to...","size":1,"align":"left","text_style":"","background":""}
+20 HeaderFeature @18/r1c1 {"name":"container header","disable":false,"text":"Moving to...","size":1,"align":"left","colour":"ink","background":"none"}
 6 GoogleMapFeature @19/r1c2 {"name":"Home Map","title":"Home Location","address":"131 Willow Rd. Guilford, CT","height":"200","width":"400"} cache=legacy
 10 TextWithParagraphFeature @15/content {"name":"Info","disable":false,"title":"Company Info","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
 11 ImageWithParagraphFeature @15/content {"name":"pet","disable":false,"title":"My New Pet","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","alt":"","image_side":"left"}

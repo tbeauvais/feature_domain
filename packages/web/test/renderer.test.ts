@@ -14,10 +14,10 @@ describe('DocumentView', () => {
     const w = render(
       model(
         page({ background_image: 'bg.png' }),
-        inst('HeaderFeature', '2', { text: 'Title', size: 3, align: 'right', text_style: 'success' }),
+        inst('HeaderFeature', '2', { text: 'Title', size: 3, align: 'right', colour: 'accent', background: 'band' }),
         inst('ContainerFeature', 'c', { columns: 2, well: true }),
         inst('TextFeature', 't', { text: 'In a cell' }, at('c', 'r1c2')),
-        inst('PanelFeature', 'p', { heading: 'Panel', style: 'info' }, at('c', 'r1c1')),
+        inst('PanelFeature', 'p', { heading: 'Panel', emphasis: 'quiet' }, at('c', 'r1c1')),
       ),
     )
     const root = w.get('.fd-root')
@@ -27,7 +27,7 @@ describe('DocumentView', () => {
 
     const heading = w.get('[data-feature-id="2"]')
     expect(heading.element.tagName).toBe('H3')
-    expect(heading.classes()).toEqual(['fd-heading', 'fd-align-right', 'fd-tone-success'])
+    expect(heading.classes()).toEqual(['fd-heading', 'fd-align-right', 'fd-colour-accent', 'fd-bg-band'])
     expect(heading.text()).toBe('Title')
 
     const grid = w.get('[data-feature-id="c"]')
@@ -39,6 +39,7 @@ describe('DocumentView', () => {
 
     const panel = w.get('[data-feature-id="p"]')
     expect(panel.classes()).toEqual(['fd-panel'])
+    expect(panel.attributes('data-fd-emphasis')).toBe('quiet')
     expect(panel.get('.fd-panel-heading').text()).toBe('Panel')
     expect(panel.get('[data-node-id="p.body"]').attributes('data-slot-parent')).toBe('p')
   })

@@ -14,7 +14,7 @@ export const TextFeature: FeatureDefinition = {
       name: 'text',
       label: 'Text',
       type: 'string',
-      default: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit',
+      default: 'Say what this part of the page is about in a sentence or two.',
       control: 'text-input',
     },
   ],

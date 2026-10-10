@@ -27,7 +27,7 @@ describe('placement', () => {
       "root #$root <content>
         page #1 <content> [1]
           text #2 [2] {"text":"a"}
-          heading #3 [3] {"text":"b","level":1,"align":"center","tone":"info"}"
+          heading #3 [3] {"text":"b","level":1,"align":"center"}"
     `)
   })
 

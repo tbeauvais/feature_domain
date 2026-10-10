@@ -180,9 +180,16 @@ describe('Inspector', () => {
   it('shows the selected feature’s inputs and applies edits live', async () => {
     const { doc, w } = await inspect([page(), inst('HeaderFeature', 'h', { text: 'Hi' })], 'h')
     expect(w.text()).toContain('Header #h')
-    expect(w.findAll('label').map((l) => l.text())).toContain('Text Style')
     await w.get('#input-text').setValue('Hello')
     expect(doc.result?.root.children[0]?.children[0]?.props).toMatchObject({ text: 'Hello' })
+    // Colour and Background are our own options, drawn as buttons.
+    const groups = w.findAll('[role="group"]').map((g) => g.findAll('button').map((b) => b.text()))
+    expect(groups).toEqual([
+      ['Ink', 'Accent', 'Muted'],
+      ['None', 'Tint', 'Band'],
+    ])
+    await w.findAll('button').find((b) => b.text() === 'Band')!.trigger('click')
+    expect(doc.result?.root.children[0]?.children[0]?.props).toMatchObject({ text: 'Hello', background: 'band' })
   })
 
   it('shows only the inputs that apply: the gallery for illustrations, the address for links', async () => {
