@@ -71,6 +71,12 @@ export interface NodeKinds {
   text: { text: string }
   heading: { text: string; level: number; align: Align; tone?: Tone; background?: Tone }
   image: { src: string; alt: string; width: string; height: string; responsive: boolean; align: Align }
+  /**
+   * A built-in illustration (see `ILLUSTRATIONS`), drawn in the theme's colours. `alt` is empty for a decorative one;
+   * `width` is a CSS size, or empty for the full width. The height follows from `aspect` (width / height; banners
+   * only), else the illustration's own shape.
+   */
+  illustration: { name: string; alt: string; width: string; align: Align; aspect?: number }
   grid: { rows: number; columns: number; well: boolean }
   'grid-cell': { row: number; column: number }
   panel: { heading: string; tone?: Tone }
@@ -78,7 +84,7 @@ export interface NodeKinds {
   /** `marker`: numbered (the default) or check marks. */
   list: { items: string[]; align: Align; marker?: 'number' | 'check' }
   /** A horizontal rule. `color` is empty for the theme's border colour; `thickness` in px, `width` in % of the line. */
-  separator: { color: string; thickness: number; width: number; align: Align }
+  separator: { style: SeparatorStyle; color: string; thickness: number; width: number; align: Align }
   /** A text link; `href` is shown only if it is http(s) (the renderer enforces that). */
   link: { text: string; href: string }
   /** A paragraph of plain text. `muted` is secondary text; `highlight` an emphasised closing line (e.g. a price). */
@@ -104,6 +110,10 @@ export interface NodeKinds {
     deleteAction?: { operation: string; endPoint: string }
   }
 }
+
+/** `line` is a plain rule; the others draw the divider illustration of that name. */
+export const SEPARATOR_STYLES = ['line', 'wave', 'dots', 'ruler'] as const
+export type SeparatorStyle = (typeof SEPARATOR_STYLES)[number]
 
 export type NodeKind = keyof NodeKinds
 

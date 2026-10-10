@@ -9,6 +9,9 @@ import {
   createFeatureInstance,
   DataResourceFeature,
   defaultInputs,
+  ImageFeature,
+  initialInputs,
+  isInputShown,
   resolveInputs,
   TextFeature,
   type InputDef,
@@ -27,6 +30,52 @@ describe('defaultInputs', () => {
   })
 })
 
+describe('initialInputs', () => {
+  const withInitial: InputDef[] = [...defs, { name: 'source', label: 'Source', type: 'string', default: 'link', initial: 'illustration', control: 'text-input' }]
+
+  it('gives new instances the initial value, while absent stored inputs still read as the default', () => {
+    expect(initialInputs(withInitial)).toEqual({ text: 'hello', flag: false, source: 'illustration' })
+    expect(defaultInputs(withInitial)).toEqual({ text: 'hello', flag: false, source: 'link' })
+    expect(resolveInputs(withInitial, {})).toMatchObject({ source: 'link' })
+  })
+})
+
+describe('isInputShown', () => {
+  const shown: InputDef[] = [
+    { name: 'source', label: 'Source', type: 'string', default: 'link', control: 'text-input' },
+    { name: 'src', label: 'Address', type: 'string', control: 'text-input', showWhen: { input: 'source', equals: 'link' } },
+  ]
+
+  it('shows inputs without a condition, and conditional ones only while the other input has the value', () => {
+    expect(isInputShown(shown[0]!, shown, {})).toBe(true)
+    expect(isInputShown(shown[1]!, shown, { source: 'link' })).toBe(true)
+    expect(isInputShown(shown[1]!, shown, { source: 'illustration' })).toBe(false)
+  })
+
+  it('needs every condition to hold, and any of several listed values matches', () => {
+    const both: InputDef = { name: 'h', label: 'H', type: 'string', control: 'text-input', showWhen: [
+      { input: 'source', equals: 'illustration' },
+      { input: 'kind', equals: ['a', 'b'] },
+    ] }
+    const all = [...shown, { name: 'kind', label: 'Kind', type: 'string', control: 'text-input' } as InputDef, both]
+    expect(isInputShown(both, all, { source: 'illustration', kind: 'b' })).toBe(true)
+    expect(isInputShown(both, all, { source: 'illustration', kind: 'c' })).toBe(false)
+    expect(isInputShown(both, all, { source: 'link', kind: 'a' })).toBe(false)
+  })
+
+  it('matches any other value with notEquals', () => {
+    const other: InputDef = { name: 'o', label: 'O', type: 'string', control: 'text-input', showWhen: { input: 'source', notEquals: 'illustration' } }
+    const all = [...shown, other]
+    expect(isInputShown(other, all, { source: 'link' })).toBe(true)
+    expect(isInputShown(other, all, { source: 'something-new' })).toBe(true)
+    expect(isInputShown(other, all, { source: 'illustration' })).toBe(false)
+  })
+
+  it('reads an absent controlling input as its default', () => {
+    expect(isInputShown(shown[1]!, shown, {})).toBe(true)
+  })
+})
+
 describe('resolveInputs', () => {
   it('fills defaults for absent inputs and keeps stored values, including empty ones', () => {
     expect(resolveInputs(defs, { flag: true, text: '', extra: 1 })).toEqual({ text: '', flag: true, extra: 1 })
@@ -39,6 +88,10 @@ describe('resolveInputs', () => {
 })
 
 describe('createFeatureInstance', () => {
+  it('uses initial values, so a new Image starts as an illustration', () => {
+    expect(createFeatureInstance(ImageFeature, '3').inputs).toMatchObject({ source: 'illustration', illustration: 'banner/blueprint', responsive: true })
+  })
+
   it('creates a placed instance with default inputs', () => {
     const placement = { parent: '1', slot: 'content' }
     const instance = createFeatureInstance(TextFeature, '9', placement)

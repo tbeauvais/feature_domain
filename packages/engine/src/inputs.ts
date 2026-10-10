@@ -13,7 +13,19 @@ export interface InputDef {
   label: string
   type: InputType
   control: string
+  /**
+   * What the input means when a stored instance doesn't have it (`resolveInputs` fills it in), so adding an input never
+   * changes existing models. Also the value of new instances, unless `initial` says otherwise.
+   */
   default?: InputValue
+  /** The value for new instances when it differs from `default`, e.g. a new Image starts as an illustration. */
+  initial?: InputValue
+  /**
+   * Show the input in the editor only while other inputs have these values (e.g. the image address for Source = Link).
+   * Every condition must hold; `equals` may list several values, any of which matches, and `notEquals` matches any
+   * other value (so an unrecognised stored value still shows what generation falls back to).
+   */
+  showWhen?: ShowCondition | readonly ShowCondition[]
   options?: InputOption[]
   min?: number
   max?: number
@@ -30,15 +42,46 @@ export interface InputDef {
   soft?: boolean
 }
 
+export type ShowCondition = { input: string } & ({ equals: InputValue | readonly InputValue[] } | { notEquals: InputValue })
+
+/** A input's `showWhen` as a list of conditions. */
+export function showConditions(def: InputDef): readonly ShowCondition[] {
+  if (!def.showWhen) return []
+  return 'input' in def.showWhen ? [def.showWhen as ShowCondition] : (def.showWhen as readonly ShowCondition[])
+}
+
 export type Inputs = Readonly<Record<string, InputValue | undefined>>
 
-/** Initial inputs for a new feature instance. */
+/** The values absent inputs take (see `InputDef.default`). */
 export function defaultInputs(defs: readonly InputDef[]): Record<string, InputValue> {
   const out: Record<string, InputValue> = {}
   for (const def of defs) {
     if (def.default !== undefined) out[def.name] = def.default
   }
   return out
+}
+
+/** Inputs for a new feature instance: each input's `initial` value, else its default. */
+export function initialInputs(defs: readonly InputDef[]): Record<string, InputValue> {
+  const out: Record<string, InputValue> = {}
+  for (const def of defs) {
+    const value = def.initial ?? def.default
+    if (value !== undefined) out[def.name] = value
+  }
+  return out
+}
+
+/** Whether the editor shows `def` for these stored inputs (absent inputs read as their defaults). */
+export function isInputShown(def: InputDef, defs: readonly InputDef[], stored: Inputs): boolean {
+  const conditions = showConditions(def)
+  if (conditions.length === 0) return true
+  const values = resolveInputs(defs, stored)
+  return conditions.every((condition) => {
+    const value = values[condition.input]
+    if ('notEquals' in condition) return value !== condition.notEquals
+    const { equals } = condition
+    return Array.isArray(equals) ? (equals as readonly InputValue[]).some((e) => e === value) : equals === value
+  })
 }
 
 /** Stored inputs with defaults filled in for any that are absent. Never mutates `stored`. */

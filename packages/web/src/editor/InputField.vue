@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import type { InputDef, InputValue } from '@feature-domain/engine'
 import { computed, ref, watch } from 'vue'
+import IllustrationGallery from './IllustrationGallery.vue'
 
 // One editor control for one feature input, chosen from the input's schema. Emits the new value, or undefined to
 // clear the input (it then falls back to its default).
-const props = defineProps<{ def: InputDef; value: InputValue | undefined; references?: { id: string; label: string }[] }>()
+const props = defineProps<{
+  def: InputDef
+  value: InputValue | undefined
+  references?: { id: string; label: string }[]
+  /** Theme custom properties for previews (the illustration gallery). */
+  themeVars?: Record<string, string>
+}>()
 const emit = defineEmits<{ change: [value: InputValue | undefined] }>()
 
 const id = computed(() => `input-${props.def.name}`)
@@ -17,6 +24,9 @@ const swatch = computed(() => {
   if (/^#[0-9a-f]{3}$/i.test(value)) return `#${[...value.slice(1)].map((ch) => ch + ch).join('')}`.toLowerCase()
   return '#ffffff'
 })
+
+/** Controls made of several buttons are labelled as a group rather than through `for`. */
+const grouped = computed(() => (props.def.control === 'segmented' || props.def.control === 'illustration-gallery') && props.def.options !== undefined)
 
 const field = 'w-full rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-sky-500 focus:outline-none'
 
@@ -51,9 +61,36 @@ function settle() {
 
 <template>
   <div class="space-y-1">
-    <label v-if="def.type !== 'boolean'" :for="id" class="block text-xs font-medium text-slate-600">{{ def.label }}</label>
+    <span v-if="grouped" :id="`${id}-label`" class="block text-xs font-medium text-slate-600">{{ def.label }}</span>
+    <label v-else-if="def.type !== 'boolean'" :for="id" class="block text-xs font-medium text-slate-600">{{ def.label }}</label>
 
-    <select v-if="def.type === 'reference'" :id="id" :class="field" :value="text" @change="emit('change', ($event.target as HTMLSelectElement).value)">
+    <p v-if="grouped && def.control === 'segmented' && !def.options!.some((o) => o.value === text)" class="text-xs text-amber-700">
+      Missing: {{ text || '(none)' }}. Pick one below.
+    </p>
+    <div v-if="grouped && def.control === 'segmented'" role="group" :aria-labelledby="`${id}-label`" class="flex overflow-hidden rounded-md border border-slate-300">
+      <button
+        v-for="option in def.options"
+        :key="option.value"
+        type="button"
+        class="flex-1 px-2 py-1 text-sm"
+        :class="option.value === text ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'"
+        :aria-pressed="option.value === text"
+        @click="emit('change', option.value)"
+      >
+        {{ option.text }}
+      </button>
+    </div>
+
+    <IllustrationGallery
+      v-else-if="grouped"
+      :labelledby="`${id}-label`"
+      :value="text"
+      :options="def.options ?? []"
+      :vars="themeVars ?? {}"
+      @change="emit('change', $event)"
+    />
+
+    <select v-else-if="def.type === 'reference'" :id="id" :class="field" :value="text" @change="emit('change', ($event.target as HTMLSelectElement).value)">
       <option value="">None</option>
       <option v-if="text !== '' && !(references ?? []).some((r) => r.id === text)" :value="text" disabled>Missing: #{{ text }}</option>
       <option v-for="ref in references ?? []" :key="ref.id" :value="ref.id">{{ ref.label }}</option>

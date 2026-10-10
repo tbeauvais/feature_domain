@@ -24,7 +24,7 @@ describe('document.css and the theme tokens', () => {
     expect(undefinedVars).toEqual([])
     // Stylesheet-local properties must not shadow theme tokens by accident (bands re-point them on purpose).
     const local = [...declared].filter((name) => !emitted.has(name))
-    expect(local).toEqual(['--fd-panel-tone'])
+    expect(local).toEqual([])
   })
 
   it('has rules for every button style and size', () => {

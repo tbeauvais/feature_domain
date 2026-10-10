@@ -2,6 +2,8 @@ import { generate, ROOT_ID } from '@feature-domain/engine'
 import { describe, expect, it } from 'vitest'
 import { buildFeatureTree, type TreeItem } from '../src/editor/featureTree'
 import { paletteTarget } from '../src/editor/targets'
+import { themeForFeature } from '../src/editor/themeFor'
+import { DEFAULT_TOKENS } from '../src/renderer/theme'
 import { at, inst, model, page } from './helpers'
 
 // page 1 > [container c (2 cells) > text t in r1c2], text u
@@ -74,5 +76,34 @@ describe('buildFeatureTree', () => {
       ['nowhere-text', 'skipped', 'Feature has no placement'],
       ['lost', 'skipped', 'Parent feature nowhere does not exist', [['in-lost', 'skipped', 'Parent feature lost ("ContainerFeature lost") was not generated']]],
     ])
+  })
+})
+
+describe('themeForFeature', () => {
+  const themed = model(
+    inst('ThemeFeature', 'th', { name: 'Forest', accent: '#2f6b3a', scheme: 'dark' }, null),
+    inst('ThemeFeature', 'th2', { name: 'Plum', accent: '#7a1f55' }, null),
+    page({ theme: 'th' }),
+    inst('ImageFeature', 'a'),
+    inst('PageFeature', '2', { theme: 'th2' }, at(ROOT_ID, 'content')),
+    inst('ImageFeature', 'b', {}, at('2', 'content')),
+    inst('PageFeature', '3', {}, at(ROOT_ID, 'content')),
+    inst('ImageFeature', 'c', {}, at('3', 'content')),
+  )
+  const root = generate(themed).root
+  const accent = (id: string | null) => themeForFeature(root, id).vars['--fd-accent-solid']
+
+  it('uses the theme of the page the feature is on', () => {
+    expect(accent('a')).toBe('#2f6b3a')
+    expect(accent('b')).toBe('#7a1f55')
+  })
+
+  it('falls back to the document theme (the first page\'s) on an unthemed page, with nothing selected, or for unknown ids', () => {
+    for (const id of ['c', null, 'nope']) expect(accent(id)).toBe('#2f6b3a')
+  })
+
+  it('uses the default theme without pages', () => {
+    expect(themeForFeature(undefined, 'a')).toBe(DEFAULT_TOKENS)
+    expect(themeForFeature(generate(model()).root, null)).toBe(DEFAULT_TOKENS)
   })
 })

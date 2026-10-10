@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { canPlace, defaultRegistry, removeFeature, type InputValue } from '@feature-domain/engine'
+import { canPlace, defaultRegistry, isInputShown, removeFeature, type InputValue } from '@feature-domain/engine'
 import { computed } from 'vue'
 import { useDocumentStore } from '../stores/document'
 import { confirmAction } from './confirm'
 import { siblingsIn } from './dnd'
 import DiagnosticsList from '../views/DiagnosticsList.vue'
 import InputField from './InputField.vue'
+import { themeForFeature } from './themeFor'
 
 const store = useDocumentStore()
 
@@ -13,6 +14,11 @@ const instance = computed(() => store.model?.features.find((f) => f.id === store
 const def = computed(() => (instance.value ? defaultRegistry.get(instance.value.feature) : undefined))
 const meta = computed(() => store.result?.metadata.features.find((f) => f.id === store.selectedId))
 const diagnostics = computed(() => store.result?.diagnostics.filter((d) => d.featureInstanceId === store.selectedId) ?? [])
+
+/** Inputs that apply to the current values (e.g. the image address only when Source is Link). */
+const shownInputs = computed(() => (def.value && instance.value ? def.value.inputs.filter((i) => isInputShown(i, def.value!.inputs, instance.value!.inputs)) : []))
+/** Previews in the inspector use the theme of the page the feature is on. */
+const themeVars = computed(() => themeForFeature(store.result?.root, store.selectedId).vars)
 
 const encode = (parent: string, slot: string) => `${parent}\u0000${slot}`
 
@@ -127,11 +133,12 @@ async function remove() {
           </div>
         </div>
         <InputField
-          v-for="input in def.inputs"
+          v-for="input in shownInputs"
           :key="`${instance.id}:${input.name}`"
           :def="input"
           :value="instance.inputs[input.name]"
           :references="input.type === 'reference' ? references(input.accepts) : undefined"
+          :theme-vars="input.control === 'illustration-gallery' ? themeVars : undefined"
           @change="change(input.name, $event)"
         />
       </template>

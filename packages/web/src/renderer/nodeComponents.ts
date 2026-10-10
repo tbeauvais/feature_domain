@@ -5,6 +5,7 @@ import CardNode from './nodes/CardNode.vue'
 import GridCellNode from './nodes/GridCellNode.vue'
 import GridNode from './nodes/GridNode.vue'
 import HeadingNode from './nodes/HeadingNode.vue'
+import IllustrationNode from './nodes/IllustrationNode.vue'
 import ImageNode from './nodes/ImageNode.vue'
 import LinkNode from './nodes/LinkNode.vue'
 import ListNode from './nodes/ListNode.vue'
@@ -27,6 +28,7 @@ export const nodeComponents: Record<NodeKind, Component> = {
   text: TextNode,
   heading: HeadingNode,
   image: ImageNode,
+  illustration: IllustrationNode,
   grid: GridNode,
   'grid-cell': GridCellNode,
   panel: PanelNode,
