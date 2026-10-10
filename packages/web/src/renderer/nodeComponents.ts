@@ -1,15 +1,18 @@
 import type { NodeKind } from '@feature-domain/engine'
 import type { Component } from 'vue'
+import ButtonNode from './nodes/ButtonNode.vue'
 import GridCellNode from './nodes/GridCellNode.vue'
 import GridNode from './nodes/GridNode.vue'
 import HeadingNode from './nodes/HeadingNode.vue'
 import ImageNode from './nodes/ImageNode.vue'
+import LinkNode from './nodes/LinkNode.vue'
 import ListNode from './nodes/ListNode.vue'
 import PageNode from './nodes/PageNode.vue'
 import PanelBodyNode from './nodes/PanelBodyNode.vue'
 import PanelNode from './nodes/PanelNode.vue'
 import PlaceholderNode from './nodes/PlaceholderNode.vue'
 import RootNode from './nodes/RootNode.vue'
+import SeparatorNode from './nodes/SeparatorNode.vue'
 import TableNode from './nodes/TableNode.vue'
 import TextNode from './nodes/TextNode.vue'
 
@@ -26,5 +29,8 @@ export const nodeComponents: Record<NodeKind, Component> = {
   'panel-body': PanelBodyNode,
   table: TableNode,
   list: ListNode,
+  separator: SeparatorNode,
+  link: LinkNode,
+  button: ButtonNode,
   placeholder: PlaceholderNode,
 }

@@ -362,3 +362,22 @@ test('the status bar opens the problems list, and ? shows the keyboard shortcuts
   await expect(page.getByTestId('model-name')).toHaveValue('Untitled model?')
   await page.keyboard.press('Escape')
 })
+
+test('buttons keep their colours on hover, in every style', async ({ page }) => {
+  await newModel(page)
+  const styles = ['primary', 'secondary', 'soft', 'link']
+  for (const [index, style] of styles.entries()) {
+    await page.getByTestId('palette-ButtonFeature').click()
+    await inspector(page).getByLabel('Style').selectOption(style)
+    await expect(canvas(page).locator(`[data-feature-id="${index + 2}"] .fd-button-${style}`)).toBeVisible()
+  }
+  for (const [index, style] of styles.entries()) {
+    const button = canvas(page).locator(`[data-feature-id="${index + 2}"] a`)
+    const colour = () => button.evaluate((el) => getComputedStyle(el).color)
+    await page.mouse.move(0, 0)
+    const before = await colour()
+    await button.hover()
+    // Links may change on hover; filled and outlined buttons must not (accent text on an accent fill was unreadable).
+    if (style !== 'link') expect(await colour(), style).toBe(before)
+  }
+})

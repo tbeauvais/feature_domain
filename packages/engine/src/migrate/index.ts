@@ -229,6 +229,19 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     align: normalizeAlign(i.align, 'left'),
   }),
 
+  // Legacy looks are not carried over (see dropLegacyLooks): separators and buttons take the theme's defaults.
+  SeparatorFeature: (i, ctx) => {
+    dropLegacyLooks(i, ['color', 'height', 'width'], 'separator', ctx)
+    return { name: str(i.name), disable: disable(i.disable, ctx), align: normalizeAlign(i.align, 'center') }
+  },
+
+  LinkFeature: (i, ctx) => ({ name: str(i.name), disable: disable(i.disable, ctx), text: text(i.text, ctx), href: str(i.href) }),
+
+  ButtonFeature: (i, ctx) => {
+    dropLegacyLooks(i, ['style', 'size'], 'button', ctx)
+    return { name: str(i.name), disable: disable(i.disable, ctx), text: text(i.text, ctx), href: str(i.href), align: normalizeAlign(i.align, 'center') }
+  },
+
   ContainerFeature: (i, ctx) => {
     const { rows, columns } = legacyGrid(i)
     if (rows === 0 || columns === 0) {
@@ -289,6 +302,17 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
       filters: list(i.filters),
     }
   },
+}
+
+/**
+ * The migration carries over content and placement, not the legacy (Bootstrap-era) look: features take our own design
+ * defaults and the theme. Records which styling inputs were set and dropped.
+ */
+function dropLegacyLooks(inputs: Raw, names: string[], what: string, ctx: Context): void {
+  const set = names.filter((name) => str(inputs[name]).trim() !== '')
+  if (set.length === 0) return
+  const list = set.map((name) => `${name} "${str(inputs[name])}"`).join(', ')
+  ctx.note('dropped-style', 'info', `Dropped legacy ${what} styling (${list}); it uses our own defaults and the theme`)
 }
 
 function str(value: unknown): string {

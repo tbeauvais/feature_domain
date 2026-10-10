@@ -44,6 +44,12 @@ import type { ThemeTokens } from './theme/tokens.js'
 
 export type Align = 'left' | 'center' | 'right'
 
+/** Our own button styles: a solid accent, an outline, an accent tint, or a plain link. */
+export const BUTTON_VARIANTS = ['primary', 'secondary', 'soft', 'link'] as const
+export type ButtonVariant = (typeof BUTTON_VARIANTS)[number]
+export const BUTTON_SIZES = ['small', 'medium', 'large'] as const
+export type ButtonSize = (typeof BUTTON_SIZES)[number]
+
 export const TONES = ['muted', 'primary', 'success', 'info', 'warning', 'danger'] as const
 export type Tone = (typeof TONES)[number]
 
@@ -70,6 +76,12 @@ export interface NodeKinds {
   panel: { heading: string; tone?: Tone }
   'panel-body': Record<string, never>
   list: { items: string[]; align: Align }
+  /** A horizontal rule. `color` is empty for the theme's border colour; `thickness` in px, `width` in % of the line. */
+  separator: { color: string; thickness: number; width: number; align: Align }
+  /** A text link; `href` is shown only if it is http(s) (the renderer enforces that). */
+  link: { text: string; href: string }
+  /** A link styled as a button. */
+  button: { text: string; href: string; variant: ButtonVariant; size: ButtonSize; align: Align }
   /**
    * Editor-only stand-in for a placed feature that produced no node: an unported (unknown) feature type, or a feature
    * skipped because of a problem. Only generated with `generate(model, registry, { placeholders: true })`.

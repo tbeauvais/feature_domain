@@ -134,3 +134,34 @@ describe('selectRows', () => {
     expect(() => selectRows({}, undefined)).toThrow('The response is not a list')
   })
 })
+
+describe('separators, links and buttons', () => {
+  it('renders a themed separator with its sizes and alignment, and only a plain colour', () => {
+    const w = render(model(page(), inst('SeparatorFeature', 's', { thickness: 3, width: 60, align: 'left', color: '#123456' }), inst('SeparatorFeature', 'x', { color: 'url(https://evil.example/x.png)' })))
+    const hr = w.get('[data-feature-id="s"]')
+    expect(hr.element.tagName).toBe('HR')
+    expect(hr.classes()).toEqual(['fd-separator', 'fd-separator-left'])
+    expect(hr.attributes('style')).toContain('height: 3px; width: 60%; background-color: rgb(18, 52, 86)')
+    expect(w.get('[data-feature-id="x"]').attributes('style') ?? '').not.toContain('url(')
+  })
+
+  it('renders links only for http(s) addresses', () => {
+    const w = render(model(page(), inst('LinkFeature', 'ok', { text: 'GitHub', href: 'https://github.com' }), inst('LinkFeature', 'bad', { text: 'Run', href: 'javascript:alert(1)' })))
+    expect(w.get('[data-feature-id="ok"]').attributes()).toMatchObject({ href: 'https://github.com', target: '_blank', rel: 'noopener noreferrer' })
+    expect(w.get('[data-feature-id="ok"]').text()).toBe('GitHub')
+    const bad = w.get('[data-feature-id="bad"]')
+    expect(bad.element.tagName).toBe('SPAN')
+    expect(bad.attributes('href')).toBeUndefined()
+  })
+
+  it('renders buttons with their style, size and alignment, disabled without a safe address', () => {
+    const w = render(model(page(), inst('ButtonFeature', 'b', { text: 'Buy', href: 'https://shop.example', style: 'soft', size: 'large', align: 'right' }), inst('ButtonFeature', 'n', { href: 'ftp://x' })))
+    const row = w.get('[data-feature-id="b"]')
+    expect(row.classes()).toEqual(['fd-button-row', 'fd-align-right'])
+    const button = row.get('a')
+    expect(button.classes()).toEqual(['fd-button', 'fd-button-soft', 'fd-button-large'])
+    expect(button.attributes()).toMatchObject({ href: 'https://shop.example', rel: 'noopener noreferrer' })
+    expect(button.attributes('role')).toBeUndefined()
+    expect(w.get('[data-feature-id="n"] span.fd-button').attributes('aria-disabled')).toBe('true')
+  })
+})
