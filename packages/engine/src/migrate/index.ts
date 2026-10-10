@@ -113,7 +113,7 @@ export function migrate(input: unknown): MigrationResult {
   const features = instances.map(({ id, feature, inputs, raw }): FeatureInstance => {
     const note = noteFor(id)
     const ctx: Context = { note, resourceId: (name) => resources.get(name), resourceOperations: (rid) => operations.get(rid) }
-    const migrateInputs = INPUTS[feature]
+    const migrateInputs = Object.hasOwn(INPUTS, feature) ? INPUTS[feature] : undefined
     const out: FeatureInstance = { feature, id, inputs: migrateInputs ? migrateInputs(inputs, ctx) : scalarInputs(inputs) }
 
     if (!migrateInputs) {
@@ -177,10 +177,16 @@ const INPUT_UPGRADES: Record<string, (inputs: Raw, note: Context['note']) => Rec
     notePageColours(i, note)
     return without(i, LEGACY_PAGE_COLOURS)
   },
-  // Saved with Bootstrap tones (text_style, and background as a tone).
+  // Saved with Bootstrap tones (text_style, and background as a tone). A Colour or Background already chosen (a model
+  // also saved by a newer version) is kept; only what is still in the old shape is converted.
   HeaderFeature: (i, note) => {
-    if (!('text_style' in i) && normalizeTone(i.background) === undefined) return undefined
-    return { ...without(i, ['text_style', 'background']), ...headerLooks(i.text_style, i.background, note) }
+    const toneBackground = normalizeTone(i.background) !== undefined
+    if (!('text_style' in i) && !toneBackground) return undefined
+    const looks = headerLooks('colour' in i ? undefined : i.text_style, toneBackground ? i.background : undefined, note)
+    const out: Record<string, InputValue> = without(i, ['text_style'])
+    if (!('colour' in i)) out.colour = looks.colour
+    if (toneBackground || !('background' in i) || i.background === '') out.background = looks.background
+    return out
   },
   // Saved with a Bootstrap panel style, which renders nothing now.
   PanelFeature: (i, note) => {
@@ -197,7 +203,7 @@ function upgradeInputs(f: FeatureInstance, note: Context['note']): Record<string
 /** The legacy instance kept for a feature that was unported when migrated, if its type can be migrated now. */
 function pendingLegacy(f: FeatureInstance): Raw | undefined {
   const legacy = f.cache?.legacy
-  return INPUTS[f.feature] && typeof legacy === 'object' && legacy !== null && !Array.isArray(legacy) ? (legacy as Raw) : undefined
+  return Object.hasOwn(INPUTS, f.feature) && typeof legacy === 'object' && legacy !== null && !Array.isArray(legacy) ? (legacy as Raw) : undefined
 }
 
 function upgrade(model: AppModel): MigrationResult {

@@ -321,4 +321,10 @@ test('cards and the buttons under them stay inside their container, and cards si
   }
   const heights = await Promise.all((await cards.all()).map(async (card) => (await card.boundingBox())!.height))
   expect(new Set(heights.map(Math.round)).size).toBe(1)
+
+  // A Text feature in a card's cell (a paragraph of its own) doesn't stop that cell lining up with its neighbours.
+  await page.getByTestId('palette-TextFeature').click()
+  const cell = canvas.locator('.fd-cell:has([data-feature-id="28"])')
+  await expect(cell.locator('.fd-text')).toHaveCount(1)
+  await expect(cell).toHaveCSS('display', 'flex')
 })

@@ -132,3 +132,7 @@
   outline: 1px dashed var(--fd-border);
   outline-offset: -4px;
 }
+/* An empty container keeps its space below in the editor, so its drop cells don't butt against the next feature. */
+.fd-editor-canvas .fd-root .fd-grid:not(:has(> .fd-cell:not(:empty))) {
+  margin-bottom: calc(var(--fd-space) * 6);
+}

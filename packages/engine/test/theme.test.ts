@@ -49,7 +49,8 @@ function contrastPairs(t: ThemeTokens): [string, string, string, string][] {
   }
   const page = ['bg', 'surface', 'sunken', 'stripe', 'info-bg', 'success-bg', 'warning-bg', 'danger-bg']
   for (const fg of ['ink', 'text', 'muted', 'accent', 'primary', 'info', 'success', 'warning', 'danger']) add(fg, page)
-  add('accent', ['accent-soft']) // soft buttons
+  // Soft buttons, tinted headers and highlighted panels: any text colour can sit on the accent tint.
+  for (const fg of ['ink', 'text', 'muted', 'accent']) add(fg, ['accent-soft'])
   add('on-accent', ['accent-solid'])
   add('primary-on', ['primary-bg'])
   for (let i = 0; i < BADGE_COUNT; i++) add(`badge-${i}`, [`badge-${i}-bg`])

@@ -288,6 +288,9 @@ test('adding a Theme restyles the page at once, and its settings drive the previ
 test('the canvas shows the page at desktop, tablet and phone widths, and remembers the choice', async ({ page }) => {
   await newModel(page)
   await page.getByTestId('palette-ContainerFeature').click()
+  // An empty container keeps its space below in the editor (the page itself collapses it), so its drop cells stand apart.
+  const marginBottom = await canvas(page).locator('[data-feature-id="2"]').evaluate((el) => parseFloat(getComputedStyle(el).marginBottom))
+  expect(marginBottom).toBeGreaterThan(20)
   const cells = canvas(page).locator('[data-node-id="2.r1c1"], [data-node-id="2.r1c2"]')
   const tops = async () => Promise.all((await cells.all()).map(async (c) => (await c.boundingBox())!.y))
 

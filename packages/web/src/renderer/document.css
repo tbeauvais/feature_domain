@@ -173,16 +173,9 @@ h6.fd-heading { font-size: var(--fd-h6); }
   --fd-text: var(--fd-band-text);
   --fd-muted: var(--fd-band-muted);
   --fd-accent: var(--fd-band-accent);
-  --fd-primary: var(--fd-band-accent);
-  --fd-info: var(--fd-band-accent);
-  --fd-success: var(--fd-band-success);
   --fd-warning: var(--fd-band-warning);
   --fd-danger: var(--fd-band-danger);
   --fd-accent-soft: var(--fd-band-raised);
-  --fd-info-bg: var(--fd-band-raised);
-  --fd-success-bg: var(--fd-band-raised);
-  --fd-warning-bg: var(--fd-band-raised);
-  --fd-danger-bg: var(--fd-band-raised);
   color: var(--fd-text);
 }
 
@@ -608,8 +601,8 @@ h6.fd-heading { font-size: var(--fd-h6); }
  * Cards side by side line up: a cell holding a card becomes a column in which the card stretches, so whatever follows
  * it in the cell (e.g. a button) stays inside the cell. (A card with `height: 100%` pushed it out of the container.)
  */
-/* Only when nothing in the cell relies on normal flow (inline text, floated images), which a column would break. */
-.fd-cell:has(> .fd-card):not(:has(> .fd-text, > .fd-image-left, > .fd-image-right)) { display: flex; flex-direction: column; }
+/* Only when nothing in the cell relies on normal flow (floated images), which a column would break. */
+.fd-cell:has(> .fd-card):not(:has(> .fd-image-left, > .fd-image-right)) { display: flex; flex-direction: column; }
 .fd-cell > .fd-card { flex: 1 1 auto; }
 /* A closing highlight sits at the bottom of the card, so highlights side by side line up too. */
 .fd-card > .fd-paragraph-highlight { margin-top: auto; }

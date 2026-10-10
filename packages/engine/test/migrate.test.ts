@@ -354,6 +354,37 @@ describe('migrate: upgrading v2 models when features get ported', () => {
     expect(migrate(upgraded.model).model).toBe(upgraded.model)
   })
 
+  it('keeps a Colour or Background already chosen when a Header also carries the old inputs', () => {
+    const at = { parent: '15', slot: 'content' }
+    const header = (inputs: Record<string, string>) => ({
+      version: 2 as const,
+      name: 'Mixed',
+      features: [
+        { feature: 'PageFeature', id: '15', inputs: { name: 'Page' }, placement: { parent: '$root', slot: 'content' } },
+        { feature: 'HeaderFeature', id: '1', inputs: { name: 'h', text: 'Hi', ...inputs }, placement: at },
+      ],
+    })
+    const upgraded = (inputs: Record<string, string>) => migrate(header(inputs))
+    expect(upgraded({ text_style: 'info', colour: 'muted', background: 'band' }).model.features[1]!.inputs).toEqual({ name: 'h', text: 'Hi', colour: 'muted', background: 'band' })
+    // Only the part still in the old shape is converted, and only that part is noted.
+    const mixed = upgraded({ text_style: 'danger', colour: 'muted', background: 'warning' })
+    expect(mixed.model.features[1]!.inputs).toEqual({ name: 'h', text: 'Hi', colour: 'muted', background: 'tint' })
+    expect(mixed.notes.map((n) => n.message)).toEqual(['Header background "warning" is now the accent tint; status colours are kept for status'])
+    expect(upgraded({ text_style: 'danger', background: 'band' }).model.features[1]!.inputs).toEqual({ name: 'h', text: 'Hi', colour: 'accent', background: 'band' })
+  })
+
+  it('never treats an Object property name as a ported feature type', () => {
+    const stored: AppModel = {
+      version: 2,
+      name: 'Odd',
+      features: [{ feature: 'constructor', id: '1', inputs: { name: 'x' }, cache: { legacy: { inputs: { name: 'x', page_location: { target: '#page_container' } } } } }],
+    }
+    expect(migrate(stored).model).toBe(stored)
+    const legacy = migrate({ features: [{ feature: 'constructor', id: '1', inputs: { name: 'x', nested: { a: 1 } } }] })
+    expect(legacy.model.features[0]!.inputs).toEqual({ name: 'x' })
+    expect(legacy.notes.map((n) => n.code)).toContain('unported-feature')
+  })
+
   it('leaves features that are still not ported alone', () => {
     const legacyMap: Legacy = { feature: 'GoogleMapFeature', id: '16', inputs: { name: 'map', ...loc('#page_container') } }
     const stored = run(legacyPage, legacyMap).model
