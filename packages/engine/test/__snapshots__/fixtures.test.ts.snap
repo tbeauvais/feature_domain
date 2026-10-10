@@ -6,10 +6,25 @@ exports[`app_models/buy_deal_sample.json > generates the golden document 1`] = `
     image #36 [36] {"src":"https://www.nard.ma/images/english/web-application-header.jpg","alt":"some cool image","width":"100%","height":"200","responsive":false,"align":"center"}
     grid #29 [29] {"rows":1,"columns":3,"well":true}
       grid-cell #29.r1c1 <r1c1> {"row":1,"column":1}
+        card #28 [28]
+          heading #28.heading {"text":"Bronze","level":4,"align":"left"}
+          paragraph #28.description {"text":"This is our best offer ever. Don't wait to get this exciting new  product. Time is limited.","emphasis":"muted"}
+          list #28.items {"items":["Email Support","1 TB Data","2 GB Memory"],"align":"left","marker":"check"}
+          paragraph #28.highlight {"text":"$25.00/Month","emphasis":"highlight"}
         button #26 [26] {"text":"Buy Now!","href":"http://www.google.com","variant":"primary","size":"medium","align":"center"}
       grid-cell #29.r1c2 <r1c2> {"row":1,"column":2}
+        card #30 [30]
+          heading #30.heading {"text":"Silver","level":4,"align":"left"}
+          paragraph #30.description {"text":"This is our best offer ever. Don't wait to get this exciting new product. Time is limited.","emphasis":"muted"}
+          list #30.items {"items":["24x7 Phone Support","2 TB Data","4 GB Memory"],"align":"left","marker":"check"}
+          paragraph #30.highlight {"text":"$50.00/Month","emphasis":"highlight"}
         button #31 [31] {"text":"Buy Now!","href":"http://www.google.com","variant":"primary","size":"medium","align":"center"}
       grid-cell #29.r1c3 <r1c3> {"row":1,"column":3}
+        card #32 [32]
+          heading #32.heading {"text":"Gold","level":4,"align":"left"}
+          paragraph #32.description {"text":"This is our best offer ever. Don't wait to get this exciting new product. Time is limited.","emphasis":"muted"}
+          list #32.items {"items":["24x7 Phone Support","8 TB Data","16 GB Memory"],"align":"left","marker":"check"}
+          paragraph #32.highlight {"text":"$100.00/Month","emphasis":"highlight"}
         button #33 [33] {"text":"Buy Now!","href":"http://www.google.com","variant":"primary","size":"medium","align":"center"}
     separator #27 [27] {"color":"","thickness":1,"width":100,"align":"center"}
     grid #18 [18] {"rows":2,"columns":1,"well":true}
@@ -20,18 +35,21 @@ exports[`app_models/buy_deal_sample.json > generates the golden document 1`] = `
           grid-cell #19.r1c1 <r1c1> {"row":1,"column":1}
             text #2 [2] {"text":"Temp {{DataResource.WeatherService.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherService.query.results.channel.item.condition.text}}"}
           grid-cell #19.r1c2 <r1c2> {"row":1,"column":2}
-            text #35 [35] {"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}"
+            text #35 [35] {"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
+    stack #10 [10]
+      heading #10.title {"text":"Company Info","level":4,"align":"left"}
+      paragraph #10.p1 {"text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
+    media #11 [11] {"side":"left"}
+      image #11.image {"src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","alt":"","width":"","height":"","responsive":true,"align":"left"}
+      stack #11.body
+        heading #11.title {"text":"Our New Mascot","level":4,"align":"left"}
+        paragraph #11.p1 {"text":"La ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum olore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}"
 `;
 
 exports[`app_models/buy_deal_sample.json > generates the golden document 2`] = `
 [
-  "warning unknown-feature [30]: Unknown feature type "ListGroupFeature"",
-  "warning unknown-feature [32]: Unknown feature type "ListGroupFeature"",
-  "warning unknown-feature [28]: Unknown feature type "ListGroupFeature"",
   "warning unknown-feature [16]: Unknown feature type "GoogleMapFeature"",
   "warning unknown-feature [6]: Unknown feature type "GoogleMapFeature"",
-  "warning unknown-feature [10]: Unknown feature type "TextWithParagraphFeature"",
-  "warning unknown-feature [11]: Unknown feature type "ImageWithParagraphFeature"",
 ]
 `;
 
@@ -41,11 +59,11 @@ exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 1`] =
 34 DataResourceFeature {"name":"Weather Service FL","resource":"https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%2091560673&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys","operation":"GET"}
 36 ImageFeature @15/content {"name":"Header Image","disable":false,"src":"https://www.nard.ma/images/english/web-application-header.jpg","alt":"some cool image","height":"200","width":"100%","responsive":false,"align":"center"}
 29 ContainerFeature @15/content {"name":"buy_pannels","disable":false,"rows":1,"columns":3,"well":true}
-30 ListGroupFeature @29/r1c2 {"name":"silver","disable":"","heading":"Silver","list":"24x7 Phone Support,2 TB Data,4 GB Memory,\\n  \\n  $50.00/Month\\n\\n","align":"center-block","price":"25.99","description":"This is our best offer ever. Don't wait to get this exciting new product. Time is limited.","style":"panel-success"} cache=legacy
+30 ListGroupFeature @29/r1c2 {"name":"silver","disable":false,"heading":"Silver","description":"This is our best offer ever. Don't wait to get this exciting new product. Time is limited.","items":["24x7 Phone Support","2 TB Data","4 GB Memory"],"highlight":"$50.00/Month"}
 31 ButtonFeature @29/r1c2 {"name":"My Button","disable":false,"text":"Buy Now!","href":"http://www.google.com","align":"center"}
-32 ListGroupFeature @29/r1c3 {"name":"gold","disable":"","heading":"Gold","list":"24x7 Phone Support,8 TB Data,16 GB Memory,\\n  \\n  $100.00/Month\\n","align":"center-block","price":"25.99","description":"This is our best offer ever. Don't wait to get this exciting new product. Time is limited.","style":"panel-danger"} cache=legacy
+32 ListGroupFeature @29/r1c3 {"name":"gold","disable":false,"heading":"Gold","description":"This is our best offer ever. Don't wait to get this exciting new product. Time is limited.","items":["24x7 Phone Support","8 TB Data","16 GB Memory"],"highlight":"$100.00/Month"}
 33 ButtonFeature @29/r1c3 {"name":"My Button","disable":false,"text":"Buy Now!","href":"http://www.google.com","align":"center"}
-28 ListGroupFeature @29/r1c1 {"name":"bronze","disable":"","heading":"Bronze","list":"Email Support,1 TB Data,2 GB Memory,\\n  \\n  \\n  $25.00/Month\\n\\n\\n","align":"center-block","price":"25.99","description":"This is our best offer ever. Don't wait to get this exciting new  product. Time is limited.","style":"panel-warning"} cache=legacy
+28 ListGroupFeature @29/r1c1 {"name":"bronze","disable":false,"heading":"Bronze","description":"This is our best offer ever. Don't wait to get this exciting new  product. Time is limited.","items":["Email Support","1 TB Data","2 GB Memory"],"highlight":"$25.00/Month"}
 26 ButtonFeature @29/r1c1 {"name":"My Button","disable":false,"text":"Buy Now!","href":"http://www.google.com","align":"center"}
 27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center"}
 18 ContainerFeature @15/content {"name":"top container","disable":false,"rows":2,"columns":1,"well":true}
@@ -55,26 +73,29 @@ exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 1`] =
 16 GoogleMapFeature @19/r1c2 {"name":"map","title":"Where it's Warm","address":"Palm Beach, FL","height":"200","width":"400"} cache=legacy
 2 TextFeature @19/r1c1 {"name":"Weather Text","disable":false,"text":"Temp {{DataResource.WeatherService.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherService.query.results.channel.item.condition.text}}"}
 6 GoogleMapFeature @19/r1c1 {"name":"Home Map","title":"Too Cold Here","address":"131 Willow Rd. Guilford, CT","height":"200","width":"400"} cache=legacy
-10 TextWithParagraphFeature @15/content {"name":"Info","title":"Company Info","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","style":"panel-warning"} cache=legacy
-11 ImageWithParagraphFeature @15/content {"name":"pet","title":"Our New Mascot ","src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","text":"La ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum olore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","style":"panel-warning"} cache=legacy"
+10 TextWithParagraphFeature @15/content {"name":"Info","disable":false,"title":"Company Info","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
+11 ImageWithParagraphFeature @15/content {"name":"pet","disable":false,"title":"Our New Mascot","text":"La ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum olore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","alt":"","image_side":"left"}"
 `;
 
 exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 2`] = `
 [
   "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
-  "info unported-feature [30]: ListGroupFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [30]: Dropped legacy list group styling (style "panel-success", align "center-block"); it uses our own defaults and the theme",
+  "info invalid-value [30]: Dropped price "25.99", which the legacy app never showed",
   "info dropped-style [31]: Dropped legacy button styling (style "btn-success"); it uses our own defaults and the theme",
-  "info unported-feature [32]: ListGroupFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [32]: Dropped legacy list group styling (style "panel-danger", align "center-block"); it uses our own defaults and the theme",
+  "info invalid-value [32]: Dropped price "25.99", which the legacy app never showed",
   "info dropped-style [33]: Dropped legacy button styling (style "btn-danger"); it uses our own defaults and the theme",
-  "info unported-feature [28]: ListGroupFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [28]: Dropped legacy list group styling (style "panel-warning", align "center-block"); it uses our own defaults and the theme",
+  "info invalid-value [28]: Dropped price "25.99", which the legacy app never showed",
   "info dropped-style [26]: Dropped legacy button styling (style "btn-warning"); it uses our own defaults and the theme",
   "info dropped-style [27]: Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme",
   "warning data-binding [35]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
   "info unported-feature [16]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "warning data-binding [2]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
   "info unported-feature [6]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [10]: TextWithParagraphFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [11]: ImageWithParagraphFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [10]: Dropped legacy panel styling (style "panel-warning"); it uses our own defaults and the theme",
+  "info dropped-style [11]: Dropped legacy panel styling (style "panel-warning"); it uses our own defaults and the theme",
 ]
 `;
 
@@ -105,6 +126,14 @@ exports[`app_models/google_map_sample.json > generates the golden document 1`] =
       grid-cell #12.r1c2 <r1c2> {"row":1,"column":2}
         heading #17 [17] {"text":"I'm just a little frog","level":4,"align":"center"}
         image #13 [13] {"src":"http://assets.kompas.com/data/photo/2014/04/07/2002239katak-kulit-paling-kasar780x390.jpg","alt":"Frog","width":"300","height":"300","responsive":true,"align":"center"}
+    stack #10 [10]
+      heading #10.title {"text":"Company Info","level":4,"align":"left"}
+      paragraph #10.p1 {"text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
+    media #11 [11] {"side":"left"}
+      image #11.image {"src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","alt":"","width":"","height":"","responsive":true,"align":"left"}
+      stack #11.body
+        heading #11.title {"text":"Our New Mascot","level":4,"align":"left"}
+        paragraph #11.p1 {"text":"La ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum olore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
     link #4 [4] {"text":"GitHub","href":"https://github.com"}"
 `;
 
@@ -112,8 +141,6 @@ exports[`app_models/google_map_sample.json > generates the golden document 2`] =
 [
   "warning unknown-feature [16]: Unknown feature type "GoogleMapFeature"",
   "warning unknown-feature [6]: Unknown feature type "GoogleMapFeature"",
-  "warning unknown-feature [10]: Unknown feature type "TextWithParagraphFeature"",
-  "warning unknown-feature [11]: Unknown feature type "ImageWithParagraphFeature"",
   "warning out-of-order [24]: Listed before feature 36 ("repo panel"), which it is placed in",
   "warning out-of-order [17]: Listed before feature 12 ("My Container"), which it is placed in",
   "warning out-of-order [13]: Listed before feature 12 ("My Container"), which it is placed in",
@@ -144,8 +171,8 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 1`]
 16 GoogleMapFeature @19/r1c2 {"name":"map","title":"Where it's Warm","address":"Palm Beach, FL","height":"200","width":"400"} cache=legacy
 2 TextFeature @19/r1c1 {"name":"Weather Text","disable":false,"text":"Temp {{DataResource.WeatherService.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherService.query.results.channel.item.condition.text}}"}
 6 GoogleMapFeature @19/r1c1 {"name":"Home Map","title":"Too Cold Here","address":"131 Willow Rd. Guilford, CT","height":"200","width":"400"} cache=legacy
-10 TextWithParagraphFeature @15/content {"name":"Info","title":"Company Info","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","style":"panel-success"} cache=legacy
-11 ImageWithParagraphFeature @15/content {"name":"pet","title":"Our New Mascot ","src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","text":"La ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum olore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","style":"panel-success"} cache=legacy
+10 TextWithParagraphFeature @15/content {"name":"Info","disable":false,"title":"Company Info","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
+11 ImageWithParagraphFeature @15/content {"name":"pet","disable":false,"title":"Our New Mascot","text":"La ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum olore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","alt":"","image_side":"left"}
 4 LinkFeature @15/content {"name":"Github link","disable":false,"text":"GitHub","href":"https://github.com"}"
 `;
 
@@ -157,8 +184,8 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 2`]
   "info unported-feature [16]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "warning data-binding [2]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
   "info unported-feature [6]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [10]: TextWithParagraphFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [11]: ImageWithParagraphFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [10]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
+  "info dropped-style [11]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
 ]
 `;
 
@@ -252,6 +279,14 @@ exports[`sample.json > generates the golden document 1`] = `
         grid #19 [19] {"rows":1,"columns":2,"well":false}
           grid-cell #19.r1c1 <r1c1> {"row":1,"column":1}
           grid-cell #19.r1c2 <r1c2> {"row":1,"column":2}
+    stack #10 [10]
+      heading #10.title {"text":"Company Info","level":4,"align":"left"}
+      paragraph #10.p1 {"text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
+    media #11 [11] {"side":"left"}
+      image #11.image {"src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","alt":"","width":"","height":"","responsive":true,"align":"left"}
+      stack #11.body
+        heading #11.title {"text":"My New Pet","level":4,"align":"left"}
+        paragraph #11.p1 {"text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
     text #5 [5] {"text":"This is a simple line of text"}
     text #2 [2] {"text":"This is from Feature #1"}
     link #4 [4] {"text":"GitHub","href":"https://github.com"}"
@@ -261,8 +296,6 @@ exports[`sample.json > generates the golden document 2`] = `
 [
   "warning unknown-feature [16]: Unknown feature type "GoogleMapFeature"",
   "warning unknown-feature [6]: Unknown feature type "GoogleMapFeature"",
-  "warning unknown-feature [10]: Unknown feature type "TextWithParagraphFeature"",
-  "warning unknown-feature [11]: Unknown feature type "ImageWithParagraphFeature"",
 ]
 `;
 
@@ -279,8 +312,8 @@ exports[`sample.json > migrates to the golden v2 model 1`] = `
 19 ContainerFeature @18/r2c1 {"name":"inner container","disable":false,"rows":1,"columns":2,"well":false}
 20 HeaderFeature @18/r1c1 {"name":"container header","disable":false,"text":"Moving to...","size":1,"align":"left","text_style":"","background":""}
 6 GoogleMapFeature @19/r1c2 {"name":"Home Map","title":"Home Location","address":"131 Willow Rd. Guilford, CT","height":"200","width":"400"} cache=legacy
-10 TextWithParagraphFeature @15/content {"name":"Info","title":"Company Info","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."} cache=legacy
-11 ImageWithParagraphFeature @15/content {"name":"pet","title":"My New Pet","src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."} cache=legacy
+10 TextWithParagraphFeature @15/content {"name":"Info","disable":false,"title":"Company Info","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
+11 ImageWithParagraphFeature @15/content {"name":"pet","disable":false,"title":"My New Pet","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","alt":"","image_side":"left"}
 5 TextFeature @15/content {"name":"More text","disable":false,"text":"This is a simple line of text"}
 2 TextFeature @15/content {"name":"Simple text","disable":false,"text":"This is from Feature #1"}
 4 LinkFeature @15/content {"name":"Github link","disable":false,"text":"GitHub","href":"https://github.com"}"
@@ -290,7 +323,5 @@ exports[`sample.json > migrates to the golden v2 model 2`] = `
 [
   "info unported-feature [16]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info unported-feature [6]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [10]: TextWithParagraphFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [11]: ImageWithParagraphFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
 ]
 `;

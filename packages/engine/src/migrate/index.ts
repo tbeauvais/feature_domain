@@ -242,6 +242,29 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     return { name: str(i.name), disable: disable(i.disable, ctx), text: text(i.text, ctx), href: str(i.href), align: normalizeAlign(i.align, 'center') }
   },
 
+  TextWithParagraphFeature: (i, ctx) => {
+    dropLegacyLooks(i, ['style'], 'panel', ctx)
+    return { name: str(i.name), disable: disable(i.disable, ctx), title: text(i.title, ctx).trim(), text: text(i.text, ctx) }
+  },
+
+  ImageWithParagraphFeature: (i, ctx) => {
+    dropLegacyLooks(i, ['style'], 'panel', ctx)
+    // The legacy app rendered the image with no alt text, on the left.
+    return { name: str(i.name), disable: disable(i.disable, ctx), title: text(i.title, ctx).trim(), text: text(i.text, ctx), src: str(i.src), alt: '', image_side: 'left' }
+  },
+
+  // The legacy list was one comma-separated string whose last item was shown large (the price in the samples).
+  ListGroupFeature: (i, ctx) => {
+    dropLegacyLooks(i, ['style', 'align'], 'list group', ctx)
+    if (str(i.price).trim() !== '') ctx.note('invalid-value', 'info', `Dropped price "${str(i.price)}", which the legacy app never showed`)
+    const items = str(i.list)
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item !== '')
+    const highlight = items.length > 1 ? items.pop()! : ''
+    return { name: str(i.name), disable: disable(i.disable, ctx), heading: text(i.heading, ctx), description: text(i.description, ctx), items, highlight }
+  },
+
   ContainerFeature: (i, ctx) => {
     const { rows, columns } = legacyGrid(i)
     if (rows === 0 || columns === 0) {

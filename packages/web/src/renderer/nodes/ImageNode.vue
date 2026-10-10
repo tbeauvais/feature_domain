@@ -21,7 +21,16 @@ const style = computed(() => ({
 </script>
 
 <template>
+  <!-- No usable source: a quiet frame of the same size keeps the layout, so the feature still looks intended. -->
+  <div
+    v-if="!safeImageSrc(node.props.src)"
+    class="fd-image fd-image-empty"
+    :class="[`fd-image-${node.props.align}`, { 'fd-image-responsive': node.props.responsive }]"
+    :style="style"
+    aria-hidden="true"
+  />
   <img
+    v-else
     class="fd-image"
     :class="[`fd-image-${node.props.align}`, { 'fd-image-responsive': node.props.responsive }]"
     :src="safeImageSrc(node.props.src)"

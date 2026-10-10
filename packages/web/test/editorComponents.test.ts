@@ -204,7 +204,7 @@ describe('List and placeholder nodes', () => {
   it('render list items and placeholders', () => {
     const r = generate(model(page(), inst('ListFeature', 'l', { items: ['Red', '<b>Green</b>'], align: 'right' }), inst('MapFeature', 'm')), undefined, { placeholders: true })
     const w = mount(DocumentView, { props: { root: r.root } })
-    expect(w.get('[data-feature-id="l"]').classes()).toEqual(['fd-list', 'fd-list-right'])
+    expect(w.get('[data-feature-id="l"]').classes()).toEqual(['fd-list', 'fd-list-right', 'fd-list-number'])
     expect(w.findAll('[data-feature-id="l"] li').map((li) => li.text())).toEqual(['Red', '<b>Green</b>'])
     const placeholder = w.get('[data-feature-id="m"]')
     expect(placeholder.classes()).toEqual(['fd-placeholder', 'fd-placeholder-unknown'])

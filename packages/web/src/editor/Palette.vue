@@ -36,21 +36,21 @@ watch(open, (value) => savePref('palette', value ? 'open' : 'folded'))
     </div>
     <div v-show="open" id="palette-groups">
       <template v-for="group in groups" :key="group.label">
-        <h3 class="mt-3 mb-1.5 text-xs font-medium text-slate-500">{{ group.label }}</h3>
-        <div class="grid grid-cols-3 gap-1.5">
+        <h3 class="mt-2.5 mb-1 text-xs font-medium text-slate-500">{{ group.label }}</h3>
+        <div class="grid grid-cols-2 gap-1">
           <button
             v-for="{ def, label } in group.items"
             :key="def.type"
             type="button"
-            class="flex flex-col items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-1 py-2.5 text-xs text-slate-800 hover:border-slate-400 hover:bg-slate-50"
+            class="flex min-w-0 items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-left text-xs text-slate-800 hover:border-slate-400 hover:bg-slate-50"
             :class="def.placement === 'none' ? 'cursor-pointer' : 'cursor-grab'"
             :data-testid="`palette-${def.type}`"
             :data-palette-type="def.placement === 'none' ? undefined : def.type"
             :title="def.placement === 'none' ? `Add ${def.name} (not placed on the page)` : `Add ${def.name}, or drag it onto the page`"
             @click="store.add(def.type)"
           >
-            <FeatureIcon :type="def.type" class="text-slate-700" />
-            {{ label }}
+            <FeatureIcon :type="def.type" :size="16" class="shrink-0 text-slate-600" />
+            <span class="truncate">{{ label }}</span>
           </button>
         </div>
       </template>

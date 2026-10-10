@@ -298,6 +298,10 @@ h6.fd-heading { font-size: var(--fd-h6); }
   font-size: 0.75em;
   color: var(--fd-accent);
 }
+/* Check-mark lists (e.g. in cards): no rules between items. */
+.fd-list-check li { border: 0; padding: 0; }
+.fd-list-check li:last-child { border: 0; }
+.fd-list-check li::before { content: '\2713'; font-family: var(--fd-font-body); font-size: 1em; font-weight: 600; }
 
 /* Separators: a rule in the theme's border colour unless the feature sets one; thickness and width are inline. */
 .fd-separator {
@@ -354,6 +358,84 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-root a.fd-button:hover { box-shadow: inset 0 0 0 999px rgb(0 0 0 / 0.06); }
 .fd-root a.fd-button-link:hover { box-shadow: none; color: var(--fd-ink); }
 .fd-root span.fd-button { cursor: default; opacity: 0.7; }
+
+/* Paragraphs */
+.fd-paragraph {
+  margin: 0 0 calc(var(--fd-space) * 1.5);
+  max-width: 68ch;
+  color: var(--fd-text);
+}
+.fd-paragraph-muted { color: var(--fd-muted); }
+.fd-paragraph-highlight {
+  padding-top: calc(var(--fd-space) * 2);
+  border-top: 1px solid var(--fd-border-subtle);
+  font-family: var(--fd-font-display);
+  font-size: var(--fd-h4);
+  color: var(--fd-ink);
+}
+
+/*
+ * Layouts that higher-level features compose from primitive nodes. Inside them, children are spaced by the layout's
+ * gap, not their own margins.
+ */
+.fd-stack,
+.fd-card {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--fd-space) * 1.5);
+}
+.fd-stack { margin: calc(var(--fd-space) * 4) 0; }
+.fd-media > .fd-stack { margin: 0; }
+:is(.fd-stack, .fd-card) > :is(.fd-heading, .fd-paragraph, .fd-list) { margin: 0; }
+:is(.fd-stack, .fd-card) > .fd-list { max-width: none; }
+:is(.fd-stack, .fd-card) > .fd-list ul { margin: 0; }
+
+.fd-media {
+  display: grid;
+  grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr);
+  gap: calc(var(--fd-space) * 2) calc(var(--fd-space) * 4);
+  align-items: start;
+  margin: calc(var(--fd-space) * 4) 0;
+}
+.fd-media-right { grid-template-columns: minmax(0, 1fr) minmax(7rem, 11rem); }
+.fd-media-right > .fd-image { order: 2; }
+.fd-media > .fd-image {
+  width: 100%;
+  margin: 0;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+@container fd-document (max-width: 520px) {
+  .fd-media, .fd-media-right { grid-template-columns: minmax(0, 1fr); }
+  .fd-media > .fd-image { max-width: 16rem; }
+  .fd-media-right > .fd-image { order: 0; }
+}
+
+.fd-card {
+  box-sizing: border-box;
+  margin: 0 0 calc(var(--fd-space) * 2);
+  padding: calc(var(--fd-space) * 3);
+  background: var(--fd-surface);
+  border: 1px solid var(--fd-border);
+  border-radius: var(--fd-radius-lg);
+  box-shadow: var(--fd-shadow);
+}
+/*
+ * Cards side by side line up: a cell holding a card becomes a column in which the card stretches, so whatever follows
+ * it in the cell (e.g. a button) stays inside the cell. (A card with `height: 100%` pushed it out of the container.)
+ */
+.fd-cell:has(> .fd-card) { display: flex; flex-direction: column; }
+.fd-cell > .fd-card { flex: 1 1 auto; }
+/* A closing highlight sits at the bottom of the card, so highlights side by side line up too. */
+.fd-card > .fd-paragraph-highlight { margin-top: auto; }
+
+/* Empty images (no usable source): a quiet frame. */
+.fd-image-empty {
+  background: var(--fd-sunken);
+  border: 1px solid var(--fd-border);
+  box-sizing: border-box;
+}
+.fd-image-empty:not([style*='height']) { aspect-ratio: 4 / 3; }
 
 /* Editor-only placeholders for features that produced nothing; themed so they read on light and dark pages. */
 .fd-placeholder {

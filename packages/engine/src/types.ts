@@ -75,11 +75,20 @@ export interface NodeKinds {
   'grid-cell': { row: number; column: number }
   panel: { heading: string; tone?: Tone }
   'panel-body': Record<string, never>
-  list: { items: string[]; align: Align }
+  /** `marker`: numbered (the default) or check marks. */
+  list: { items: string[]; align: Align; marker?: 'number' | 'check' }
   /** A horizontal rule. `color` is empty for the theme's border colour; `thickness` in px, `width` in % of the line. */
   separator: { color: string; thickness: number; width: number; align: Align }
   /** A text link; `href` is shown only if it is http(s) (the renderer enforces that). */
   link: { text: string; href: string }
+  /** A paragraph of plain text. `muted` is secondary text; `highlight` an emphasised closing line (e.g. a price). */
+  paragraph: { text: string; emphasis?: 'muted' | 'highlight' }
+  /** Layout: children stacked vertically with even spacing. */
+  stack: Record<string, never>
+  /** Layout: an image (first child) beside a body (second child); stacks on phone-width pages. */
+  media: { side: 'left' | 'right' }
+  /** Layout: children in a raised card on the theme's surface. */
+  card: Record<string, never>
   /** A link styled as a button. */
   button: { text: string; href: string; variant: ButtonVariant; size: ButtonSize; align: Align }
   /**

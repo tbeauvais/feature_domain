@@ -54,7 +54,9 @@ describe('DocumentView', () => {
 
   it('drops unsafe image sources', () => {
     const w = render(model(page(), inst('ImageFeature', 'i', { src: 'javascript:alert(1)', alt: 'A' })))
-    expect(w.get('img').attributes('src')).toBeUndefined()
+    // Never reaches an <img>: an empty frame stands in for it.
+    expect(w.find('img').exists()).toBe(false)
+    expect(w.get('[data-feature-id="i"]').classes()).toContain('fd-image-empty')
   })
 
   it('gives responsive images no fixed height, so they keep their aspect ratio', () => {
@@ -163,5 +165,53 @@ describe('separators, links and buttons', () => {
     expect(button.attributes()).toMatchObject({ href: 'https://shop.example', rel: 'noopener noreferrer' })
     expect(button.attributes('role')).toBeUndefined()
     expect(w.get('[data-feature-id="n"] span.fd-button').attributes('aria-disabled')).toBe('true')
+  })
+})
+
+describe('features composed from primitive nodes', () => {
+  it('Text with title renders a heading and paragraphs (split on blank lines) as plain text', () => {
+    const w = render(model(page(), inst('TextWithParagraphFeature', 'a', { title: 'About', text: 'First <b>one</b>.\n\n\nSecond.\nStill second.' })))
+    const stack = w.get('[data-feature-id="a"]')
+    expect(stack.classes()).toEqual(['fd-stack'])
+    expect(stack.get('h4.fd-heading').text()).toBe('About')
+    expect(stack.findAll('p.fd-paragraph').map((p) => p.text())).toEqual(['First <b>one</b>.', 'Second.\nStill second.'])
+    expect(stack.find('b').exists()).toBe(false)
+  })
+
+  it('Image with text puts the image on the chosen side, with a quiet frame when there is no usable image', () => {
+    const w = render(
+      model(
+        page(),
+        inst('ImageWithParagraphFeature', 'r', { src: 'https://x.test/p.jpg', alt: 'A capybara', image_side: 'right' }),
+        inst('ImageWithParagraphFeature', 'n', { src: 'javascript:alert(1)' }),
+      ),
+    )
+    const right = w.get('[data-feature-id="r"]')
+    expect(right.classes()).toEqual(['fd-media', 'fd-media-right'])
+    expect(right.get('img').attributes()).toMatchObject({ src: 'https://x.test/p.jpg', alt: 'A capybara' })
+    expect(right.get('[data-node-id="r.body"]').classes()).toEqual(['fd-stack'])
+    const none = w.get('[data-feature-id="n"]')
+    expect(none.find('img').exists()).toBe(false)
+    expect(none.get('.fd-image-empty').attributes('aria-hidden')).toBe('true')
+  })
+
+  it('List card renders a card with a check list and a highlight, omitting empty parts', () => {
+    const w = render(model(page(), inst('ListGroupFeature', 'c', { heading: 'Gold', description: '', items: ['A', 'B'], highlight: '$9' })))
+    const card = w.get('[data-feature-id="c"]')
+    expect(card.element.tagName).toBe('SECTION')
+    expect(card.classes()).toEqual(['fd-card'])
+    expect(card.get('h4').text()).toBe('Gold')
+    expect(card.find('.fd-paragraph-muted').exists()).toBe(false)
+    expect(card.get('.fd-list').classes()).toContain('fd-list-check')
+    expect(card.findAll('li').map((li) => li.text())).toEqual(['A', 'B'])
+    expect(card.get('.fd-paragraph-highlight').text()).toBe('$9')
+  })
+
+  it('an Image without a usable source renders a frame of its size instead of a broken image', () => {
+    const w = render(model(page(), inst('ImageFeature', 'i', { src: '', width: '300', height: '200' })))
+    const frame = w.get('[data-feature-id="i"]')
+    expect(frame.element.tagName).toBe('DIV')
+    expect(frame.classes()).toContain('fd-image-empty')
+    expect(frame.attributes('style')).toContain('width: 300px; height: 200px')
   })
 })

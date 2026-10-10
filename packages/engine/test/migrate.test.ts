@@ -357,3 +357,26 @@ describe('migrate: Separator, Link and Button', () => {
     expect(notes(r)).toContain('markup-in-text:4')
   })
 })
+
+describe('migrate: text and image with paragraph, list group', () => {
+  it('keeps titles, text and images, dropping the panel styling', () => {
+    const r = run(
+      legacyPage,
+      { feature: 'TextWithParagraphFeature', id: '10', inputs: { name: 'Info', title: ' Company Info ', text: 'Hello', style: 'panel-success', ...loc('#page_container') } },
+      { feature: 'ImageWithParagraphFeature', id: '11', inputs: { name: 'pet', title: 'Pet', src: 'http://x.test/p.jpg', text: 'Hi', ...loc('#page_container') } },
+    )
+    expect(feature(r, '10').inputs).toEqual({ name: 'Info', disable: false, title: 'Company Info', text: 'Hello' })
+    expect(feature(r, '11').inputs).toEqual({ name: 'pet', disable: false, title: 'Pet', text: 'Hi', src: 'http://x.test/p.jpg', alt: '', image_side: 'left' })
+    expect(notes(r)).toEqual(['dropped-style:10'])
+  })
+
+  it('splits the comma list, taking the last item as the highlight (as the legacy app showed it large)', () => {
+    const group = (id: string, list: string) => ({ feature: 'ListGroupFeature', id, inputs: { name: 'g', heading: 'Gold', description: 'Best', list, ...loc('#page_container') } })
+    const r = run(legacyPage, group('1', 'A, B,\n  \n $9/Month\n'), group('2', 'Only one'), group('3', ''))
+    expect(['1', '2', '3'].map((id) => [feature(r, id).inputs.items, feature(r, id).inputs.highlight])).toEqual([
+      [['A', 'B'], '$9/Month'],
+      [['Only one'], ''],
+      [[], ''],
+    ])
+  })
+})

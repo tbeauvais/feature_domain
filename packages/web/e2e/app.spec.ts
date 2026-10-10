@@ -181,3 +181,20 @@ test('shows a message for a missing model', async ({ page }) => {
   await page.goto('/preview.html?model=does-not-exist')
   await expect(page.getByText('This model does not exist.')).toBeVisible()
 })
+
+test('cards and the buttons under them stay inside their container, and cards side by side line up', async ({ page }) => {
+  await openSample(page, 'Buy Deal')
+  const canvas = page.getByTestId('canvas')
+  const cards = canvas.locator('.fd-card')
+  await expect(cards).toHaveCount(3)
+  const well = canvas.locator('.fd-well:has(.fd-card)')
+  const wellBox = (await well.boundingBox())!
+  const boxes = await Promise.all((await canvas.locator('.fd-well .fd-card, .fd-well .fd-button').all()).map((el) => el.boundingBox()))
+  expect(boxes.length).toBe(6)
+  for (const box of boxes) {
+    expect(box!.y).toBeGreaterThanOrEqual(wellBox.y)
+    expect(box!.y + box!.height).toBeLessThanOrEqual(wellBox.y + wellBox.height)
+  }
+  const heights = await Promise.all((await cards.all()).map(async (card) => (await card.boundingBox())!.height))
+  expect(new Set(heights.map(Math.round)).size).toBe(1)
+})
