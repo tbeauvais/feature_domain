@@ -7,6 +7,7 @@ import {
   fitContrast,
   hexToOklch,
   oklchToHex,
+  BADGE_COUNT,
   THEME_OPTIONS,
   type ThemeParams,
   type ThemeTokens,
@@ -51,6 +52,7 @@ function contrastPairs(t: ThemeTokens): [string, string, string, string][] {
   add('accent', ['accent-soft']) // soft buttons
   add('on-accent', ['accent-solid'])
   add('primary-on', ['primary-bg'])
+  for (let i = 0; i < BADGE_COUNT; i++) add(`badge-${i}`, [`badge-${i}-bg`])
   for (const fg of ['ink', 'text', 'muted', 'accent', 'success', 'warning', 'danger']) add(`band-${fg}`, ['band', 'band-raised'])
   return pairs
 }
@@ -146,6 +148,20 @@ describe('deriveTokens', () => {
         if (ratio < 4.5) throw new Error(`${fg} ${fgHex} on ${bg} ${bgHex} is ${ratio.toFixed(2)}:1 for ${JSON.stringify(params)}`)
       }
       expect(t.adjustments.filter((a) => a.includes('could not reach'))).toEqual([])
+    }
+  })
+
+  it('gives badges four tints whose hues stay apart, for 1000 random themes', () => {
+    const random = rng(11)
+    for (let n = 0; n < 1000; n++) {
+      const t = deriveTokens(randomParams(random))
+      const hues = Array.from({ length: BADGE_COUNT }, (_, i) => hexToOklch(v(t, `badge-${i}-bg`))!.h)
+      for (let i = 0; i < hues.length; i++) {
+        for (let j = i + 1; j < hues.length; j++) {
+          const d = Math.abs(hues[i]! - hues[j]!) % 360
+          expect(Math.min(d, 360 - d), `${i}/${j}`).toBeGreaterThan(45)
+        }
+      }
     }
   })
 

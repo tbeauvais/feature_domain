@@ -7,8 +7,14 @@ const legacySample = import.meta.glob<unknown>('../../../../sample.json', { eage
 /**
  * Bumped whenever `upgradeSample` changes, so browsers that seeded older samples get the change once
  * (`BrowserModelStore.upgradeSeeded`). 2: stock header photos became built-in banners. 3: those banners are short.
+ * 4: the GitHub repo tables show languages as badges, names as they are, and scroll after 10 rows.
  */
-export const SAMPLES_VERSION = 3
+export const SAMPLES_VERSION = 4
+
+/** The samples' GitHub repo tables, exactly as migrated, and what they become. */
+const LEGACY_REPO_TABLE = { fields: ['name', 'description', 'language', 'updated_at'], filters: ['uppercase', 'dataLink :data.html_url', '', 'date'] }
+const REPO_TABLE_FILTERS = ['', 'dataLink :data.html_url', 'badge', 'date']
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
 /** The samples' header photos (stock images from other sites, mostly gone) and the banner that replaces each. */
 const LEGACY_HEADERS: Readonly<Record<string, IllustrationId>> = {
@@ -18,15 +24,23 @@ const LEGACY_HEADERS: Readonly<Record<string, IllustrationId>> = {
 }
 
 /**
- * A sample brought up to date: Image features still showing one of the legacy header photos as a link show the
- * matching banner instead, full width and short (the photos were 150px tall), described by its own alt text. The address stays, so switching Source back to
- * Link restores it. Returns the same object when nothing changes.
+ * A sample brought up to date. Returns the same object when nothing changes.
+ * - Repo tables still exactly as migrated show languages as badges and names as they are, and scroll after 10 rows.
+ * - Image features still showing one of the legacy header photos as a link show the matching banner instead, full
+ *   width and short (the photos were 150px tall), described by its own alt text. The address stays, so switching
+ *   Source back to Link restores it.
  */
 export function upgradeSample(model: AppModel): AppModel {
   if (!Array.isArray(model.features)) return model
   let changed = false
   const features = model.features.map((f) => {
-    if (f?.feature !== 'ImageFeature' || typeof f.inputs !== 'object' || f.inputs === null) return f
+    if (typeof f?.inputs !== 'object' || f.inputs === null) return f
+    if (f.feature === 'TableFeature') {
+      if (!same(f.inputs.fields, LEGACY_REPO_TABLE.fields) || !same(f.inputs.filters, LEGACY_REPO_TABLE.filters)) return f
+      changed = true
+      return { ...f, inputs: { ...f.inputs, filters: REPO_TABLE_FILTERS, scroll_rows: f.inputs.scroll_rows ?? 10 } }
+    }
+    if (f.feature !== 'ImageFeature') return f
     const src = f.inputs.src
     const banner = typeof src === 'string' && Object.hasOwn(LEGACY_HEADERS, src) ? LEGACY_HEADERS[src] : undefined
     if (banner === undefined) return f

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cellContent, getPath, parseFilter } from '../src/renderer/filters'
+import { BADGE_TINTS, badgeTints, cellContent, getPath, parseFilter } from '../src/renderer/filters'
 
 describe('parseFilter', () => {
   it('reads a name and an optional argument', () => {
@@ -48,5 +48,29 @@ describe('cellContent', () => {
 
   it('shows the raw value for unknown filters', () => {
     expect(cellContent(row, 'name', 'currency')).toEqual({ text: 'Repo' })
+  })
+
+  it('formats numbers with grouped digits, leaving anything else as it is', () => {
+    expect(cellContent({ n: 1204.5 }, 'n', 'number')).toEqual({ text: '1,204.5' })
+    expect(cellContent({ n: '98765' }, 'n', 'number')).toEqual({ text: '98,765' })
+    expect(cellContent({ n: 'n/a' }, 'n', 'number')).toEqual({ text: 'n/a' })
+    expect(cellContent({ n: '' }, 'n', 'number')).toEqual({ text: '' })
+  })
+
+  it('marks badge cells, but not empty ones', () => {
+    expect(cellContent({ l: 'Ruby' }, 'l', 'badge')).toEqual({ text: 'Ruby', badge: true })
+    expect(cellContent({ l: null }, 'l', 'badge')).toEqual({ text: '' })
+  })
+
+  it('tints badge values in order of first appearance, so the first four differ and a value keeps its tint', () => {
+    const tints = badgeTints(['Ruby', 'Java', ' ruby ', '', 'Shell', 'Go', 'Vue', 'JAVA'])
+    expect([...tints]).toEqual([
+      ['ruby', 0],
+      ['java', 1],
+      ['shell', 2],
+      ['go', 3],
+      ['vue', 0],
+    ])
+    expect(Math.max(...tints.values())).toBeLessThan(BADGE_TINTS)
   })
 })

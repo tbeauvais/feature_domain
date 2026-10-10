@@ -89,37 +89,100 @@ describe('tables', () => {
       }),
     )
 
-  it('loads rows from the resource and renders filtered cells', async () => {
+  it('shows skeleton rows under the real header while loading, then the rows and their count', async () => {
     const fetchJson = vi.fn<FetchJson>(async () => [
       { name: 'one', description: 'first', html_url: 'https://github.com/x/one' },
       { name: 'two', description: null, html_url: 'javascript:alert(1)' },
     ])
     const w = render(tableModel(), fetchJson)
-    expect(w.text()).toContain('Loading…')
+    expect(w.get('.fd-table-block').attributes('aria-busy')).toBe('true')
+    expect(w.findAll('th').map((th) => th.text())).toEqual(['Name', 'About'])
+    expect(w.get('tbody').attributes('aria-hidden')).toBe('true')
+    expect(w.findAll('tbody tr')).toHaveLength(3)
+    expect(w.findAll('.fd-skeleton')).toHaveLength(6)
     await flushPromises()
     expect(fetchJson).toHaveBeenCalledWith('https://api.github.com/users/x/repos')
-    expect(w.findAll('th').map((th) => th.text())).toEqual(['Name', 'About'])
+    expect(w.get('.fd-table-block').attributes('aria-busy')).toBeUndefined()
     const rows = w.findAll('tbody tr').map((tr) => tr.findAll('td').map((td) => td.text()))
     expect(rows).toEqual([
       ['one', 'FIRST'],
       ['two', ''],
     ])
+    expect(w.findAll('tbody td').map((td) => td.attributes('data-label'))).toEqual(['Name', 'About', 'Name', 'About'])
     const links = w.findAll('tbody a')
     expect(links.map((a) => a.attributes('href'))).toEqual(['https://github.com/x/one'])
     expect(links[0]!.attributes()).toMatchObject({ target: '_blank', rel: 'noopener noreferrer' })
-    expect(w.find('.fd-table-note').exists()).toBe(false)
+    expect(w.get('.fd-table-foot').text()).toBe('2 rows')
+    expect(w.find('.fd-table-head').exists()).toBe(false)
   })
 
-  it('shows load failures and empty results', async () => {
-    const failing = render(tableModel(), async () => {
-      throw new Error('503 Service Unavailable')
-    })
+  it('puts a title and the row count in the header, and labels the table by it', async () => {
+    const w = render(tableModel({ title: 'My repos' }), async () => [{ name: 'one' }])
+    expect(w.get('.fd-table-count').text()).toBe('Loading rows…')
     await flushPromises()
-    expect(failing.get('.fd-table-error').text()).toBe('Could not load data: 503 Service Unavailable')
+    expect(w.get('.fd-table-count').text()).toBe('1 row')
+    const title = w.get('.fd-table-title')
+    expect(title.text()).toBe('My repos')
+    expect(w.get('table').attributes('aria-labelledby')).toBe(title.attributes('id'))
+    expect(w.find('.fd-table-foot').exists()).toBe(false)
+  })
 
+  it('scrolls after the chosen number of rows, as a keyboard-reachable region', async () => {
+    const w = render(tableModel({ title: 'My repos', scroll_rows: '5' } as never), async () => [])
+    const wrap = w.get('.fd-table-wrap')
+    expect(wrap.classes()).toContain('fd-table-scroll')
+    expect(wrap.attributes('style')).toContain('--table-rows: 5')
+    expect(wrap.attributes()).toMatchObject({ tabindex: '0', role: 'region', 'aria-labelledby': w.get('.fd-table-title').attributes('id') })
+  })
+
+  it('right-aligns figures (number and date filters, or all-number columns) and shows badges', async () => {
+    const w = render(
+      tableModel({ fields: ['name', 'stars', 'forks', 'updated', 'language'], labels: [], filters: ['', '', 'number', 'date', 'badge'] }),
+      async () => [
+        { name: 'a', stars: 12, forks: '1204', updated: '2015-03-07T10:00:00Z', language: 'Ruby' },
+        { name: 'b', stars: 3, forks: 'n/a', updated: 'never', language: '' },
+        { name: 'c', stars: 0, forks: '0', updated: 'never', language: 'Java' },
+        { name: 'd', stars: 1, forks: '0', updated: 'never', language: 'ruby' },
+      ],
+    )
+    await flushPromises()
+    expect(w.findAll('th').map((th) => th.classes('fd-num'))).toEqual([false, true, true, true, false])
+    expect(w.findAll('tbody tr')[0]!.findAll('td').map((td) => td.text())).toEqual(['a', '12', '1,204', 'Mar 7, 2015', 'Ruby'])
+    const badges = w.findAll('.fd-badge')
+    expect(badges.map((b) => [b.text(), b.classes().find((c) => c.startsWith('fd-badge-'))])).toEqual([
+      ['Ruby', 'fd-badge-0'],
+      ['Java', 'fd-badge-1'],
+      ['ruby', 'fd-badge-0'],
+    ])
+  })
+
+  it('says which site failed and why, and tries again on request', async () => {
+    let fail = true
+    const fetchJson = vi.fn<FetchJson>(async () => {
+      if (fail) throw new Error('503 Service Unavailable')
+      return [{ name: 'one' }]
+    })
+    const w = render(tableModel(), fetchJson)
+    await flushPromises()
+    const problem = w.get('.fd-table-problem')
+    expect(problem.attributes('role')).toBe('alert')
+    expect(problem.text()).toContain("Couldn't load rows")
+    expect(problem.text()).toContain('api.github.com: 503 Service Unavailable')
+    fail = false
+    await problem.get('button').trigger('click')
+    await flushPromises()
+    expect(fetchJson).toHaveBeenCalledTimes(2)
+    expect(w.find('.fd-table-problem').exists()).toBe(false)
+    expect(w.findAll('tbody tr')).toHaveLength(1)
+  })
+
+  it('shows an empty state with the empty illustration', async () => {
     const empty = render(tableModel(), async () => [])
     await flushPromises()
-    expect(empty.get('.fd-table-note').text()).toBe('No rows')
+    const state = empty.get('.fd-table-state')
+    expect(state.text()).toContain('No rows yet')
+    expect(state.find('svg').exists()).toBe(true)
+    expect(empty.find('.fd-table-foot').exists()).toBe(false)
   })
 
   it('says when there is no data source', () => {

@@ -42,12 +42,45 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
   const marker = await canvas.locator('.fd-panel-heading h4', { hasText: 'My GitHub Repos' }).evaluate((h) => getComputedStyle(h, '::before').content)
   expect(marker).toBe('none')
 
-  // Repo Table: fields name/description/language/updated_at with filters uppercase / dataLink / none / date.
+  // Repo Table: fields name/description/language/updated_at with filters none / dataLink / badge / date (samples v4).
   const table = canvas.locator('[data-feature-id="24"]')
   await expect(table.locator('th')).toHaveText(['Name', 'Description', 'Language', 'Updated At'])
-  await expect(table.locator('tbody tr').first().locator('td')).toHaveText(['TBEAUVAIS-ENGINE', 'Parametric engine', 'TypeScript', 'Mar 7, 2015'])
+  await expect(table.locator('tbody tr').first().locator('td')).toHaveText(['tbeauvais-engine', 'Parametric engine', 'TypeScript', 'Mar 7, 2015'])
   await expect(table.getByRole('link', { name: 'Parametric engine' })).toHaveAttribute('href', 'https://github.com/tbeauvais/engine')
+  await expect(table.locator('.fd-badge')).toHaveText(['TypeScript', 'Vue'])
+  await expect(table.locator('.fd-table-foot')).toHaveText('2 rows')
   await expect(canvas.locator('[data-feature-id="38"] tbody tr')).toHaveCount(2)
+  const look = await table.evaluate((block) => {
+    const body = block.closest('.fd-panel-body')!
+    const th = block.querySelector('th')!
+    const date = block.querySelector('tbody td:last-child')!
+    return {
+      // The panel holding only this table draws no card of its own: the table is the card.
+      panelBody: [getComputedStyle(body).paddingTop, getComputedStyle(body).borderTopStyle, getComputedStyle(body).boxShadow],
+      tableBorder: getComputedStyle(block).borderTopStyle,
+      // Labels in the body font, not spaced capitals; the header row stays in view while rows scroll.
+      label: [getComputedStyle(th).textTransform, getComputedStyle(th).letterSpacing, getComputedStyle(th).position],
+      date: [getComputedStyle(date).textAlign, getComputedStyle(date).fontVariantNumeric],
+    }
+  })
+  expect(look).toEqual({
+    panelBody: ['0px', 'none', 'none'],
+    tableBorder: 'solid',
+    label: ['none', 'normal', 'sticky'],
+    date: ['right', 'tabular-nums'],
+  })
+
+  // At phone width each row is a small card: no header row, and labelled values.
+  await page.getByTestId('canvas-width-phone').click()
+  await expect(table.locator('thead')).toHaveCSS('position', 'absolute')
+  await expect(table.locator('tbody tr').first()).toHaveCSS('display', 'block')
+  const label = await table.locator('tbody td').nth(2).evaluate((td) => getComputedStyle(td, '::before').content)
+  expect(label).toBe('"Language"')
+  // Badges keep their own width, and a scrolling table shows every row (the page scrolls instead).
+  const badge = table.locator('.fd-badge').first()
+  expect((await badge.boundingBox())!.width).toBeLessThan(120)
+  await expect(table.locator('.fd-table-wrap')).toHaveCSS('max-height', 'none')
+  await page.getByTestId('canvas-width-desktop').click()
 
   // Legacy {{...}} bindings are shown literally, never evaluated, and their long tokens wrap inside the cell.
   await expect(canvas.locator('[data-feature-id="2"]')).toContainText('Temp {{DataResource.WeatherService')

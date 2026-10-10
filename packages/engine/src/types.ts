@@ -56,7 +56,7 @@ export type Tone = (typeof TONES)[number]
 export interface TableColumn {
   field: string
   label: string
-  /** Display filter applied by the renderer, e.g. "uppercase" or "date". */
+  /** Display filter applied by the renderer, e.g. "uppercase", "date", "number" or "badge". */
   filter?: string
 }
 
@@ -103,6 +103,10 @@ export interface NodeKinds {
    */
   placeholder: { feature: string; name: string; status: 'unknown' | 'skipped'; reason: string }
   table: {
+    /** Shown in the table's header with the row count. */
+    title?: string
+    /** Rows shown before the table scrolls (its header stays in view); absent shows every row. */
+    scrollRows?: number
     /** Where rows come from at runtime. Absent when the operation could not be found. */
     source?: { feature: string; resource: string; operation: string; endPoint: string; path?: string }
     columns: TableColumn[]

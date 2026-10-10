@@ -102,6 +102,9 @@ const FONTS: Record<ThemeChoice<'fonts'>, { display: string; body: string; mono:
   system: { display: SYSTEM, body: SYSTEM, mono: SYSTEM_MONO, weight: '650', tracking: '-0.02em' },
 }
 
+/** How many badge tints a theme provides (`--fd-badge-<n>` on `--fd-badge-<n>-bg`). */
+export const BADGE_COUNT = 4
+
 /** Semantic tone hues (OKLCH degrees) and chroma. `primary` and `info` follow the accent instead. */
 const TONE_HUES = { success: [148, 0.13], warning: [70, 0.13], danger: [27, 0.17] } as const
 
@@ -162,6 +165,15 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
   for (const [tone, [h, c]] of Object.entries(TONE_HUES)) {
     vars[`--fd-${tone}-bg`] = toneSoft[tone]!
     vars[`--fd-${tone}`] = ensureContrast(at(dark ? 0.78 : 0.5, c, h), surfaces)
+  }
+
+  // Badges (categories in tables): four tints a quarter-turn of hue apart, starting at the accent, so they differ from
+  // each other whatever the accent is (the status tones can coincide with it). Text reaches 4.5:1 on its own tint.
+  for (let i = 0; i < BADGE_COUNT; i++) {
+    const h = (hue + i * 90) % 360
+    const tint = hex(dark ? at(0.3, 0.05, h) : at(0.93, 0.045, h))
+    vars[`--fd-badge-${i}-bg`] = tint
+    vars[`--fd-badge-${i}`] = ensureContrast(at(dark ? 0.84 : 0.42, 0.12, h), [tint])
   }
 
   // Bands (emphasised wells) get their own set: text on the band colour, whatever scheme the page uses. A mid-lightness

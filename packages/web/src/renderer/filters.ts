@@ -1,13 +1,41 @@
 // Display filters for table cells. Legacy models used AngularJS filter expressions ("uppercase", "date",
 // "dataLink :data.html_url"); this is a small, safe language with the same names: `name` or `name :argument`.
+// Added since: "number" (grouped digits) and "badge" (a tinted chip for categories such as a language).
 
+import { BADGE_COUNT } from '@feature-domain/engine'
 import { safeHref } from './urls'
 
 export interface CellContent {
   text: string
   /** Set when the cell is a link. Only http(s) URLs are ever returned. */
   href?: string
+  /** Set for the badge filter: the cell shows a tinted chip (see `badgeTints` for its colour). */
+  badge?: true
 }
+
+/** How many tints badges cycle through: the theme's badge tints. */
+export const BADGE_TINTS = BADGE_COUNT
+
+/**
+ * A tint for each badge value in a column, in order of first appearance: the first four different values always look
+ * different, and a value keeps its tint in every row. (Hashing the text instead made common pairs like Ruby and Java
+ * collide.) Case and surrounding spaces don't count.
+ */
+export function badgeTints(values: readonly string[]): Map<string, number> {
+  const tints = new Map<string, number>()
+  for (const value of values) {
+    const key = badgeKey(value)
+    if (key !== '' && !tints.has(key)) tints.set(key, tints.size % BADGE_TINTS)
+  }
+  return tints
+}
+
+export const badgeKey = (value: string) => value.trim().toLowerCase()
+
+/** Filters whose cells are figures: right-aligned with tabular digits. */
+export const NUMERIC_FILTERS: readonly string[] = ['number', 'date']
+
+const numberFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
 
 export interface FilterSpec {
   name: string
@@ -47,6 +75,14 @@ export function cellContent(row: unknown, field: string, filter?: string): CellC
     case 'date': {
       const time = typeof value === 'string' || typeof value === 'number' ? new Date(value).getTime() : Number.NaN
       return { text: Number.isNaN(time) ? toText(value) : dateFormat.format(time) }
+    }
+    case 'number': {
+      const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN
+      return { text: Number.isFinite(n) ? numberFormat.format(n) : toText(value) }
+    }
+    case 'badge': {
+      const text = toText(value)
+      return text.trim() === '' ? { text } : { text, badge: true }
     }
     case 'dataLink': {
       const href = safeHref(toText(spec.argument ? getPath(row, spec.argument) : value))
