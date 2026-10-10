@@ -299,7 +299,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
   color: var(--fd-accent);
 }
 /* Check-mark lists (e.g. in cards): no rules between items. */
-.fd-list-check li { border: 0; padding: 0; }
+.fd-list-check li { border: 0; padding: calc(var(--fd-space) * 0.4) 0; }
 .fd-list-check li:last-child { border: 0; }
 .fd-list-check li::before { content: '\2713'; font-family: var(--fd-font-body); font-size: 1em; font-weight: 600; }
 
@@ -371,6 +371,8 @@ h6.fd-heading { font-size: var(--fd-h6); }
   border-top: 1px solid var(--fd-border-subtle);
   font-family: var(--fd-font-display);
   font-size: var(--fd-h4);
+  font-weight: var(--fd-display-weight);
+  letter-spacing: var(--fd-display-tracking);
   color: var(--fd-ink);
 }
 
@@ -424,7 +426,8 @@ h6.fd-heading { font-size: var(--fd-h6); }
  * Cards side by side line up: a cell holding a card becomes a column in which the card stretches, so whatever follows
  * it in the cell (e.g. a button) stays inside the cell. (A card with `height: 100%` pushed it out of the container.)
  */
-.fd-cell:has(> .fd-card) { display: flex; flex-direction: column; }
+/* Only when nothing in the cell relies on normal flow (inline text, floated images), which a column would break. */
+.fd-cell:has(> .fd-card):not(:has(> .fd-text, > .fd-image-left, > .fd-image-right)) { display: flex; flex-direction: column; }
 .fd-cell > .fd-card { flex: 1 1 auto; }
 /* A closing highlight sits at the bottom of the card, so highlights side by side line up too. */
 .fd-card > .fd-paragraph-highlight { margin-top: auto; }
@@ -436,6 +439,10 @@ h6.fd-heading { font-size: var(--fd-h6); }
   box-sizing: border-box;
 }
 .fd-image-empty:not([style*='height']) { aspect-ratio: 4 / 3; }
+/* Never collapse to nothing (a floated frame with no size would shrink to its border). */
+.fd-image-empty { min-width: 6rem; min-height: 4.5rem; }
+/* Beside text, images are square; an empty one is too, so adding a picture doesn't shift the layout. */
+.fd-media > .fd-image-empty { aspect-ratio: 1 / 1; min-height: 0; }
 
 /* Editor-only placeholders for features that produced nothing; themed so they read on light and dark pages. */
 .fd-placeholder {

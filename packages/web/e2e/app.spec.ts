@@ -126,39 +126,48 @@ const hasTailwindReset = (target: Page) =>
     [...document.styleSheets].some((sheet) => [...sheet.cssRules].some((rule) => rule.cssText.includes('::file-selector-button'))),
   )
 
-test('renders generated pages identically in the editor and the preview', async ({ page, context }) => {
-  const id = await openSample(page, 'Data Sample')
+/** Waits until a sample's generated page has settled (data loaded, cards rendered). */
+const SAMPLES: { name: string; ready: (target: Page) => Promise<void> }[] = [
+  { name: 'Data Sample', ready: (target) => expect(target.locator('[data-feature-id="24"] tbody tr')).toHaveCount(2) },
+  // Cards, check lists, buttons and an image beside text (Buy Deal has no placeholders other than its maps).
+  { name: 'Buy Deal', ready: (target) => expect(target.locator('.fd-card')).toHaveCount(3) },
+]
 
-  const editor = await context.newPage()
-  await editor.goto(`/models/${encodeURIComponent(id)}`)
-  await expect(editor.locator('[data-feature-id="24"] tbody tr')).toHaveCount(2)
-  expect(await hasTailwindReset(editor)).toBe(true)
-  // Generated pages size themselves from the document's width (container queries), so render the preview's document
-  // at exactly the editor canvas's width.
-  const width = await editor.locator('.fd-root').evaluate((el) => el.getBoundingClientRect().width)
+for (const sample of SAMPLES) {
+  test(`renders ${sample.name} identically in the editor and the preview`, async ({ page, context }) => {
+    const id = await openSample(page, sample.name)
 
-  await page.goto(`/preview.html?model=${encodeURIComponent(id)}`)
-  await expect(page.locator('[data-feature-id="24"] tbody tr')).toHaveCount(2)
-  await page.locator('#app').evaluate((el, w) => ((el as HTMLElement).style.width = `${w}px`), width)
-  expect(await page.locator('.fd-root').evaluate((el) => el.getBoundingClientRect().width)).toBe(width)
-  expect(await hasTailwindReset(page)).toBe(false)
-  const inPreview = await measureDocument(page)
+    const editor = await context.newPage()
+    await editor.goto(`/models/${encodeURIComponent(id)}`)
+    await sample.ready(editor)
+    expect(await hasTailwindReset(editor)).toBe(true)
+    // Generated pages size themselves from the document's width (container queries), so render the preview's
+    // document at exactly the editor canvas's width.
+    const width = await editor.locator('.fd-root').evaluate((el) => el.getBoundingClientRect().width)
 
-  expect(inPreview.length).toBeGreaterThan(40)
-  expect(Object.keys(inPreview[0]!.values).length).toBeGreaterThan(200)
-  const inEditor = await measureDocument(editor)
-  // The exclusions stay narrow: only the editor's drag behaviour (no empty slots in this sample).
-  expect(new Set(inEditor.flatMap((e) => e.editorOnly))).toEqual(new Set(['user-select', '-webkit-user-select', '-webkit-user-drag']))
-  const first = comparable(inPreview, inEditor)
-  expect(first.editor).toEqual(first.preview)
+    await page.goto(`/preview.html?model=${encodeURIComponent(id)}`)
+    await sample.ready(page)
+    await page.locator('#app').evaluate((el, w) => ((el as HTMLElement).style.width = `${w}px`), width)
+    expect(await page.locator('.fd-root').evaluate((el) => el.getBoundingClientRect().width)).toBe(width)
+    expect(await hasTailwindReset(page)).toBe(false)
+    const inPreview = await measureDocument(page)
 
-  // Utility classes on the editor's canvas wrapper must not leak into the generated page either.
-  await editor
-    .getByTestId('canvas')
-    .evaluate((el) => el.classList.add('uppercase', 'italic', 'tracking-widest', 'whitespace-nowrap', 'select-none', 'cursor-pointer', 'text-red-500', 'leading-loose', 'text-right'))
-  const second = comparable(inPreview, await measureDocument(editor))
-  expect(second.editor).toEqual(second.preview)
-})
+    expect(inPreview.length).toBeGreaterThan(40)
+    expect(Object.keys(inPreview[0]!.values).length).toBeGreaterThan(200)
+    const inEditor = await measureDocument(editor)
+    // The exclusions stay narrow: only the editor's drag behaviour (no empty slots in these samples).
+    expect(new Set(inEditor.flatMap((e) => e.editorOnly))).toEqual(new Set(['user-select', '-webkit-user-select', '-webkit-user-drag']))
+    const first = comparable(inPreview, inEditor)
+    expect(first.editor).toEqual(first.preview)
+
+    // Utility classes on the editor's canvas wrapper must not leak into the generated page either.
+    await editor
+      .getByTestId('canvas')
+      .evaluate((el) => el.classList.add('uppercase', 'italic', 'tracking-widest', 'whitespace-nowrap', 'select-none', 'cursor-pointer', 'text-red-500', 'leading-loose', 'text-right'))
+    const second = comparable(inPreview, await measureDocument(editor))
+    expect(second.editor).toEqual(second.preview)
+  })
+}
 
 test('shows an error, not a blank page, for a malformed stored model', async ({ page }) => {
   await page.goto('/')
@@ -187,6 +196,10 @@ test('cards and the buttons under them stay inside their container, and cards si
   const canvas = page.getByTestId('canvas')
   const cards = canvas.locator('.fd-card')
   await expect(cards).toHaveCount(3)
+  // Make one card much longer than the others, so equal heights mean the layout stretched them.
+  await canvas.locator('[data-feature-id="28"] h4').click()
+  await page.getByTestId('inspector').getByLabel('Description').fill('A much longer description. '.repeat(12))
+  await expect(canvas.locator('[data-feature-id="28"] .fd-paragraph-muted')).toContainText('much longer')
   const well = canvas.locator('.fd-well:has(.fd-card)')
   const wellBox = (await well.boundingBox())!
   const boxes = await Promise.all((await canvas.locator('.fd-well .fd-card, .fd-well .fd-button').all()).map((el) => el.boundingBox()))

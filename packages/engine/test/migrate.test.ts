@@ -370,12 +370,24 @@ describe('migrate: text and image with paragraph, list group', () => {
     expect(notes(r)).toEqual(['dropped-style:10'])
   })
 
+  it('drops the panel styling and the unused price, with notes', () => {
+    const r = run(legacyPage, {
+      feature: 'ListGroupFeature',
+      id: '28',
+      inputs: { name: 'bronze', heading: 'Bronze', list: 'A,$1', price: '25.99', style: 'panel-warning', align: 'center-block', ...loc('#page_container') },
+    })
+    expect(r.notes.filter((n) => n.featureInstanceId === '28').map((n) => [n.code, n.message])).toEqual([
+      ['dropped-style', 'Dropped legacy list group styling (style "panel-warning", align "center-block"); it uses our own defaults and the theme'],
+      ['dropped-input', 'Dropped price "25.99", which the legacy app never showed'],
+    ])
+  })
+
   it('splits the comma list, taking the last item as the highlight (as the legacy app showed it large)', () => {
     const group = (id: string, list: string) => ({ feature: 'ListGroupFeature', id, inputs: { name: 'g', heading: 'Gold', description: 'Best', list, ...loc('#page_container') } })
     const r = run(legacyPage, group('1', 'A, B,\n  \n $9/Month\n'), group('2', 'Only one'), group('3', ''))
     expect(['1', '2', '3'].map((id) => [feature(r, id).inputs.items, feature(r, id).inputs.highlight])).toEqual([
       [['A', 'B'], '$9/Month'],
-      [['Only one'], ''],
+      [[], 'Only one'],
       [[], ''],
     ])
   })

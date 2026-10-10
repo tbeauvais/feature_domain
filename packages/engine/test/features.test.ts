@@ -327,6 +327,8 @@ describe('TextWithParagraphFeature and ImageWithParagraphFeature', () => {
       ],
     })
     expect(run(TextWithParagraphFeature, { title: '', text: '' }).out.node?.children).toEqual([])
+    // Windows line endings split the same way.
+    expect(run(TextWithParagraphFeature, { title: '', text: 'One\r\n\r\nTwo\r\nmore' }).out.node?.children.map((c) => c.props)).toEqual([{ text: 'One' }, { text: 'Two\r\nmore' }])
   })
 
   it('put the image beside a body stack, on the chosen side', () => {

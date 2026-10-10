@@ -17,6 +17,7 @@ export type MigrationNoteCode =
   | 'data-binding'
   | 'upgraded-feature'
   | 'dropped-style'
+  | 'dropped-input'
 
 export interface MigrationNote {
   code: MigrationNoteCode
@@ -256,12 +257,13 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
   // The legacy list was one comma-separated string whose last item was shown large (the price in the samples).
   ListGroupFeature: (i, ctx) => {
     dropLegacyLooks(i, ['style', 'align'], 'list group', ctx)
-    if (str(i.price).trim() !== '') ctx.note('invalid-value', 'info', `Dropped price "${str(i.price)}", which the legacy app never showed`)
+    if (str(i.price).trim() !== '') ctx.note('dropped-input', 'info', `Dropped price "${str(i.price)}", which the legacy app never showed`)
     const items = str(i.list)
       .split(',')
       .map((item) => item.trim())
       .filter((item) => item !== '')
-    const highlight = items.length > 1 ? items.pop()! : ''
+    // The legacy app showed the last item large, even when it was the only one.
+    const highlight = items.pop() ?? ''
     return { name: str(i.name), disable: disable(i.disable, ctx), heading: text(i.heading, ctx), description: text(i.description, ctx), items, highlight }
   },
 
