@@ -1,4 +1,4 @@
-import { ModelNotFoundError, type AppModel, type ModelStore, type ModelSummary } from '@feature-domain/engine'
+import { ModelNotFoundError, validateModel, type AppModel, type ModelStore, type ModelSummary } from '@feature-domain/engine'
 
 /** The storage key holding all models; other tabs watch it (the `storage` event) to pick up saves. */
 export const MODELS_KEY = 'feature-domain:models'
@@ -66,7 +66,8 @@ export class BrowserModelStore implements ModelStore {
   /**
    * Brings storage seeded with older samples up to `version`, once: `upgrade` sees every stored model (the samples'
    * ids are not recorded, so it must change only what it recognises) and returns the same object to leave one alone.
-   * Does nothing before the first seeding, which seeds current samples.
+   * Does nothing before the first seeding, which seeds current samples. Never throws: invalid models are left alone
+   * (loading one shows its problems in the editor), and a failed upgrade of one model doesn't stop the others.
    */
   async upgradeSeeded(version: number, upgrade: (model: AppModel) => AppModel): Promise<void> {
     if (this.storage.getItem(SEEDED_KEY) === null) return
@@ -75,9 +76,13 @@ export class BrowserModelStore implements ModelStore {
     const { order, models } = this.read()
     for (const id of order) {
       const model = models[id]
-      if (!model) continue
-      const next = upgrade(model)
-      if (next !== model) await this.update(id, next)
+      if (!model || validateModel(model).length > 0) continue
+      try {
+        const next = upgrade(model)
+        if (next !== model) await this.update(id, next)
+      } catch (error) {
+        console.warn(`Could not upgrade stored model ${id}`, error)
+      }
     }
     this.storage.setItem(SAMPLES_VERSION_KEY, String(version))
   }

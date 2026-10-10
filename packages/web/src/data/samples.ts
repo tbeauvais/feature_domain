@@ -23,16 +23,19 @@ const LEGACY_HEADERS: Readonly<Record<string, IllustrationId>> = {
  * Link restores it. Returns the same object when nothing changes.
  */
 export function upgradeSample(model: AppModel): AppModel {
+  if (!Array.isArray(model.features)) return model
   let changed = false
   const features = model.features.map((f) => {
-    const banner = typeof f.inputs.src === 'string' ? LEGACY_HEADERS[f.inputs.src] : undefined
-    if (f.feature !== 'ImageFeature' || banner === undefined) return f
+    if (f?.feature !== 'ImageFeature' || typeof f.inputs !== 'object' || f.inputs === null) return f
+    const src = f.inputs.src
+    const banner = typeof src === 'string' && Object.hasOwn(LEGACY_HEADERS, src) ? LEGACY_HEADERS[src] : undefined
+    if (banner === undefined) return f
     if (f.inputs.source !== 'illustration') {
       changed = true
       return { ...f, inputs: { ...f.inputs, source: 'illustration', illustration: banner, banner_height: 'short', responsive: true, alt: '' } }
     }
     // Upgraded to a banner before heights existed (version 2): make it short, keeping the illustration chosen.
-    if (f.inputs.banner_height === undefined) {
+    if (f.inputs.banner_height === undefined && typeof f.inputs.illustration === 'string' && f.inputs.illustration.startsWith('banner/')) {
       changed = true
       return { ...f, inputs: { ...f.inputs, banner_height: 'short' } }
     }

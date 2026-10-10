@@ -78,6 +78,12 @@ describe('InputField choices drawn as buttons', () => {
     expect(lastChange(w)).toBe('illustration')
   })
 
+  it('says when the stored value is none of the options', () => {
+    const w = mount(InputField, { props: { def: def({ name: 'source', label: 'Source', type: 'string', control: 'segmented', options }), value: 'url' } })
+    expect(w.text()).toContain('Missing: url')
+    expect(w.findAll('[aria-pressed="true"]')).toHaveLength(0)
+  })
+
   it('shows the illustration gallery with real drawings in the given theme, grouped by kind', async () => {
     const gallery = def({ name: 'illustration', label: 'Illustration', type: 'string', control: 'illustration-gallery', options: [
       { value: 'banner/blueprint', text: 'Blueprint' },

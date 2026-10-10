@@ -34,6 +34,12 @@ describe('illustration drawings', () => {
     for (const [, target] of html.matchAll(/url\(([^)]*)\)/g)) expect(target).toMatch(/^&quot;?#fd-|^#fd-/)
   })
 
+  it('the dots divider keeps its dots whole while its hairlines reach both edges of the separator', () => {
+    const svg = mount(illustrationComponents['divider/dots']).get('svg')
+    expect(svg.attributes('style')).toContain('overflow: visible')
+    expect(svg.get('path').attributes('d')).toMatch(/^M-\d+ 24 H\d+ M\d+ 24 H\d+$/)
+  })
+
   it('sources bind no event handlers and load nothing', () => {
     for (const { file, text } of sources) {
       expect(text, file).not.toMatch(/\s(@|v-on:)\w+/)
@@ -47,6 +53,12 @@ describe('illustration drawings', () => {
       for (const [, name] of text.matchAll(/var\((--[\w-]+)\)/g)) expect(emitted, `${file}: ${name}`).toContain(name)
       // Colours never hard-coded: every fill and stroke is a token, the current colour, a pattern or none.
       for (const [, value] of text.matchAll(/\s(?:fill|stroke)="([^"]*)"/g)) expect(['none', 'currentColor'], file).toContain(value)
+      for (const [, style] of text.matchAll(/\sstyle="([^"]*)"/g)) {
+        for (const declaration of (style ?? '').split(';')) {
+          const [property, value] = declaration.split(':').map((part) => part.trim())
+          if (property === 'fill' || property === 'stroke') expect(value, `${file}: ${declaration}`).toMatch(/^(var\(--fd-[\w-]+\)|currentColor|none)$/)
+        }
+      }
     }
   })
 

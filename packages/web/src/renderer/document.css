@@ -329,6 +329,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
 /* Divider illustrations draw in the current colour: the feature's colour, else the accent. */
 .fd-separator-divider {
   height: auto;
+  overflow: hidden;
   border-radius: 0;
   background: none;
   color: var(--fd-accent-solid);

@@ -64,6 +64,9 @@ function settle() {
     <span v-if="grouped" :id="`${id}-label`" class="block text-xs font-medium text-slate-600">{{ def.label }}</span>
     <label v-else-if="def.type !== 'boolean'" :for="id" class="block text-xs font-medium text-slate-600">{{ def.label }}</label>
 
+    <p v-if="grouped && def.control === 'segmented' && !def.options!.some((o) => o.value === text)" class="text-xs text-amber-700">
+      Missing: {{ text || '(none)' }}. Pick one below.
+    </p>
     <div v-if="grouped && def.control === 'segmented'" role="group" :aria-labelledby="`${id}-label`" class="flex overflow-hidden rounded-md border border-slate-300">
       <button
         v-for="option in def.options"

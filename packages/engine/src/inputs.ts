@@ -22,7 +22,8 @@ export interface InputDef {
   initial?: InputValue
   /**
    * Show the input in the editor only while other inputs have these values (e.g. the image address for Source = Link).
-   * Every condition must hold; `equals` may list several values, any of which matches.
+   * Every condition must hold; `equals` may list several values, any of which matches, and `notEquals` matches any
+   * other value (so an unrecognised stored value still shows what generation falls back to).
    */
   showWhen?: ShowCondition | readonly ShowCondition[]
   options?: InputOption[]
@@ -41,10 +42,7 @@ export interface InputDef {
   soft?: boolean
 }
 
-export interface ShowCondition {
-  input: string
-  equals: InputValue | readonly InputValue[]
-}
+export type ShowCondition = { input: string } & ({ equals: InputValue | readonly InputValue[] } | { notEquals: InputValue })
 
 /** A input's `showWhen` as a list of conditions. */
 export function showConditions(def: InputDef): readonly ShowCondition[] {
@@ -78,8 +76,10 @@ export function isInputShown(def: InputDef, defs: readonly InputDef[], stored: I
   const conditions = showConditions(def)
   if (conditions.length === 0) return true
   const values = resolveInputs(defs, stored)
-  return conditions.every(({ input, equals }) => {
-    const value = values[input]
+  return conditions.every((condition) => {
+    const value = values[condition.input]
+    if ('notEquals' in condition) return value !== condition.notEquals
+    const { equals } = condition
     return Array.isArray(equals) ? (equals as readonly InputValue[]).some((e) => e === value) : equals === value
   })
 }

@@ -170,7 +170,10 @@ describe('ImageFeature', () => {
     expect(run(ImageFeature).out.node?.props).toMatchObject({ aspect: 4 })
     expect(run(ImageFeature, { banner_height: 'short' }).out.node?.props).toMatchObject({ aspect: 6 })
     expect(run(ImageFeature, { banner_height: 'tall' }).out.node?.props).toMatchObject({ aspect: 16 / 5 })
-    expect(run(ImageFeature, { banner_height: 'huge' }).out.node?.props).toMatchObject({ aspect: BANNER_HEIGHTS.medium })
+    for (const banner_height of ['huge', 'constructor', '__proto__', 'toString']) {
+      const props = run(ImageFeature, { banner_height }).out.node?.props as { aspect?: unknown }
+      expect(props.aspect, banner_height).toBe(BANNER_HEIGHTS.medium)
+    }
     expect(run(ImageFeature, { illustration: 'spot/map', banner_height: 'short' }).out.node?.props).not.toHaveProperty('aspect')
   })
 
@@ -179,6 +182,13 @@ describe('ImageFeature', () => {
     expect(isInputShown(height, ImageFeature.inputs, { source: 'illustration', illustration: 'banner/shapes' })).toBe(true)
     expect(isInputShown(height, ImageFeature.inputs, { source: 'illustration', illustration: 'spot/map' })).toBe(false)
     expect(isInputShown(height, ImageFeature.inputs, { source: 'link', illustration: 'banner/shapes' })).toBe(false)
+  })
+
+  it('treats an unrecognised Source as a link, and shows the address for it', () => {
+    expect(runStored(ImageFeature, { source: 'url', src: 'x.jpg' }).out.node).toMatchObject({ kind: 'image', props: { src: 'x.jpg' } })
+    const src = ImageFeature.inputs.find((i) => i.name === 'src')!
+    expect(isInputShown(src, ImageFeature.inputs, { source: 'url' })).toBe(true)
+    expect(isInputShown(src, ImageFeature.inputs, { source: 'illustration' })).toBe(false)
   })
 
   it('warns about unknown illustrations and dividers, and still generates (the renderer shows an empty frame)', () => {

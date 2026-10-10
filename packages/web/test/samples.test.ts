@@ -1,4 +1,4 @@
-import { generate, walkNodes, type DocNode } from '@feature-domain/engine'
+import { generate, walkNodes, type AppModel, type DocNode } from '@feature-domain/engine'
 import { describe, expect, it } from 'vitest'
 import { sampleModels, upgradeSample } from '../src/data/samples'
 import { inst, model, page } from './helpers'
@@ -43,14 +43,22 @@ describe('upgradeSample', () => {
   })
 
   it('makes banners from the first upgrade short, keeping the illustration chosen', () => {
-    const upgraded = upgradeSample(model(page(), inst('ImageFeature', 'i', { src: header, source: 'illustration', illustration: 'spot/map' })))
-    expect(upgraded.features[1]!.inputs).toMatchObject({ illustration: 'spot/map', banner_height: 'short' })
+    const upgraded = upgradeSample(model(page(), inst('ImageFeature', 'i', { src: header, source: 'illustration', illustration: 'banner/shapes' })))
+    expect(upgraded.features[1]!.inputs).toMatchObject({ illustration: 'banner/shapes', banner_height: 'short' })
+  })
+
+  it('leaves malformed models and features alone instead of throwing', () => {
+    const noFeatures = { version: 2, name: 'x' } as unknown as AppModel
+    expect(upgradeSample(noFeatures)).toBe(noFeatures)
+    const odd = { version: 2, name: 'x', features: [null, { feature: 'ImageFeature', id: '1' }, { feature: 'ImageFeature', id: '2', inputs: { src: 'constructor' } }] } as unknown as AppModel
+    expect(upgradeSample(odd)).toBe(odd)
   })
 
   it('returns the same model when there is nothing to change, including images already switched or chosen by the user', () => {
     for (const m of [
       model(page(), inst('ImageFeature', 'i', { src: 'https://example.com/mine.jpg' })),
       model(page(), inst('ImageFeature', 'i', { src: header, source: 'illustration', illustration: 'spot/map', banner_height: 'tall' })),
+      model(page(), inst('ImageFeature', 'i', { src: header, source: 'illustration', illustration: 'spot/map' })),
       model(page(), inst('TextFeature', 't', { src: header })),
     ]) {
       expect(upgradeSample(m)).toBe(m)

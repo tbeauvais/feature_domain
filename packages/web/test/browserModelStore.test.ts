@@ -44,6 +44,27 @@ describe('BrowserModelStore', () => {
     expect(upgrade).not.toHaveBeenCalled()
   })
 
+  it('never fails the upgrade over a bad model: invalid ones are skipped, a failing upgrade is logged, the rest go on', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const storage = new MemoryStorage()
+    const store = new BrowserModelStore(storage, counterIds())
+    await store.seedOnce([{ ...model(page()), name: 'Broken' }, { ...model(page()), name: 'Throws' }, { ...model(page()), name: 'Old' }])
+    const stored = JSON.parse(storage.getItem('feature-domain:models')!)
+    stored.models['id-1'].features = [{ id: '1' }]
+    storage.setItem('feature-domain:models', JSON.stringify(stored))
+    const upgrade = vi.fn((m: AppModel) => {
+      if (m.name === 'Throws') throw new Error('boom')
+      return m.name === 'Old' ? { ...m, name: 'New' } : m
+    })
+    await expect(store.upgradeSeeded(2, upgrade)).resolves.toBeUndefined()
+    expect(upgrade.mock.calls.map(([m]) => m.name)).toEqual(['Throws', 'Old'])
+    expect((await store.list()).map((m) => m.name)).toEqual(['Broken', 'Throws', 'New'])
+    expect(warn).toHaveBeenCalledWith('Could not upgrade stored model id-2', expect.any(Error))
+    upgrade.mockClear()
+    await store.upgradeSeeded(2, upgrade)
+    expect(upgrade).not.toHaveBeenCalled()
+  })
+
   it('records the samples version when seeding, so fresh samples are not upgraded again', async () => {
     const store = new BrowserModelStore(new MemoryStorage(), counterIds())
     const upgrade = vi.fn((m: AppModel) => m)

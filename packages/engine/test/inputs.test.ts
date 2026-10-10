@@ -63,6 +63,14 @@ describe('isInputShown', () => {
     expect(isInputShown(both, all, { source: 'link', kind: 'a' })).toBe(false)
   })
 
+  it('matches any other value with notEquals', () => {
+    const other: InputDef = { name: 'o', label: 'O', type: 'string', control: 'text-input', showWhen: { input: 'source', notEquals: 'illustration' } }
+    const all = [...shown, other]
+    expect(isInputShown(other, all, { source: 'link' })).toBe(true)
+    expect(isInputShown(other, all, { source: 'something-new' })).toBe(true)
+    expect(isInputShown(other, all, { source: 'illustration' })).toBe(false)
+  })
+
   it('reads an absent controlling input as its default', () => {
     expect(isInputShown(shown[1]!, shown, {})).toBe(true)
   })

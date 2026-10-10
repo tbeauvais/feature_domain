@@ -38,7 +38,7 @@ describe('DocumentView', () => {
     expect(cell.get('[data-feature-id="t"]').text()).toBe('In a cell')
 
     const panel = w.get('[data-feature-id="p"]')
-    expect(panel.classes()).toContain('fd-panel-info')
+    expect(panel.classes()).toEqual(['fd-panel'])
     expect(panel.get('.fd-panel-heading').text()).toBe('Panel')
     expect(panel.get('[data-node-id="p.body"]').attributes('data-slot-parent')).toBe('p')
   })
