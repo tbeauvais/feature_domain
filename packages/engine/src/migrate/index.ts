@@ -1,6 +1,6 @@
 import { cellSlot, MAX_COLUMNS, MAX_ROWS } from '../features/container.js'
 import { DATA_RESOURCE_TYPES, HTTP_METHODS, httpMethod, operationName } from '../features/data-resource.js'
-import { ROOT_ID, ROOT_SLOT, type AppModel, type FeatureInstance, type InputValue, type Placement } from '../types.js'
+import { ROOT_ID, ROOT_SLOT, type AppModel, type FeatureInstance, type InputValue, type Placement, type Tone } from '../types.js'
 import { legacyDomId, legacyGrid, normalizeAlign, normalizeTarget, normalizeTone } from './legacy.js'
 
 export type MigrationNoteCode =
@@ -17,6 +17,7 @@ export type MigrationNoteCode =
   | 'data-binding'
   | 'upgraded-feature'
   | 'dropped-style'
+  | 'mapped-style'
   | 'dropped-input'
 
 export interface MigrationNote {
@@ -148,9 +149,49 @@ function notePageColours(inputs: Raw, note: Context['note']): void {
   }
 }
 
-/** A v2 Page saved before page colours were dropped: it still carries them, though nothing renders them. */
-function hasLegacyPageColours(f: FeatureInstance): boolean {
-  return f.feature === 'PageFeature' && LEGACY_PAGE_COLOURS.some((name) => name in f.inputs)
+/**
+ * Header looks: Bootstrap's tones become our own options. Primary and info were the accent; success, warning and danger
+ * become the accent too (status colours are kept for status, not decoration), and any tinted background becomes a tint.
+ */
+function headerLooks(textStyle: unknown, background: unknown, note: Context['note']): { colour: string; background: string } {
+  const text = normalizeTone(textStyle)
+  const fill = normalizeTone(background)
+  const status = (tone: Tone | undefined) => tone === 'success' || tone === 'warning' || tone === 'danger'
+  if (status(text)) note('mapped-style', 'info', `Header text style "${text}" is now the accent colour; status colours are kept for status`)
+  if (status(fill)) note('mapped-style', 'info', `Header background "${fill}" is now the accent tint; status colours are kept for status`)
+  return { colour: text === undefined ? 'ink' : text === 'muted' ? 'muted' : 'accent', background: fill === undefined ? 'none' : 'tint' }
+}
+
+function without(inputs: Raw, names: readonly string[]): Record<string, InputValue> {
+  return Object.fromEntries(Object.entries(inputs).filter(([name]) => !names.includes(name))) as Record<string, InputValue>
+}
+
+/**
+ * Upgrades for v2 features saved before an input changed shape. Each returns the new inputs, or undefined when the
+ * instance is already current, so a model with nothing to upgrade stays the same object.
+ */
+const INPUT_UPGRADES: Record<string, (inputs: Raw, note: Context['note']) => Record<string, InputValue> | undefined> = {
+  // Saved before page colours were dropped: they still carry them, though nothing renders them.
+  PageFeature: (i, note) => {
+    if (!LEGACY_PAGE_COLOURS.some((name) => name in i)) return undefined
+    notePageColours(i, note)
+    return without(i, LEGACY_PAGE_COLOURS)
+  },
+  // Saved with Bootstrap tones (text_style, and background as a tone).
+  HeaderFeature: (i, note) => {
+    if (!('text_style' in i) && normalizeTone(i.background) === undefined) return undefined
+    return { ...without(i, ['text_style', 'background']), ...headerLooks(i.text_style, i.background, note) }
+  },
+  // Saved with a Bootstrap panel style, which renders nothing now.
+  PanelFeature: (i, note) => {
+    if (!('style' in i)) return undefined
+    if (str(i.style).trim() !== '') note('dropped-style', 'info', `Dropped legacy panel style "${str(i.style)}"; panels have an Emphasis instead`)
+    return without(i, ['style'])
+  },
+}
+
+function upgradeInputs(f: FeatureInstance, note: Context['note']): Record<string, InputValue> | undefined {
+  return Object.hasOwn(INPUT_UPGRADES, f.feature) ? INPUT_UPGRADES[f.feature]!(f.inputs as Raw, note) : undefined
 }
 
 /** The legacy instance kept for a feature that was unported when migrated, if its type can be migrated now. */
@@ -160,7 +201,7 @@ function pendingLegacy(f: FeatureInstance): Raw | undefined {
 }
 
 function upgrade(model: AppModel): MigrationResult {
-  if (!model.features.some((f) => pendingLegacy(f) || hasLegacyPageColours(f))) return { model, notes: [] }
+  if (!model.features.some((f) => pendingLegacy(f) || upgradeInputs(f, () => {}))) return { model, notes: [] }
   const notes: MigrationNote[] = []
   const legacyInputs = (f: FeatureInstance): Raw => {
     const raw = pendingLegacy(f)?.inputs
@@ -181,10 +222,8 @@ function upgrade(model: AppModel): MigrationResult {
     const legacy = pendingLegacy(f)
     const note = (code: MigrationNoteCode, severity: MigrationNote['severity'], message: string) => notes.push({ code, severity, message, featureInstanceId: f.id })
     if (!legacy) {
-      if (!hasLegacyPageColours(f)) return f
-      notePageColours(f.inputs as Raw, note)
-      const inputs = Object.fromEntries(Object.entries(f.inputs).filter(([name]) => !(LEGACY_PAGE_COLOURS as readonly string[]).includes(name)))
-      return { ...f, inputs }
+      const inputs = upgradeInputs(f, note)
+      return inputs ? { ...f, inputs } : f
     }
     const ctx: Context = { note, resourceId: (name) => resources.get(name), resourceOperations: (rid) => operations.get(rid) }
     const out: FeatureInstance = { feature: f.feature, id: f.id, inputs: INPUTS[f.feature]!(legacyInputs(f), ctx) }
@@ -215,8 +254,7 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     text: text(i.text, ctx),
     size: int(i.size, 'size', 1, ctx),
     align: normalizeAlign(i.align, 'left'),
-    text_style: normalizeTone(i.text_style) ?? '',
-    background: normalizeTone(i.background) ?? '',
+    ...headerLooks(i.text_style, i.background, ctx.note),
   }),
 
   ImageFeature: (i, ctx) => ({
@@ -292,12 +330,11 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     align: normalizeAlign(i.align, 'left'),
   }),
 
-  PanelFeature: (i, ctx) => ({
-    name: str(i.name),
-    disable: disable(i.disable, ctx),
-    style: normalizeTone(i.style) ?? '',
-    heading: text(i.heading, ctx),
-  }),
+  // Legacy looks are not carried over: a panel's Bootstrap style is dropped, and it takes the normal emphasis.
+  PanelFeature: (i, ctx) => {
+    dropLegacyLooks(i, ['style'], 'panel', ctx)
+    return { name: str(i.name), disable: disable(i.disable, ctx), heading: text(i.heading, ctx) }
+  },
 
   DataResourceFeature: (i) => ({ name: str(i.name), resource: str(i.resource), operation: httpMethod(str(i.operation)) }),
 

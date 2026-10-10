@@ -83,8 +83,12 @@
   padding: calc(var(--fd-space) * 6) max(clamp(16px, 4cqi, calc(var(--fd-space) * 5)), (100% - 1120px) / 2) calc(var(--fd-space) * 10);
 }
 
+/* A Text feature is a paragraph of its own (the legacy app ran neighbouring texts and links together on one line). */
 .fd-text {
-  display: inline;
+  display: block;
+  margin: 0 0 calc(var(--fd-space) * 1.5);
+  max-width: 68ch;
+  color: var(--fd-text);
 }
 
 /* Headings: display face; sizes follow the theme's modular scale. */
@@ -108,27 +112,21 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-align-center { text-align: center; }
 .fd-align-right { text-align: right; }
 
-.fd-tone-muted { color: var(--fd-muted); }
-.fd-tone-primary { color: var(--fd-primary); }
-.fd-tone-success { color: var(--fd-success); }
-.fd-tone-info { color: var(--fd-info); }
-.fd-tone-warning { color: var(--fd-warning); }
-.fd-tone-danger { color: var(--fd-danger); }
-
-.fd-bg-primary,
-.fd-bg-success,
-.fd-bg-info,
-.fd-bg-warning,
-.fd-bg-danger {
-  padding: calc(var(--fd-space) * 2) calc(var(--fd-space) * 3);
+/*
+ * Header colour (ink is the default) and background. Text colours reach 4.5:1 on the page, cards, wells and the accent
+ * tint; on the band they switch to the band's own set.
+ */
+.fd-heading.fd-colour-accent { color: var(--fd-accent); }
+.fd-heading.fd-colour-muted { color: var(--fd-muted); }
+.fd-heading.fd-bg-tint,
+.fd-heading.fd-bg-band {
+  padding: calc(var(--fd-space) * 2.5) calc(var(--fd-space) * 3);
   border-radius: var(--fd-radius-lg);
 }
-.fd-bg-primary { background: var(--fd-primary-bg); }
-.fd-bg-primary.fd-heading { color: var(--fd-primary-on); }
-.fd-bg-success { background: var(--fd-success-bg); }
-.fd-bg-info { background: var(--fd-info-bg); }
-.fd-bg-warning { background: var(--fd-warning-bg); }
-.fd-bg-danger { background: var(--fd-danger-bg); }
+.fd-heading.fd-bg-tint { background: var(--fd-accent-soft); }
+.fd-heading.fd-bg-band { background: var(--fd-band); color: var(--fd-band-ink); }
+.fd-heading.fd-bg-band.fd-colour-accent { color: var(--fd-band-accent); }
+.fd-heading.fd-bg-band.fd-colour-muted { color: var(--fd-band-muted); }
 
 /* Images (legacy pull-left / center-block / pull-right) */
 .fd-image { vertical-align: middle; border-radius: var(--fd-radius-lg); }
@@ -147,6 +145,8 @@ h6.fd-heading { font-size: var(--fd-h6); }
   display: block;
   min-width: 0;
 }
+/* A container with nothing in it (e.g. only features that aren't ported yet) adds no space below. */
+.fd-grid:not(:has(> .fd-cell:not(:empty))) { margin-bottom: 0; }
 /* On phone-width documents, container columns stack in reading order (row by row). Overrides the inline placement. */
 @container fd-document (max-width: 520px) {
   .fd-grid { grid-template-columns: minmax(0, 1fr) !important; }
@@ -215,6 +215,13 @@ h6.fd-heading { font-size: var(--fd-h6); }
   border-radius: var(--fd-radius-lg);
   box-shadow: var(--fd-shadow);
 }
+/* A panel with nothing in it (e.g. only features that aren't ported yet) draws no empty card. */
+.fd-panel[data-fd-panel='card'] > .fd-panel-body:empty {
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
 /* A panel holding only a table: the table is the card. */
 .fd-panel[data-fd-panel='card'] > .fd-panel-body:has(> .fd-table-block:only-child) {
   padding: 0;
@@ -225,6 +232,26 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-panel[data-fd-panel='bare'] > .fd-panel-body {
   padding: calc(var(--fd-space) * 1.5) 0;
   border-top: 1px solid var(--fd-border);
+}
+/* Emphasis (the panel's own choice, beside the theme's card or bare look): highlight is accent-tinted, quiet recedes. */
+.fd-panel[data-fd-emphasis='highlight'] > .fd-panel-heading h4 { color: var(--fd-accent); }
+.fd-panel[data-fd-emphasis='highlight'][data-fd-panel='card'] > .fd-panel-body {
+  background: var(--fd-accent-soft);
+  border-color: color-mix(in oklab, var(--fd-accent-solid) 30%, var(--fd-accent-soft));
+}
+.fd-panel[data-fd-emphasis='highlight'][data-fd-panel='bare'] > .fd-panel-body { border-top-color: var(--fd-accent-solid); }
+.fd-panel[data-fd-emphasis='quiet'] > .fd-panel-heading { margin-bottom: var(--fd-space); }
+.fd-panel[data-fd-emphasis='quiet'] > .fd-panel-heading h4 {
+  font-family: var(--fd-font-body);
+  font-size: var(--fd-size);
+  font-weight: 600;
+  letter-spacing: normal;
+  line-height: 1.4;
+  color: var(--fd-text);
+}
+.fd-panel[data-fd-emphasis='quiet'][data-fd-panel='card'] > .fd-panel-body {
+  background: transparent;
+  box-shadow: none;
 }
 
 /*

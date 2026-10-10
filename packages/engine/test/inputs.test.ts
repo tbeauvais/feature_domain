@@ -5,7 +5,7 @@ import {
   asInt,
   asList,
   asString,
-  asTone,
+  asOneOf,
   createFeatureInstance,
   DataResourceFeature,
   defaultInputs,
@@ -98,7 +98,7 @@ describe('createFeatureInstance', () => {
     expect(instance).toEqual({
       feature: 'TextFeature',
       id: '9',
-      inputs: { name: 'untitled', disable: false, text: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit' },
+      inputs: { name: 'untitled', disable: false, text: 'Say what this part of the page is about in a sentence or two.' },
       placement,
     })
     expect(instance.placement).not.toBe(placement)
@@ -120,14 +120,15 @@ describe('coercion', () => {
     expect(asInt('abc', 1)).toBe(1)
   })
 
-  it('reads strings, lists, alignments and tones', () => {
+  it('reads strings, lists, alignments and choices', () => {
     expect(asString(5)).toBe('5')
     expect(asString({}, 'x')).toBe('x')
     expect(asList(['a', 1])).toEqual(['a', '1'])
     expect(asList('a,b')).toEqual([])
     expect(asAlign('right', 'left')).toBe('right')
     expect(asAlign('pull-right', 'left')).toBe('left')
-    expect(asTone('info')).toBe('info')
-    expect(asTone('text-info')).toBeUndefined()
+    expect(asOneOf('band', ['none', 'tint', 'band'], 'none')).toBe('band')
+    expect(asOneOf('info', ['none', 'tint', 'band'], 'none')).toBe('none')
+    expect(asOneOf('constructor', ['none', 'tint'], 'none')).toBe('none')
   })
 })

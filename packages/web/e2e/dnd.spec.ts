@@ -33,7 +33,7 @@ async function addToPage(page: Page, ...types: string[]) {
 
 test('drags a feature from the palette onto the page', async ({ page }) => {
   await drag(page, page.getByTestId('palette-HeaderFeature'), feature(page, '1'))
-  await expect(feature(page, '2')).toHaveText('Enter your header text here')
+  await expect(feature(page, '2')).toHaveText('Your headline goes here')
   await expect(page.getByTestId('inspector')).toContainText('Header #2')
 })
 

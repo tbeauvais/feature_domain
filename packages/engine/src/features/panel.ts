@@ -1,7 +1,7 @@
 import type { FeatureDefinition } from '../feature.js'
-import { asString, asTone, disableInput, nameInput, toneOptions } from '../inputs.js'
+import { asOneOf, asString, capitalisedOptions, disableInput, nameInput } from '../inputs.js'
 import { node } from '../nodes.js'
-import { TONES } from '../types.js'
+import { PANEL_EMPHASES, type NodeKinds } from '../types.js'
 
 export const PanelFeature: FeatureDefinition = {
   type: 'PanelFeature',
@@ -11,22 +11,17 @@ export const PanelFeature: FeatureDefinition = {
   inputs: [
     nameInput(),
     disableInput,
-    {
-      name: 'style',
-      label: 'Style',
-      type: 'string',
-      default: 'primary',
-      control: 'text-select',
-      options: toneOptions(TONES.filter((t) => t !== 'muted'), true),
-    },
-    { name: 'heading', label: 'Heading', type: 'string', default: 'Panel heading', control: 'text-input' },
+    { name: 'heading', label: 'Heading', type: 'string', default: 'Details', control: 'text-input' },
+    { name: 'emphasis', label: 'Emphasis', type: 'string', default: 'normal', control: 'segmented', options: capitalisedOptions(PANEL_EMPHASES) },
   ],
 
   slots: () => ['body'],
 
   generate(inputs, ctx) {
     const body = node('panel-body', ctx.nodeId('body'), {}, { slot: 'body' })
-    const props = { heading: asString(inputs.heading), tone: asTone(inputs.style) }
+    const props: NodeKinds['panel'] = { heading: asString(inputs.heading) }
+    const emphasis = asOneOf(inputs.emphasis, PANEL_EMPHASES, 'normal')
+    if (emphasis !== 'normal') props.emphasis = emphasis
     return { node: node('panel', ctx.nodeId(), props, { children: [body] }) }
   },
 }

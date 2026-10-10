@@ -48,6 +48,28 @@ describe('upgradeSample', () => {
     expect(upgradeSample(changed)).toBe(changed)
   })
 
+  it('labels the legacy repo tables\' date column "Updated", unless the labels were changed', () => {
+    const labelled = (labels: string[]) => model(page(), inst('TableFeature', 't', { fields: ['name', 'description', 'language', 'updated_at'], filters: ['', '', '', ''], labels }))
+    expect(upgradeSample(labelled(['Name', 'Description', 'Language', 'Updated At'])).features[1]!.inputs.labels).toEqual(['Name', 'Description', 'Language', 'Updated'])
+    const mine = labelled(['Name', 'About', 'Language', 'Updated At'])
+    expect(upgradeSample(mine)).toBe(mine)
+  })
+
+  it('fixes the legacy typo in Getting Started\'s headline, and leaves other headers alone', () => {
+    const typo = model(page(), inst('HeaderFeature', 'h', { text: 'Here is some content for ya...gfdgfd' }))
+    expect(upgradeSample(typo).features[1]!.inputs.text).toBe('Here is some content for ya...')
+    for (const text of ['My own headline', 'toString']) {
+      const mine = model(page(), inst('HeaderFeature', 'h', { text }))
+      expect(upgradeSample(mine)).toBe(mine)
+    }
+  })
+
+  it('brings the seeded samples fully up to date, so a second pass changes nothing', () => {
+    for (const sample of sampleModels()) expect(upgradeSample(sample)).toBe(sample)
+    const texts = sampleModels().flatMap((m) => m.features.map((f) => JSON.stringify(f.inputs)))
+    expect(texts.join(' ')).not.toMatch(/gfdgfd|Updated At/)
+  })
+
   const header = 'http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg'
 
   it('turns a legacy header photo into its banner, keeping the address for switching back', () => {

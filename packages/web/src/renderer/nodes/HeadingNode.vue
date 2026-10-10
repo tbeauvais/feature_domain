@@ -5,8 +5,8 @@ import { computed } from 'vue'
 const props = defineProps<{ node: DocNodeOf<'heading'> }>()
 
 const classes = computed(() => {
-  const { align, tone, background } = props.node.props
-  return ['fd-heading', `fd-align-${align}`, tone && `fd-tone-${tone}`, background && `fd-bg-${background}`]
+  const { align, colour, background } = props.node.props
+  return ['fd-heading', `fd-align-${align}`, colour && `fd-colour-${colour}`, background && `fd-bg-${background}`]
 })
 </script>
 

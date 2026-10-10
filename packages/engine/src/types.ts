@@ -50,8 +50,19 @@ export type ButtonVariant = (typeof BUTTON_VARIANTS)[number]
 export const BUTTON_SIZES = ['small', 'medium', 'large'] as const
 export type ButtonSize = (typeof BUTTON_SIZES)[number]
 
+/** Bootstrap's tones, as legacy models stored them. Only the migration reads them now. */
 export const TONES = ['muted', 'primary', 'success', 'info', 'warning', 'danger'] as const
 export type Tone = (typeof TONES)[number]
+
+/** A header's text colour from the theme: its ink (the default), the accent, or muted. */
+export const HEADING_COLOURS = ['ink', 'accent', 'muted'] as const
+export type HeadingColour = (typeof HEADING_COLOURS)[number]
+/** What a header sits on: nothing, the accent's tint, or the theme's band colour. */
+export const HEADING_BACKGROUNDS = ['none', 'tint', 'band'] as const
+export type HeadingBackground = (typeof HEADING_BACKGROUNDS)[number]
+/** How much a panel stands out: normal, highlighted in the accent, or quiet (a small heading, no card fill). */
+export const PANEL_EMPHASES = ['normal', 'highlight', 'quiet'] as const
+export type PanelEmphasis = (typeof PANEL_EMPHASES)[number]
 
 export interface TableColumn {
   field: string
@@ -69,7 +80,8 @@ export interface NodeKinds {
   /** `theme`: the tokens of the Theme the page references; absent means the default theme. */
   page: { theme?: ThemeTokens }
   text: { text: string }
-  heading: { text: string; level: number; align: Align; tone?: Tone; background?: Tone }
+  /** `colour` and `background` are absent for the defaults (ink, none). */
+  heading: { text: string; level: number; align: Align; colour?: Exclude<HeadingColour, 'ink'>; background?: Exclude<HeadingBackground, 'none'> }
   image: { src: string; alt: string; width: string; height: string; responsive: boolean; align: Align }
   /**
    * A built-in illustration (see `ILLUSTRATIONS`), drawn in the theme's colours. `alt` is empty for a decorative one;
@@ -79,7 +91,8 @@ export interface NodeKinds {
   illustration: { name: string; alt: string; width: string; align: Align; aspect?: number }
   grid: { rows: number; columns: number; well: boolean }
   'grid-cell': { row: number; column: number }
-  panel: { heading: string; tone?: Tone }
+  /** `emphasis` is absent for normal. */
+  panel: { heading: string; emphasis?: Exclude<PanelEmphasis, 'normal'> }
   'panel-body': Record<string, never>
   /** `marker`: numbered (the default) or check marks. */
   list: { items: string[]; align: Align; marker?: 'number' | 'check' }

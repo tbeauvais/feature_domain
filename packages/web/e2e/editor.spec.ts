@@ -18,7 +18,7 @@ test('adds features from the palette, edits them live, and saves', async ({ page
   await newModel(page)
   await page.getByTestId('palette-HeaderFeature').click()
   const heading = canvas(page).locator('[data-feature-id="2"]')
-  await expect(heading).toHaveText('Enter your header text here')
+  await expect(heading).toHaveText('Your headline goes here')
   await expect(tree(page).getByRole('treeitem', { selected: true })).toContainText('untitled')
 
   await inspector(page).getByLabel('Text', { exact: true }).fill('Hello parametric world')
@@ -100,7 +100,7 @@ test('the preview tab follows edits made in the editor', async ({ page, context 
   await newModel(page)
   await page.getByTestId('palette-TextFeature').click()
   const [preview] = await Promise.all([context.waitForEvent('page'), page.getByTestId('open-preview').click()])
-  await expect(preview.locator('[data-feature-id="2"]')).toHaveText('Lorem ipsum dolor sit amet, consectetur adipisicing elit')
+  await expect(preview.locator('[data-feature-id="2"]')).toHaveText('Say what this part of the page is about in a sentence or two.')
 
   await inspector(page).getByLabel('Text', { exact: true }).fill('Updated in the editor')
   await expect(preview.locator('[data-feature-id="2"]')).toHaveText('Updated in the editor')
