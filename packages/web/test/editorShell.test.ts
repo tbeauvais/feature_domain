@@ -17,10 +17,10 @@ import { at, inst, model, page } from './helpers'
 describe('paletteGroups', () => {
   it('groups every core feature exactly once, with short labels', () => {
     const groups = paletteGroups()
-    expect(groups.map((g) => g.label)).toEqual(['Layout', 'Content', 'Data and style'])
+    expect(groups.map((g) => g.label)).toEqual(['Layout', 'Text', 'Media and cards', 'Data and style'])
     const types = groups.flatMap((g) => g.items.map((i) => i.def.type))
     expect(types.sort()).toEqual(coreFeatures.map((d) => d.type).sort())
-    expect(groups[2]!.items.map((i) => i.label)).toEqual(['Data', 'Theme'])
+    expect(groups[3]!.items.map((i) => i.label)).toEqual(['Data', 'Table', 'Theme'])
   })
 
   it('puts feature types it does not know under More, so new features are never hidden', () => {

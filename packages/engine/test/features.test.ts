@@ -8,13 +8,16 @@ import {
   defaultInputs,
   HeaderFeature,
   ImageFeature,
+  ImageWithParagraphFeature,
   LinkFeature,
+  ListGroupFeature,
   PageFeature,
   PanelFeature,
   pathname,
   SeparatorFeature,
   TableFeature,
   TextFeature,
+  TextWithParagraphFeature,
   walkNodes,
   type DataResourceExports,
   type DocNode,
@@ -306,5 +309,49 @@ describe('ButtonFeature', () => {
       'warning',
       'Link URL "mailto:x@example.com" is not an http(s) address, so the button is shown without it',
     )
+  })
+})
+
+const shape = (n: DocNode | undefined): unknown => n && { kind: n.kind, id: n.id, props: n.props, children: n.children.map(shape) }
+
+describe('TextWithParagraphFeature and ImageWithParagraphFeature', () => {
+  it('compose a title and paragraphs (split on blank lines) from primitive nodes', () => {
+    expect(shape(run(TextWithParagraphFeature, { title: ' T ', text: 'A\n\n \nB\nstill B' }).out.node)).toEqual({
+      kind: 'stack',
+      id: '7',
+      props: {},
+      children: [
+        { kind: 'heading', id: '7.title', props: { text: 'T', level: 4, align: 'left' }, children: [] },
+        { kind: 'paragraph', id: '7.p1', props: { text: 'A' }, children: [] },
+        { kind: 'paragraph', id: '7.p2', props: { text: 'B\nstill B' }, children: [] },
+      ],
+    })
+    expect(run(TextWithParagraphFeature, { title: '', text: '' }).out.node?.children).toEqual([])
+    // Windows line endings split the same way.
+    expect(run(TextWithParagraphFeature, { title: '', text: 'One\r\n\r\nTwo\r\nmore' }).out.node?.children.map((c) => c.props)).toEqual([{ text: 'One' }, { text: 'Two\r\nmore' }])
+  })
+
+  it('put the image beside a body stack, on the chosen side', () => {
+    const out = run(ImageWithParagraphFeature, { src: ' https://x.test/a.png ', alt: 'A', image_side: 'right', title: 'T', text: 'Hi' }).out.node!
+    expect(out).toMatchObject({ kind: 'media', props: { side: 'right' } })
+    expect(out.children.map((c) => [c.kind, c.id])).toEqual([
+      ['image', '7.image'],
+      ['stack', '7.body'],
+    ])
+    expect(out.children[0]!.props).toEqual({ src: 'https://x.test/a.png', alt: 'A', width: '', height: '', responsive: true, align: 'left' })
+    expect(run(ImageWithParagraphFeature, { image_side: 'middle' }).out.node?.props).toEqual({ side: 'left' })
+  })
+})
+
+describe('ListGroupFeature', () => {
+  it('composes a card from a heading, a muted paragraph, a check list and a highlight, omitting empty parts', () => {
+    const card = run(ListGroupFeature, { description: ' ', items: ['One', '  ', ' Two '], highlight: ' $5 ' }).out.node!
+    expect(card.kind).toBe('card')
+    expect(card.children.map((c) => [c.kind, c.id, c.props])).toEqual([
+      ['heading', '7.heading', { text: 'Starter', level: 4, align: 'left' }],
+      ['list', '7.items', { items: ['One', 'Two'], align: 'left', marker: 'check' }],
+      ['paragraph', '7.highlight', { text: '$5', emphasis: 'highlight' }],
+    ])
+    expect(run(ListGroupFeature).out.node!.children.map((c) => c.kind)).toEqual(['heading', 'paragraph', 'list', 'paragraph'])
   })
 })

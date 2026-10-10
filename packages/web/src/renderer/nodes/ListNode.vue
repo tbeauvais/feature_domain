@@ -5,7 +5,7 @@ defineProps<{ node: DocNodeOf<'list'> }>()
 </script>
 
 <template>
-  <div class="fd-list" :class="`fd-list-${node.props.align}`">
+  <div class="fd-list" :class="[`fd-list-${node.props.align}`, `fd-list-${node.props.marker ?? 'number'}`]">
     <ul>
       <li v-for="(item, index) in node.props.items" :key="index">{{ item }}</li>
     </ul>

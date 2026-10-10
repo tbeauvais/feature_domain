@@ -2,9 +2,10 @@ import { coreFeatures, type FeatureDefinition } from '@feature-domain/engine'
 
 /** Palette groups, in display order. Feature types not listed fall into "More", so a new feature is never hidden. */
 const GROUPS: { label: string; types: string[] }[] = [
-  { label: 'Layout', types: ['PageFeature', 'ContainerFeature', 'PanelFeature'] },
-  { label: 'Content', types: ['HeaderFeature', 'TextFeature', 'ImageFeature', 'ListFeature', 'TableFeature', 'LinkFeature', 'ButtonFeature', 'SeparatorFeature'] },
-  { label: 'Data and style', types: ['DataResourceFeature', 'ThemeFeature'] },
+  { label: 'Layout', types: ['PageFeature', 'ContainerFeature', 'PanelFeature', 'SeparatorFeature'] },
+  { label: 'Text', types: ['HeaderFeature', 'TextFeature', 'TextWithParagraphFeature', 'ListFeature', 'LinkFeature'] },
+  { label: 'Media and cards', types: ['ImageFeature', 'ImageWithParagraphFeature', 'ListGroupFeature', 'ButtonFeature'] },
+  { label: 'Data and style', types: ['DataResourceFeature', 'TableFeature', 'ThemeFeature'] },
 ]
 
 /** Short palette labels where the feature's name is long. */
