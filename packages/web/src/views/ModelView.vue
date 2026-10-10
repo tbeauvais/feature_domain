@@ -93,6 +93,11 @@ function onCanvasClick(event: MouseEvent) {
   store.select(target?.closest('[data-feature-id]')?.getAttribute('data-feature-id') ?? null)
 }
 
+/** Middle-click (and other non-primary clicks) on a link in the page doesn't open it either. */
+function onCanvasAuxClick(event: MouseEvent) {
+  if (event.target instanceof Element && event.target.closest('a')) event.preventDefault()
+}
+
 // Selecting in the tree scrolls the feature into view on the page.
 watch(selectedId, (id) => {
   if (id === null) return
@@ -214,6 +219,7 @@ async function deleteModel() {
               data-testid="canvas"
               :data-canvas-width="canvasWidth"
               @click="onCanvasClick"
+              @auxclick="onCanvasAuxClick"
             >
               <DocumentView :root="result.root" />
               <SelectionOverlay :container="canvas" :selected-id="selectedId" :version="result" />

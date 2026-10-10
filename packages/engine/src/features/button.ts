@@ -24,6 +24,7 @@ export const ButtonFeature: FeatureDefinition = {
 
   generate(inputs, ctx) {
     const href = asString(inputs.href).trim()
+    if (asString(inputs.text).trim() === '') ctx.report('warning', 'The button has no text, so it is invisible')
     if (href !== '' && !/^https?:\/\//i.test(href)) ctx.report('warning', `Link URL "${href}" is not an http(s) address, so the button is shown without it`)
     const variant = (BUTTON_VARIANTS as readonly unknown[]).includes(inputs.style) ? (inputs.style as ButtonVariant) : 'primary'
     const size = (BUTTON_SIZES as readonly unknown[]).includes(inputs.size) ? (inputs.size as ButtonSize) : 'medium'

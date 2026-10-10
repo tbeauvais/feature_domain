@@ -62,7 +62,8 @@
   text-decoration-thickness: 1.5px;
   text-underline-offset: 0.25em;
 }
-.fd-root a:hover { color: var(--fd-accent); }
+/* Not buttons: their colours are fixed pairs (a hover recolour would put accent text on an accent fill). */
+.fd-root a:not(.fd-button):hover { color: var(--fd-accent); }
 
 /* Full width, so a page with its own theme paints its background edge to edge; its content stays within 1120px. */
 .fd-page {
@@ -165,6 +166,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
   --fd-success: var(--fd-band-success);
   --fd-warning: var(--fd-band-warning);
   --fd-danger: var(--fd-band-danger);
+  --fd-accent-soft: var(--fd-band-raised);
   --fd-info-bg: var(--fd-band-raised);
   --fd-success-bg: var(--fd-band-raised);
   --fd-warning-bg: var(--fd-band-raised);

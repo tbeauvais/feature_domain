@@ -48,6 +48,7 @@ function contrastPairs(t: ThemeTokens): [string, string, string, string][] {
   }
   const page = ['bg', 'surface', 'sunken', 'stripe', 'info-bg', 'success-bg', 'warning-bg', 'danger-bg']
   for (const fg of ['ink', 'text', 'muted', 'accent', 'primary', 'info', 'success', 'warning', 'danger']) add(fg, page)
+  add('accent', ['accent-soft']) // soft buttons
   add('on-accent', ['accent-solid'])
   add('primary-on', ['primary-bg'])
   for (const fg of ['ink', 'text', 'muted', 'accent', 'success', 'warning', 'danger']) add(`band-${fg}`, ['band', 'band-raised'])

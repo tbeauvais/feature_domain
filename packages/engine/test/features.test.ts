@@ -276,6 +276,13 @@ describe('SeparatorFeature', () => {
       align: 'right',
     })
   })
+
+  it('warns about colours that are not hex, and uses the theme colour instead', () => {
+    const { out, report } = run(SeparatorFeature, { color: 'blue;' })
+    expect(out.node?.props).toMatchObject({ color: '' })
+    expect(report).toHaveBeenCalledWith('warning', 'Colour "blue;" is not a hex colour; using the theme\'s colour')
+    expect(run(SeparatorFeature, { color: '#abc' }).report).not.toHaveBeenCalled()
+  })
 })
 
 describe('LinkFeature', () => {
@@ -285,6 +292,8 @@ describe('LinkFeature', () => {
     expect(ok.report).not.toHaveBeenCalled()
     const bad = run(LinkFeature, { href: 'javascript:alert(1)' })
     expect(bad.report).toHaveBeenCalledWith('warning', 'Link URL "javascript:alert(1)" is not an http(s) address, so the link is shown without it')
+    expect(run(LinkFeature, { text: ' ' }).report).toHaveBeenCalledWith('warning', 'The link has no text, so it is invisible')
+    expect(run(ButtonFeature, { text: '' }).report).toHaveBeenCalledWith('warning', 'The button has no text, so it is invisible')
   })
 })
 

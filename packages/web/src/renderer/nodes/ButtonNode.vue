@@ -10,7 +10,7 @@ const classes = computed(() => ['fd-button', `fd-button-${props.node.props.varia
 
 <template>
   <div class="fd-button-row" :class="`fd-align-${node.props.align}`">
-    <a v-if="href" :class="classes" :href="href" target="_blank" rel="noopener noreferrer" role="button">{{ node.props.text }}</a>
+    <a v-if="href" :class="classes" :href="href" target="_blank" rel="noopener noreferrer">{{ node.props.text }}</a>
     <span v-else :class="classes" aria-disabled="true">{{ node.props.text }}</span>
   </div>
 </template>

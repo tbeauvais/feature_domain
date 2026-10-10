@@ -17,6 +17,7 @@ export const LinkFeature: FeatureDefinition = {
 
   generate(inputs, ctx) {
     const href = asString(inputs.href).trim()
+    if (asString(inputs.text).trim() === '') ctx.report('warning', 'The link has no text, so it is invisible')
     if (href !== '' && !/^https?:\/\//i.test(href)) ctx.report('warning', `Link URL "${href}" is not an http(s) address, so the link is shown without it`)
     return { node: node('link', ctx.nodeId(), { text: asString(inputs.text), href }) }
   },
