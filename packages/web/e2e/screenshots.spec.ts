@@ -45,6 +45,38 @@ function optionsModel(id: string, scheme: 'light' | 'dark') {
   return { version: 2, id, name: `Options (${scheme})`, features }
 }
 
+/** A model with a chart of every type over the same sample rows, in the given scheme. */
+function chartsModel(id: string, scheme: 'light' | 'dark') {
+  const rows = [
+    { region: 'North', sales: 18250 },
+    { region: 'South', sales: 12900 },
+    { region: 'East', sales: 9600 },
+    { region: 'West', sales: 7400 },
+    { region: 'Online', sales: 4300 },
+    { region: 'Partners', sales: 2100 },
+  ]
+  const at = { parent: '1', slot: 'content' }
+  const features: object[] = [
+    { feature: 'ThemeFeature', id: 't', inputs: { name: 'Theme', scheme } },
+    { feature: 'DataResourceFeature', id: 'r', inputs: { name: 'Sales', source: 'sample', sample_rows: JSON.stringify(rows) } },
+    { feature: 'PageFeature', id: '1', inputs: { name: 'Page', theme: 't' }, placement: { parent: '$root', slot: 'content' } },
+  ]
+  for (const chart_type of ['pie', 'donut', 'column', 'bar', 'line'])
+    features.push({ feature: 'GoogleChartFeature', id: `c-${chart_type}`, inputs: { title: `Sales by region (${chart_type})`, data_resource: 'r', chart_type, height: 'short' }, placement: at })
+  return { version: 2, id, name: `Charts (${scheme})`, features }
+}
+
+/** Puts a model into the app's browser storage. */
+async function store(page: Page, model: { id: string }) {
+  await page.evaluate((m) => {
+    const key = 'feature-domain:models'
+    const stored = JSON.parse(localStorage.getItem(key) ?? '{"order":[],"models":{}}')
+    stored.models[m.id] = m
+    if (!stored.order.includes(m.id)) stored.order.push(m.id)
+    localStorage.setItem(key, JSON.stringify(stored))
+  }, model)
+}
+
 /** The id of a model listed on the home page (which also seeds the samples on first use). */
 async function modelId(page: Page, name: string): Promise<string> {
   await page.goto('/')
@@ -83,16 +115,16 @@ for (const [size, viewport] of Object.entries(WIDTHS)) {
     })
 
     for (const scheme of ['light', 'dark'] as const) {
+      test(`every chart type looks as it should (${scheme})`, async ({ page }) => {
+        await page.goto('/')
+        await store(page, chartsModel(`charts-${scheme}`, scheme))
+        await snapshot(page, `charts-${scheme}`, `charts-${scheme}-${size}`)
+      })
+
       test(`every Header and Panel option looks as it should (${scheme})`, async ({ page }) => {
         await page.goto('/')
         const id = `options-${scheme}`
-        await page.evaluate((model) => {
-          const key = 'feature-domain:models'
-          const stored = JSON.parse(localStorage.getItem(key) ?? '{"order":[],"models":{}}')
-          stored.models[model.id] = model
-          if (!stored.order.includes(model.id)) stored.order.push(model.id)
-          localStorage.setItem(key, JSON.stringify(stored))
-        }, optionsModel(id, scheme))
+        await store(page, optionsModel(id, scheme))
         await snapshot(page, id, `options-${scheme}-${size}`)
       })
     }

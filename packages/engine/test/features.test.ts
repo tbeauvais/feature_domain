@@ -290,7 +290,7 @@ describe('DataResourceFeature', () => {
       ['POST rows', 'POST', true],
     ])
     expect(fresh.sampleRows).toHaveLength(3)
-    expect(Object.keys(fresh.sampleRows![0]!)).toEqual(['name', 'role', 'city', 'joined'])
+    expect(Object.keys(fresh.sampleRows![0]!)).toEqual(['name', 'role', 'city', 'projects'])
   })
 
   it('reads sample rows as a list of objects, saying what is wrong otherwise', () => {

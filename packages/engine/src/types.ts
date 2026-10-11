@@ -79,6 +79,13 @@ export interface DataSource {
   rows?: Record<string, unknown>[]
 }
 
+/** What a Chart draws: slices of one whole, bars across, columns up, or a line. */
+export const CHART_TYPES = ['pie', 'donut', 'bar', 'column', 'line'] as const
+export type ChartType = (typeof CHART_TYPES)[number]
+/** Chart heights in px. */
+export const CHART_HEIGHTS = { short: 220, medium: 300, tall: 400 } as const
+export type ChartHeight = keyof typeof CHART_HEIGHTS
+
 export interface TableColumn {
   field: string
   label: string
@@ -130,6 +137,11 @@ export interface NodeKinds {
    * skipped because of a problem. Only generated with `generate(model, registry, { placeholders: true })`.
    */
   placeholder: { feature: string; name: string; status: 'unknown' | 'skipped'; reason: string }
+  /**
+   * A chart of one value per row, labelled by another field (either guessed from the loaded rows when absent). Drawn
+   * in the theme's chart colours; `description` is what screen readers hear (the data also sits in a hidden table).
+   */
+  chart: { type: ChartType; height: number; title?: string; description?: string; labelField?: string; valueField?: string; source?: DataSource }
   table: {
     /** Shown in the table's header with the row count. */
     title?: string

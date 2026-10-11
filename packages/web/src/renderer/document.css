@@ -216,7 +216,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
   box-shadow: none;
 }
 /* A panel holding only a table: the table is the card. */
-.fd-panel[data-fd-panel='card'] > .fd-panel-body:has(> .fd-table-block:only-child) {
+.fd-panel[data-fd-panel='card'] > .fd-panel-body:has(> :is(.fd-table-block, .fd-chart-block):only-child) {
   padding: 0;
   background: none;
   border: 0;
@@ -636,3 +636,63 @@ h6.fd-heading { font-size: var(--fd-h6); }
 }
 .fd-placeholder strong { font-size: 13px; color: var(--fd-ink); }
 .fd-placeholder-skipped { border-color: var(--fd-warning); color: var(--fd-warning); }
+
+/*
+ * Charts: a card like a table's, holding a drawing (Chart.js, in the theme's chart colours, read from these tokens) and
+ * the same numbers in a table only screen readers see.
+ */
+.fd-chart-block {
+  display: block;
+  margin: 0 0 calc(var(--fd-space) * 4);
+  padding: calc(var(--fd-space) * 2) calc(var(--fd-space) * 3) calc(var(--fd-space) * 2.5);
+  background: var(--fd-surface);
+  border: 1px solid var(--fd-border);
+  border-radius: var(--fd-radius-lg);
+  box-shadow: var(--fd-shadow);
+}
+.fd-chart-title {
+  display: block;
+  margin: 0 0 calc(var(--fd-space) * 1.5);
+  font-family: var(--fd-font-display);
+  font-size: var(--fd-h4);
+  font-weight: var(--fd-display-weight);
+  letter-spacing: var(--fd-display-tracking);
+  line-height: 1.15;
+  color: var(--fd-ink);
+}
+.fd-chart-canvas { position: relative; width: 100%; }
+.fd-chart-canvas > canvas { display: block; }
+.fd-chart-skeleton {
+  display: block;
+  border-radius: var(--fd-radius-sm);
+  background: repeating-linear-gradient(90deg, var(--fd-sunken) 0 18%, transparent 18% 24%);
+  opacity: 0.7;
+}
+.fd-chart-note { margin: 0; font-size: var(--fd-size-small); color: var(--fd-muted); }
+.fd-chart-state { display: block; margin: 0; padding: calc(var(--fd-space) * 3) 0; text-align: center; }
+.fd-chart-state-title { margin: 0; font-weight: 600; color: var(--fd-ink); }
+.fd-chart-state-text { margin: 0; font-size: var(--fd-size-small); color: var(--fd-muted); }
+.fd-chart-retry {
+  min-height: 44px;
+  margin-top: var(--fd-space);
+  padding: 0 calc(var(--fd-space) * 2);
+  border: 1px solid var(--fd-border);
+  border-radius: 999px;
+  background: var(--fd-surface);
+  color: var(--fd-ink);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+/* Present for screen readers, not drawn. */
+.fd-root .fd-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

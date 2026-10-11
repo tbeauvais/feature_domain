@@ -146,7 +146,7 @@ test('a new data resource serves sample rows, so a table on it shows data at onc
   await tree(page).locator('[data-tree-id="2"]').click()
   await inspector(page).getByLabel('Data Resource').selectOption({ label: 'untitled (#3)' })
   const table = canvas(page).locator('[data-feature-id="2"]')
-  await expect(table.locator('th')).toHaveText(['Name', 'Role', 'City', 'Joined'])
+  await expect(table.locator('th')).toHaveText(['Name', 'Role', 'City', 'Projects'])
   await expect(table.locator('tbody tr')).toHaveCount(3)
   await expect(table.locator('tbody tr').first().locator('td').first()).toHaveText('Ada Lovelace')
 
@@ -471,4 +471,33 @@ test('an API spec loads from its URL, offers its operations, and can answer with
   await inspector(page).getByRole('button', { name: 'Sample data' }).click()
   await inspector(page).getByLabel('Sample rows (JSON)').fill('[{"name": "Tom", "kind": "cat"}]')
   await expect(table.locator('tbody td')).toHaveText(['Tom', 'cat'])
+})
+
+test('a chart draws a data resource\'s rows in the theme\'s colours, and follows its type and data', async ({ page }) => {
+  await newModel(page)
+  await page.getByTestId('palette-GoogleChartFeature').click()
+  await page.getByTestId('palette-DataResourceFeature').click()
+  await tree(page).locator('[data-tree-id="2"]').click()
+  await inspector(page).getByLabel('Data Resource').selectOption({ label: 'untitled (#3)' })
+  const chart = canvas(page).locator('[data-feature-id="2"]')
+  const drawn = chart.locator('canvas')
+  // A new resource's example rows chart at once: projects by name.
+  await expect(drawn).toBeVisible()
+  await expect(drawn).toHaveAttribute('aria-label', 'column chart of projects by name')
+  await tree(page).locator('[data-tree-id="3"]').click()
+  await inspector(page).getByLabel('Sample rows (JSON)').fill('[{"region": "North", "sales": 5}, {"region": "South", "sales": 3}]')
+  await expect(drawn).toHaveAttribute('aria-label', 'column chart of sales by region')
+  // Something was actually drawn on the canvas, in the accent colour.
+  const painted = async () =>
+    drawn.evaluate((c: HTMLCanvasElement) => {
+      const data = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data
+      let colored = 0
+      for (let i = 0; i < data.length; i += 4) if (data[i + 3]! > 200 && Math.max(data[i]!, data[i + 1]!, data[i + 2]!) - Math.min(data[i]!, data[i + 1]!, data[i + 2]!) > 60) colored++
+      return colored
+    })
+  await expect.poll(painted).toBeGreaterThan(500)
+  await tree(page).locator('[data-tree-id="2"]').click()
+  await inspector(page).getByRole('button', { name: 'Donut' }).click()
+  await expect(drawn).toHaveAttribute('aria-label', 'donut chart of sales by region')
+  await expect(chart.locator('.fd-visually-hidden tbody tr')).toHaveText(['North5', 'South3'])
 })

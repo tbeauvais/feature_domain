@@ -1,5 +1,5 @@
 import type { NodeKind } from '@feature-domain/engine'
-import type { Component } from 'vue'
+import { defineAsyncComponent, type Component } from 'vue'
 import ButtonNode from './nodes/ButtonNode.vue'
 import CardNode from './nodes/CardNode.vue'
 import GridCellNode from './nodes/GridCellNode.vue'
@@ -34,6 +34,8 @@ export const nodeComponents: Record<NodeKind, Component> = {
   panel: PanelNode,
   'panel-body': PanelBodyNode,
   table: TableNode,
+  // Chart.js is large: only pages with a chart load it.
+  chart: defineAsyncComponent(() => import('./nodes/ChartNode.vue')),
   list: ListNode,
   separator: SeparatorNode,
   link: LinkNode,

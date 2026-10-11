@@ -9,9 +9,9 @@ const legacySample = import.meta.glob<unknown>('../../../../sample.json', { eage
  * (`BrowserModelStore.upgradeSeeded`). 2: stock header photos became built-in banners. 3: those banners are short.
  * 4: the GitHub repo tables show languages as badges, names as they are, and scroll after 10 rows. 5: their date column
  * is labelled "Updated", and Getting Started's headline loses its stray keystrokes. 6: the Sales API (its server is gone)
- * answers with sample sales.
+ * answers with sample sales. 7: its sales chart is titled and drawn as columns (better for comparing people than a pie).
  */
-export const SAMPLES_VERSION = 6
+export const SAMPLES_VERSION = 7
 
 /** The samples' GitHub repo tables, exactly as migrated, and what they become. */
 const LEGACY_REPO_TABLE = { fields: ['name', 'description', 'language', 'updated_at'], filters: ['uppercase', 'dataLink :data.html_url', '', 'date'] }
@@ -46,6 +46,7 @@ const LEGACY_HEADERS: Readonly<Record<string, IllustrationId>> = {
  * - Repo tables still labelled as migrated label their date column "Updated".
  * - Headers with a known typo from the legacy samples are fixed.
  * - The Sales API, still answering from its dead server, answers with sample sales instead.
+ * - The Sales chart, still the untitled pie the legacy sample had, gets a title and is drawn as columns.
  * - Image features still showing one of the legacy header photos as a link show the matching banner instead, full
  *   width and short (the photos were 150px tall), described by its own alt text. The address stays, so switching
  *   Source back to Link restores it.
@@ -77,6 +78,12 @@ export function upgradeSample(stored: AppModel): AppModel {
       if (f.inputs.spec_url !== SALES_SPEC_URL || (f.inputs.source !== undefined && f.inputs.source !== 'address')) return f
       changed = true
       return { ...f, inputs: { ...f.inputs, source: 'sample', sample_rows: JSON.stringify(SAMPLE_SALES, null, 2) } }
+    }
+    if (f.feature === 'GoogleChartFeature') {
+      const legacy = f.inputs.name === 'Sales Chart' && f.inputs.chart_type === 'pie' && f.inputs.value_field === 'amount' && !f.inputs.title
+      if (!legacy) return f
+      changed = true
+      return { ...f, inputs: { ...f.inputs, title: 'Sales by person', chart_type: 'column' } }
     }
     if (f.feature === 'HeaderFeature') {
       const text = f.inputs.text

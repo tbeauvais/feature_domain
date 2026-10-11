@@ -1,6 +1,7 @@
 import { createRegistry } from '../feature.js'
 import { ApiSpecFeature } from './api-spec.js'
 import { ButtonFeature } from './button.js'
+import { ChartFeature } from './chart.js'
 import { ContainerFeature } from './container.js'
 import { DataResourceFeature } from './data-resource.js'
 import { HeaderFeature } from './header.js'
@@ -19,6 +20,7 @@ import { ThemeFeature } from './theme.js'
 
 export { ApiSpecFeature, MAX_SPEC_CHARS, MAX_SPEC_OPERATIONS, readApiSpec, type ReadSpec } from './api-spec.js'
 export { ButtonFeature } from './button.js'
+export { ChartFeature } from './chart.js'
 export { ContainerFeature, cellSlot, MAX_COLUMNS, MAX_ROWS } from './container.js'
 export {
   DataResourceFeature,
@@ -45,7 +47,8 @@ export { ListFeature } from './list.js'
 export { PageFeature } from './page.js'
 export { PanelFeature } from './panel.js'
 export { SeparatorFeature } from './separator.js'
-export { columnsFromRows, TableFeature } from './table.js'
+export { columnsFromRows } from './sources.js'
+export { TableFeature } from './table.js'
 export { TextFeature } from './text.js'
 export { TextWithParagraphFeature } from './text-with-paragraph.js'
 export { isThemeExports, matchingPreset, ThemeFeature, themeInputs, themeParams, type ThemeExports } from './theme.js'
@@ -67,6 +70,7 @@ export const coreFeatures = [
   DataResourceFeature,
   ApiSpecFeature,
   TableFeature,
+  ChartFeature,
   ThemeFeature,
 ]
 
