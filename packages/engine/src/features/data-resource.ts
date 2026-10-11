@@ -100,6 +100,23 @@ const EXAMPLE_ROWS = [
 
 /** Sample rows from their JSON text: a list of objects. Anything else is a problem, in words. */
 export function parseSampleRows(text: string): { rows: Record<string, unknown>[]; problem?: string } {
+  const parsed = parseRows(text)
+  if (parsed.problem) return parsed
+  // A "__proto__" key can't be read back as a field, so it is left out.
+  let dropped = false
+  const rows = parsed.rows.map((row) => {
+    if (!Object.hasOwn(row, '__proto__')) return row
+    dropped = true
+    return Object.fromEntries(Object.entries(row).filter(([key]) => key !== '__proto__'))
+  })
+  if (dropped) return { rows, problem: 'The "__proto__" key in sample rows was left out' }
+  // JSON numbers past 2^53 lose digits when read: say so, so they can be quoted as text instead.
+  const inexact = rows.flatMap((row) => Object.entries(row)).find(([, v]) => typeof v === 'number' && Number.isInteger(v) && !Number.isSafeInteger(v))
+  if (inexact) return { rows, problem: `"${inexact[0]}" has a number too long to keep exactly; put it in quotes to keep every digit` }
+  return { rows }
+}
+
+function parseRows(text: string): { rows: Record<string, unknown>[]; problem?: string } {
   if (text.trim() === '') return { rows: [] }
   let value: unknown
   try {

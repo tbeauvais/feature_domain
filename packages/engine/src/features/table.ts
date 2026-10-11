@@ -20,10 +20,16 @@ function fromSchema(resource: DataResourceExports, operation: DataOperation): { 
   return undefined
 }
 
-/** One column per key of the sample rows, in order of first appearance (capped, so wide rows stay readable). */
+/**
+ * One column per key of the sample rows, in the order JavaScript lists them (first appearance, but integer-like keys
+ * first), capped so wide rows stay readable. Labels read as words: "joined_on" is "Joined on".
+ */
 function fromRows(rows: readonly Record<string, unknown>[]): TableColumn[] {
-  const keys = [...new Set(rows.flatMap((row) => Object.keys(row)))].slice(0, 12)
-  return keys.map((field) => ({ field, label: field.replace(/[_-]+/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) }))
+  const keys = [...new Set(rows.flatMap((row) => Object.keys(row)))].filter((key) => key.trim() !== '').slice(0, 12)
+  return keys.map((field) => {
+    const words = field.replace(/[_-]+/g, ' ').trim()
+    return { field, label: words ? words[0]!.toUpperCase() + words.slice(1) : field }
+  })
 }
 
 function fromInputs(fields: string[], labels: string[], filters: string[]): TableColumn[] {
@@ -78,7 +84,9 @@ export const TableFeature: FeatureDefinition = {
 
     const operationName = asString(inputs.operation)
     const operation = resource.operations.find((o) => o.name === operationName) ?? (operationName ? undefined : resource.operations[0])
-    if (operation?.sample) {
+    if (operation?.sample && operation.method !== 'GET') {
+      ctx.report('warning', `"${operation.name}" adds rows; a table lists them with the GET operation`)
+    } else if (operation?.sample) {
       const rows = resource.sampleRows ?? []
       props.source = { feature: resolved.id, resource: resource.resource, operation: operation.name, endPoint: '', rows }
       if (props.columns.length === 0) props.columns = fromRows(rows)
@@ -98,7 +106,8 @@ export const TableFeature: FeatureDefinition = {
     const deleteName = asString(inputs.delete_operation)
     if (deleteName) {
       const del = resource.operations.find((o) => o.name === deleteName)
-      if (del) props.deleteAction = { operation: del.name, endPoint: del.endPoint }
+      if (del?.sample) ctx.report('warning', `Sample data has no delete operation; "${deleteName}" is ignored`)
+      else if (del) props.deleteAction = { operation: del.name, endPoint: del.endPoint }
       else ctx.report('warning', `Delete operation "${deleteName}" is not provided by ${resource.resource || resolved.id}`)
     }
 

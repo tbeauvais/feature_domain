@@ -24,6 +24,14 @@ describe('getPath', () => {
     for (const field of ['constructor', 'toString', '__proto__', 'name.length.constructor']) expect(getPath({ name: 'repo' }, field)).toBeUndefined()
     expect(getPath({ list: ['a', 'b'] }, 'list.1')).toBe('b')
   })
+
+  it('reads a key the row has as a whole before reading it as a path (sample rows may have dots in keys)', () => {
+    expect(getPath({ 'first.name': 'Ada', first: { name: 'no' } }, 'first.name')).toBe('Ada')
+    expect(getPath({ 'data.x': 5, x: 6 }, 'data.x')).toBe(5)
+    expect(getPath({ x: 6 }, 'data.x')).toBe(6)
+    // An own "__proto__" data key is the row's data, never its prototype.
+    expect(getPath(JSON.parse('{"__proto__": "p"}'), '__proto__')).toBe('p')
+  })
 })
 
 describe('cellContent', () => {

@@ -1,8 +1,8 @@
-import { generate, type AppModel, type DataSource } from '@feature-domain/engine'
+import { generate, MAX_SAMPLE_ROWS, type AppModel, type DataSource } from '@feature-domain/engine'
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { effectScope, ref } from 'vue'
-import { DataStore } from '../src/renderer/data'
+import { DataStore, forgetSampleRows } from '../src/renderer/data'
 import DocumentView from '../src/renderer/DocumentView.vue'
 import { FETCH_JSON, type FetchJson } from '../src/renderer/rows'
 import { inst, MemoryStorage, model, page } from './helpers'
@@ -13,6 +13,14 @@ const sample = (rows: Record<string, unknown>[], feature = 's'): DataSource => (
 /** Reads sources from a store inside an effect scope, as components do. */
 function reader(store: DataStore, source: DataSource) {
   return effectScope().run(() => store.rows(ref(source)))!
+}
+
+/** A reader whose source can change, and whose scope can be stopped (as when its table goes away). */
+function liveReader(store: DataStore, source: DataSource) {
+  const scope = effectScope()
+  const s = ref(source)
+  const state = scope.run(() => store.rows(s))!
+  return { state, source: s, stop: () => scope.stop() }
 }
 
 describe('DataStore', () => {
@@ -57,6 +65,42 @@ describe('DataStore', () => {
     expect(rows.value).toEqual({ status: 'loaded', rows: [{ v: 'new' }] })
   })
 
+  it('tries a failed address again for a new reader, or when a reader comes back to it', async () => {
+    let fail = true
+    const fetchJson = vi.fn<FetchJson>(async () => {
+      if (fail) throw new Error('offline')
+      return [{ ok: 1 }]
+    })
+    const store = new DataStore(fetchJson)
+    const first = liveReader(store, address('https://x.test/a'))
+    await flushPromises()
+    expect(first.state.value).toEqual({ status: 'error', message: 'offline' })
+    fail = false
+    const second = reader(store, address('https://x.test/a'))
+    await flushPromises()
+    expect(fetchJson).toHaveBeenCalledTimes(2)
+    expect(second.value).toEqual({ status: 'loaded', rows: [{ ok: 1 }] })
+    expect(first.state.value).toEqual({ status: 'loaded', rows: [{ ok: 1 }] })
+  })
+
+  it('drops an address no one reads any more, so typing a URL keeps nothing it passed through', async () => {
+    const fetchJson = vi.fn<FetchJson>(async (url) => [{ url }])
+    const store = new DataStore(fetchJson)
+    const live = liveReader(store, address('https://x.test/a'))
+    for (const url of ['https://x.test/ab', 'https://x.test/abc']) {
+      live.source.value = address(url)
+      await flushPromises()
+    }
+    expect(live.state.value).toEqual({ status: 'loaded', rows: [{ url: 'https://x.test/abc' }] })
+    // Back to an address it left: fetched again, since nothing kept it.
+    live.source.value = address('https://x.test/a')
+    await flushPromises()
+    expect(fetchJson).toHaveBeenCalledTimes(4)
+    expect((store as unknown as { fetched: Map<string, unknown> }).fetched.size).toBe(1)
+    live.stop()
+    expect((store as unknown as { fetched: Map<string, unknown> }).fetched.size).toBe(0)
+  })
+
   it('serves sample rows with any added since, fetching nothing, and keeps added rows per model', async () => {
     const fetchJson = vi.fn<FetchJson>()
     const storage = new MemoryStorage()
@@ -76,11 +120,18 @@ describe('DataStore', () => {
     store.clearAddedRows('s')
     expect(people.value).toMatchObject({ rows: [{ name: 'Ada' }] })
     expect(storage.length).toBe(0)
+
+    // Added rows are capped like the model's own, and forgotten with the model.
+    for (let i = 0; i < MAX_SAMPLE_ROWS; i++) expect(store.addSampleRow('s', { i })).toBe(true)
+    expect(store.addSampleRow('s', { i: 'one too many' })).toBe(false)
+    expect(store.addedRows('s')).toBe(MAX_SAMPLE_ROWS)
+    forgetSampleRows('m1', storage)
+    expect(storage.length).toBe(0)
   })
 
   it('ignores stored added rows it cannot read', () => {
     const storage = new MemoryStorage()
-    for (const junk of ['not json', '[1,2]', '{"s": "x"}', '{"s": [1, null, {"name": "ok"}]}']) {
+    for (const junk of ['not json', '[1,2]', '{"s": "x"}', '{"__proto__": [{"x": 1}]}', '{"s": [1, null, {"name": "ok"}]}']) {
       storage.setItem('feature-domain:sample-rows:m1', junk)
       expect(() => reader(new DataStore(async () => [], 'm1', storage), sample([]))).not.toThrow()
     }

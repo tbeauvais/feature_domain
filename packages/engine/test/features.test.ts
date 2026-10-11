@@ -25,6 +25,7 @@ import {
   TextWithParagraphFeature,
   walkNodes,
   MAX_SAMPLE_ROWS,
+  parseSampleRows,
   SAMPLE_OPERATIONS,
   type DataResourceExports,
   type DocNode,
@@ -306,6 +307,14 @@ describe('DataResourceFeature', () => {
     expect(many.rows).toHaveLength(MAX_SAMPLE_ROWS)
     expect(many.problems).toEqual([`Only the first ${MAX_SAMPLE_ROWS} of ${MAX_SAMPLE_ROWS + 5} sample rows are used`])
   })
+
+  it('leaves out "__proto__" keys and warns about numbers too long to keep exactly', () => {
+    const proto = parseSampleRows('[{"__proto__": {"x": 1}, "name": "Ada"}]')
+    expect(proto).toEqual({ rows: [{ name: 'Ada' }], problem: 'The "__proto__" key in sample rows was left out' })
+    expect(Object.getPrototypeOf(proto.rows[0])).toBe(Object.prototype)
+    expect(parseSampleRows('[{"id": 9007199254740993}]').problem).toBe('"id" has a number too long to keep exactly; put it in quotes to keep every digit')
+    expect(parseSampleRows('[{"id": "9007199254740993", "n": 1.5, "big": 9007199254740991}]').problem).toBeUndefined()
+  })
 })
 
 describe('TableFeature', () => {
@@ -334,6 +343,28 @@ describe('TableFeature', () => {
       ],
     })
     expect(run(TableFeature, { data_resource: 'r', fields: ['city'] }, resolveTo(sample)).out.node?.props).toMatchObject({ columns: [{ field: 'city', label: 'city' }] })
+  })
+
+  it('labels derived columns as words, skipping empty keys', () => {
+    const rows = [{ _id: 1, '': 'x', first_name: 'Ada', 'last-name': 'L' }]
+    const sample = exportsOf({ operations: SAMPLE_OPERATIONS.map((o) => ({ ...o })), sampleRows: rows })
+    expect(run(TableFeature, { data_resource: 'r' }, resolveTo(sample)).out.node?.props).toMatchObject({
+      columns: [
+        { field: '_id', label: 'Id' },
+        { field: 'first_name', label: 'First name' },
+        { field: 'last-name', label: 'Last name' },
+      ],
+    })
+  })
+
+  it('lists sample rows only with the GET operation, and has no delete on sample data', () => {
+    const sample = exportsOf({ operations: SAMPLE_OPERATIONS.map((o) => ({ ...o })), sampleRows: [{ a: 1 }] })
+    const post = run(TableFeature, { data_resource: 'r', operation: 'POST rows' }, resolveTo(sample))
+    expect(post.out.node?.props).not.toHaveProperty('source')
+    expect(post.report).toHaveBeenCalledWith('warning', '"POST rows" adds rows; a table lists them with the GET operation')
+    const del = run(TableFeature, { data_resource: 'r', delete_operation: 'GET rows' }, resolveTo(sample))
+    expect(del.out.node?.props).not.toHaveProperty('deleteAction')
+    expect(del.report).toHaveBeenCalledWith('warning', 'Sample data has no delete operation; "GET rows" is ignored')
   })
 
   it('reads its source operation from the referenced resource', () => {

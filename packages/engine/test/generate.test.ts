@@ -12,6 +12,7 @@ import {
   ROOT_ID,
   TableFeature,
   usedBy,
+  frozenCopy,
   type FeatureDefinition,
 } from '../src'
 import { at, deepFreeze, inst, model, page, resource } from './helpers'
@@ -480,5 +481,14 @@ describe('unknown features in metadata', () => {
       slots: [],
       references: [],
     })
+  })
+})
+
+describe('frozenCopy', () => {
+  it('keeps a "__proto__" key as data, never as the copy\'s prototype', () => {
+    const copy = frozenCopy(JSON.parse('{"__proto__": {"x": 1}, "a": [1]}') as Record<string, unknown>)
+    expect(Object.getPrototypeOf(copy)).toBe(Object.prototype)
+    expect(Object.hasOwn(copy, '__proto__')).toBe(true)
+    expect(Object.isFrozen(copy) && Object.isFrozen(copy.a)).toBe(true)
   })
 })

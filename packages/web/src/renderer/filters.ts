@@ -58,8 +58,12 @@ export function parseFilter(spec: string | undefined): FilterSpec | undefined {
   return match[2] ? { name: match[1]!, argument: match[2] } : { name: match[1]! }
 }
 
-/** Reads a dotted path such as "owner.login" from a row. A leading "data." (the legacy row name) is ignored. */
+/**
+ * Reads a dotted path such as "owner.login" from a row. A leading "data." (the legacy row name) is ignored. A key the
+ * row has as a whole (e.g. "first.name" in sample rows) wins over reading it as a path.
+ */
 export function getPath(row: unknown, path: string): unknown {
+  if (typeof row === 'object' && row !== null && !Array.isArray(row) && Object.hasOwn(row, path)) return (row as Record<string, unknown>)[path]
   return path
     .replace(/^data\./, '')
     .split('.')
