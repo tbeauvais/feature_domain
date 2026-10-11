@@ -19,5 +19,6 @@ describe('Map', () => {
     const link = card.get('a')
     expect(link.text()).toBe('Open in Google Maps')
     expect(link.attributes('href')).toBe('https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL')
+    expect(link.attributes('aria-label')).toBe('Open Palm Beach, FL in Google Maps')
   })
 })

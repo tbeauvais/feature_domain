@@ -16,8 +16,19 @@ describe('MapFeature', () => {
       ['heading', 'm.title', { text: 'Where it\'s Warm', level: 4, align: 'left' }],
       ['illustration', 'm.map', { name: 'banner/map', alt: '', width: '', align: 'center', aspect: 2 }],
       ['paragraph', 'm.address', { text: 'Palm Beach, FL' }],
-      ['link', 'm.link', { text: 'Open in Google Maps', href: 'https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL' }],
+      ['link', 'm.link', { text: 'Open in Google Maps', href: 'https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL', ariaLabel: 'Open Palm Beach, FL in Google Maps' }],
     ])
+  })
+
+  it('names each link with its address, so two maps on a page have different links', () => {
+    const r = generate(model(page(), inst('GoogleMapFeature', 'a', { address: 'Palm Beach, FL' }), inst('GoogleMapFeature', 'b', { address: ' 131 Willow Rd. Guilford, CT ' })))
+    const names = r.root.children[0]!.children.map((c) => c.children.find((n) => n.kind === 'link')!.props.ariaLabel)
+    expect(names).toEqual(['Open Palm Beach, FL in Google Maps', 'Open 131 Willow Rd. Guilford, CT in Google Maps'])
+  })
+
+  it('is hidden when disabled', () => {
+    const r = generate(model(page(), inst('GoogleMapFeature', 'm', { address: 'Palm Beach, FL', disable: true })))
+    expect(r.root.children[0]!.children).toEqual([])
   })
 
   it('takes a Height, falling back to medium for anything else', () => {
@@ -60,7 +71,24 @@ describe('migrating the legacy GoogleMap', () => {
   })
 
   it('leaves a missing address to the default', () => {
-    expect(legacy({ title: 'Home' }).model.features[1]!.inputs).not.toHaveProperty('address')
+    const r = legacy({ title: 'Home' })
+    expect(r.model.features[1]!.inputs).not.toHaveProperty('address')
+    expect(r.notes).toEqual([])
+  })
+
+  it('treats a blank or unusable address like a missing one, with a note', () => {
+    for (const address of ['  ', null, { street: 'Main' }]) {
+      const r = legacy({ title: 'Home', address })
+      expect(r.model.features[1]!.inputs).not.toHaveProperty('address')
+      expect(r.notes.map((n) => [n.code, n.message])).toEqual([['invalid-value', 'The map had no address; it shows the default address (131 Willow Rd. Guilford, CT) until one is set']])
+    }
+  })
+
+  it('is disabled only by a boolean true, as in the legacy app', () => {
+    expect(legacy({ address: 'Palm Beach, FL', disable: true }).model.features[1]!.inputs.disable).toBe(true)
+    const r = legacy({ address: 'Palm Beach, FL', disable: 'true' })
+    expect(r.model.features[1]!.inputs.disable).toBe(false)
+    expect(r.notes.map((n) => n.code)).toEqual(['coerced-value'])
   })
 
   it('upgrades maps stored while the feature was unported, keeping their place', () => {

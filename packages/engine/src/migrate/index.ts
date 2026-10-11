@@ -349,8 +349,10 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
   GoogleMapFeature: (i, ctx) => {
     dropLegacyLooks(i, ['height', 'width'], 'map', ctx)
     const out: Record<string, InputValue> = { name: str(i.name), disable: disable(i.disable, ctx), title: text(i.title, ctx).trim() }
-    // A map saved without an address takes the default address (the legacy one).
-    if ('address' in i) out.address = text(i.address, ctx).trim()
+    // A map with no usable address takes the input's default (the legacy palette's), as a missing one does.
+    const address = text(i.address, ctx).trim()
+    if (address !== '') out.address = address
+    else if ('address' in i) ctx.note('invalid-value', 'warning', 'The map had no address; it shows the default address (131 Willow Rd. Guilford, CT) until one is set')
     return out
   },
 

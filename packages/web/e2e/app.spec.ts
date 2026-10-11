@@ -144,7 +144,7 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
   await expect(canvas.locator('[data-feature-id="7"] li')).toHaveText(['Red', 'Green', 'Blue', 'Yellow'])
   const map = canvas.locator('[data-feature-id="16"]')
   await expect(map.locator('.fd-heading')).toHaveText('Where it\'s Warm')
-  await expect(map.getByRole('link', { name: 'Open in Google Maps' })).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL')
+  await expect(map.getByRole('link', { name: 'Open Palm Beach, FL in Google Maps' })).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL')
   // The drawing fills the card's width (auto margins would shrink it to its minimum in the card's flex column).
   const fill = await map.evaluate((card) => [card.querySelector('.fd-illustration')!.getBoundingClientRect().width, card.querySelector('.fd-paragraph')!.getBoundingClientRect().width])
   expect(fill[0]).toBeCloseTo(fill[1]!, 0)

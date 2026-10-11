@@ -38,14 +38,14 @@ exports[`app_models/buy_deal_sample.json > generates the golden document 1`] = `
               heading #6.title {"text":"Too Cold Here","level":4,"align":"left"}
               illustration #6.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
               paragraph #6.address {"text":"131 Willow Rd. Guilford, CT"}
-              link #6.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=131%20Willow%20Rd.%20Guilford%2C%20CT"}
+              link #6.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=131%20Willow%20Rd.%20Guilford%2C%20CT","ariaLabel":"Open 131 Willow Rd. Guilford, CT in Google Maps"}
           grid-cell #19.r1c2 <r1c2> {"row":1,"column":2}
             text #35 [35] {"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
             card #16 [16]
               heading #16.title {"text":"Where it's Warm","level":4,"align":"left"}
               illustration #16.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
               paragraph #16.address {"text":"Palm Beach, FL"}
-              link #16.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL"}
+              link #16.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL","ariaLabel":"Open Palm Beach, FL in Google Maps"}
     stack #10 [10]
       heading #10.title {"text":"Company Info","level":4,"align":"left"}
       paragraph #10.p1 {"text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
@@ -126,14 +126,14 @@ exports[`app_models/google_map_sample.json > generates the golden document 1`] =
               heading #6.title {"text":"Too Cold Here","level":4,"align":"left"}
               illustration #6.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
               paragraph #6.address {"text":"131 Willow Rd. Guilford, CT"}
-              link #6.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=131%20Willow%20Rd.%20Guilford%2C%20CT"}
+              link #6.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=131%20Willow%20Rd.%20Guilford%2C%20CT","ariaLabel":"Open 131 Willow Rd. Guilford, CT in Google Maps"}
           grid-cell #19.r1c2 <r1c2> {"row":1,"column":2}
             text #35 [35] {"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
             card #16 [16]
               heading #16.title {"text":"Where it's Warm","level":4,"align":"left"}
               illustration #16.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
               paragraph #16.address {"text":"Palm Beach, FL"}
-              link #16.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL"}
+              link #16.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL","ariaLabel":"Open Palm Beach, FL in Google Maps"}
     grid #12 [12] {"rows":1,"columns":2,"well":true}
       grid-cell #12.r1c1 <r1c1> {"row":1,"column":1}
         heading #8 [8] {"text":"Here's a list of colors","level":4,"align":"center"}
@@ -294,13 +294,13 @@ exports[`sample.json > generates the golden document 1`] = `
               heading #16.title {"text":"Where it's Warm","level":4,"align":"left"}
               illustration #16.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
               paragraph #16.address {"text":"Palm Beach, FL"}
-              link #16.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL"}
+              link #16.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL","ariaLabel":"Open Palm Beach, FL in Google Maps"}
           grid-cell #19.r1c2 <r1c2> {"row":1,"column":2}
             card #6 [6]
               heading #6.title {"text":"Home Location","level":4,"align":"left"}
               illustration #6.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
               paragraph #6.address {"text":"131 Willow Rd. Guilford, CT"}
-              link #6.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=131%20Willow%20Rd.%20Guilford%2C%20CT"}
+              link #6.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=131%20Willow%20Rd.%20Guilford%2C%20CT","ariaLabel":"Open 131 Willow Rd. Guilford, CT in Google Maps"}
     stack #10 [10]
       heading #10.title {"text":"Company Info","level":4,"align":"left"}
       paragraph #10.p1 {"text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}

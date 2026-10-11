@@ -9,6 +9,6 @@ const href = computed(() => safeHref(props.node.props.href))
 
 <template>
   <!-- Only http(s) addresses become links; anything else shows the text alone (the engine warns about it). -->
-  <a v-if="href" class="fd-link" :href="href" target="_blank" rel="noopener noreferrer">{{ node.props.text }}</a>
+  <a v-if="href" class="fd-link" :href="href" :aria-label="node.props.ariaLabel" target="_blank" rel="noopener noreferrer">{{ node.props.text }}</a>
   <span v-else class="fd-link">{{ node.props.text }}</span>
 </template>

@@ -150,8 +150,11 @@ export interface NodeKinds {
   list: { items: string[]; align: Align; marker?: 'number' | 'check' }
   /** A horizontal rule. `color` is empty for the theme's border color; `thickness` in px, `width` in % of the line. */
   separator: { style: SeparatorStyle; color: string; thickness: number; width: number; align: Align }
-  /** A text link; `href` is shown only if it is http(s) (the renderer enforces that). */
-  link: { text: string; href: string }
+  /**
+   * A text link; `href` is shown only if it is http(s) (the renderer enforces that). `ariaLabel` names it for screen
+   * readers when the visible text alone doesn't say where it goes (e.g. two maps' "Open in Google Maps").
+   */
+  link: { text: string; href: string; ariaLabel?: string }
   /** A paragraph of plain text. `muted` is secondary text; `highlight` an emphasized closing line (e.g. a price). */
   paragraph: { text: string; emphasis?: 'muted' | 'highlight' }
   /** Layout: children stacked vertically with even spacing. */
