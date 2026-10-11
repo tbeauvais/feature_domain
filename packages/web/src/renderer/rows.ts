@@ -1,5 +1,6 @@
-import type { NodeKinds } from '@feature-domain/engine'
-import { inject, ref, watch, type InjectionKey, type Ref } from 'vue'
+import type { DataSource } from '@feature-domain/engine'
+import type { InjectionKey, Ref } from 'vue'
+import { useDataStore } from './data'
 import { getPath } from './filters'
 import { isHttpUrl } from './urls'
 
@@ -19,7 +20,7 @@ export const browserFetchJson: FetchJson = async (url) => {
   return response.json()
 }
 
-export type TableSource = NonNullable<NodeKinds['table']['source']>
+export type TableSource = DataSource
 
 export type RowsState =
   | { status: 'idle' }
@@ -34,27 +35,8 @@ export function selectRows(response: unknown, path?: string): unknown[] {
   return rows
 }
 
-/** A table's rows as they load, and `reload` to fetch them again (e.g. after an error). */
+/** A table's rows as they load (shared with every reader of the same resource), and `reload` to fetch them again. */
 export function useTableRows(source: Ref<TableSource | undefined>): { state: Ref<RowsState>; reload: () => Promise<void> } {
-  const fetchJson = inject(FETCH_JSON, browserFetchJson)
-  const state = ref<RowsState>({ status: 'idle' })
-  let request = 0
-
-  const load = async () => {
-    const current = ++request
-    const s = source.value
-    if (!s) {
-      state.value = { status: 'idle' }
-      return
-    }
-    state.value = { status: 'loading' }
-    try {
-      const rows = selectRows(await fetchJson(s.endPoint), s.path)
-      if (current === request) state.value = { status: 'loaded', rows }
-    } catch (error) {
-      if (current === request) state.value = { status: 'error', message: error instanceof Error ? error.message : String(error) }
-    }
-  }
-  watch(() => (source.value ? `${source.value.endPoint}\n${source.value.path ?? ''}` : ''), load, { immediate: true })
-  return { state, reload: load }
+  const store = useDataStore()
+  return { state: store.rows(source), reload: () => store.reload(source.value) }
 }

@@ -141,6 +141,17 @@ function settle() {
       @blur="settle"
     />
 
+    <!-- JSON (e.g. sample rows): taller, monospace, and no spell-checking. -->
+    <textarea
+      v-else-if="def.control === 'json-area'"
+      :id="id"
+      rows="12"
+      spellcheck="false"
+      :class="[field, 'font-mono text-xs leading-relaxed']"
+      :value="text"
+      @input="emit('change', ($event.target as HTMLTextAreaElement).value)"
+    />
+
     <textarea
       v-else-if="def.control === 'text-area' || def.type === 'text'"
       :id="id"

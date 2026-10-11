@@ -20,6 +20,12 @@ function fromSchema(resource: DataResourceExports, operation: DataOperation): { 
   return undefined
 }
 
+/** One column per key of the sample rows, in order of first appearance (capped, so wide rows stay readable). */
+function fromRows(rows: readonly Record<string, unknown>[]): TableColumn[] {
+  const keys = [...new Set(rows.flatMap((row) => Object.keys(row)))].slice(0, 12)
+  return keys.map((field) => ({ field, label: field.replace(/[_-]+/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) }))
+}
+
 function fromInputs(fields: string[], labels: string[], filters: string[]): TableColumn[] {
   return fields.map((field, i) => {
     const column: TableColumn = { field, label: labels[i] || field }
@@ -72,7 +78,11 @@ export const TableFeature: FeatureDefinition = {
 
     const operationName = asString(inputs.operation)
     const operation = resource.operations.find((o) => o.name === operationName) ?? (operationName ? undefined : resource.operations[0])
-    if (operation && !/^https?:\/\//i.test(operation.endPoint)) {
+    if (operation?.sample) {
+      const rows = resource.sampleRows ?? []
+      props.source = { feature: resolved.id, resource: resource.resource, operation: operation.name, endPoint: '', rows }
+      if (props.columns.length === 0) props.columns = fromRows(rows)
+    } else if (operation && !/^https?:\/\//i.test(operation.endPoint)) {
       ctx.report('warning', `Operation "${operation.name}" of ${resource.resource || resolved.id} has no http(s) URL`)
     } else if (operation) {
       const schema = fromSchema(resource, operation)

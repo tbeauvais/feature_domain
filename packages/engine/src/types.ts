@@ -64,6 +64,21 @@ export type HeadingBackground = (typeof HEADING_BACKGROUNDS)[number]
 export const PANEL_EMPHASES = ['normal', 'highlight', 'quiet'] as const
 export type PanelEmphasis = (typeof PANEL_EMPHASES)[number]
 
+/**
+ * Where a feature's rows come from at runtime: an address to fetch (`endPoint`, then the list at `path`), or a data
+ * resource's sample rows (`rows`), served in the browser with any rows added since.
+ */
+export interface DataSource {
+  /** The data resource's instance id. */
+  feature: string
+  /** The data resource's name. */
+  resource: string
+  operation: string
+  endPoint: string
+  path?: string
+  rows?: Record<string, unknown>[]
+}
+
 export interface TableColumn {
   field: string
   label: string
@@ -121,7 +136,7 @@ export interface NodeKinds {
     /** Rows shown before the table scrolls (its header stays in view); absent shows every row. */
     scrollRows?: number
     /** Where rows come from at runtime. Absent when the operation could not be found. */
-    source?: { feature: string; resource: string; operation: string; endPoint: string; path?: string }
+    source?: DataSource
     columns: TableColumn[]
     /** Per-row delete action; `endPoint` may contain `{field}` placeholders filled from the row. */
     deleteAction?: { operation: string; endPoint: string }

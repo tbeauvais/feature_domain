@@ -1,5 +1,5 @@
 import type { FeatureDefinition } from '../feature.js'
-import { asString, nameInput } from '../inputs.js'
+import { asOneOf, asString, nameInput } from '../inputs.js'
 
 export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE'] as const
 
@@ -15,6 +15,8 @@ export interface DataOperation {
   endPoint: string
   /** Name of the response schema in `schemas`, when known. */
   responseType?: string
+  /** Served in the browser from the resource's sample rows (GET lists them, POST adds one) instead of an address. */
+  sample?: true
 }
 
 /** What data-resource features export for consumers such as Table. */
@@ -22,6 +24,8 @@ export interface DataResourceExports {
   resource: string
   operations: DataOperation[]
   schemas: Record<string, DataSchema>
+  /** The sample rows, when the resource serves sample data. */
+  sampleRows?: Record<string, unknown>[]
 }
 
 /** The feature types whose exports are `DataResourceExports`. */
@@ -84,6 +88,37 @@ export function httpMethod(value: string): (typeof HTTP_METHODS)[number] {
   return (HTTP_METHODS as readonly string[]).includes(method) ? (method as (typeof HTTP_METHODS)[number]) : 'GET'
 }
 
+/** At most this many sample rows are kept: sample data is for trying a page out, not a database. */
+export const MAX_SAMPLE_ROWS = 500
+
+/** What a new data resource starts with, so a Table on it shows something at once. */
+const EXAMPLE_ROWS = [
+  { name: 'Ada Lovelace', role: 'Engineer', city: 'London', joined: '2015-03-07' },
+  { name: 'Grace Hopper', role: 'Admiral', city: 'New York', joined: '2016-12-09' },
+  { name: 'Alan Turing', role: 'Researcher', city: 'Manchester', joined: '2014-06-23' },
+]
+
+/** Sample rows from their JSON text: a list of objects. Anything else is a problem, in words. */
+export function parseSampleRows(text: string): { rows: Record<string, unknown>[]; problem?: string } {
+  if (text.trim() === '') return { rows: [] }
+  let value: unknown
+  try {
+    value = JSON.parse(text)
+  } catch (error) {
+    return { rows: [], problem: `Sample rows are not valid JSON (${error instanceof Error ? error.message : String(error)})` }
+  }
+  if (!Array.isArray(value)) return { rows: [], problem: 'Sample rows must be a list, like [{"name": "Ada"}]' }
+  const rows = value.filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null && !Array.isArray(row))
+  if (rows.length < value.length) return { rows, problem: `${value.length - rows.length} sample row(s) are not objects and were left out` }
+  return { rows }
+}
+
+/** The operations of a resource serving sample data. */
+export const SAMPLE_OPERATIONS: readonly DataOperation[] = [
+  { name: 'GET rows', method: 'GET', endPoint: '', sample: true },
+  { name: 'POST rows', method: 'POST', endPoint: '', sample: true },
+]
+
 export const DataResourceFeature: FeatureDefinition = {
   type: 'DataResourceFeature',
   name: 'DataResource',
@@ -91,7 +126,20 @@ export const DataResourceFeature: FeatureDefinition = {
   placement: 'none',
   inputs: [
     nameInput(),
-    { name: 'resource', label: 'Resource URL', type: 'string', default: '', placeholder: 'https://', control: 'text-input' },
+    {
+      name: 'source',
+      label: 'Source',
+      type: 'string',
+      // Stored resources without a Source fetch their address, as before; new ones start with sample rows.
+      default: 'address',
+      initial: 'sample',
+      control: 'segmented',
+      options: [
+        { value: 'address', text: 'Address' },
+        { value: 'sample', text: 'Sample data' },
+      ],
+    },
+    { name: 'resource', label: 'Resource URL', type: 'string', default: '', placeholder: 'https://', control: 'text-input', showWhen: { input: 'source', notEquals: 'sample' } },
     {
       name: 'operation',
       label: 'Operation',
@@ -99,10 +147,32 @@ export const DataResourceFeature: FeatureDefinition = {
       default: 'GET',
       control: 'text-select',
       options: HTTP_METHODS.map((m) => ({ value: m, text: m[0] + m.slice(1).toLowerCase() })),
+      showWhen: { input: 'source', notEquals: 'sample' },
+    },
+    {
+      name: 'sample_rows',
+      label: 'Sample rows (JSON)',
+      type: 'text',
+      default: '[]',
+      initial: JSON.stringify(EXAMPLE_ROWS, null, 2),
+      control: 'json-area',
+      showWhen: { input: 'source', equals: 'sample' },
     },
   ],
 
-  generate(inputs) {
+  generate(inputs, ctx) {
+    if (asOneOf(inputs.source, ['address', 'sample'], 'address') === 'sample') {
+      const parsed = parseSampleRows(asString(inputs.sample_rows))
+      if (parsed.problem) ctx.report('warning', parsed.problem)
+      if (parsed.rows.length > MAX_SAMPLE_ROWS) ctx.report('warning', `Only the first ${MAX_SAMPLE_ROWS} of ${parsed.rows.length} sample rows are used`)
+      const exports: DataResourceExports = {
+        resource: asString(inputs.name),
+        operations: SAMPLE_OPERATIONS.map((o) => ({ ...o })),
+        schemas: {},
+        sampleRows: parsed.rows.slice(0, MAX_SAMPLE_ROWS),
+      }
+      return { exports: { ...exports } }
+    }
     const resource = asString(inputs.resource)
     const method = httpMethod(asString(inputs.operation))
     const exports: DataResourceExports = {

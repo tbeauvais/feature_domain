@@ -222,7 +222,7 @@ async function deleteModel() {
               @click="onCanvasClick"
               @auxclick="onCanvasAuxClick"
             >
-              <DocumentView :root="result.root" />
+              <DocumentView :key="id" :root="result.root" :model-id="id" />
               <SelectionOverlay :container="canvas" :selected-id="selectedId" :version="result" />
               <DropIndicator :container="canvas" />
               <EmptyPageHint :container="canvas" :root="result.root" />

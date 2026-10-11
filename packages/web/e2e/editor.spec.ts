@@ -86,6 +86,8 @@ test('a table shows what it needs until it gets a data resource', async ({ page 
   await expect(tree(page).locator('[data-tree-id="2"]')).toContainText('skipped')
 
   await page.getByTestId('palette-DataResourceFeature').click()
+  // New data resources start on sample rows; these tests fetch the (mocked) GitHub API instead.
+  await inspector(page).getByRole('button', { name: 'Address' }).click()
   await inspector(page).getByLabel('Resource URL').fill('https://api.github.com/users/x/repos')
   await tree(page).locator('[data-tree-id="2"]').click()
   await inspector(page).getByLabel('Data Resource').selectOption({ label: 'untitled (#3)' })
@@ -135,12 +137,36 @@ test('typing into list and number fields keeps what you type', async ({ page }) 
   await expect(canvas(page).locator('[data-feature-id="3"] > [data-slot]')).toHaveCount(3)
 })
 
+test('a new data resource serves sample rows, so a table on it shows data at once and follows edits', async ({ page }) => {
+  await newModel(page)
+  await page.getByTestId('palette-TableFeature').click()
+  await page.getByTestId('palette-DataResourceFeature').click()
+  await expect(inspector(page).getByRole('button', { name: 'Sample data' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(inspector(page).getByLabel('Resource URL')).toHaveCount(0)
+  await tree(page).locator('[data-tree-id="2"]').click()
+  await inspector(page).getByLabel('Data Resource').selectOption({ label: 'untitled (#3)' })
+  const table = canvas(page).locator('[data-feature-id="2"]')
+  await expect(table.locator('th')).toHaveText(['Name', 'Role', 'City', 'Joined'])
+  await expect(table.locator('tbody tr')).toHaveCount(3)
+  await expect(table.locator('tbody tr').first().locator('td').first()).toHaveText('Ada Lovelace')
+
+  // Editing the rows updates the table; a mistake is reported, not thrown.
+  await tree(page).locator('[data-tree-id="3"]').click()
+  await inspector(page).getByLabel('Sample rows (JSON)').fill('[{"name": "Linus", "os": "Linux"}]')
+  await expect(table.locator('th')).toHaveText(['Name', 'Os'])
+  await expect(table.locator('tbody td')).toHaveText(['Linus', 'Linux'])
+  await inspector(page).getByLabel('Sample rows (JSON)').fill('[{"name": ')
+  await expect(inspector(page)).toContainText('Sample rows are not valid JSON')
+})
+
 test('linking a table to a data resource keeps it where it is on the page', async ({ page }) => {
   await newModel(page)
   await page.getByTestId('palette-TableFeature').click()
   await tree(page).locator('[data-tree-id="1"]').click()
   await page.getByTestId('palette-TextFeature').click()
   await page.getByTestId('palette-DataResourceFeature').click()
+  // New data resources start on sample rows; these tests fetch the (mocked) GitHub API instead.
+  await inspector(page).getByRole('button', { name: 'Address' }).click()
   await inspector(page).getByLabel('Resource URL').fill('https://api.github.com/users/x/repos')
   await tree(page).locator('[data-tree-id="2"]').click()
   await inspector(page).getByLabel('Data Resource').selectOption({ label: 'untitled (#4)' })
@@ -156,6 +182,8 @@ test('the selection outline follows content that loads later', async ({ page }) 
   })
   await newModel(page)
   await page.getByTestId('palette-DataResourceFeature').click()
+  // New data resources start on sample rows; these tests fetch the (mocked) GitHub API instead.
+  await inspector(page).getByRole('button', { name: 'Address' }).click()
   await inspector(page).getByLabel('Resource URL').fill('https://api.github.com/users/x/repos')
   await page.getByTestId('palette-TableFeature').click()
   await inspector(page).getByLabel('Data Resource').selectOption({ label: 'untitled (#2)' })
