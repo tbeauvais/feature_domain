@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { canPlace, defaultRegistry, isInputShown, removeFeature, type InputValue } from '@feature-domain/engine'
+import { canPlace, defaultRegistry, isInputShown, removeFeature, usedBy, type InputDef, type InputValue } from '@feature-domain/engine'
 import { computed } from 'vue'
 import { useDocumentStore } from '../stores/document'
 import { confirmAction } from './confirm'
 import { siblingsIn } from './dnd'
 import DiagnosticsList from '../views/DiagnosticsList.vue'
 import InputField from './InputField.vue'
+import ThemePresets from './ThemePresets.vue'
 import { themeForFeature } from './themeFor'
 
 const store = useDocumentStore()
@@ -17,6 +18,58 @@ const diagnostics = computed(() => store.result?.diagnostics.filter((d) => d.fea
 
 /** Inputs that apply to the current values (e.g. the image address only when Source is Link). */
 const shownInputs = computed(() => (def.value && instance.value ? def.value.inputs.filter((i) => isInputShown(i, def.value!.inputs, instance.value!.inputs)) : []))
+/** Inputs grouped into the feature's sections, in order; the ungrouped ones (name, disable, ...) come first. */
+const sections = computed(() => {
+  const out: { group: string | undefined; inputs: InputDef[] }[] = []
+  for (const input of shownInputs.value) {
+    const section = out.find((s) => s.group === input.group)
+    if (section) section.inputs.push(input)
+    else out.push({ group: input.group, inputs: [input] })
+  }
+  return out.sort((a, b) => (a.group === undefined ? -1 : b.group === undefined ? 1 : 0))
+})
+
+/** With nothing selected: the model in a line or two, and a way to add a theme when it has none. */
+const summary = computed(() => {
+  const features = store.model?.features ?? []
+  const pages = features.filter((f) => f.feature === 'PageFeature').length
+  const onPages = features.filter((f) => f.placement && f.feature !== 'PageFeature').length
+  const themes = features.filter((f) => f.feature === 'ThemeFeature').length
+  return {
+    counts: `${pages} page${pages === 1 ? '' : 's'} · ${onPages === 0 ? `nothing on ${pages === 1 ? 'it' : 'them'} yet` : `${onPages} feature${onPages === 1 ? '' : 's'} on ${pages === 1 ? 'it' : 'them'}`}`,
+    themes,
+  }
+})
+
+const isTheme = computed(() => instance.value?.feature === 'ThemeFeature')
+
+/** What uses the selected feature (pages on a theme, tables on a data resource), with labels. */
+const users = computed(() => {
+  const result = store.result
+  if (!result || store.selectedId === null) return []
+  return usedBy(result, store.selectedId).map((id) => {
+    const feature = store.model?.features.find((f) => f.id === id)
+    const type = feature ? (defaultRegistry.get(feature.feature)?.name ?? feature.feature) : ''
+    const name = typeof feature?.inputs.name === 'string' && feature.inputs.name.trim() ? feature.inputs.name : type
+    return { id, name, type }
+  })
+})
+/** Pages whose theme is missing or not a Theme (they show the default theme). */
+const unthemedPages = computed(() => {
+  const features = store.model?.features ?? []
+  const themes = new Set(features.filter((f) => f.feature === 'ThemeFeature').map((f) => f.id))
+  return features.filter((f) => f.feature === 'PageFeature' && !(typeof f.inputs.theme === 'string' && themes.has(f.inputs.theme)))
+})
+
+/** "used by 2 pages", or "used by 3 features" when they differ in type. */
+const usedBySummary = computed(() => {
+  const list = users.value
+  if (list.length === 0) return isTheme.value ? 'not used yet' : ''
+  const types = new Set(list.map((u) => u.type))
+  const noun = types.size === 1 ? [...types][0]!.toLowerCase() : 'feature'
+  return `used by ${list.length} ${noun}${list.length === 1 ? '' : 's'}`
+})
+
 /** Previews in the inspector use the theme of the page the feature is on. */
 const themeVars = computed(() => themeForFeature(store.result?.root, store.selectedId).vars)
 
@@ -88,12 +141,31 @@ async function remove() {
 <template>
   <section aria-labelledby="inspector-heading" data-testid="inspector">
     <h2 id="inspector-heading" class="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">Inspector</h2>
-    <p v-if="!instance" class="text-sm text-slate-500">Select a feature on the page or in the tree.</p>
+    <div v-if="!instance" class="space-y-3" data-testid="inspector-idle">
+      <div>
+        <p class="font-medium">Nothing selected</p>
+        <p class="text-sm text-slate-600">Select a feature on the page or in the tree to edit its settings.</p>
+      </div>
+      <div v-if="store.model" class="space-y-1 border-t border-slate-200 pt-3 text-sm">
+        <h3 class="font-semibold text-slate-800">This model</h3>
+        <p class="text-slate-600">{{ summary.counts }}</p>
+        <p v-if="summary.themes === 0" class="text-slate-600">
+          Pages use the default theme (Warm Editorial).
+          <button type="button" class="font-medium text-slate-900 underline hover:text-slate-700" data-testid="add-theme" @click="store.add('ThemeFeature')">
+            Add a theme
+          </button>
+          to change colours and type.
+        </p>
+      </div>
+    </div>
     <div v-else class="space-y-3">
       <div class="flex items-baseline justify-between gap-2">
-        <p class="font-medium">
-          {{ def?.name ?? instance.feature }} <span class="font-mono text-xs text-slate-400">#{{ instance.id }}</span>
-        </p>
+        <div>
+          <p class="font-medium">
+            {{ def?.name ?? instance.feature }} <span class="font-mono text-xs text-slate-400">#{{ instance.id }}</span>
+          </p>
+          <p v-if="usedBySummary" class="text-xs text-slate-500" data-testid="used-by-summary">{{ usedBySummary }}</p>
+        </div>
         <button type="button" class="text-sm text-red-700 hover:underline" data-testid="delete-feature" @click="remove">Delete</button>
       </div>
 
@@ -132,15 +204,70 @@ async function remove() {
             </button>
           </div>
         </div>
-        <InputField
-          v-for="input in shownInputs"
-          :key="`${instance.id}:${input.name}`"
-          :def="input"
-          :value="instance.inputs[input.name]"
-          :references="input.type === 'reference' ? references(input.accepts) : undefined"
-          :theme-vars="input.control === 'illustration-gallery' ? themeVars : undefined"
-          @change="change(input.name, $event)"
-        />
+        <template v-for="section in sections" :key="section.group ?? ''">
+          <section
+            v-if="section.group"
+            class="space-y-3 border-t border-slate-200 pt-3"
+            :aria-label="section.group"
+            :data-testid="`inspector-section-${section.group}`"
+          >
+            <h3 class="text-sm font-semibold text-slate-800">{{ section.group }}</h3>
+            <InputField
+              v-for="input in section.inputs"
+              :key="`${instance.id}:${input.name}`"
+              :def="input"
+              :value="instance.inputs[input.name]"
+              :references="input.type === 'reference' ? references(input.accepts) : undefined"
+              :theme-vars="input.control === 'illustration-gallery' ? themeVars : undefined"
+              @change="change(input.name, $event)"
+            />
+          </section>
+          <template v-else>
+            <InputField
+              v-for="input in section.inputs"
+              :key="`${instance.id}:${input.name}`"
+              :def="input"
+              :value="instance.inputs[input.name]"
+              :references="input.type === 'reference' ? references(input.accepts) : undefined"
+              :theme-vars="input.control === 'illustration-gallery' ? themeVars : undefined"
+              @change="change(input.name, $event)"
+            />
+            <ThemePresets v-if="isTheme" :inputs="instance.inputs" @pick="store.applyThemePreset(instance.id, $event)" />
+          </template>
+        </template>
+
+        <section v-if="users.length > 0 || isTheme" class="space-y-2 border-t border-slate-200 pt-3" aria-labelledby="used-by-heading" data-testid="used-by">
+          <h3 id="used-by-heading" class="text-sm font-semibold text-slate-800">Used by</h3>
+          <ul v-if="users.length > 0" class="space-y-1">
+            <li v-for="user in users" :key="user.id">
+              <button
+                type="button"
+                class="flex w-full items-baseline justify-between gap-2 rounded-md bg-slate-100 px-2 py-1 text-left text-sm hover:bg-slate-200"
+                :data-used-by="user.id"
+                @click="store.select(user.id)"
+              >
+                <span class="truncate">{{ user.name }}</span>
+                <span class="shrink-0 text-xs text-slate-500">{{ user.type }} #{{ user.id }}</span>
+              </button>
+            </li>
+          </ul>
+          <template v-if="isTheme">
+            <p v-if="users.length > 0" class="text-xs text-slate-500">Changing a setting restyles every page listed.</p>
+            <template v-else>
+              <p class="text-sm text-slate-600">No page uses this theme yet.</p>
+              <p v-if="unthemedPages.length === 0" class="text-xs text-slate-500">Every page uses another theme; choose this one in a page's Theme setting.</p>
+              <button
+                v-else
+                type="button"
+                class="rounded-md border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50"
+                data-testid="use-theme"
+                @click="store.useThemeOnPages(instance.id)"
+              >
+                Use on all pages without a theme
+              </button>
+            </template>
+          </template>
+        </section>
       </template>
     </div>
   </section>

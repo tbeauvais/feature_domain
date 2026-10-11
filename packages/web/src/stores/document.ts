@@ -5,6 +5,8 @@ import {
   migrate,
   moveFeature,
   removeFeature,
+  THEME_PRESETS,
+  themeInputs,
   updateInputs,
   useThemeOnUnthemedPages,
   validateModel,
@@ -249,6 +251,24 @@ export const useDocumentStore = defineStore('document', () => {
     return removed
   }
 
+  /**
+   * Gives a Theme every setting of a built-in theme, as one undo step. A theme still named after a built-in theme takes
+   * the new one's name; a name of its own is kept.
+   */
+  function applyThemePreset(id: string, presetId: string): void {
+    const preset = THEME_PRESETS.find((p) => p.id === presetId)
+    const theme = current().features.find((f) => f.id === id)
+    if (!preset || !theme) return
+    const name = typeof theme.inputs.name === 'string' ? theme.inputs.name.trim() : ''
+    const renamed = name === '' || THEME_PRESETS.some((p) => p.name === name) ? { name: preset.name } : {}
+    apply(updateInputs(current(), id, { ...themeInputs(preset.params), ...renamed }))
+  }
+
+  /** Points every page without a working theme at this Theme. */
+  function useThemeOnPages(themeId: string): void {
+    apply(useThemeOnUnthemedPages(current(), themeId))
+  }
+
   function rename(name: string): void {
     apply({ ...current(), name }, 'rename')
   }
@@ -274,6 +294,8 @@ export const useDocumentStore = defineStore('document', () => {
     setInputs,
     moveTo,
     remove,
+    applyThemePreset,
+    useThemeOnPages,
     rename,
     canUndo,
     canRedo,

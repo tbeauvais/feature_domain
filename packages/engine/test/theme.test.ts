@@ -9,6 +9,10 @@ import {
   oklchToHex,
   BADGE_COUNT,
   THEME_OPTIONS,
+  THEME_PRESETS,
+  matchingPreset,
+  themeInputs,
+  themeParams,
   type ThemeParams,
   type ThemeTokens,
 } from '../src/index.js'
@@ -190,5 +194,32 @@ describe('deriveTokens', () => {
     const names = Object.keys(deriveTokens().vars).sort()
     const random = rng(5)
     for (let i = 0; i < 20; i++) expect(Object.keys(deriveTokens(randomParams(random)).vars).sort()).toEqual(names)
+  })
+})
+
+describe('built-in themes', () => {
+  it('are valid, readable without adjustments, and clearly different from each other', () => {
+    expect(THEME_PRESETS.map((p) => p.id)).toEqual(['warm-editorial', 'night-garden'])
+    expect(THEME_PRESETS[0]!.params).toBe(DEFAULT_THEME)
+    for (const preset of THEME_PRESETS) {
+      expect(clampThemeParams(preset.params), preset.id).toEqual(preset.params)
+      expect(deriveTokens(preset.params).adjustments, preset.id).toEqual([])
+    }
+    // A second theme proves the style layer: it differs in scheme, colours, shape, space and type, not just the accent.
+    const [warm, night] = THEME_PRESETS.map((p) => p.params)
+    const differing = (Object.keys(warm!) as (keyof ThemeParams)[]).filter((key) => warm![key] !== night![key])
+    expect(differing).toEqual(expect.arrayContaining(['accent', 'band', 'scheme', 'baseSize', 'scale', 'radius', 'density', 'shadow', 'well']))
+  })
+
+  it('round-trip through a Theme feature, which recognises the one it matches', () => {
+    for (const preset of THEME_PRESETS) {
+      const inputs = themeInputs(preset.params)
+      expect(themeParams(inputs)).toEqual(preset.params)
+      expect(matchingPreset({ name: 'Mine', ...inputs })?.id).toBe(preset.id)
+      expect(matchingPreset({ ...inputs, accent: '#123456' })).toBeUndefined()
+    }
+    // Stored themes without some settings mean the default for them, so an empty Theme is Warm Editorial.
+    expect(matchingPreset({})?.id).toBe('warm-editorial')
+    expect(matchingPreset({ accent: 'E5531A' })?.id).toBe('warm-editorial')
   })
 })

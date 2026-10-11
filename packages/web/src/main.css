@@ -136,3 +136,7 @@
 .fd-editor-canvas .fd-root .fd-grid:not(:has(> .fd-cell:not(:empty))) {
   margin-bottom: calc(var(--fd-space) * 6);
 }
+/* An empty page leaves room for the editor's hint (EmptyPageHint) over it. */
+.fd-editor-canvas .fd-root .fd-page:empty {
+  min-height: 18rem;
+}

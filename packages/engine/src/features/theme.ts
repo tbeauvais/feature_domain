@@ -1,6 +1,7 @@
 import type { FeatureDefinition } from '../feature.js'
-import { asInt, asString, nameInput, type InputDef, type InputOption } from '../inputs.js'
-import { BASE_SIZE_RANGE, clampThemeParams, DEFAULT_THEME, deriveTokens, THEME_OPTIONS, type ThemeParams, type ThemeTokens } from '../theme/tokens.js'
+import { asInt, asString, nameInput, resolveInputs, type InputDef, type InputOption } from '../inputs.js'
+import type { InputValue } from '../types.js'
+import { BASE_SIZE_RANGE, clampThemeParams, DEFAULT_THEME, deriveTokens, THEME_OPTIONS, THEME_PRESETS, type ThemeParams, type ThemePreset, type ThemeTokens } from '../theme/tokens.js'
 
 const LABELS: Record<string, string> = {
   light: 'Light',
@@ -28,13 +29,15 @@ const LABELS: Record<string, string> = {
 }
 
 const options = (values: readonly string[]): InputOption[] => values.map((value) => ({ value, text: LABELS[value] ?? value }))
-const choice = (name: keyof typeof THEME_OPTIONS, label: string): InputDef => ({
+/** A setting with a few short options is a row of buttons; long labels (fonts, scales) stay a select. */
+const choice = (name: keyof typeof THEME_OPTIONS, label: string, group: string, control: 'segmented' | 'text-select' = 'segmented'): InputDef => ({
   name,
   label,
   type: 'string',
   default: DEFAULT_THEME[name],
-  control: 'text-select',
+  control,
   options: options(THEME_OPTIONS[name]),
+  group,
 })
 
 /** What a Theme provides to the features that reference it (Pages). */
@@ -59,10 +62,10 @@ export const ThemeFeature: FeatureDefinition = {
   placement: 'none',
   inputs: [
     nameInput('Warm Editorial'),
-    { name: 'accent', label: 'Accent', type: 'color', default: DEFAULT_THEME.accent, control: 'color-picker' },
-    { name: 'band', label: 'Band colour', type: 'color', default: DEFAULT_THEME.band, control: 'color-picker' },
-    choice('scheme', 'Scheme'),
-    choice('fonts', 'Fonts'),
+    { name: 'accent', label: 'Accent', type: 'color', default: DEFAULT_THEME.accent, control: 'color-picker', group: 'Colour' },
+    { name: 'band', label: 'Band colour', type: 'color', default: DEFAULT_THEME.band, control: 'color-picker', group: 'Colour' },
+    choice('scheme', 'Scheme', 'Colour'),
+    choice('fonts', 'Fonts', 'Typography', 'text-select'),
     {
       name: 'base_size',
       label: 'Base size (px)',
@@ -71,14 +74,15 @@ export const ThemeFeature: FeatureDefinition = {
       min: BASE_SIZE_RANGE.min,
       max: BASE_SIZE_RANGE.max,
       control: 'text-input',
+      group: 'Typography',
     },
-    choice('scale', 'Type scale'),
-    choice('radius', 'Corners'),
-    choice('density', 'Spacing'),
-    choice('shadow', 'Shadows'),
-    choice('panel', 'Panels'),
-    choice('table', 'Tables'),
-    choice('well', 'Wells'),
+    choice('scale', 'Type scale', 'Typography', 'text-select'),
+    choice('radius', 'Corners', 'Shape and space'),
+    choice('density', 'Spacing', 'Shape and space'),
+    choice('shadow', 'Shadows', 'Shape and space'),
+    choice('panel', 'Panels', 'Components'),
+    choice('table', 'Tables', 'Components'),
+    choice('well', 'Wells', 'Components'),
   ],
 
   generate(inputs, ctx) {
@@ -94,4 +98,25 @@ export const ThemeFeature: FeatureDefinition = {
     const exports: ThemeExports = { params, tokens }
     return { exports: exports as unknown as Record<string, unknown> }
   },
+}
+
+/** A Theme's inputs for a set of settings (e.g. a built-in theme): every setting, so it replaces the current ones. */
+export function themeInputs(params: Readonly<ThemeParams>): Record<string, InputValue> {
+  const { baseSize, ...rest } = params
+  return { ...rest, base_size: baseSize }
+}
+
+/** The settings a Theme's stored inputs mean, as generation reads them (missing ones default, invalid ones clamp). */
+export function themeParams(inputs: Readonly<Record<string, InputValue>>): ThemeParams {
+  const resolved = resolveInputs(ThemeFeature.inputs, inputs)
+  return clampThemeParams({ ...resolved, baseSize: asInt(resolved.base_size, DEFAULT_THEME.baseSize) })
+}
+
+/** The built-in theme whose settings a Theme's inputs match exactly, if any. */
+export function matchingPreset(inputs: Readonly<Record<string, InputValue>>): ThemePreset | undefined {
+  const params = themeParams(inputs)
+  return THEME_PRESETS.find((preset) => {
+    const wanted = clampThemeParams(preset.params)
+    return (Object.keys(wanted) as (keyof ThemeParams)[]).every((key) => wanted[key] === params[key])
+  })
 }
