@@ -174,6 +174,11 @@ export interface NodeKinds {
    * A chart of one value per row, labeled by another field (either guessed from the loaded rows when absent). Drawn
    * in the theme's chart colors; `description` is what screen readers hear (the data also sits in a hidden table).
    */
+  /**
+   * The weather at a place, fetched from `url` (Open-Meteo's forecast; absent without a valid location): the temperature
+   * and conditions now, and the next `days` days. `place` names it for screen readers.
+   */
+  weather: { url?: string; place: string; units: 'fahrenheit' | 'celsius'; days: number }
   /** A form that sends its fields to a data resource (`action`); absent action: nothing to send to. */
   form: { title?: string; fields: FormField[]; submit: string; success: string; action?: DataAction }
   chart: { type: ChartType; height: number; title?: string; description?: string; labelField?: string; valueField?: string; valueFormat?: string; source?: DataSource }

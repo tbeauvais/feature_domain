@@ -8,10 +8,10 @@ import { browserFetchJson, browserSendRequest, FETCH_JSON, selectRows, SEND_REQU
 // - A resource serving sample data answers from its rows (from the model) plus rows added since (e.g. by a Form),
 //   which are kept per model in the browser.
 
-type Response = { status: 'idle' } | { status: 'loading' } | { status: 'loaded'; response: unknown } | { status: 'error'; message: string }
+export type FetchState = { status: 'idle' } | { status: 'loading' } | { status: 'loaded'; response: unknown } | { status: 'error'; message: string }
 
 interface Fetched {
-  state: Ref<Response>
+  state: Ref<FetchState>
   request: number
   /** Readers of this address; with none left, its response is dropped. */
   readers: number
@@ -104,7 +104,7 @@ export class DataStore {
   private entry(endPoint: string): Fetched {
     let entry = this.fetched.get(endPoint)
     if (!entry) {
-      entry = { state: ref<Response>({ status: 'idle' }), request: 0, readers: 0, features: new Set() }
+      entry = { state: ref<FetchState>({ status: 'idle' }), request: 0, readers: 0, features: new Set() }
       this.fetched.set(endPoint, entry)
     }
     return entry
@@ -122,10 +122,12 @@ export class DataStore {
     }
   }
 
-  /** The rows of a source as they load. Readers of one address share its response; each picks its own `path`. */
-  rows(source: Ref<DataSource | undefined>): ComputedRef<RowsState> {
-    // Start (or reuse) the fetch whenever the address changes. A failed one is tried again for a new reader; a loaded
-    // or loading one is shared. Each reader counts on its address, and an address no one reads any more is dropped.
+  /**
+   * Reads the address `endPoint()` gives while the caller's scope lives: starts (or reuses) its fetch whenever it
+   * changes. A failed one is tried again for a new reader; a loaded or loading one is shared. Each reader counts on its
+   * address, and an address no one reads any more is dropped.
+   */
+  private track(endPoint: () => string | undefined, feature?: () => string | undefined): void {
     let current: string | undefined
     const release = () => {
       if (current === undefined) return
@@ -137,19 +139,43 @@ export class DataStore {
       current = undefined
     }
     watch(
-      () => (source.value && !source.value.rows ? source.value.endPoint : undefined),
-      (endPoint) => {
+      endPoint,
+      (address) => {
         release()
-        if (endPoint === undefined) return
-        const entry = this.entry(endPoint)
+        if (address === undefined) return
+        const entry = this.entry(address)
         entry.readers++
-        if (source.value) entry.features.add(source.value.feature)
-        current = endPoint
-        if (entry.state.value.status === 'idle' || entry.state.value.status === 'error') void this.load(endPoint)
+        const id = feature?.()
+        if (id !== undefined) entry.features.add(id)
+        current = address
+        if (entry.state.value.status === 'idle' || entry.state.value.status === 'error') void this.load(address)
       },
       { immediate: true },
     )
     if (getCurrentScope()) onScopeDispose(release)
+  }
+
+  /** The JSON at an address as it loads (e.g. a Weather card's forecast), shared with every reader of it. */
+  json(endPoint: Ref<string | undefined>): ComputedRef<FetchState> {
+    this.track(() => endPoint.value)
+    return computed((): FetchState => {
+      if (endPoint.value === undefined) return { status: 'idle' }
+      const state = (this.fetched.get(endPoint.value) ?? this.entry(endPoint.value)).state.value
+      return state.status === 'idle' ? { status: 'loading' } : state
+    })
+  }
+
+  /** Fetches an address again, for every reader of it. */
+  refetch(endPoint: string | undefined): Promise<void> {
+    return endPoint === undefined ? Promise.resolve() : this.load(endPoint)
+  }
+
+  /** The rows of a source as they load. Readers of one address share its response; each picks its own `path`. */
+  rows(source: Ref<DataSource | undefined>): ComputedRef<RowsState> {
+    this.track(
+      () => (source.value && !source.value.rows ? source.value.endPoint : undefined),
+      () => source.value?.feature,
+    )
     return computed((): RowsState => {
       const s = source.value
       if (!s) return { status: 'idle' }

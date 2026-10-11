@@ -2,14 +2,15 @@ import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { isolateNetwork } from './network'
 
-// Screenshots of every sample (and one in the Night Garden theme), and of every Header and Panel option, at desktop and phone width, so the look can't
+// Screenshots of every sample (and one in the Night Garden theme), of every Header and Panel option, every chart type and Weather card, at desktop and phone width, so the look can't
 // regress unnoticed. Text rendering differs between operating systems, so baselines are Linux only: they are made and
 // compared in the Playwright Docker image (`npm run e2e:docker`), which CI runs in too.
 test.skip(process.platform !== 'linux', 'Screenshots are compared on Linux only; run `npm run e2e:docker` from packages/web')
 
 const PHOTO = readFileSync(new URL('./fixtures/photo.png', import.meta.url))
 
-// Sample photos from other sites become one flat local picture, and GitHub returns fixed rows, so every run looks the same.
+// Sample photos from other sites become one flat local picture, GitHub returns fixed rows and Open-Meteo fixed weather, so
+// every run looks the same.
 isolateNetwork((route, url) => {
   if (url.hostname === 'api.github.com') {
     const user = url.pathname.split('/')[2]
@@ -21,9 +22,28 @@ isolateNetwork((route, url) => {
       ],
     })
   }
+  if (url.hostname === 'api.open-meteo.com') {
+    const weather = FORECASTS[url.searchParams.get('latitude') ?? '']
+    if (!weather) return route.fulfill({ status: 503, body: 'Service Unavailable' })
+    const [code, isDay, days] = weather
+    return route.fulfill({
+      json: {
+        current_units: { temperature_2m: url.searchParams.get('temperature_unit') === 'celsius' ? '°C' : '°F' },
+        current: { temperature_2m: 71.6, weather_code: code, is_day: isDay },
+        daily: { time: ['2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14'], weather_code: [0, ...days], temperature_2m_max: [75, 78, 74, 69], temperature_2m_min: [60, 63, 61, 55] },
+      },
+    })
+  }
   if (route.request().resourceType() === 'image') return route.fulfill({ body: PHOTO, contentType: 'image/png' })
   return undefined
 })
+
+/** Fixed weather by latitude (current code, day or night, the next days' codes), so the cards show every icon. */
+const FORECASTS: Record<string, [number, number, number[]]> = {
+  '26.7056': [0, 1, [2, 61, 95]],
+  '41.289': [1, 0, [3, 45, 73]],
+  '64.1466': [0, 0, []],
+}
 
 const WIDTHS = { desktop: { width: 1280, height: 800 }, phone: { width: 390, height: 844 } } as const
 const SAMPLES = ['Getting Started', 'Buy Deal', 'Data Sample', 'Swagger Data Sample', 'Watson Sample']
@@ -68,6 +88,25 @@ function chartsModel(id: string, scheme: 'light' | 'dark') {
   features.push({ feature: 'GoogleChartFeature', id: 'c-band-col', inputs: { title: 'On a band', data_resource: 'r', chart_type: 'column', height: 'short' }, placement: { parent: 'well', slot: 'r1c1' } })
   features.push({ feature: 'GoogleChartFeature', id: 'c-band-pie', inputs: { title: 'On a band', data_resource: 'r', chart_type: 'donut', height: 'short' }, placement: { parent: 'well', slot: 'r1c2' } })
   return { version: 2, id, name: `Charts (${scheme})`, features }
+}
+
+/**
+ * Weather cards in a well (a band in light, the theme's own well in dark), between them showing every icon, plus one
+ * whose forecast fails to load.
+ */
+function weatherModel(id: string, scheme: 'light' | 'dark') {
+  const cell = (slot: string) => ({ parent: 'well', slot })
+  const features: object[] = [
+    { feature: 'ThemeFeature', id: 't', inputs: { name: 'Theme', scheme, ...(scheme === 'light' ? { well: 'band' } : {}) } },
+    { feature: 'PageFeature', id: '1', inputs: { name: 'Page', theme: 't' }, placement: { parent: '$root', slot: 'content' } },
+    { feature: 'HeaderFeature', id: 'h', inputs: { text: 'Two New Locations', size: 2, align: 'center' }, placement: { parent: '1', slot: 'content' } },
+    { feature: 'ContainerFeature', id: 'well', inputs: { rows: 2, columns: 2, well: true }, placement: { parent: '1', slot: 'content' } },
+    { feature: 'WeatherFeature', id: 'w1', inputs: { title: 'Where it’s Warm', place: 'Palm Beach, Florida', latitude: '26.7056', longitude: '-80.0364' }, placement: cell('r1c1') },
+    { feature: 'WeatherFeature', id: 'w2', inputs: { place: 'Guilford, Connecticut', latitude: '41.2890', longitude: '-72.6818' }, placement: cell('r1c2') },
+    { feature: 'WeatherFeature', id: 'w3', inputs: { place: 'Reykjavík, Iceland', latitude: '64.1466', longitude: '-21.9426', units: 'celsius', show: 'current' }, placement: cell('r2c1') },
+    { feature: 'WeatherFeature', id: 'w4', inputs: { place: 'Somewhere offline', latitude: '10', longitude: '10' }, placement: cell('r2c2') },
+  ]
+  return { version: 2, id, name: `Weather (${scheme})`, features }
 }
 
 /** Puts a model into the app's browser storage. */
@@ -123,6 +162,12 @@ for (const [size, viewport] of Object.entries(WIDTHS)) {
         await page.goto('/')
         await store(page, chartsModel(`charts-${scheme}`, scheme))
         await snapshot(page, `charts-${scheme}`, `charts-${scheme}-${size}`)
+      })
+
+      test(`Weather cards look as they should (${scheme})`, async ({ page }) => {
+        await page.goto('/')
+        await store(page, weatherModel(`weather-${scheme}`, scheme))
+        await snapshot(page, `weather-${scheme}`, `weather-${scheme}-${size}`)
       })
 
       test(`every Header and Panel option looks as it should (${scheme})`, async ({ page }) => {

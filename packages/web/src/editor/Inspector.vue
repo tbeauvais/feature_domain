@@ -137,6 +137,10 @@ function change(name: string, value: InputValue | undefined) {
   if (store.selectedId !== null) store.setInputs(store.selectedId, { [name]: value })
 }
 
+function changeInputs(values: Record<string, InputValue>) {
+  if (store.selectedId !== null) store.setInputs(store.selectedId, values)
+}
+
 async function remove() {
   const model = store.model
   const id = store.selectedId
@@ -235,6 +239,7 @@ async function remove() {
               :references="input.type === 'reference' ? references(input.accepts) : undefined"
               :theme-vars="input.control === 'illustration-gallery' ? themeVars : undefined"
               @change="change(input.name, $event)"
+              @change-inputs="changeInputs($event)"
             />
           </section>
           <template v-else>
@@ -247,6 +252,7 @@ async function remove() {
               :references="input.type === 'reference' ? references(input.accepts) : undefined"
               :theme-vars="input.control === 'illustration-gallery' ? themeVars : undefined"
               @change="change(input.name, $event)"
+              @change-inputs="changeInputs($event)"
             />
             <ThemePresets v-if="isTheme" :inputs="instance.inputs" @pick="store.applyThemePreset(instance.id, $event)" />
           </template>

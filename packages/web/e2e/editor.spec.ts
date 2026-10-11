@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { isolateNetwork } from './network'
 
-// Editor flows on a fresh model. All external requests are blocked except a mocked GitHub API.
+// Editor flows on a fresh model. All external requests are blocked except a mocked GitHub API (and Open-Meteo, mocked in the test that uses it).
 isolateNetwork((route, url) => (url.hostname === 'api.github.com' ? route.fulfill({ json: [{ name: 'engine', html_url: 'https://github.com/x/engine' }] }) : undefined))
 
 async function newModel(page: Page) {
@@ -500,4 +500,53 @@ test('a chart draws a data resource\'s rows in the theme\'s colors, and follows 
   await inspector(page).getByRole('button', { name: 'Donut' }).click()
   await expect(drawn).toHaveAttribute('aria-label', 'donut chart of sales by region')
   await expect(chart.locator('.fd-visually-hidden tbody tr')).toHaveText(['North5', 'South3'])
+})
+
+test('a Weather card shows the forecast for its place, and Find moves it somewhere else', async ({ page, context }) => {
+  // Open-Meteo, mocked: the forecast's temperature follows the latitude asked for, so a new place shows new figures.
+  const asked: string[] = []
+  await page.context().route('https://api.open-meteo.com/**', (route) => {
+    const url = new URL(route.request().url())
+    asked.push(url.search)
+    const warm = url.searchParams.get('latitude') === '43.6615' ? 1 : 0
+    return route.fulfill({
+      json: {
+        current_units: { temperature_2m: url.searchParams.get('temperature_unit') === 'celsius' ? '°C' : '°F' },
+        current: { temperature_2m: 61.6 + warm * 10, weather_code: 3, is_day: 1 },
+        daily: { time: ['2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14'], weather_code: [3, 0, 61, 71], temperature_2m_max: [64, 66, 59, 41], temperature_2m_min: [50, 52, 48, 30] },
+      },
+    })
+  })
+  await page.context().route('https://geocoding-api.open-meteo.com/**', (route) =>
+    route.fulfill({ json: { results: [{ name: 'Portland', latitude: 43.66147, longitude: -70.25533, country: 'United States', admin1: 'Maine' }] } }),
+  )
+  await newModel(page)
+  await page.getByTestId('palette-WeatherFeature').click()
+  const card = canvas(page).locator('[data-feature-id="2"]')
+  await expect(card.getByRole('heading')).toHaveText('Guilford, Connecticut')
+  await expect(card.locator('.fd-weather-temp')).toHaveText('62°F')
+  await expect(card.locator('.fd-weather-text')).toHaveText('Overcast')
+  await expect(card.locator('.fd-weather-day-name')).toHaveText(['Mon', 'Tue', 'Wed'])
+  await expect(card.getByRole('link', { name: 'Weather data by Open-Meteo.com' })).toHaveAttribute('href', 'https://open-meteo.com/')
+
+  await inspector(page).getByLabel('Find a place').fill('Portland')
+  await inspector(page).getByLabel('Find a place').press('Enter')
+  await inspector(page).getByRole('button', { name: /Portland, Maine/ }).click()
+  await expect(card.getByRole('heading')).toHaveText('Portland, Maine')
+  await expect(card.locator('.fd-weather-temp')).toHaveText('72°F')
+  await expect(inspector(page).getByLabel('Latitude')).toHaveValue('43.6615')
+
+  await inspector(page).getByRole('button', { name: '°C' }).click()
+  await inspector(page).getByRole('button', { name: 'Now', exact: true }).click()
+  await expect(card.locator('.fd-weather-temp')).toHaveText('72°C')
+  await expect(card.locator('.fd-weather-days')).toHaveCount(0)
+  expect(asked.at(-1)).toContain('temperature_unit=celsius')
+  expect(asked.at(-1)).not.toContain('daily=')
+
+  // The preview fetches the same forecast.
+  const id = decodeURIComponent(new URL(page.url()).pathname.split('/').pop()!)
+  await expect(page.getByTestId('save-state')).toHaveText(/Saved/)
+  const preview = await context.newPage()
+  await preview.goto(`/preview.html?model=${encodeURIComponent(id)}`)
+  await expect(preview.locator('.fd-weather-temp')).toHaveText('72°C')
 })
