@@ -1,12 +1,12 @@
 import type { DataAction, DataSource, FormField } from '@feature-domain/engine'
 import { MAX_SAMPLE_ROWS } from '@feature-domain/engine'
 import { computed, getCurrentScope, inject, onBeforeUnmount, onScopeDispose, provide, ref, shallowRef, watch, type ComputedRef, type InjectionKey, type Ref } from 'vue'
-import { browserFetchJson, browserSendRequest, FETCH_JSON, selectRows, SEND_REQUEST, type FetchJson, type RowsState, type SendRequest } from './rows'
+import { browserFetchJson, browserSendRequest, FETCH_JSON, selectRows, SEND_REQUEST, type DataRequest, type FetchJson, type RowsState, type SendRequest } from './rows'
 
 // Runtime data for a generated page: one store per document, shared by every feature reading a data resource.
 // - Readers of the same address share one fetch, and `reload` refreshes all of them.
 // - A resource serving sample data answers from its rows (from the model) plus rows added since (e.g. by a Form),
-//   which are kept per model in the browser (addSampleRow; the Form feature will add them).
+//   which are kept per model in the browser.
 
 type Response = { status: 'idle' } | { status: 'loading' } | { status: 'loaded'; response: unknown } | { status: 'error'; message: string }
 
@@ -28,33 +28,61 @@ export interface SampleRowsStorage {
 
 const STORAGE_PREFIX = 'feature-domain:sample-rows:'
 
+/** Rows added to each sample-data resource (by instance id), and the last id each gave out (never reused). */
+interface Added {
+  rows: Record<string, Record<string, unknown>[]>
+  lastIds: Record<string, number>
+}
+
+/** Thrown instead of sending to an address from the editor, so designing a page never changes real data. */
+export class NotSentFromEditor extends Error {
+  constructor(what: string, host: string) {
+    super(`Nothing is ${what} from the editor${host ? ` (this would go to ${host})` : ''}. Open the preview to try it.`)
+    this.name = 'NotSentFromEditor'
+  }
+}
+
 export class DataStore {
   private readonly fetched = new Map<string, Fetched>()
   /** Rows added to each sample-data resource (by instance id). */
   private readonly added = shallowRef<Record<string, Record<string, unknown>[]>>({})
+  /** The last id given to a row added to each sample-data resource, so a deleted row's id isn't given out again. */
+  private lastIds: Record<string, number> = {}
 
+  /** `live`: send forms and row deletes to their addresses (the preview); the editor doesn't (sample data still changes). */
   constructor(
     private readonly fetchJson: FetchJson,
     private readonly modelId?: string,
     private readonly storage?: SampleRowsStorage,
     private readonly sendRequest: SendRequest = browserSendRequest,
+    private readonly live = true,
   ) {
     const stored = this.storageKey ? this.read(this.storageKey) : undefined
-    if (stored) this.added.value = stored
+    if (stored) this.restore(stored)
+  }
+
+  private restore(stored: Added): void {
+    this.added.value = stored.rows
+    this.lastIds = stored.lastIds
   }
 
   private get storageKey(): string | undefined {
     return this.modelId && this.storage ? `${STORAGE_PREFIX}${this.modelId}` : undefined
   }
 
-  private read(key: string): Record<string, Record<string, unknown>[]> | undefined {
+  /** What a model's storage holds: `{ rows, lastIds }`, or (stored before ids were remembered) the rows alone. */
+  private read(key: string): Added | undefined {
     try {
       const value: unknown = JSON.parse(this.storage!.getItem(key) ?? 'null')
-      if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
-      const out: Record<string, Record<string, unknown>[]> = {}
-      for (const [id, rows] of Object.entries(value)) {
+      if (!isRecord(value)) return undefined
+      const current = isRecord(value.rows)
+      const out: Added = { rows: {}, lastIds: {} }
+      for (const [id, rows] of Object.entries(current ? (value.rows as Record<string, unknown>) : value)) {
         if (id === '__proto__' || !Array.isArray(rows)) continue
-        out[id] = rows.filter((r): r is Record<string, unknown> => typeof r === 'object' && r !== null && !Array.isArray(r)).slice(0, MAX_SAMPLE_ROWS)
+        out.rows[id] = rows.filter(isRecord).slice(0, MAX_SAMPLE_ROWS)
+      }
+      if (current && isRecord(value.lastIds)) {
+        for (const [id, last] of Object.entries(value.lastIds)) if (id !== '__proto__' && Number.isSafeInteger(last)) out.lastIds[id] = last as number
       }
       return out
     } catch {
@@ -66,8 +94,8 @@ export class DataStore {
     const key = this.storageKey
     if (!key) return
     try {
-      if (Object.values(this.added.value).every((rows) => rows.length === 0)) this.storage!.removeItem(key)
-      else this.storage!.setItem(key, JSON.stringify(this.added.value))
+      if (Object.values(this.added.value).every((rows) => rows.length === 0) && Object.keys(this.lastIds).length === 0) this.storage!.removeItem(key)
+      else this.storage!.setItem(key, JSON.stringify({ rows: this.added.value, lastIds: this.lastIds } satisfies Added))
     } catch {
       // Storage full or unavailable: added rows still show until the page reloads.
     }
@@ -161,6 +189,8 @@ export class DataStore {
   clearAddedRows(resource: string): void {
     const { [resource]: _, ...rest } = this.added.value
     this.added.value = rest
+    const { [resource]: __, ...lastIds } = this.lastIds
+    this.lastIds = lastIds
     this.persist()
   }
 
@@ -178,13 +208,21 @@ export class DataStore {
     const where = (field: string) => fields.find((f) => f.name === field)?.in ?? 'body'
     const body = Object.fromEntries(Object.entries(values).filter(([k]) => where(k) === 'body'))
     if (action.sample) {
-      if (!this.addSampleRow(action.feature, withSampleId(body, action, this.added.value[action.feature] ?? []))) throw new Error(`At most ${MAX_SAMPLE_ROWS} rows can be added`)
+      const row = withSampleId(body, action, this.added.value[action.feature] ?? [], this.lastIds[action.feature])
+      if (action.sampleIds) {
+        const id = Number(row[action.sampleIds.field])
+        if (Number.isSafeInteger(id) && id > (this.lastIds[action.feature] ?? -Infinity)) this.lastIds = { ...this.lastIds, [action.feature]: id }
+      }
+      if (!this.addSampleRow(action.feature, row)) throw new Error(`At most ${MAX_SAMPLE_ROWS} rows can be added`)
       return
     }
+    if (!this.live) throw new NotSentFromEditor('sent', hostOf(action.endPoint))
     let url = fillPath(action.endPoint, values)
     const query = Object.entries(values).filter(([k, v]) => where(k) === 'query' && v !== undefined && v !== '')
     if (query.length > 0) url += `${url.includes('?') ? '&' : '?'}${query.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&')}`
-    await this.sendRequest({ method: action.method, url, body, form: action.requestType === 'form' })
+    const request: DataRequest = { method: action.method, url, body }
+    if (action.requestType) request.requestType = action.requestType
+    await this.sendRequest(request)
     await this.reloadResource(action.feature)
   }
 
@@ -201,6 +239,7 @@ export class DataStore {
       this.persist()
       return
     }
+    if (!this.live) throw new NotSentFromEditor('deleted', hostOf(action.endPoint))
     await this.sendRequest({ method: action.method, url: fillPath(action.endPoint, typeof row === 'object' && row !== null ? (row as Record<string, unknown>) : {}) })
     await this.reloadResource(action.feature)
   }
@@ -210,19 +249,22 @@ export class DataStore {
     const key = this.storageKey
     if (!key || typeof window === 'undefined') return () => {}
     const onStorage = (event: StorageEvent) => {
-      if (event.key === key) this.added.value = this.read(key) ?? {}
+      if (event.key === key) this.restore(this.read(key) ?? { rows: {}, lastIds: {} })
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
   }
 }
 
-/** A row added to sample data, given the next id (after the model's rows and those added since) when it has none. */
-function withSampleId(row: Record<string, unknown>, action: DataAction, added: readonly Record<string, unknown>[]): Record<string, unknown> {
+/**
+ * A row added to sample data, given the next id when it has none: after the model's rows, those added since and any
+ * given out before (a deleted row's id isn't reused, as a server wouldn't).
+ */
+function withSampleId(row: Record<string, unknown>, action: DataAction, added: readonly Record<string, unknown>[], last = -Infinity): Record<string, unknown> {
   const ids = action.sampleIds
   if (!ids || (row[ids.field] !== undefined && row[ids.field] !== '')) return row
   const taken = added.map((r) => Number(r[ids.field])).filter((n) => Number.isSafeInteger(n))
-  const next = Math.max(ids.after, ...taken) + 1
+  const next = Math.max(ids.after, last, ...taken) + 1
   // The id first, as the sample's rows have it.
   return { [ids.field]: ids.text ? String(next) : next, ...row }
 }
@@ -232,9 +274,15 @@ export function fillPath(endPoint: string, values: Readonly<Record<string, unkno
   return endPoint.replace(/\{([^}]+)\}/g, (_, name: string) => {
     const value = Object.hasOwn(values, name) ? values[name] : undefined
     if (value === undefined || value === null || value === '') throw new Error(`No value for "${name}" to fill the address`)
+    // "." and ".." aren't encoded, and would move the address up a level (/sales/.. is /).
+    if (/^\.{1,2}$/.test(String(value))) throw new Error(`"${String(value)}" can't fill "${name}" in the address`)
     return encodeURIComponent(String(value))
   })
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const hostOf = (url: string) => /^https?:\/\/([^/?#]+)/i.exec(url)?.[1] ?? ''
 
 /** Forgets the rows added to a model's sample data, e.g. when the model is deleted. */
 export function forgetSampleRows(modelId: string, storage: SampleRowsStorage | undefined = safeLocalStorage()): void {
@@ -247,10 +295,10 @@ export function forgetSampleRows(modelId: string, storage: SampleRowsStorage | u
 
 export const DATA_STORE: InjectionKey<DataStore> = Symbol('dataStore')
 
-/** Creates the document's data store and provides it to every node inside. */
-export function provideDataStore(modelId?: string): DataStore {
+/** Creates the document's data store and provides it to every node inside; `live` as for DataStore. */
+export function provideDataStore(modelId?: string, live = true): DataStore {
   const storage = typeof window !== 'undefined' ? safeLocalStorage() : undefined
-  const store = new DataStore(inject(FETCH_JSON, browserFetchJson), modelId, storage, inject(SEND_REQUEST, browserSendRequest))
+  const store = new DataStore(inject(FETCH_JSON, browserFetchJson), modelId, storage, inject(SEND_REQUEST, browserSendRequest), live)
   provide(DATA_STORE, store)
   // Rows added in another tab (the editor, while this is the preview) show here too.
   onBeforeUnmount(store.follow())

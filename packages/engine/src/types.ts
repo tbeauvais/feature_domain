@@ -90,8 +90,8 @@ export interface DataAction {
   method: string
   endPoint: string
   sample?: true
-  /** Send the body form-encoded (the spec says so), else as JSON. */
-  requestType?: 'form'
+  /** Send the body form-encoded or as multipart form data (the spec says so), else as JSON. */
+  requestType?: 'form' | 'multipart'
   /**
    * For adding to sample data, which has no server to number rows: the id field its rows carry, the highest id among
    * them, and whether ids are text ("6") or numbers. A row added without one gets the next.
@@ -182,6 +182,8 @@ export interface NodeKinds {
     /** Where rows come from at runtime. Absent when the operation could not be found. */
     source?: DataSource
     columns: TableColumn[]
+    /** With no columns known until rows load: labels and filters for the columns the rows give, in order. */
+    byPosition?: { labels: string[]; filters: string[] }
     /** Per-row delete action; `endPoint` may contain `{field}` placeholders filled from the row. */
     deleteAction?: DataAction
   }

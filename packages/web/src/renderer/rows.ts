@@ -20,29 +20,21 @@ export const browserFetchJson: FetchJson = async (url) => {
   return response.json()
 }
 
-/** A request that changes data (a Form's submit, a row's delete). `form` sends the body form-encoded, else JSON. */
+/** A request that changes data (a Form's submit, a row's delete). The body goes as JSON unless `requestType` says a form. */
 export interface DataRequest {
   method: string
   url: string
   body?: Record<string, unknown>
-  form?: boolean
+  requestType?: 'form' | 'multipart'
 }
 export type SendRequest = (request: DataRequest) => Promise<unknown>
 
 /** How forms and row deletes reach a data resource; tests provide a fake. Only http(s) addresses are ever sent to. */
 export const SEND_REQUEST: InjectionKey<SendRequest> = Symbol('sendRequest')
 
-export const browserSendRequest: SendRequest = async ({ method, url, body, form }) => {
-  if (!isHttpUrl(url)) throw new Error(`Only http(s) URLs can be sent to, not "${url}"`)
-  const init: RequestInit = { method }
-  if (body) {
-    if (form) init.body = new URLSearchParams(Object.entries(body).map(([k, v]) => [k, v === undefined || v === null ? '' : String(v)]))
-    else {
-      init.headers = { 'Content-Type': 'application/json' }
-      init.body = JSON.stringify(body)
-    }
-  }
-  const response = await fetch(url, init)
+export const browserSendRequest: SendRequest = async (request) => {
+  if (!isHttpUrl(request.url)) throw new Error(`Only http(s) URLs can be sent to, not "${request.url}"`)
+  const response = await fetch(request.url, requestInit(request))
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`.trim())
   const text = await response.text()
   try {
@@ -50,6 +42,24 @@ export const browserSendRequest: SendRequest = async ({ method, url, body, form 
   } catch {
     return text
   }
+}
+
+/** The fetch options for a request: the body form-encoded, as multipart form data (the browser sets its boundary) or JSON. */
+export function requestInit({ method, body, requestType }: DataRequest): RequestInit {
+  const init: RequestInit = { method }
+  if (body) {
+    const pairs = Object.entries(body).map(([k, v]): [string, string] => [k, v === undefined || v === null ? '' : String(v)])
+    if (requestType === 'form') init.body = new URLSearchParams(pairs)
+    else if (requestType === 'multipart') {
+      const data = new FormData()
+      for (const [k, v] of pairs) data.append(k, v)
+      init.body = data
+    } else {
+      init.headers = { 'Content-Type': 'application/json' }
+      init.body = JSON.stringify(body)
+    }
+  }
+  return init
 }
 
 export type TableSource = DataSource

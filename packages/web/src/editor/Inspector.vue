@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { canPlace, defaultRegistry, isDataResourceExports, isInputShown, removeFeature, usedBy, type InputDef, type InputValue } from '@feature-domain/engine'
+import { canPlace, defaultOperation, defaultRegistry, isDataResourceExports, isInputShown, removeFeature, usedBy, type InputDef, type InputValue } from '@feature-domain/engine'
 import { computed } from 'vue'
 import { useDocumentStore } from '../stores/document'
 import { confirmAction } from './confirm'
@@ -29,7 +29,9 @@ function shown(input: InputDef): InputDef {
   const resourceId = instance.value?.inputs.data_resource
   const exports = typeof resourceId === 'string' ? store.result?.exports.get(resourceId) : undefined
   const operations = isDataResourceExports(exports) ? exports.operations.filter((o) => !input.methods || input.methods.includes(o.method)) : []
-  const none = input.name === 'delete_operation' ? 'None' : operations.length > 0 ? `First (${operations[0]!.name})` : 'None available'
+  // The one the feature uses when none is chosen (a Form: the first POST, else the first PUT).
+  const first = defaultOperation(operations, input.methods ?? operations.map((o) => o.method))
+  const none = input.name === 'delete_operation' ? 'None' : first ? `First (${first.name})` : 'None available'
   return { ...input, options: [{ value: '', text: none }, ...operations.map((o) => ({ value: o.name, text: o.summary ? `${o.name} · ${o.summary}` : o.name }))] }
 }
 

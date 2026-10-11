@@ -367,3 +367,16 @@ test('the Swagger sample\'s form adds a sale that its table and chart show at on
   await expect(table.locator('tbody tr')).toHaveCount(5)
   await expect(chartRows).toHaveCount(5)
 })
+
+test('on the editor canvas, text in a form field can be selected with the mouse without dragging the form', async ({ page }) => {
+  await openSample(page, 'Swagger Data Sample')
+  const input = page.locator('.fd-editor-canvas .fd-form input[name="name"]')
+  await input.fill('Casey Morgan')
+  const box = (await input.boundingBox())!
+  await page.mouse.move(box.x + 4, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 5 })
+  await page.mouse.move(box.x + box.width - 4, box.y + box.height / 2, { steps: 5 })
+  await page.mouse.up()
+  expect(await input.evaluate((el: HTMLInputElement) => [el.selectionStart, el.selectionEnd])).toEqual([0, 12])
+})

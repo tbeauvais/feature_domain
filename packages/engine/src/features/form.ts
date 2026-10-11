@@ -3,7 +3,7 @@ import { asList, asString, disableInput, nameInput } from '../inputs.js'
 import { node } from '../nodes.js'
 import type { FormField, NodeKinds } from '../types.js'
 import { DATA_RESOURCE_TYPES, isDataResourceExports, type DataOperation, type DataResourceExports } from './data-resource.js'
-import { actionFor, fieldLabel } from './sources.js'
+import { actionFor, defaultOperation, fieldLabel } from './sources.js'
 
 /** At most this many fields are shown; a form longer than that wants splitting anyway. */
 export const MAX_FORM_FIELDS = 30
@@ -73,12 +73,16 @@ export const FormFeature: FeatureDefinition = {
     // No operation chosen: the first that takes data (POST, else PUT), as the inspector's "First (…)" option says.
     const operation = operationName
       ? resource.operations.find((o) => o.name === operationName)
-      : (resource.operations.find((o) => o.method === 'POST') ?? resource.operations.find((o) => o.method === 'PUT'))
+      : defaultOperation(resource.operations, ['POST', 'PUT'])
     if (operationName && !operation) ctx.report('warning', `Operation "${operationName}" is not provided by ${name}`)
     else if (!operation) ctx.report('warning', `${name} has no POST or PUT operation to send to`)
     else if (operation.method !== 'POST' && operation.method !== 'PUT') ctx.report('warning', `"${operation.name}" doesn't take data; a form sends with POST or PUT`)
     else if (!operation.sample && !/^https?:\/\//i.test(operation.endPoint)) ctx.report('warning', `Operation "${operation.name}" of ${name} has no http(s) URL`)
     else props.action = actionFor(resolved.id, resource, operation)
+
+    // Header parameters (e.g. an API key) can't be typed into a form, so a required one means the server will refuse.
+    const headers = (operation?.parameters ?? []).filter((p) => p.in === 'header' && p.required).map((p) => `"${p.name}"`)
+    if (headers.length > 0) ctx.report('warning', `"${operation!.name}" requires the header${headers.length === 1 ? '' : 's'} ${headers.join(', ')}, which a form can't send`)
 
     const required = asList(inputs.required_fields)
     const fields = fieldsFor(asList(inputs.fields), asList(inputs.labels), operation, resource, required)

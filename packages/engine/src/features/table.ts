@@ -3,17 +3,7 @@ import { asInt, asList, asString, clamp, disableInput, nameInput } from '../inpu
 import { node } from '../nodes.js'
 import type { NodeKinds, TableColumn } from '../types.js'
 import { DATA_RESOURCE_TYPES, isDataResourceExports } from './data-resource.js'
-import { actionFor, columnsFromRows, listSource } from './sources.js'
-
-/** Columns with labels and filters given by position (empty entries keep what the column has). */
-function withInputs(columns: TableColumn[], labels: string[], filters: string[]): TableColumn[] {
-  return columns.map((column, i) => {
-    const out: TableColumn = { ...column }
-    if (labels[i]) out.label = labels[i]!
-    if (filters[i]) out.filter = filters[i]
-    return out
-  })
-}
+import { actionFor, columnsFromRows, listSource, withInputs } from './sources.js'
 
 function fromInputs(fields: string[], labels: string[], filters: string[]): TableColumn[] {
   return fields.map((field, i) => {
@@ -74,6 +64,9 @@ export const TableFeature: FeatureDefinition = {
       else if (props.columns.length === 0 && listed.source.rows) props.columns = columnsFromRows(listed.source.rows)
       // With no Fields of its own, Labels and Filters apply to these columns in order (e.g. "currency" for an amount).
       if (fields.length === 0) props.columns = withInputs(props.columns, asList(inputs.labels), asList(inputs.filters))
+      // Columns only known once rows load (an address no spec describes): the renderer applies them then.
+      const byPosition = { labels: asList(inputs.labels), filters: asList(inputs.filters) }
+      if (fields.length === 0 && props.columns.length === 0 && (byPosition.labels.length > 0 || byPosition.filters.length > 0)) props.byPosition = byPosition
     }
 
     const deleteName = asString(inputs.delete_operation)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generate, MAX_FORM_FIELDS, migrate, readApiSpec, type DocNodeOf, type ReadSpec } from '../src'
+import { defaultOperation, generate, MAX_FORM_FIELDS, migrate, readApiSpec, type DataOperation, type DocNodeOf, type ReadSpec } from '../src'
 import { inst, model, page } from './helpers'
 
 const people = inst('DataResourceFeature', 'r', { name: 'People', source: 'sample', sample_rows: '[{"name": "Ada", "projects": 3}]' }, null)
@@ -101,10 +101,29 @@ describe('FormFeature', () => {
     expect(many.problems).toEqual([`Only the first ${MAX_FORM_FIELDS} of ${MAX_FORM_FIELDS + 2} fields are shown`])
   })
 
-  it('records a form-encoded request body in the spec', () => {
+  it('records a form-encoded or multipart request body in the spec', () => {
     const r = readApiSpec(spec) as ReadSpec
     expect(r.operations.find((o) => o.name === 'POST /pets')!.requestType).toBe('form')
     expect(r.operations.find((o) => o.name === 'PUT /pets/{id}')!.requestType).toBeUndefined()
+    const multipart = { ...spec, paths: { '/photos': { post: { requestBody: { content: { 'multipart/form-data': { schema: { properties: { caption: { type: 'string' } } } } } } } } } }
+    expect((readApiSpec(multipart) as ReadSpec).operations[0]!.requestType).toBe('multipart')
+  })
+
+  it('with no operation chosen, sends to the first POST even when a PUT comes before it, as the inspector says', () => {
+    const putFirst = { ...spec, paths: { '/pets/{id}': spec.paths['/pets/{id}'], '/pets': spec.paths['/pets'] } }
+    const s = inst('SwaggerDataResourceFeature', 's', { name: 'Pets', spec: JSON.stringify(putFirst) }, null)
+    expect(formOf(s, {}).props.action?.operation).toBe('POST /pets')
+    const ops = [{ name: 'PUT /a', method: 'PUT' }, { name: 'GET /a', method: 'GET' }, { name: 'POST /a', method: 'POST' }] as DataOperation[]
+    expect(defaultOperation(ops, ['POST', 'PUT'])?.name).toBe('POST /a')
+    expect(defaultOperation(ops.slice(0, 2), ['POST', 'PUT'])?.name).toBe('PUT /a')
+    expect(defaultOperation(ops, ['DELETE'])).toBeUndefined()
+  })
+
+  it('warns that a required header parameter can\'t be sent from a form', () => {
+    expect(formOf(pets, { operation: 'PUT /pets/{id}' }).problems).toEqual([])
+    const keyed = { ...spec, paths: { '/pets': { post: { parameters: [{ name: 'X-Api-Key', in: 'header', required: true }], requestBody: spec.paths['/pets'].post.requestBody } } } }
+    const s = inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify(keyed) }, null)
+    expect(formOf(s, {}).problems).toEqual(['"POST /pets" requires the header "X-Api-Key", which a form can\'t send'])
   })
 })
 
@@ -119,5 +138,7 @@ describe('migrating the legacy Form', () => {
     })
     expect(r.model.features[2]!.inputs).toEqual({ name: 'Add', disable: false, data_resource: '2', operation: 'POST /sales', fields: ['name', 'amount'], labels: ['Name', 'Amount'] })
     expect(r.notes.map((n) => n.message)).toContain('Dropped form filters "x", which forms don\'t use')
+    // The legacy form ignored its fields (it built itself from the operation), so using them is noted.
+    expect(r.notes.map((n) => n.message)).toContain('The form\'s fields are now "name, amount"; the legacy app took them from the operation instead')
   })
 })

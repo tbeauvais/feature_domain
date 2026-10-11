@@ -184,6 +184,15 @@ describe('ApiSpecFeature', () => {
     })
   })
 
+  it('leaves Labels and Filters for the renderer when the columns are only known once rows load', () => {
+    const feed = inst('DataResourceFeature', 'g', { name: 'Feed', resource: 'https://x.test/feed' }, null)
+    const table = (inputs: Record<string, unknown>) => generate(model(feed, page(), inst('TableFeature', 't', { data_resource: 'g', ...inputs } as never))).root.children[0]!.children[0]!.props
+    expect(table({ labels: ['Who'], filters: ['', 'currency'] })).toMatchObject({ columns: [], byPosition: { labels: ['Who'], filters: ['', 'currency'] } })
+    expect(table({})).not.toHaveProperty('byPosition')
+    // Its own Fields carry their labels and filters already.
+    expect(table({ fields: ['name'], labels: ['Who'] })).not.toHaveProperty('byPosition')
+  })
+
   it('makes a table on an OpenAPI list response show the whole response', () => {
     const r = generate(model(inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify(petstore3), spec_url: 'https://pets.test/openapi.json' }, null), page(), inst('TableFeature', 't', { data_resource: 's', operation: 'GET /pets' })))
     const props = r.root.children[0]!.children[0]!.props as { source: { path?: string; endPoint: string }; columns: unknown[] }

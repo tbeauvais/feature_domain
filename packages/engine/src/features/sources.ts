@@ -49,6 +49,27 @@ export function fieldLabel(field: string): string {
   return words ? words[0]!.toUpperCase() + words.slice(1) : field
 }
 
+/** Columns with labels and filters given by position (empty entries keep what the column has). */
+export function withInputs(columns: readonly TableColumn[], labels: readonly string[], filters: readonly string[]): TableColumn[] {
+  return columns.map((column, i) => {
+    const out: TableColumn = { ...column }
+    if (labels[i]) out.label = labels[i]!
+    if (filters[i]) out.filter = filters[i]
+    return out
+  })
+}
+
+/**
+ * The operation a feature uses when none is chosen: the first with the first of `methods`, else the first with the
+ * next (a Form takes the first POST, else the first PUT). The inspector's "First (…)" option names the same one.
+ */
+export function defaultOperation(operations: readonly DataOperation[], methods: readonly string[]): DataOperation | undefined {
+  for (const method of methods) {
+    const operation = operations.find((o) => o.method === method)
+    if (operation) return operation
+  }
+  return undefined
+}
 
 /**
  * The source a feature lists rows from: the chosen operation, or with none chosen the resource's first GET (as the
@@ -63,7 +84,7 @@ export function listSource(
   what: string,
 ): { source?: DataSource; schemaColumns?: TableColumn[] } {
   const name = resource.resource || resourceId
-  const operation = operationName ? resource.operations.find((o) => o.name === operationName) : resource.operations.find((o) => o.method === 'GET')
+  const operation = operationName ? resource.operations.find((o) => o.name === operationName) : defaultOperation(resource.operations, ['GET'])
   if (!operationName && !operation && resource.operations.length > 0) ctx.report('warning', `${name} has no GET operation to list rows from`)
   if (!operation) {
     if (operationName) ctx.report('warning', `Operation "${operationName}" is not provided by ${name}`)

@@ -33,9 +33,9 @@ export interface DataOperation {
   summary?: string
   /** The operation's inputs, when a spec describes them. */
   parameters?: DataParameter[]
-  /** How a request body is sent: as a form (form-encoded) when the spec says so, else JSON. */
-  requestType?: 'form'
-  /** Served in the browser from the resource's sample rows (GET lists them, POST adds one) instead of an address. */
+  /** How a request body is sent: as a form (form-encoded or multipart) when the spec says so, else JSON. */
+  requestType?: 'form' | 'multipart'
+  /** Served in the browser from the resource's sample rows (GET lists them, POST adds one, DELETE removes one a form added) instead of an address. */
   sample?: true
 }
 

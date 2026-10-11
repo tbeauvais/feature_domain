@@ -135,12 +135,15 @@ function mediaSchema(content: unknown): unknown {
 }
 
 /** The chosen media type's schema, and whether it is a form (form-encoded or multipart) rather than JSON. */
-function media(content: unknown): { schema: unknown; form: boolean } | undefined {
+function media(content: unknown): { schema: unknown; form?: 'form' | 'multipart' } | undefined {
   const types = entries(content)
   const json = types.find(([t]) => /^application\/([\w.-]+\+)?json\b/i.test(t))
   const form = types.find(([t]) => /^(application\/x-www-form-urlencoded|multipart\/form-data)\b/i.test(t))
   const pick = json ?? form ?? types[0]
-  return pick ? { schema: own(pick[1], 'schema'), form: !json && pick === form } : undefined
+  if (!pick) return undefined
+  const out: { schema: unknown; form?: 'form' | 'multipart' } = { schema: own(pick[1], 'schema') }
+  if (!json && pick === form) out.form = /^multipart\//i.test(pick[0]) ? 'multipart' : 'form'
+  return out
 }
 
 /** The success response: 200, 201, 2XX, default, then any other 2xx. */
@@ -191,7 +194,7 @@ function read3(spec: Raw, specUrl: string): ReadSpec {
       const fields = body ? [...byKey.values(), ...bodyFields(reader, body, `${name} body`)] : [...byKey.values()]
       const ok = successResponse(reader, own(op, 'responses'))
       const read = operation(method(m), path, base, str(own(op, 'summary')), fields, responseType(reader, mediaSchema(own(ok, 'content')), `${name} response`))
-      if (requestBody?.form) read.requestType = 'form'
+      if (requestBody?.form) read.requestType = requestBody.form
       operations.push(read)
     }
   }

@@ -118,6 +118,12 @@ describe('Operation pickers in the inspector', () => {
     expect(doc.model!.features.find((f) => f.id === 't')!.inputs.operation).toBe('GET /pets')
   })
 
+  it('names the operation a form uses when none is chosen: the first POST, even after a PUT', async () => {
+    const putFirst = { ...pets, paths: { '/pets/{id}': { put: { responses: { '200': {} } } }, '/pets': pets.paths['/pets'] } }
+    const { w } = await inspect(model(inst('SwaggerDataResourceFeature', 's', { name: 'Pets', spec: JSON.stringify(putFirst) }, null), page(), inst('FormFeature', 'f', { data_resource: 's' })), 'f')
+    expect(w.get('#input-operation').findAll('option').map((o) => o.text())[0]).toBe('First (POST /pets)')
+  })
+
   it('keeps a stored operation the resource no longer has visible, and offers nothing without a resource', async () => {
     const { w } = await inspect(model(page(), inst('TableFeature', 't', { operation: 'GET /gone' })), 't')
     expect(w.get('#input-operation').findAll('option').map((o) => o.text())).toEqual(['Unknown: GET /gone', 'None available'])

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DocNodeOf } from '@feature-domain/engine'
 import { computed, reactive, ref, useId } from 'vue'
-import { useDataStore } from '../data'
+import { NotSentFromEditor, useDataStore } from '../data'
 
 // A form that sends what is typed to a data resource (through the page's data store, so every table and chart on the
 // resource reloads), with sending, sent and failed states.
@@ -57,7 +57,8 @@ async function submit() {
     for (const key of Object.keys(values)) values[key] = ''
   } catch (error) {
     status.value = 'error'
-    message.value = `${host.value ? `${host.value}: ` : ''}${error instanceof Error ? error.message : String(error)}`
+    if (error instanceof NotSentFromEditor) message.value = error.message
+    else message.value = `${host.value ? `${host.value}: ` : ''}${error instanceof Error ? error.message : String(error)}`
   }
 }
 </script>

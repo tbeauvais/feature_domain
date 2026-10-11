@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { columnsFromRows, type DocNodeOf } from '@feature-domain/engine'
-import { computed, onBeforeUnmount, onMounted, onUpdated, ref, shallowRef, useId } from 'vue'
+import { columnsFromRows, withInputs, type DocNodeOf } from '@feature-domain/engine'
+import { computed, nextTick, onBeforeUnmount, onMounted, onUpdated, ref, shallowRef, useId } from 'vue'
 import { badgeKey, badgeTints, cellContent, getPath, NUMERIC_FILTERS, parseFilter } from '../filters'
 import SpotEmpty from '../illustrations/SpotEmpty.vue'
-import { useDataStore } from '../data'
+import { NotSentFromEditor, useDataStore } from '../data'
 import { useTableRows } from '../rows'
 import { useTheme } from '../theme'
 
@@ -13,30 +13,59 @@ const theme = useTheme()
 const titleId = `fd-${useId()}`
 const { state, reload } = useTableRows(computed(() => props.node.props.source))
 const rows = computed(() => (state.value.status === 'loaded' ? state.value.rows : []))
-/** The columns to show: the table's own, else one per key of the loaded rows (e.g. a response no spec describes). */
-const columns = computed(() => (props.node.props.columns.length > 0 ? props.node.props.columns : columnsFromRows(rows.value)))
+/**
+ * The columns to show: the table's own, else one per key of the loaded rows (e.g. a response no spec describes), with
+ * the table's Labels and Filters in order.
+ */
+const columns = computed(() => {
+  if (props.node.props.columns.length > 0) return props.node.props.columns
+  const byPosition = props.node.props.byPosition
+  return byPosition ? withInputs(columnsFromRows(rows.value), byPosition.labels, byPosition.filters) : columnsFromRows(rows.value)
+})
 
 // Row delete (legacy tables had a Delete button per row): asked inline first ("Delete this row?"), since a deleted row
 // is gone from a real API; on sample data only rows a form added can go.
 const store = useDataStore()
-/** The delete action, while some row can use it (on sample data, only once a form has added a row). */
+/**
+ * The delete action, with its column: on an address always (so it doesn't come and go while rows reload), on sample
+ * data only once a form has added a row (the model's own rows can't go).
+ */
 const deleteAction = computed(() => {
   const action = props.node.props.deleteAction
-  return action && rows.value.some((row) => store.canDelete(action, row)) ? action : undefined
+  return action && (!action.sample || rows.value.some((row) => store.canDelete(action, row))) ? action : undefined
 })
 // shallowRef: rows are compared by identity, and ref() would wrap them in a proxy.
 const confirming = shallowRef<unknown>(undefined)
 const deleting = ref(false)
 const deleteProblem = ref('')
-async function deleteRow(row: unknown) {
+
+// Keyboard focus follows the buttons as they swap: to Delete in the question, back to the row's Delete after Keep,
+// and to the next row's (else the previous one's, else the table) after deleting.
+const block = ref<HTMLElement>()
+const focusLater = (selector: string) => nextTick(() => wrap.value?.querySelector<HTMLElement>(selector)?.focus())
+function ask(row: unknown) {
+  deleteProblem.value = ''
+  confirming.value = row
+  void focusLater('.fd-table-action-danger')
+}
+function keep(index: number) {
+  deleteProblem.value = ''
+  confirming.value = undefined
+  void focusLater(`[data-delete-row="${index}"]`)
+}
+async function deleteRow(row: unknown, index: number) {
   if (!deleteAction.value || deleting.value) return
   deleting.value = true
   deleteProblem.value = ''
   try {
     await store.delete(deleteAction.value, row)
     confirming.value = undefined
+    await nextTick()
+    const next = wrap.value?.querySelector<HTMLElement>(`[data-delete-row="${index}"]`) ?? wrap.value?.querySelector<HTMLElement>(`[data-delete-row="${index - 1}"]`)
+    ;(next ?? block.value)?.focus()
   } catch (error) {
-    deleteProblem.value = `Couldn't delete the row: ${error instanceof Error ? error.message : String(error)}`
+    const message = error instanceof Error ? error.message : String(error)
+    deleteProblem.value = error instanceof NotSentFromEditor ? message : `Couldn't delete the row: ${message}`
   } finally {
     deleting.value = false
   }
@@ -110,7 +139,8 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
 </script>
 
 <template>
-  <section class="fd-table-block" :data-fd-table="theme.styles.table" :aria-busy="state.status === 'loading' ? 'true' : undefined">
+  <!-- tabindex -1: where focus goes after deleting the last row that had a Delete button (not a tab stop). -->
+  <section ref="block" class="fd-table-block" tabindex="-1" :data-fd-table="theme.styles.table" :aria-busy="state.status === 'loading' ? 'true' : undefined">
     <header v-if="node.props.title" class="fd-table-head">
       <p :id="titleId" class="fd-table-title">{{ node.props.title }}</p>
       <span class="fd-table-count">{{ count }}</span>
@@ -136,6 +166,7 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
         <tbody v-if="state.status === 'loading'" class="fd-table-skeleton" aria-hidden="true">
           <tr v-for="n in 3" :key="n">
             <td v-for="column in columns" :key="column.field"><span class="fd-skeleton" /></td>
+            <td v-if="deleteAction" class="fd-table-actions" />
           </tr>
         </tbody>
         <tbody v-else role="rowgroup">
@@ -151,10 +182,10 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
               <template v-if="store.canDelete(deleteAction, row)">
                 <span v-if="confirming === row" class="fd-table-confirm">
                   <span>Delete this row?</span>
-                  <button type="button" class="fd-table-action fd-table-action-danger" :disabled="deleting" @click="deleteRow(row)">Delete</button>
-                  <button type="button" class="fd-table-action" :disabled="deleting" @click="confirming = undefined">Keep</button>
+                  <button type="button" class="fd-table-action fd-table-action-danger" :disabled="deleting" @click="deleteRow(row, index)">Delete</button>
+                  <button type="button" class="fd-table-action" :disabled="deleting" @click="keep(index)">Keep</button>
                 </span>
-                <button v-else type="button" class="fd-table-action" :aria-label="`Delete row ${index + 1}`" @click="confirming = row">Delete</button>
+                <button v-else type="button" class="fd-table-action" :data-delete-row="index" :aria-label="`Delete row ${index + 1}`" @click="ask(row)">Delete</button>
               </template>
             </td>
           </tr>

@@ -41,6 +41,11 @@
   user-select: none;
 }
 
+/* Form fields inside a draggable feature still take text selection with the mouse. */
+.fd-root [draggable='true'] :is(input, textarea) {
+  user-select: text;
+}
+
 .fd-root {
   all: initial;
   display: block;

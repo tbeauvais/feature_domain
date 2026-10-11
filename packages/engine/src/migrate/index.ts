@@ -21,6 +21,7 @@ export type MigrationNoteCode =
   | 'dropped-style'
   | 'mapped-style'
   | 'dropped-input'
+  | 'mapped-input'
 
 export interface MigrationNote {
   code: MigrationNoteCode
@@ -429,6 +430,8 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
   FormFeature: (i, ctx) => {
     const { resourceId, operation } = dataReference(i, ctx)
     if (str(i.filters).trim() !== '') ctx.note('dropped-input', 'info', `Dropped form filters "${str(i.filters)}", which forms don't use`)
+    // The legacy form built its fields from the operation alone; here its own Fields list wins over the spec.
+    if (list(i.fields).length > 0) ctx.note('mapped-input', 'info', `The form's fields are now "${list(i.fields).join(', ')}"; the legacy app took them from the operation instead`)
     return { name: str(i.name), disable: disable(i.disable, ctx), data_resource: resourceId ?? '', operation, fields: list(i.fields), labels: list(i.labels) }
   },
 
