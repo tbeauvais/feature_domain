@@ -11,6 +11,7 @@ import { ImageWithParagraphFeature } from './image-with-paragraph.js'
 import { LinkFeature } from './link.js'
 import { ListGroupFeature } from './list-group.js'
 import { ListFeature } from './list.js'
+import { MapFeature } from './map.js'
 import { PageFeature } from './page.js'
 import { PanelFeature } from './panel.js'
 import { SeparatorFeature } from './separator.js'
@@ -46,6 +47,7 @@ export { ImageWithParagraphFeature } from './image-with-paragraph.js'
 export { LinkFeature } from './link.js'
 export { ListGroupFeature } from './list-group.js'
 export { ListFeature } from './list.js'
+export { MapFeature, MAP_HEIGHTS, googleMapsUrl } from './map.js'
 export { PageFeature } from './page.js'
 export { PanelFeature } from './panel.js'
 export { SeparatorFeature } from './separator.js'
@@ -69,6 +71,7 @@ export const coreFeatures = [
   SeparatorFeature,
   LinkFeature,
   ButtonFeature,
+  MapFeature,
   DataResourceFeature,
   ApiSpecFeature,
   TableFeature,

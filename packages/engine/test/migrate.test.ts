@@ -239,14 +239,15 @@ describe('migrate: references and unported features', () => {
   })
 
   it('keeps unported features placed, with scalar inputs and the legacy instance in cache', () => {
-    const legacyMap: Legacy = { feature: 'GoogleMapFeature', id: '16', inputs: { name: 'map', zoom: 12, data: { a: 1 }, ...loc('#page_container') } }
-    const r = run(legacyPage, legacyMap)
+    // A type no version ported (the legacy app's features are all ported or dropped by now).
+    const legacyWidget: Legacy = { feature: 'WidgetFeature', id: '16', inputs: { name: 'widget', zoom: 12, data: { a: 1 }, ...loc('#page_container') } }
+    const r = run(legacyPage, legacyWidget)
     expect(feature(r, '16')).toEqual({
-      feature: 'GoogleMapFeature',
+      feature: 'WidgetFeature',
       id: '16',
-      inputs: { name: 'map', zoom: 12 },
+      inputs: { name: 'widget', zoom: 12 },
       placement: { parent: '15', slot: 'content' },
-      cache: { legacy: legacyMap },
+      cache: { legacy: legacyWidget },
     })
     expect(notes(r)).toEqual(['unported-feature:16'])
   })

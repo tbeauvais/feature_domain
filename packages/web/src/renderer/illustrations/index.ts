@@ -2,6 +2,7 @@ import type { IllustrationId } from '@feature-domain/engine'
 import type { Component } from 'vue'
 import BannerBlueprint from './BannerBlueprint.vue'
 import BannerDataDots from './BannerDataDots.vue'
+import BannerMap from './BannerMap.vue'
 import BannerShapes from './BannerShapes.vue'
 import DividerDots from './DividerDots.vue'
 import DividerRuler from './DividerRuler.vue'
@@ -20,6 +21,7 @@ export const illustrationComponents: Record<IllustrationId, Component> = {
   'banner/blueprint': BannerBlueprint,
   'banner/shapes': BannerShapes,
   'banner/data-dots': BannerDataDots,
+  'banner/map': BannerMap,
   'spot/data': SpotData,
   'spot/map': SpotMap,
   'spot/empty': SpotEmpty,

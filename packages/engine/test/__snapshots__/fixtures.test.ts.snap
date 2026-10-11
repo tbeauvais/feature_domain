@@ -34,8 +34,18 @@ exports[`app_models/buy_deal_sample.json > generates the golden document 1`] = `
         grid #19 [19] {"rows":1,"columns":2,"well":false}
           grid-cell #19.r1c1 <r1c1> {"row":1,"column":1}
             text #2 [2] {"text":"Temp {{DataResource.WeatherService.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherService.query.results.channel.item.condition.text}}"}
+            card #6 [6]
+              heading #6.title {"text":"Too Cold Here","level":4,"align":"left"}
+              illustration #6.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
+              paragraph #6.address {"text":"131 Willow Rd. Guilford, CT"}
+              link #6.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=131%20Willow%20Rd.%20Guilford%2C%20CT"}
           grid-cell #19.r1c2 <r1c2> {"row":1,"column":2}
             text #35 [35] {"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
+            card #16 [16]
+              heading #16.title {"text":"Where it's Warm","level":4,"align":"left"}
+              illustration #16.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
+              paragraph #16.address {"text":"Palm Beach, FL"}
+              link #16.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL"}
     stack #10 [10]
       heading #10.title {"text":"Company Info","level":4,"align":"left"}
       paragraph #10.p1 {"text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
@@ -46,12 +56,7 @@ exports[`app_models/buy_deal_sample.json > generates the golden document 1`] = `
         paragraph #11.p1 {"text":"La ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum olore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}"
 `;
 
-exports[`app_models/buy_deal_sample.json > generates the golden document 2`] = `
-[
-  "warning unknown-feature [16]: Unknown feature type "GoogleMapFeature"",
-  "warning unknown-feature [6]: Unknown feature type "GoogleMapFeature"",
-]
-`;
+exports[`app_models/buy_deal_sample.json > generates the golden document 2`] = `[]`;
 
 exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 1`] = `
 "15 PageFeature @$root/content {"name":"Page","background_image":""}
@@ -70,9 +75,9 @@ exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 1`] =
 20 HeaderFeature @18/r1c1 {"name":"container header","disable":false,"text":"Two New Locations","size":1,"align":"center","color":"accent","background":"none"}
 19 ContainerFeature @18/r2c1 {"name":"inner container","disable":false,"rows":1,"columns":2,"well":false}
 35 TextFeature @19/r1c2 {"name":"Weather Text","disable":false,"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
-16 GoogleMapFeature @19/r1c2 {"name":"map","title":"Where it's Warm","address":"Palm Beach, FL","height":"200","width":"400"} cache=legacy
+16 GoogleMapFeature @19/r1c2 {"name":"map","disable":false,"title":"Where it's Warm","address":"Palm Beach, FL"}
 2 TextFeature @19/r1c1 {"name":"Weather Text","disable":false,"text":"Temp {{DataResource.WeatherService.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherService.query.results.channel.item.condition.text}}"}
-6 GoogleMapFeature @19/r1c1 {"name":"Home Map","title":"Too Cold Here","address":"131 Willow Rd. Guilford, CT","height":"200","width":"400"} cache=legacy
+6 GoogleMapFeature @19/r1c1 {"name":"Home Map","disable":false,"title":"Too Cold Here","address":"131 Willow Rd. Guilford, CT"}
 10 TextWithParagraphFeature @15/content {"name":"Info","disable":false,"title":"Company Info","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
 11 ImageWithParagraphFeature @15/content {"name":"pet","disable":false,"title":"Our New Mascot","text":"La ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum olore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","alt":"","image_side":"left"}"
 `;
@@ -91,9 +96,9 @@ exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 2`] =
   "info dropped-style [26]: Dropped legacy button styling (style "btn-warning"); it uses our own defaults and the theme",
   "info dropped-style [27]: Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme",
   "warning data-binding [35]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
-  "info unported-feature [16]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [16]: Dropped legacy map styling (height "200", width "400"); it uses our own defaults and the theme",
   "warning data-binding [2]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
-  "info unported-feature [6]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [6]: Dropped legacy map styling (height "200", width "400"); it uses our own defaults and the theme",
   "info dropped-style [10]: Dropped legacy panel styling (style "panel-warning"); it uses our own defaults and the theme",
   "info dropped-style [11]: Dropped legacy panel styling (style "panel-warning"); it uses our own defaults and the theme",
 ]
@@ -117,8 +122,18 @@ exports[`app_models/google_map_sample.json > generates the golden document 1`] =
         grid #19 [19] {"rows":1,"columns":2,"well":false}
           grid-cell #19.r1c1 <r1c1> {"row":1,"column":1}
             text #2 [2] {"text":"Temp {{DataResource.WeatherService.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherService.query.results.channel.item.condition.text}}"}
+            card #6 [6]
+              heading #6.title {"text":"Too Cold Here","level":4,"align":"left"}
+              illustration #6.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
+              paragraph #6.address {"text":"131 Willow Rd. Guilford, CT"}
+              link #6.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=131%20Willow%20Rd.%20Guilford%2C%20CT"}
           grid-cell #19.r1c2 <r1c2> {"row":1,"column":2}
             text #35 [35] {"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
+            card #16 [16]
+              heading #16.title {"text":"Where it's Warm","level":4,"align":"left"}
+              illustration #16.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
+              paragraph #16.address {"text":"Palm Beach, FL"}
+              link #16.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL"}
     grid #12 [12] {"rows":1,"columns":2,"well":true}
       grid-cell #12.r1c1 <r1c1> {"row":1,"column":1}
         heading #8 [8] {"text":"Here's a list of colors","level":4,"align":"center"}
@@ -139,8 +154,6 @@ exports[`app_models/google_map_sample.json > generates the golden document 1`] =
 
 exports[`app_models/google_map_sample.json > generates the golden document 2`] = `
 [
-  "warning unknown-feature [16]: Unknown feature type "GoogleMapFeature"",
-  "warning unknown-feature [6]: Unknown feature type "GoogleMapFeature"",
   "warning out-of-order [24]: Listed before feature 36 ("repo panel"), which it is placed in",
   "warning out-of-order [17]: Listed before feature 12 ("My Container"), which it is placed in",
   "warning out-of-order [13]: Listed before feature 12 ("My Container"), which it is placed in",
@@ -168,9 +181,9 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 1`]
 20 HeaderFeature @18/r1c1 {"name":"container header","disable":false,"text":"Two New Locations","size":1,"align":"center","color":"accent","background":"none"}
 19 ContainerFeature @18/r2c1 {"name":"inner container","disable":false,"rows":1,"columns":2,"well":false}
 35 TextFeature @19/r1c2 {"name":"Weather Text","disable":false,"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
-16 GoogleMapFeature @19/r1c2 {"name":"map","title":"Where it's Warm","address":"Palm Beach, FL","height":"200","width":"400"} cache=legacy
+16 GoogleMapFeature @19/r1c2 {"name":"map","disable":false,"title":"Where it's Warm","address":"Palm Beach, FL"}
 2 TextFeature @19/r1c1 {"name":"Weather Text","disable":false,"text":"Temp {{DataResource.WeatherService.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherService.query.results.channel.item.condition.text}}"}
-6 GoogleMapFeature @19/r1c1 {"name":"Home Map","title":"Too Cold Here","address":"131 Willow Rd. Guilford, CT","height":"200","width":"400"} cache=legacy
+6 GoogleMapFeature @19/r1c1 {"name":"Home Map","disable":false,"title":"Too Cold Here","address":"131 Willow Rd. Guilford, CT"}
 10 TextWithParagraphFeature @15/content {"name":"Info","disable":false,"title":"Company Info","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
 11 ImageWithParagraphFeature @15/content {"name":"pet","disable":false,"title":"Our New Mascot","text":"La ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum olore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","alt":"","image_side":"left"}
 4 LinkFeature @15/content {"name":"Github link","disable":false,"text":"GitHub","href":"https://github.com"}"
@@ -183,9 +196,9 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 2`]
   "info dropped-style [36]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
   "info dropped-style [39]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
   "warning data-binding [35]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
-  "info unported-feature [16]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [16]: Dropped legacy map styling (height "200", width "400"); it uses our own defaults and the theme",
   "warning data-binding [2]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
-  "info unported-feature [6]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [6]: Dropped legacy map styling (height "200", width "400"); it uses our own defaults and the theme",
   "info dropped-style [10]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
   "info dropped-style [11]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
 ]
@@ -277,7 +290,17 @@ exports[`sample.json > generates the golden document 1`] = `
       grid-cell #18.r2c1 <r2c1> {"row":2,"column":1}
         grid #19 [19] {"rows":1,"columns":2,"well":false}
           grid-cell #19.r1c1 <r1c1> {"row":1,"column":1}
+            card #16 [16]
+              heading #16.title {"text":"Where it's Warm","level":4,"align":"left"}
+              illustration #16.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
+              paragraph #16.address {"text":"Palm Beach, FL"}
+              link #16.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL"}
           grid-cell #19.r1c2 <r1c2> {"row":1,"column":2}
+            card #6 [6]
+              heading #6.title {"text":"Home Location","level":4,"align":"left"}
+              illustration #6.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
+              paragraph #6.address {"text":"131 Willow Rd. Guilford, CT"}
+              link #6.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=131%20Willow%20Rd.%20Guilford%2C%20CT"}
     stack #10 [10]
       heading #10.title {"text":"Company Info","level":4,"align":"left"}
       paragraph #10.p1 {"text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
@@ -293,8 +316,7 @@ exports[`sample.json > generates the golden document 1`] = `
 
 exports[`sample.json > generates the golden document 2`] = `
 [
-  "warning unknown-feature [16]: Unknown feature type "GoogleMapFeature"",
-  "warning unknown-feature [6]: Unknown feature type "GoogleMapFeature"",
+  "warning out-of-order [16]: Listed before feature 19 ("inner container"), which it is placed in",
 ]
 `;
 
@@ -307,10 +329,10 @@ exports[`sample.json > migrates to the golden v2 model 1`] = `
 17 HeaderFeature @12/r1c2 {"name":"frog label","disable":false,"text":"I'm a Frog","size":3,"align":"left","color":"ink","background":"none"}
 13 ImageFeature @12/r1c2 {"name":"Frog","disable":false,"src":"http://assets.kompas.com/data/photo/2014/04/07/2002239katak-kulit-paling-kasar780x390.jpg","alt":"Frog","height":"300","width":"300","responsive":false,"align":"left"}
 18 ContainerFeature @15/content {"name":"top container","disable":false,"rows":2,"columns":1,"well":false}
-16 GoogleMapFeature @19/r1c1 {"name":"map","title":"Where it's Warm","address":"Palm Beach, FL","height":"200","width":"400"} cache=legacy
+16 GoogleMapFeature @19/r1c1 {"name":"map","disable":false,"title":"Where it's Warm","address":"Palm Beach, FL"}
 19 ContainerFeature @18/r2c1 {"name":"inner container","disable":false,"rows":1,"columns":2,"well":false}
 20 HeaderFeature @18/r1c1 {"name":"container header","disable":false,"text":"Moving to...","size":1,"align":"left","color":"ink","background":"none"}
-6 GoogleMapFeature @19/r1c2 {"name":"Home Map","title":"Home Location","address":"131 Willow Rd. Guilford, CT","height":"200","width":"400"} cache=legacy
+6 GoogleMapFeature @19/r1c2 {"name":"Home Map","disable":false,"title":"Home Location","address":"131 Willow Rd. Guilford, CT"}
 10 TextWithParagraphFeature @15/content {"name":"Info","disable":false,"title":"Company Info","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
 11 ImageWithParagraphFeature @15/content {"name":"pet","disable":false,"title":"My New Pet","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","alt":"","image_side":"left"}
 5 TextFeature @15/content {"name":"More text","disable":false,"text":"This is a simple line of text"}
@@ -320,7 +342,7 @@ exports[`sample.json > migrates to the golden v2 model 1`] = `
 
 exports[`sample.json > migrates to the golden v2 model 2`] = `
 [
-  "info unported-feature [16]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-  "info unported-feature [6]: GoogleMapFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info dropped-style [16]: Dropped legacy map styling (height "200", width "400"); it uses our own defaults and the theme",
+  "info dropped-style [6]: Dropped legacy map styling (height "200", width "400"); it uses our own defaults and the theme",
 ]
 `;

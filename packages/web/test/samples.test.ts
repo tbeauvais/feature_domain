@@ -25,8 +25,9 @@ describe('sampleModels', () => {
       walkNodes(generate(samples.find((m) => m.name === name)!).root, (n) => nodes.push(n))
       return nodes.filter((n) => n.kind === 'image' || n.kind === 'illustration').map((n) => (n.kind === 'illustration' ? n.props.name : n.kind))
     }
-    expect(kinds('Data Sample')).toEqual(['banner/blueprint', 'image', 'image'])
-    expect(kinds('Buy Deal')).toEqual(['banner/shapes', 'image'])
+    // The maps (ported from Google Maps) are our street-map drawing.
+    expect(kinds('Data Sample')).toEqual(['banner/blueprint', 'banner/map', 'banner/map', 'image', 'image'])
+    expect(kinds('Buy Deal')).toEqual(['banner/shapes', 'banner/map', 'banner/map', 'image'])
     expect(kinds('Watson Sample')).toEqual(['banner/data-dots'])
   })
 })

@@ -20,6 +20,7 @@ export const ILLUSTRATIONS = [
   { id: 'banner/blueprint', kind: 'banner', name: 'Blueprint', alt: 'A drafted part with dimensions on a blueprint grid', aspect: 16 / 5 },
   { id: 'banner/shapes', kind: 'banner', name: 'Shapes', alt: 'Abstract circles, a square and a triangle', aspect: 16 / 5 },
   { id: 'banner/data-dots', kind: 'banner', name: 'Data dots', alt: 'A rising scatter of dots on a dot grid', aspect: 16 / 5 },
+  { id: 'banner/map', kind: 'banner', name: 'Street map', alt: 'A street map with a pin', aspect: 16 / 5 },
   { id: 'spot/data', kind: 'spot', name: 'Data', alt: 'A table beside a bar chart', aspect: 4 / 3 },
   { id: 'spot/map', kind: 'spot', name: 'Map', alt: 'A folded map with a route to a pin', aspect: 4 / 3 },
   { id: 'spot/empty', kind: 'spot', name: 'Empty', alt: 'An empty frame with a card and a plus sign', aspect: 4 / 3 },

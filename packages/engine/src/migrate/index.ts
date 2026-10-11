@@ -345,6 +345,15 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     return { name: str(i.name), disable: disable(i.disable, ctx), title: text(i.title, ctx).trim(), text: text(i.text, ctx), src: str(i.src), alt: '', image_side: 'left' }
   },
 
+  // The legacy map was a keyless Google Static Maps image of the address; ours is a drawing with a Google Maps link.
+  GoogleMapFeature: (i, ctx) => {
+    dropLegacyLooks(i, ['height', 'width'], 'map', ctx)
+    const out: Record<string, InputValue> = { name: str(i.name), disable: disable(i.disable, ctx), title: text(i.title, ctx).trim() }
+    // A map saved without an address takes the default address (the legacy one).
+    if ('address' in i) out.address = text(i.address, ctx).trim()
+    return out
+  },
+
   // The legacy list was one comma-separated string whose last item was shown large (the price in the samples).
   ListGroupFeature: (i, ctx) => {
     dropLegacyLooks(i, ['style', 'align'], 'list group', ctx)
