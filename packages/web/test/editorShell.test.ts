@@ -20,7 +20,7 @@ describe('paletteGroups', () => {
     expect(groups.map((g) => g.label)).toEqual(['Layout', 'Text', 'Media and cards', 'Data and style'])
     const types = groups.flatMap((g) => g.items.map((i) => i.def.type))
     expect(types.sort()).toEqual(coreFeatures.map((d) => d.type).sort())
-    expect(groups[3]!.items.map((i) => i.label)).toEqual(['Data', 'Table', 'Theme'])
+    expect(groups[3]!.items.map((i) => i.label)).toEqual(['Data', 'API spec', 'Table', 'Theme'])
   })
 
   it('puts feature types it does not know under More, so new features are never hidden', () => {
@@ -66,6 +66,9 @@ describe('summarize', () => {
     expect(s.problemsLabel).toBe('1 problem · 1 feature not ported yet')
     expect(s.countsLabel).toBe('6 features · 1 data resource · 1 theme')
     expect(summarize(generate(model(page()))).problemsLabel).toBe('No problems')
+    // API specs are data resources too.
+    const specs = model(page(), inst('SwaggerDataResourceFeature', 's', {}, null), inst('DataResourceFeature', 'r', {}, null))
+    expect(summarize(generate(specs)).countsLabel).toBe('1 feature · 2 data resources · 0 themes')
   })
 
   it('StatusBar shows the counts and asks to toggle the problems panel', async () => {

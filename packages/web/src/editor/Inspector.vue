@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { canPlace, defaultRegistry, isInputShown, removeFeature, usedBy, type InputValue } from '@feature-domain/engine'
+import { canPlace, defaultRegistry, isDataResourceExports, isInputShown, removeFeature, usedBy, type InputDef, type InputValue } from '@feature-domain/engine'
 import { computed } from 'vue'
 import { useDocumentStore } from '../stores/document'
 import { confirmAction } from './confirm'
@@ -20,6 +20,19 @@ const diagnostics = computed(() => store.result?.diagnostics.filter((d) => d.fea
 
 /** Inputs that apply to the current values (e.g. the image address only when Source is Link). */
 const shownInputs = computed(() => (def.value && instance.value ? def.value.inputs.filter((i) => isInputShown(i, def.value!.inputs, instance.value!.inputs)) : []))
+/**
+ * An input as the inspector shows it: an operation picker gets the operations of the data resource this feature
+ * references (only those with the methods it accepts), so nobody has to type "GET /v1/sales".
+ */
+function shown(input: InputDef): InputDef {
+  if (input.control !== 'operation-select') return input
+  const resourceId = instance.value?.inputs.data_resource
+  const exports = typeof resourceId === 'string' ? store.result?.exports.get(resourceId) : undefined
+  const operations = isDataResourceExports(exports) ? exports.operations.filter((o) => !input.methods || input.methods.includes(o.method)) : []
+  const none = input.name === 'delete_operation' ? 'None' : operations.length > 0 ? `First (${operations[0]!.name})` : 'None available'
+  return { ...input, options: [{ value: '', text: none }, ...operations.map((o) => ({ value: o.name, text: o.summary ? `${o.name} · ${o.summary}` : o.name }))] }
+}
+
 /** Inputs grouped into the feature's sections. */
 const sections = computed(() => inspectorSections(def.value?.inputs ?? [], shownInputs.value))
 
@@ -214,8 +227,9 @@ async function remove() {
             <InputField
               v-for="input in section.inputs"
               :key="`${instance.id}:${input.name}`"
-              :def="input"
+              :def="shown(input)"
               :value="instance.inputs[input.name]"
+              :inputs="instance.inputs"
               :references="input.type === 'reference' ? references(input.accepts) : undefined"
               :theme-vars="input.control === 'illustration-gallery' ? themeVars : undefined"
               @change="change(input.name, $event)"
@@ -225,8 +239,9 @@ async function remove() {
             <InputField
               v-for="input in section.inputs"
               :key="`${instance.id}:${input.name}`"
-              :def="input"
+              :def="shown(input)"
               :value="instance.inputs[input.name]"
+              :inputs="instance.inputs"
               :references="input.type === 'reference' ? references(input.accepts) : undefined"
               :theme-vars="input.control === 'illustration-gallery' ? themeVars : undefined"
               @change="change(input.name, $event)"

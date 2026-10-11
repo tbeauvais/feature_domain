@@ -3,9 +3,21 @@ import { asOneOf, asString, nameInput } from '../inputs.js'
 
 export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE'] as const
 
-/** A schema in the JSON-Schema-like shape Swagger 1.x documents use. */
+/** A schema in the JSON-Schema-like shape API specs use (references are by schema name). */
 export interface DataSchema {
+  type?: string
+  /** For an array schema: the item schema's name. */
+  items?: { $ref?: string }
   properties?: Record<string, { type?: string; description?: string; items?: { $ref?: string } }>
+}
+
+/** An operation's input, as a Form shows it: from the spec's parameters or its request body's properties. */
+export interface DataParameter {
+  name: string
+  in: 'path' | 'query' | 'header' | 'body' | 'form'
+  type: string
+  description: string
+  required: boolean
 }
 
 export interface DataOperation {
@@ -15,6 +27,10 @@ export interface DataOperation {
   endPoint: string
   /** Name of the response schema in `schemas`, when known. */
   responseType?: string
+  /** What the spec says the operation does. */
+  summary?: string
+  /** The operation's inputs, when a spec describes them. */
+  parameters?: DataParameter[]
   /** Served in the browser from the resource's sample rows (GET lists them, POST adds one) instead of an address. */
   sample?: true
 }

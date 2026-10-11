@@ -52,6 +52,8 @@ export interface GenerateResult {
    * `placement` because the referencing feature is also placed in the referenced one.
    */
   referenceEdges: ReadonlySet<string>
+  /** What each generated feature exported (deep-frozen), e.g. a data resource's operations, for the editor's pickers. */
+  exports: ReadonlyMap<string, Readonly<Record<string, unknown>>>
   /** Dependency order of the graph (dependencies first). Features on or behind a cycle are absent. */
   order: string[]
   diagnostics: Diagnostic[]
@@ -368,6 +370,7 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
     graph,
     edgeKinds,
     referenceEdges,
+    exports: new Map([...resolved].map(([id, r]) => [id, r.exports])),
     order,
     diagnostics,
   }

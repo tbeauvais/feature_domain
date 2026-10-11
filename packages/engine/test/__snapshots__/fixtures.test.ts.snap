@@ -198,22 +198,21 @@ exports[`app_models/swagger_resource_sample.json > generates the golden document
     separator #27 [27] {"style":"line","color":"","thickness":1,"width":100,"align":"center"}
     panel #46 [46] {"heading":"Monthly Sales"}
       panel-body #46.body <body>
+        table #43 [43] {"columns":[{"field":"id","label":"ID of sales person"},{"field":"name","label":"Name of sales person"},{"field":"amount","label":"Total sales for sales person"}],"source":{"feature":"42","resource":"Sales API","operation":"GET /v1/sales","endPoint":"http://sales-api.mybluemix.net/v1/sales","path":"sales"},"deleteAction":{"operation":"DELETE /v1/sales/{id}","endPoint":"http://sales-api.mybluemix.net/v1/sales/{id}"}}
     panel #45 [45] {"heading":"Add Sales Data"}
       panel-body #45.body <body>"
 `;
 
 exports[`app_models/swagger_resource_sample.json > generates the golden document 2`] = `
 [
-  "warning unknown-feature [42]: Unknown feature type "SwaggerDataResourceFeature"",
   "warning unknown-feature [44]: Unknown feature type "FormFeature"",
   "warning unknown-feature [47]: Unknown feature type "GoogleChartFeature"",
-  "error unresolved-reference [43]: Input "data_resource" references feature 42, which is not a known feature type",
 ]
 `;
 
 exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 model 1`] = `
 "15 PageFeature @$root/content {"name":"Page","background_image":""}
-42 SwaggerDataResourceFeature {"name":"Sales API","resource":"http://sales-api.mybluemix.net/swagger_doc/sales.json"} cache=legacy
+42 SwaggerDataResourceFeature {"name":"Sales API","spec_url":"http://sales-api.mybluemix.net/swagger_doc/sales.json","spec":"{\\"openapi\\":\\"3.0.3\\",\\"info\\":{\\"title\\":\\"sales\\",\\"version\\":\\"v1\\"},\\"servers\\":[{\\"url\\":\\"http://sales-api.mybluemix.net\\"}],\\"paths\\":{\\"/v1/sales\\":{\\"get\\":{\\"responses\\":{\\"200\\":{\\"description\\":\\"OK\\",\\"content\\":{\\"application/json\\":{\\"schema\\":{\\"$ref\\":\\"#/components/schemas/Sales\\"}}}}},\\"summary\\":\\"List of sales\\"},\\"post\\":{\\"responses\\":{\\"201\\":{\\"description\\":\\"OK\\",\\"content\\":{\\"application/json\\":{\\"schema\\":{\\"$ref\\":\\"#/components/schemas/Sale\\"}}}}},\\"summary\\":\\"Adds a new sales record.\\",\\"requestBody\\":{\\"content\\":{\\"application/x-www-form-urlencoded\\":{\\"schema\\":{\\"type\\":\\"object\\",\\"properties\\":{\\"name\\":{\\"type\\":\\"string\\",\\"description\\":\\"Name of sales person.\\"},\\"amount\\":{\\"type\\":\\"number\\",\\"description\\":\\"Total sales for sales person.\\"}}}}}}}},\\"/v1/sales/{id}\\":{\\"get\\":{\\"responses\\":{\\"200\\":{\\"description\\":\\"OK\\",\\"content\\":{\\"application/json\\":{\\"schema\\":{\\"$ref\\":\\"#/components/schemas/Sale\\"}}}}},\\"summary\\":\\"Returns a sales record for the specified id\\",\\"parameters\\":[{\\"name\\":\\"id\\",\\"in\\":\\"path\\",\\"required\\":true,\\"description\\":\\"Sales record id\\",\\"schema\\":{\\"type\\":\\"string\\"}}]},\\"put\\":{\\"responses\\":{\\"200\\":{\\"description\\":\\"OK\\",\\"content\\":{\\"application/json\\":{\\"schema\\":{\\"$ref\\":\\"#/components/schemas/Sale\\"}}}}},\\"summary\\":\\"Updates a sales record for the specified id.\\",\\"parameters\\":[{\\"name\\":\\"id\\",\\"in\\":\\"path\\",\\"required\\":true,\\"description\\":\\"Sales record id\\",\\"schema\\":{\\"type\\":\\"string\\"}}],\\"requestBody\\":{\\"content\\":{\\"application/x-www-form-urlencoded\\":{\\"schema\\":{\\"type\\":\\"object\\",\\"properties\\":{\\"name\\":{\\"type\\":\\"string\\",\\"description\\":\\"Name of sales person.\\"},\\"amount\\":{\\"type\\":\\"number\\",\\"description\\":\\"Total sales for sales person.\\"}}}}}}},\\"delete\\":{\\"responses\\":{\\"200\\":{\\"description\\":\\"OK\\"}},\\"summary\\":\\"Deleted a sales record for the specified id.\\",\\"parameters\\":[{\\"name\\":\\"id\\",\\"in\\":\\"path\\",\\"required\\":true,\\"description\\":\\"Sales record id\\",\\"schema\\":{\\"type\\":\\"string\\"}}]}}},\\"components\\":{\\"schemas\\":{\\"Sales\\":{\\"type\\":\\"object\\",\\"properties\\":{\\"count\\":{\\"type\\":\\"integer\\",\\"description\\":\\"Total number of sales.\\"},\\"sales\\":{\\"type\\":\\"array\\",\\"items\\":{\\"$ref\\":\\"#/components/schemas/Sale\\"},\\"description\\":\\"All sales.\\"}}},\\"Sale\\":{\\"type\\":\\"object\\",\\"properties\\":{\\"id\\":{\\"type\\":\\"string\\",\\"description\\":\\"ID of sales person.\\"},\\"name\\":{\\"type\\":\\"string\\",\\"description\\":\\"Name of sales person.\\"},\\"amount\\":{\\"type\\":\\"number\\",\\"description\\":\\"Total sales for sales person.\\"}},\\"required\\":[\\"id\\"]}}}}"}
 25 ImageFeature @15/content {"name":"header image","disable":false,"src":"http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg","alt":"some cool image","height":"150","width":"100%","responsive":false,"align":"center"}
 27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center"}
 46 PanelFeature @15/content {"name":"sales","disable":false,"heading":"Monthly Sales"}
@@ -226,7 +225,7 @@ exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 mod
 exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 model 2`] = `
 [
   "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
-  "info unported-feature [42]: SwaggerDataResourceFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
+  "info coerced-value [42]: Converted the legacy Swagger 1.2 spec to OpenAPI 3",
   "info dropped-style [27]: Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme",
   "info dropped-style [46]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
   "info dropped-style [45]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",

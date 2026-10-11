@@ -152,6 +152,14 @@ describe('Tables on shared data', () => {
     expect(fetchJson).not.toHaveBeenCalled()
   })
 
+  it('shows a column per key of the loaded rows when the table has no columns of its own', async () => {
+    const repos = inst('DataResourceFeature', 'r', { resource: 'https://api.github.com/users/x/repos' }, null)
+    const w = render(model(repos, page(), inst('TableFeature', 't', { data_resource: 'r' })), async () => [{ full_name: 'x/a', stars: 3 }])
+    await flushPromises()
+    expect(w.findAll('th').map((th) => th.text())).toEqual(['Full name', 'Stars'])
+    expect(w.findAll('tbody td').map((td) => td.text())).toEqual(['x/a', '3'])
+  })
+
   it('fetches once for two tables on the same address, and Try again reloads both', async () => {
     let fail = true
     const fetchJson = vi.fn<FetchJson>(async () => {

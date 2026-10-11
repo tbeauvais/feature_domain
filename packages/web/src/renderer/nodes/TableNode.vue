@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DocNodeOf } from '@feature-domain/engine'
+import { columnsFromRows, type DocNodeOf } from '@feature-domain/engine'
 import { computed, onBeforeUnmount, onMounted, onUpdated, ref, useId } from 'vue'
 import { badgeKey, badgeTints, cellContent, getPath, NUMERIC_FILTERS, parseFilter } from '../filters'
 import SpotEmpty from '../illustrations/SpotEmpty.vue'
@@ -12,13 +12,15 @@ const theme = useTheme()
 const titleId = `fd-${useId()}`
 const { state, reload } = useTableRows(computed(() => props.node.props.source))
 const rows = computed(() => (state.value.status === 'loaded' ? state.value.rows : []))
+/** The columns to show: the table's own, else one per key of the loaded rows (e.g. a response no spec describes). */
+const columns = computed(() => (props.node.props.columns.length > 0 ? props.node.props.columns : columnsFromRows(rows.value)))
 
 /**
  * Figures (numbers, dates) are right-aligned with tabular digits: by filter, or when every loaded value is a number
  * (so such a column's header moves right when its rows arrive).
  */
 const numeric = computed(() =>
-  props.node.props.columns.map((column) => {
+  columns.value.map((column) => {
     const filter = parseFilter(column.filter)?.name
     if (filter !== undefined) return NUMERIC_FILTERS.includes(filter)
     const values = rows.value.map((row) => getPath(row, column.field)).filter((v) => v !== undefined && v !== null && v !== '')
@@ -28,7 +30,7 @@ const numeric = computed(() =>
 
 /** Per badge column, each value's tint (first four different values differ). */
 const tints = computed(() =>
-  props.node.props.columns.map((column) =>
+  columns.value.map((column) =>
     parseFilter(column.filter)?.name === 'badge' ? badgeTints(rows.value.map((row) => cellContent(row, column.field, column.filter).text)) : undefined,
   ),
 )
@@ -100,17 +102,17 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
       <table class="fd-table" role="table" :aria-labelledby="node.props.title ? titleId : undefined">
         <thead role="rowgroup">
           <tr role="row">
-            <th v-for="(column, c) in node.props.columns" :key="column.field" scope="col" role="columnheader" :class="{ 'fd-num': numeric[c] }">{{ column.label }}</th>
+            <th v-for="(column, c) in columns" :key="column.field" scope="col" role="columnheader" :class="{ 'fd-num': numeric[c] }">{{ column.label }}</th>
           </tr>
         </thead>
         <tbody v-if="state.status === 'loading'" class="fd-table-skeleton" aria-hidden="true">
           <tr v-for="n in 3" :key="n">
-            <td v-for="column in node.props.columns" :key="column.field"><span class="fd-skeleton" /></td>
+            <td v-for="column in columns" :key="column.field"><span class="fd-skeleton" /></td>
           </tr>
         </tbody>
         <tbody v-else role="rowgroup">
           <tr v-for="(row, index) in rows" :key="index" role="row">
-            <td v-for="(column, c) in node.props.columns" :key="column.field" role="cell" :data-label="column.label" :class="{ 'fd-num': numeric[c] }">
+            <td v-for="(column, c) in columns" :key="column.field" role="cell" :data-label="column.label" :class="{ 'fd-num': numeric[c] }">
               <template v-for="cell in [cellContent(row, column.field, column.filter)]" :key="column.field">
                 <a v-if="cell.href" :href="cell.href" target="_blank" rel="noopener noreferrer">{{ cell.text }}</a>
                 <span v-else-if="cell.badge" class="fd-badge" :class="`fd-badge-${tints[c]?.get(badgeKey(cell.text)) ?? 0}`">{{ cell.text }}</span>

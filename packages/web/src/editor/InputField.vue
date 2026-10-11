@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { InputDef, InputValue } from '@feature-domain/engine'
 import { computed, ref, watch } from 'vue'
+import ApiSpecField from './ApiSpecField.vue'
 import IllustrationGallery from './IllustrationGallery.vue'
 
 // One editor control for one feature input, chosen from the input's schema. Emits the new value, or undefined to
@@ -8,6 +9,8 @@ import IllustrationGallery from './IllustrationGallery.vue'
 const props = defineProps<{
   def: InputDef
   value: InputValue | undefined
+  /** The feature's other inputs, for controls that need them (the API spec's Load spec reads its Spec URL). */
+  inputs?: Readonly<Record<string, InputValue>>
   references?: { id: string; label: string }[]
   /** Theme custom properties for previews (the illustration gallery). */
   themeVars?: Record<string, string>
@@ -26,7 +29,9 @@ const swatch = computed(() => {
 })
 
 /** Controls made of several buttons are labelled as a group rather than through `for`. */
-const grouped = computed(() => (props.def.control === 'segmented' || props.def.control === 'illustration-gallery') && props.def.options !== undefined)
+const grouped = computed(
+  () => ((props.def.control === 'segmented' || props.def.control === 'illustration-gallery') && props.def.options !== undefined) || props.def.control === 'api-spec',
+)
 
 const field = 'w-full rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-sky-500 focus:outline-none'
 
@@ -82,7 +87,7 @@ function settle() {
     </div>
 
     <IllustrationGallery
-      v-else-if="grouped"
+      v-else-if="grouped && def.control === 'illustration-gallery'"
       :labelledby="`${id}-label`"
       :value="text"
       :options="def.options ?? []"
@@ -139,6 +144,15 @@ function settle() {
       :value="draft"
       @input="onDraft(($event.target as HTMLTextAreaElement).value)"
       @blur="settle"
+    />
+
+    <ApiSpecField
+      v-else-if="def.control === 'api-spec'"
+      :id="id"
+      :labelledby="`${id}-label`"
+      :value="text"
+      :spec-url="typeof inputs?.spec_url === 'string' ? inputs.spec_url : ''"
+      @change="emit('change', $event)"
     />
 
     <!-- JSON (e.g. sample rows): taller, monospace, and no spell-checking. -->

@@ -11,14 +11,11 @@ describe('sampleModels', () => {
     for (const m of samples) expect(m.version).toBe(2)
   })
 
-  it('generates a page for every sample, with errors only where a feature is not ported yet', () => {
+  it('generates a page for every sample, with no errors', () => {
     for (const m of samples) {
       const { root, diagnostics } = generate(m)
       expect(root.children[0]?.kind, m.name).toBe('page')
-      const errors = diagnostics.filter((d) => d.severity === 'error').map((d) => `${m.name} #${d.featureInstanceId}: ${d.message}`)
-      expect(errors).toEqual(
-        m.name === 'Swagger Data Sample' ? ['Swagger Data Sample #43: Input "data_resource" references feature 42, which is not a known feature type'] : [],
-      )
+      expect(diagnostics.filter((d) => d.severity === 'error').map((d) => `${m.name} #${d.featureInstanceId}: ${d.message}`)).toEqual([])
     }
   })
 
@@ -62,6 +59,29 @@ describe('upgradeSample', () => {
       const mine = model(page(), inst('HeaderFeature', 'h', { text }))
       expect(upgradeSample(mine)).toBe(mine)
     }
+  })
+
+  it('makes the Sales API answer with sample sales, since its server is gone, and its table lists them', () => {
+    const swagger = sampleModels().find((m) => m.name === 'Swagger Data Sample')!
+    const sales = swagger.features.find((f) => f.feature === 'SwaggerDataResourceFeature')!
+    expect(sales.inputs.source).toBe('sample')
+    expect(JSON.parse(sales.inputs.sample_rows as string)).toHaveLength(5)
+    const nodes: DocNode[] = []
+    walkNodes(generate(swagger).root, (n) => nodes.push(n))
+    const table = nodes.find((n) => n.kind === 'table')!
+    expect(table.props).toMatchObject({ source: { operation: 'GET /v1/sales', rows: expect.arrayContaining([expect.objectContaining({ name: 'Avery Chen' })]) } })
+  })
+
+  it('upgrades a Swagger sample stored before the API spec was ported: migrated, then answering with sample sales', () => {
+    const legacy = { feature: 'SwaggerDataResourceFeature', id: '42', inputs: { name: 'Sales API', resource: 'http://sales-api.mybluemix.net/swagger_doc/sales.json' }, cache: { swagger: { swaggerVersion: '1.2', apis: [], basePath: 'http://sales-api.mybluemix.net' } } }
+    const stored = model(page(), { feature: 'SwaggerDataResourceFeature', id: '42', inputs: { name: 'Sales API', resource: legacy.inputs.resource }, cache: { legacy } })
+    const upgraded = upgradeSample(stored)
+    expect(upgraded.features[1]!.inputs).toMatchObject({ spec_url: legacy.inputs.resource, source: 'sample' })
+    expect(upgraded.features[1]!.cache).toBeUndefined()
+    expect(upgradeSample(upgraded)).toBe(upgraded)
+    // An API spec of the user's own is left alone.
+    const mine = model(page(), inst('SwaggerDataResourceFeature', 's', { spec_url: 'https://mine.test/openapi.json' }, null))
+    expect(upgradeSample(mine)).toBe(mine)
   })
 
   it('brings the seeded samples fully up to date, so a second pass changes nothing', () => {

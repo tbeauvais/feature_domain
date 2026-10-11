@@ -1,4 +1,4 @@
-import { defaultInputs, ThemeFeature, type GenerateResult } from '@feature-domain/engine'
+import { DATA_RESOURCE_TYPES, defaultInputs, ThemeFeature, type GenerateResult } from '@feature-domain/engine'
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
@@ -7,7 +7,8 @@ export function summarize(result: GenerateResult) {
   const problems = result.diagnostics.filter((d) => d.severity !== 'info').length
   const features = result.metadata.features
   const notPorted = features.filter((f) => f.status === 'unknown').length
-  const resources = features.filter((f) => f.feature === 'DataResourceFeature').length
+  // Data resources of every kind (addresses, sample data, API specs).
+  const resources = features.filter((f) => DATA_RESOURCE_TYPES.includes(f.feature)).length
   const themes = features.filter((f) => f.feature === 'ThemeFeature').length
   const placed = features.length - resources - themes
 
