@@ -107,11 +107,11 @@ export function httpMethod(value: string): (typeof HTTP_METHODS)[number] {
 /** At most this many sample rows are kept: sample data is for trying a page out, not a database. */
 export const MAX_SAMPLE_ROWS = 500
 
-/** What a new data resource starts with, so a Table on it shows something at once. */
+/** What a new data resource starts with, so a Table or Chart on it shows something at once (text and a number). */
 const EXAMPLE_ROWS = [
-  { name: 'Ada Lovelace', role: 'Engineer', city: 'London', joined: '2015-03-07' },
-  { name: 'Grace Hopper', role: 'Admiral', city: 'New York', joined: '2016-12-09' },
-  { name: 'Alan Turing', role: 'Researcher', city: 'Manchester', joined: '2014-06-23' },
+  { name: 'Ada Lovelace', role: 'Engineer', city: 'London', projects: 12 },
+  { name: 'Grace Hopper', role: 'Admiral', city: 'New York', projects: 9 },
+  { name: 'Alan Turing', role: 'Researcher', city: 'Manchester', projects: 7 },
 ]
 
 /** Sample rows from their JSON text: a list of objects. Anything else is a problem, in words. */

@@ -20,7 +20,7 @@ describe('paletteGroups', () => {
     expect(groups.map((g) => g.label)).toEqual(['Layout', 'Text', 'Media and cards', 'Data and style'])
     const types = groups.flatMap((g) => g.items.map((i) => i.def.type))
     expect(types.sort()).toEqual(coreFeatures.map((d) => d.type).sort())
-    expect(groups[3]!.items.map((i) => i.label)).toEqual(['Data', 'API spec', 'Table', 'Theme'])
+    expect(groups[3]!.items.map((i) => i.label)).toEqual(['Data', 'API spec', 'Table', 'Chart', 'Theme'])
   })
 
   it('puts feature types it does not know under More, so new features are never hidden', () => {

@@ -72,6 +72,13 @@ describe('upgradeSample', () => {
     expect(table.props).toMatchObject({ source: { operation: 'GET /v1/sales', rows: expect.arrayContaining([expect.objectContaining({ name: 'Avery Chen' })]) } })
   })
 
+  it('titles the Swagger sample\'s sales chart and draws it as columns, leaving charts of the user\'s own alone', () => {
+    const swagger = sampleModels().find((m) => m.name === 'Swagger Data Sample')!
+    expect(swagger.features.find((f) => f.feature === 'GoogleChartFeature')!.inputs).toMatchObject({ title: 'Sales by person', chart_type: 'column', value_field: 'amount' })
+    const mine = model(page(), inst('GoogleChartFeature', 'c', { name: 'Sales Chart', chart_type: 'pie', value_field: 'amount', title: 'Mine' }))
+    expect(upgradeSample(mine)).toBe(mine)
+  })
+
   it('upgrades a Swagger sample stored before the API spec was ported: migrated, then answering with sample sales', () => {
     const legacy = { feature: 'SwaggerDataResourceFeature', id: '42', inputs: { name: 'Sales API', resource: 'http://sales-api.mybluemix.net/swagger_doc/sales.json' }, cache: { swagger: { swaggerVersion: '1.2', apis: [], basePath: 'http://sales-api.mybluemix.net' } } }
     const stored = model(page(), { feature: 'SwaggerDataResourceFeature', id: '42', inputs: { name: 'Sales API', resource: legacy.inputs.resource }, cache: { legacy } })

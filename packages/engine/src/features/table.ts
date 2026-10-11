@@ -2,49 +2,8 @@ import type { FeatureDefinition } from '../feature.js'
 import { asInt, asList, asString, clamp, disableInput, nameInput } from '../inputs.js'
 import { node } from '../nodes.js'
 import type { NodeKinds, TableColumn } from '../types.js'
-import { DATA_RESOURCE_TYPES, isDataResourceExports, type DataOperation, type DataResourceExports, type DataSchema } from './data-resource.js'
-
-/** A column per schema property, labelled by its description (without a closing full stop), else its name. */
-function columnsOf(properties: NonNullable<DataSchema['properties']>): TableColumn[] {
-  return Object.entries(properties).map(([field, p]) => ({ field, label: p.description?.trim().replace(/\.$/, '') || field }))
-}
-
-/**
- * When the operation's response schema contains an array of objects, the table shows that array (`path`) with one
- * column per item property, labelled by its description. This mirrors the legacy Swagger-driven behaviour.
- */
-function fromSchema(resource: DataResourceExports, operation: DataOperation): { path: string; columns: TableColumn[] } | undefined {
-  const response = operation.responseType && Object.hasOwn(resource.schemas, operation.responseType) ? resource.schemas[operation.responseType] : undefined
-  // The response is itself a list (OpenAPI often says so): the table shows the whole response.
-  if (response?.type === 'array' && response.items?.$ref) {
-    const item = Object.hasOwn(resource.schemas, response.items.$ref) ? resource.schemas[response.items.$ref] : undefined
-    if (item?.properties) return { path: '', columns: columnsOf(item.properties) }
-  }
-  for (const [key, property] of Object.entries(response?.properties ?? {})) {
-    if (property.type !== 'array' || !property.items?.$ref) continue
-    const item = Object.hasOwn(resource.schemas, property.items.$ref) ? resource.schemas[property.items.$ref] : undefined
-    if (!item?.properties) continue
-    const columns = columnsOf(item.properties)
-    return { path: key, columns }
-  }
-  return undefined
-}
-
-/**
- * One column per key of the sample rows, in the order JavaScript lists them (first appearance, but integer-like keys
- * first), capped so wide rows stay readable. Labels read as words: "joined_on" is "Joined on".
- */
-export function columnsFromRows(rows: readonly unknown[]): TableColumn[] {
-  return fromRows(rows.filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null && !Array.isArray(row)))
-}
-
-function fromRows(rows: readonly Record<string, unknown>[]): TableColumn[] {
-  const keys = [...new Set(rows.flatMap((row) => Object.keys(row)))].filter((key) => key.trim() !== '').slice(0, 12)
-  return keys.map((field) => {
-    const words = field.replace(/[_-]+/g, ' ').trim()
-    return { field, label: words ? words[0]!.toUpperCase() + words.slice(1) : field }
-  })
-}
+import { DATA_RESOURCE_TYPES, isDataResourceExports } from './data-resource.js'
+import { columnsFromRows, listSource } from './sources.js'
 
 function fromInputs(fields: string[], labels: string[], filters: string[]): TableColumn[] {
   return fields.map((field, i) => {
@@ -96,28 +55,12 @@ export const TableFeature: FeatureDefinition = {
     }
     const resource = resolved.exports
 
-    const operationName = asString(inputs.operation)
-    // No operation chosen: the first one a table can list (a GET), as the inspector's "First (…)" option says.
-    const operation = operationName ? resource.operations.find((o) => o.name === operationName) : resource.operations.find((o) => o.method === 'GET')
-    if (!operationName && !operation && resource.operations.length > 0) ctx.report('warning', `${resource.resource || resolved.id} has no GET operation to list rows from`)
-    if (operation?.sample && operation.method !== 'GET') {
-      ctx.report('warning', `"${operation.name}" adds rows; a table lists them with the GET operation`)
-    } else if (operation?.sample) {
-      const rows = resource.sampleRows ?? []
-      props.source = { feature: resolved.id, resource: resource.resource, operation: operation.name, endPoint: '', rows }
-      // Columns: the chosen fields, else what a spec says the rows hold, else the sample rows' own keys.
-      if (props.columns.length === 0) props.columns = fromSchema(resource, operation)?.columns ?? fromRows(rows)
-    } else if (operation && !/^https?:\/\//i.test(operation.endPoint)) {
-      ctx.report('warning', `Operation "${operation.name}" of ${resource.resource || resolved.id} has no http(s) URL`)
-    } else if (operation) {
-      const schema = fromSchema(resource, operation)
-      props.source = { feature: resolved.id, resource: resource.resource, operation: operation.name, endPoint: operation.endPoint }
-      if (schema) {
-        if (schema.path) props.source.path = schema.path
-        props.columns = schema.columns
-      }
-    } else if (operationName) {
-      ctx.report('warning', `Operation "${operationName}" is not provided by ${resource.resource || resolved.id}`)
+    const listed = listSource(resolved.id, resource, asString(inputs.operation), ctx, 'a table')
+    if (listed.source) {
+      props.source = listed.source
+      // Columns: a spec's (which win, as in the legacy app, for an address), else the chosen fields, else the rows' keys.
+      if (listed.schemaColumns && (!listed.source.rows || props.columns.length === 0)) props.columns = listed.schemaColumns
+      else if (props.columns.length === 0 && listed.source.rows) props.columns = columnsFromRows(listed.source.rows)
     }
 
     const deleteName = asString(inputs.delete_operation)

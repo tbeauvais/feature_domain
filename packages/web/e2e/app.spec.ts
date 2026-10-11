@@ -185,7 +185,7 @@ test('opens the standalone preview in a new tab', async ({ page, context }) => {
 // Computed styles that legitimately differ between the editor canvas and the full-width preview page: sizes and
 // positions that depend on the surrounding layout. Custom properties (--*) are excluded too: the editor defines
 // Tailwind's, generated pages only read their own --fd-* ones.
-const LAYOUT_DEPENDENT = /^(width|height|inline-size|block-size|transform-origin|perspective-origin|grid-template-columns|grid-template-rows)$/
+const LAYOUT_DEPENDENT = /^(width|height|inline-size|block-size|top|right|bottom|left|inset-.*|transform-origin|perspective-origin|grid-template-columns|grid-template-rows)$/
 
 // Every computed property of every element in the generated document, in document order, plus which properties
 // the editor changes on purpose for that element.
@@ -242,6 +242,14 @@ const SAMPLES: { name: string; ready: (target: Page) => Promise<void> }[] = [
   { name: 'Data Sample', ready: (target) => expect(target.locator('[data-feature-id="24"] tbody tr')).toHaveCount(2) },
   // Cards, check lists, buttons and an image beside text (Buy Deal has no placeholders other than its maps).
   { name: 'Buy Deal', ready: (target) => expect(target.locator('.fd-card')).toHaveCount(3) },
+  // A table and a chart in card panels, one beside a placeholder (its unported Form) in the editor only.
+  {
+    name: 'Swagger Data Sample',
+    ready: async (target) => {
+      await expect(target.locator('.fd-table-block tbody tr')).toHaveCount(5)
+      await expect(target.locator('.fd-chart-canvas canvas')).toBeVisible()
+    },
+  },
 ]
 
 for (const sample of SAMPLES) {

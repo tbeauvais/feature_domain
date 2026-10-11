@@ -8,6 +8,7 @@ import {
   hexToOklch,
   oklchToHex,
   BADGE_COUNT,
+  CHART_COLOURS,
   THEME_OPTIONS,
   THEME_PRESETS,
   matchingPreset,
@@ -166,6 +167,27 @@ describe('deriveTokens', () => {
           const d = Math.abs(hues[i]! - hues[j]!) % 360
           expect(Math.min(d, 360 - d), `${i}/${j}`).toBeGreaterThan(45)
         }
+      }
+    }
+  })
+
+  it('gives charts six colours that stand out from the page and from each other, for 1000 random themes', () => {
+    const random = rng(21)
+    for (let i = 0; i < 1000; i++) {
+      const params = randomParams(random)
+      const t = deriveTokens(params)
+      const colours = Array.from({ length: CHART_COLOURS }, (_, n) => v(t, `chart-${n}`))
+      for (const c of colours) for (const bg of ['bg', 'surface']) expect(contrast(c, v(t, bg)), `${c} on ${bg} ${JSON.stringify(params)}`).toBeGreaterThanOrEqual(3)
+      // Inside a band well the band's own chart colours apply: 3:1 against the band and its raised cards.
+      for (let n = 0; n < CHART_COLOURS; n++) {
+        for (const bg of ['band', 'band-raised']) expect(contrast(v(t, `band-chart-${n}`), v(t, bg)), `band-chart-${n} on ${bg} ${JSON.stringify(params)}`).toBeGreaterThanOrEqual(3)
+      }
+      expect(new Set(colours).size, JSON.stringify(params)).toBe(CHART_COLOURS)
+      // Neighbours (a pie's adjacent slices) differ in hue by a sixth of a turn or in lightness.
+      for (let n = 1; n < CHART_COLOURS; n++) {
+        const [a, b] = [hexToOklch(colours[n - 1]!)!, hexToOklch(colours[n]!)!]
+        const hueGap = Math.min(Math.abs(a.h - b.h), 360 - Math.abs(a.h - b.h))
+        expect(hueGap > 30 || Math.abs(a.l - b.l) > 0.08, `${colours[n - 1]} / ${colours[n]} ${JSON.stringify(params)}`).toBe(true)
       }
     }
   })

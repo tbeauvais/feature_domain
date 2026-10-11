@@ -401,21 +401,31 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     return { name: str(i.name), spec_url: str(i.resource), spec: JSON.stringify(swagger12ToOpenApi(spec)) }
   },
 
+  // Google Image Charts is retired: the chart is drawn by the app now, in the theme's colours (the legacy colour, size
+  // and alignment are dropped). The legacy app rendered "alt" nowhere visible; it becomes the screen-reader description.
+  GoogleChartFeature: (i, ctx) => {
+    const { resourceId, operation } = dataReference(i, ctx)
+    dropLegacyLooks(i, ['color', 'height', 'width', 'align'], 'chart', ctx)
+    const legacyType = str(i.type)
+    const chartType = Object.hasOwn(LEGACY_CHART_TYPES, legacyType) ? LEGACY_CHART_TYPES[legacyType]! : 'column'
+    if (legacyType === 'p3') ctx.note('coerced-value', 'info', 'The legacy 3D pie chart is drawn as a flat pie')
+    else if (legacyType !== '' && !Object.hasOwn(LEGACY_CHART_TYPES, legacyType)) ctx.note('invalid-value', 'warning', `Unknown legacy chart type "${legacyType}"; drawn as columns`)
+    if (str(i.filters).trim() !== '') ctx.note('dropped-input', 'info', `Dropped chart filters "${str(i.filters)}", which charts don't use`)
+    return {
+      name: str(i.name),
+      disable: disable(i.disable, ctx),
+      data_resource: resourceId ?? '',
+      operation,
+      chart_type: chartType,
+      label_field: str(i.label),
+      value_field: str(i.field),
+      // "Cool chart" was the legacy default, not a description of anything.
+      description: str(i.alt).trim() === 'Cool chart' ? '' : str(i.alt).trim(),
+    }
+  },
+
   TableFeature: (i, ctx) => {
-    const ref = typeof i.data_resource === 'object' && i.data_resource !== null ? (i.data_resource as Raw) : {}
-    const resourceName = str(ref.name) || str(i.resource)
-    const resourceId = ctx.resourceId(resourceName)
-    if (resourceId === undefined) {
-      ctx.note('unresolved-reference', 'warning', resourceName ? `No data resource named "${resourceName}"` : 'No data resource selected')
-    }
-    const operation = normalizeOperation(str(ref.operation))
-    const deleteOperation = normalizeOperation(str(ref.delete_operation))
-    const provided = resourceId === undefined ? undefined : ctx.resourceOperations(resourceId)
-    for (const name of [operation, deleteOperation]) {
-      if (provided && name !== '' && !provided.operations.includes(name)) {
-        ctx.note('unresolved-operation', 'warning', `Operation "${name}" is not provided by data resource "${provided.name}" (it provides ${provided.operations.map((o) => `"${o}"`).join(', ')})`)
-      }
-    }
+    const { resourceId, operation, deleteOperation } = dataReference(i, ctx)
     return {
       name: str(i.name),
       disable: disable(i.disable, ctx),
@@ -428,6 +438,31 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     }
   },
 }
+
+/**
+ * A legacy reference to a data resource (`data_resource: { name, operation, delete_operation }`, by name) as an instance
+ * id and normalised operation names, noting a missing resource or an operation it doesn't provide.
+ */
+function dataReference(i: Raw, ctx: Context): { resourceId: string | undefined; operation: string; deleteOperation: string } {
+  const ref = typeof i.data_resource === 'object' && i.data_resource !== null ? (i.data_resource as Raw) : {}
+  const resourceName = str(ref.name) || str(i.resource)
+  const resourceId = ctx.resourceId(resourceName)
+  if (resourceId === undefined) {
+    ctx.note('unresolved-reference', 'warning', resourceName ? `No data resource named "${resourceName}"` : 'No data resource selected')
+  }
+  const operation = normalizeOperation(str(ref.operation))
+  const deleteOperation = normalizeOperation(str(ref.delete_operation))
+  const provided = resourceId === undefined ? undefined : ctx.resourceOperations(resourceId)
+  for (const name of [operation, deleteOperation]) {
+    if (provided && name !== '' && !provided.operations.includes(name)) {
+      ctx.note('unresolved-operation', 'warning', `Operation "${name}" is not provided by data resource "${provided.name}" (it provides ${provided.operations.map((o) => `"${o}"`).join(', ')})`)
+    }
+  }
+  return { resourceId, operation, deleteOperation }
+}
+
+/** Legacy Google Image Charts types: pie (3D pie has no 3D here), vertical bars, horizontal bars. */
+const LEGACY_CHART_TYPES: Readonly<Record<string, string>> = { p: 'pie', p3: 'pie', bvs: 'column', bhs: 'bar' }
 
 /**
  * The migration carries over content and placement, not the legacy (Bootstrap-era) look: features take our own design

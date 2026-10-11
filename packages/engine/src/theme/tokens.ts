@@ -130,6 +130,9 @@ const FONTS: Record<ThemeChoice<'fonts'>, { display: string; body: string; mono:
   system: { display: SYSTEM, body: SYSTEM, mono: SYSTEM_MONO, weight: '650', tracking: '-0.02em' },
 }
 
+/** How many chart colours a theme provides (`--fd-chart-<n>`), for slices, bars and lines in order. */
+export const CHART_COLOURS = 6
+
 /** How many badge tints a theme provides (`--fd-badge-<n>` on `--fd-badge-<n>-bg`). */
 export const BADGE_COUNT = 4
 
@@ -204,6 +207,16 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
     vars[`--fd-badge-${i}`] = ensureContrast(at(dark ? 0.84 : 0.42, 0.12, h), [tint])
   }
 
+  // Chart colours: the accent first, then hues a sixth of a turn apart taken in an order that puts neighbours a third of
+  // a turn apart (adjacent pie slices), alternating lighter and darker so they differ in lightness too, not hue alone.
+  // Each reaches 3:1 against the page and cards, as graphics must (WCAG 1.4.11).
+  const CHART_STEPS = [0, 2, 4, 1, 3, 5]
+  for (let i = 0; i < CHART_COLOURS; i++) {
+    const h = (hue + CHART_STEPS[i]! * 60) % 360
+    const l = dark ? (i % 2 === 0 ? 0.72 : 0.6) : i % 2 === 0 ? 0.58 : 0.72
+    vars[`--fd-chart-${i}`] = i === 0 ? fitContrast(accent, [bg, surface], 3).hex : fitContrast(at(l, 0.14, h), [bg, surface], 3).hex
+  }
+
   // Bands (emphasised wells) get their own set: text on the band colour, whatever scheme the page uses. A mid-lightness
   // band can't carry readable text, so its lightness is kept clearly dark or clearly light.
   const chosenBand = hexToOklch(p.band)!
@@ -227,6 +240,12 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
   })
   for (const [tone, [h, c]] of Object.entries(TONE_HUES)) {
     vars[`--fd-band-${tone}`] = ensureContrast(at(bandIsDark ? 0.8 : 0.45, c, h), bandSurfaces)
+  }
+  // Chart colours for bands: the same hues, fitted to 3:1 against the band (a band well re-points --fd-chart-<n> here).
+  for (let i = 0; i < CHART_COLOURS; i++) {
+    const h = (hue + CHART_STEPS[i]! * 60) % 360
+    const l = bandIsDark ? (i % 2 === 0 ? 0.78 : 0.66) : i % 2 === 0 ? 0.5 : 0.62
+    vars[`--fd-band-chart-${i}`] = fitContrast(i === 0 ? { ...accent, l } : at(l, 0.14, h), bandSurfaces, 3).hex
   }
 
   // Type: a modular scale from the base size. h1/h2 shrink on narrow documents (cqi: the document's own width, so the
