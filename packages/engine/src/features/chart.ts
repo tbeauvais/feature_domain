@@ -26,6 +26,8 @@ export const ChartFeature: FeatureDefinition = {
     { name: 'chart_type', label: 'Type', type: 'string', default: 'column', control: 'segmented', options: CHART_TYPES.map((value) => ({ value, text: TYPE_LABELS[value] })) },
     { name: 'label_field', label: 'Label field', type: 'string', default: '', placeholder: 'first text field', control: 'text-input' },
     { name: 'value_field', label: 'Value field', type: 'string', default: '', placeholder: 'first number field', control: 'text-input' },
+    // A display filter for the values (axis, tooltips, the screen-reader table), as tables use: "currency", "number :1".
+    { name: 'value_format', label: 'Value format', type: 'string', default: '', placeholder: 'e.g. currency', control: 'text-input' },
     {
       name: 'height',
       label: 'Height',
@@ -42,7 +44,7 @@ export const ChartFeature: FeatureDefinition = {
       type: asOneOf(inputs.chart_type, CHART_TYPES, 'column'),
       height: CHART_HEIGHTS[asOneOf(inputs.height, HEIGHTS, 'medium')],
     }
-    for (const [prop, input] of [['title', 'title'], ['description', 'description'], ['labelField', 'label_field'], ['valueField', 'value_field']] as const) {
+    for (const [prop, input] of [['title', 'title'], ['description', 'description'], ['labelField', 'label_field'], ['valueField', 'value_field'], ['valueFormat', 'value_format']] as const) {
       const value = asString(inputs[input]).trim()
       if (value) props[prop] = value
     }

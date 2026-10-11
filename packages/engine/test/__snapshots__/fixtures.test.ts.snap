@@ -198,17 +198,14 @@ exports[`app_models/swagger_resource_sample.json > generates the golden document
     separator #27 [27] {"style":"line","color":"","thickness":1,"width":100,"align":"center"}
     panel #46 [46] {"heading":"Monthly Sales"}
       panel-body #46.body <body>
-        table #43 [43] {"columns":[{"field":"id","label":"ID of sales person"},{"field":"name","label":"Name of sales person"},{"field":"amount","label":"Total sales for sales person"}],"source":{"feature":"42","resource":"Sales API","operation":"GET /v1/sales","endPoint":"http://sales-api.mybluemix.net/v1/sales","path":"sales"},"deleteAction":{"operation":"DELETE /v1/sales/{id}","endPoint":"http://sales-api.mybluemix.net/v1/sales/{id}"}}
+        table #43 [43] {"columns":[{"field":"id","label":"ID of sales person"},{"field":"name","label":"Name of sales person"},{"field":"amount","label":"Total sales for sales person"}],"source":{"feature":"42","resource":"Sales API","operation":"GET /v1/sales","endPoint":"http://sales-api.mybluemix.net/v1/sales","path":"sales"},"deleteAction":{"feature":"42","resource":"Sales API","operation":"DELETE /v1/sales/{id}","method":"DELETE","endPoint":"http://sales-api.mybluemix.net/v1/sales/{id}"}}
     panel #45 [45] {"heading":"Add Sales Data"}
       panel-body #45.body <body>
+        form #44 [44] {"fields":[{"name":"name","label":"Name","type":"text","required":false,"in":"body","hint":"Name of sales person."},{"name":"amount","label":"Amount","type":"number","required":false,"in":"body","hint":"Total sales for sales person."}],"submit":"Submit","success":"Thanks, that was sent.","action":{"feature":"42","resource":"Sales API","operation":"POST /v1/sales","method":"POST","endPoint":"http://sales-api.mybluemix.net/v1/sales","requestType":"form"}}
         chart #47 [47] {"type":"pie","height":300,"labelField":"name","valueField":"amount","source":{"feature":"42","resource":"Sales API","operation":"GET /v1/sales","endPoint":"http://sales-api.mybluemix.net/v1/sales","path":"sales"}}"
 `;
 
-exports[`app_models/swagger_resource_sample.json > generates the golden document 2`] = `
-[
-  "warning unknown-feature [44]: Unknown feature type "FormFeature"",
-]
-`;
+exports[`app_models/swagger_resource_sample.json > generates the golden document 2`] = `[]`;
 
 exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 model 1`] = `
 "15 PageFeature @$root/content {"name":"Page","background_image":""}
@@ -217,7 +214,7 @@ exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 mod
 27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center"}
 46 PanelFeature @15/content {"name":"sales","disable":false,"heading":"Monthly Sales"}
 45 PanelFeature @15/content {"name":"Add","disable":false,"heading":"Add Sales Data"}
-44 FormFeature @45/body {"name":"Add Sale","disable":"","fields":"","labels":"","filters":""} cache=legacy
+44 FormFeature @45/body {"name":"Add Sale","disable":false,"data_resource":"42","operation":"POST /v1/sales","fields":[],"labels":[]}
 43 TableFeature @46/body {"name":"Sales Table","disable":false,"data_resource":"42","operation":"GET /v1/sales","delete_operation":"DELETE /v1/sales/{id}","fields":[],"labels":[],"filters":[]}
 47 GoogleChartFeature @45/body {"name":"Sales Chart","disable":false,"data_resource":"42","operation":"GET /v1/sales","chart_type":"pie","label_field":"name","value_field":"amount","description":""}"
 `;
@@ -229,7 +226,6 @@ exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 mod
   "info dropped-style [27]: Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme",
   "info dropped-style [46]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
   "info dropped-style [45]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
-  "info unported-feature [44]: FormFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
   "info dropped-style [47]: Dropped legacy chart styling (color "#179de8", height "200", width "300", align "center-block"); it uses our own defaults and the theme",
 ]
 `;

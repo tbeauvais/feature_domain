@@ -66,6 +66,8 @@ function schemaOf(reader: Reader, raw: unknown, name: string): DataSchema {
   if (type) out.type = type
   const items = itemRef(reader, own(raw, 'items'), `${name} item`)
   if (items) out.items = { $ref: items }
+  const required = own(raw, 'required')
+  if (Array.isArray(required) && required.length > 0) out.required = required.filter((r): r is string => typeof r === 'string')
   const properties = entries(own(raw, 'properties'))
   if (properties.length > 0) {
     out.properties = Object.fromEntries(
@@ -124,17 +126,24 @@ function parameter(reader: Reader, raw: unknown): DataParameter | undefined {
 function bodyFields(reader: Reader, schema: unknown, name: string): DataParameter[] {
   const ref = refName(own(schema, '$ref'))
   const resolved = ref ? (Object.hasOwn(reader.schemas, ref) ? reader.schemas[ref] : undefined) : schemaOf(reader, schema, name)
-  return Object.entries(resolved?.properties ?? {}).map(([field, p]) => ({ name: field, in: 'form' as const, type: p.type ?? 'string', description: p.description ?? '', required: false }))
+  return Object.entries(resolved?.properties ?? {}).map(([field, p]) => ({ name: field, in: 'form' as const, type: p.type ?? 'string', description: p.description ?? '', required: resolved?.required?.includes(field) ?? false }))
 }
 
 /** The schema of a request body or response: JSON (any JSON media type) first, then a form, then whatever is there. */
 function mediaSchema(content: unknown): unknown {
+  return media(content)?.schema
+}
+
+/** The chosen media type's schema, and whether it is a form (form-encoded or multipart) rather than JSON. */
+function media(content: unknown): { schema: unknown; form?: 'form' | 'multipart' } | undefined {
   const types = entries(content)
-  const pick =
-    types.find(([t]) => /^application\/([\w.-]+\+)?json\b/i.test(t)) ??
-    types.find(([t]) => /^(application\/x-www-form-urlencoded|multipart\/form-data)\b/i.test(t)) ??
-    types[0]
-  return pick ? own(pick[1], 'schema') : undefined
+  const json = types.find(([t]) => /^application\/([\w.-]+\+)?json\b/i.test(t))
+  const form = types.find(([t]) => /^(application\/x-www-form-urlencoded|multipart\/form-data)\b/i.test(t))
+  const pick = json ?? form ?? types[0]
+  if (!pick) return undefined
+  const out: { schema: unknown; form?: 'form' | 'multipart' } = { schema: own(pick[1], 'schema') }
+  if (!json && pick === form) out.form = /^multipart\//i.test(pick[0]) ? 'multipart' : 'form'
+  return out
 }
 
 /** The success response: 200, 201, 2XX, default, then any other 2xx. */
@@ -180,10 +189,13 @@ function read3(spec: Raw, specUrl: string): ReadSpec {
       const byKey = new Map<string, DataParameter>()
       const own_ = Array.isArray(own(op, 'parameters')) ? (own(op, 'parameters') as unknown[]) : []
       for (const p of [...shared, ...own_].flatMap((raw) => parameter(reader, raw) ?? [])) byKey.set(`${p.in} ${p.name}`, p)
-      const body = mediaSchema(own(deref(reader, own(op, 'requestBody'), 'requestBodies'), 'content'))
+      const requestBody = media(own(deref(reader, own(op, 'requestBody'), 'requestBodies'), 'content'))
+      const body = requestBody?.schema
       const fields = body ? [...byKey.values(), ...bodyFields(reader, body, `${name} body`)] : [...byKey.values()]
       const ok = successResponse(reader, own(op, 'responses'))
-      operations.push(operation(method(m), path, base, str(own(op, 'summary')), fields, responseType(reader, mediaSchema(own(ok, 'content')), `${name} response`)))
+      const read = operation(method(m), path, base, str(own(op, 'summary')), fields, responseType(reader, mediaSchema(own(ok, 'content')), `${name} response`))
+      if (requestBody?.form) read.requestType = requestBody.form
+      operations.push(read)
     }
   }
   return { format: `OpenAPI ${str(spec.openapi)}`, title: str(own(spec.info, 'title')), operations, schemas: reader.schemas }

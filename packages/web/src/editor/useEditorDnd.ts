@@ -52,6 +52,10 @@ export function useEditorDnd(roots: { canvas: Ref<HTMLElement | null>; tree: Ref
     })
   }
 
+  // A press in a form field (or on a button) is for typing, selecting text or clicking, not for moving the feature.
+  const notFromAField = ({ input }: { input: { clientX: number; clientY: number } }) =>
+    !document.elementFromPoint(input.clientX, input.clientY)?.closest('.fd-root :is(input, textarea, select, button)')
+
   function register() {
     cleanup()
     const parts: (() => void)[] = []
@@ -59,7 +63,7 @@ export function useEditorDnd(roots: { canvas: Ref<HTMLElement | null>; tree: Ref
     if (canvas) {
       for (const el of canvas.querySelectorAll<HTMLElement>('[data-feature-id]')) {
         const id = el.getAttribute('data-feature-id')!
-        parts.push(draggable({ element: el, getInitialData: () => ({ [OURS]: true, source: { kind: 'feature', id } }) satisfies SourceData }))
+        parts.push(draggable({ element: el, canDrag: notFromAField, getInitialData: () => ({ [OURS]: true, source: { kind: 'feature', id } }) satisfies SourceData }))
         parts.push(featureTarget(el, id))
       }
       // Links and images inside a feature are natively draggable, so a drag starting on one would be a plain

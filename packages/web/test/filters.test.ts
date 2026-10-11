@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BADGE_TINTS, badgeTints, cellContent, getPath, parseFilter } from '../src/renderer/filters'
+import { BADGE_TINTS, badgeTints, cellContent, getPath, NUMERIC_FILTERS, parseFilter } from '../src/renderer/filters'
 
 describe('parseFilter', () => {
   it('reads a name and an optional argument', () => {
@@ -68,6 +68,19 @@ describe('cellContent', () => {
     expect(cellContent({ n: '98765' }, 'n', 'number')).toEqual({ text: '98,765' })
     expect(cellContent({ n: 'n/a' }, 'n', 'number')).toEqual({ text: 'n/a' })
     expect(cellContent({ n: '' }, 'n', 'number')).toEqual({ text: '' })
+  })
+
+  it('formats money: dollars by default, another currency by its code, leaving anything else as it is', () => {
+    const money = (n: unknown, filter = 'currency') => cellContent({ n }, 'n', filter).text
+    expect(money(18250)).toBe('$18,250.00')
+    expect(money('1204.5')).toBe('$1,204.50')
+    expect(money(-3)).toBe('-$3.00')
+    expect(money(99.5, 'currency :EUR')).toBe('€99.50')
+    expect(money(1000, 'currency :jpy')).toBe('¥1,000')
+    // Not a currency code: dollars.
+    expect(money(5, 'currency :dollars')).toBe('$5.00')
+    for (const text of ['n/a', '1e3', '']) expect(money(text)).toBe(text)
+    expect(NUMERIC_FILTERS).toContain('currency')
   })
 
   it('never rounds or reinterprets a number, unless asked for fixed places', () => {

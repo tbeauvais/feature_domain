@@ -10,8 +10,9 @@ const legacySample = import.meta.glob<unknown>('../../../../sample.json', { eage
  * 4: the GitHub repo tables show languages as badges, names as they are, and scroll after 10 rows. 5: their date column
  * is labelled "Updated", and Getting Started's headline loses its stray keystrokes. 6: the Sales API (its server is gone)
  * answers with sample sales. 7: its sales chart is titled and drawn as columns (better for comparing people than a pie).
+ * 8: its Add Sale form requires a name and an amount (the spec requires neither). 9: its amounts show as dollars.
  */
-export const SAMPLES_VERSION = 7
+export const SAMPLES_VERSION = 9
 
 /** The samples' GitHub repo tables, exactly as migrated, and what they become. */
 const LEGACY_REPO_TABLE = { fields: ['name', 'description', 'language', 'updated_at'], filters: ['uppercase', 'dataLink :data.html_url', '', 'date'] }
@@ -70,6 +71,8 @@ export function upgradeSample(stored: AppModel): AppModel {
         inputs = { ...inputs, filters: REPO_TABLE_FILTERS, scroll_rows: inputs.scroll_rows ?? 10 }
       }
       if (same(inputs.fields, LEGACY_REPO_TABLE.fields) && same(inputs.labels, LEGACY_REPO_LABELS)) inputs = { ...inputs, labels: REPO_TABLE_LABELS }
+      // The Sales table's amounts are dollars (its columns come from the spec, so the filter goes by position).
+      if (inputs.name === 'Sales Table' && inputs.operation === 'GET /v1/sales' && same(inputs.filters, [])) inputs = { ...inputs, filters: ['', '', 'currency'] }
       if (inputs === f.inputs) return f
       changed = true
       return { ...f, inputs }
@@ -79,11 +82,21 @@ export function upgradeSample(stored: AppModel): AppModel {
       changed = true
       return { ...f, inputs: { ...f.inputs, source: 'sample', sample_rows: JSON.stringify(SAMPLE_SALES, null, 2) } }
     }
-    if (f.feature === 'GoogleChartFeature') {
-      const legacy = f.inputs.name === 'Sales Chart' && f.inputs.chart_type === 'pie' && f.inputs.value_field === 'amount' && !f.inputs.title
+    if (f.feature === 'FormFeature') {
+      const legacy = f.inputs.name === 'Add Sale' && f.inputs.operation === 'POST /v1/sales' && f.inputs.required_fields === undefined
       if (!legacy) return f
       changed = true
-      return { ...f, inputs: { ...f.inputs, title: 'Sales by person', chart_type: 'column' } }
+      return { ...f, inputs: { ...f.inputs, required_fields: ['name', 'amount'] } }
+    }
+    if (f.feature === 'GoogleChartFeature') {
+      let inputs = f.inputs
+      const sales = inputs.name === 'Sales Chart' && inputs.value_field === 'amount'
+      if (sales && inputs.chart_type === 'pie' && !inputs.title) inputs = { ...inputs, title: 'Sales by person', chart_type: 'column' }
+      // Only the sample's own chart (titled by the step above), not a sales chart of the user's.
+      if (sales && inputs.title === 'Sales by person' && inputs.value_format === undefined) inputs = { ...inputs, value_format: 'currency' }
+      if (inputs === f.inputs) return f
+      changed = true
+      return { ...f, inputs }
     }
     if (f.feature === 'HeaderFeature') {
       const text = f.inputs.text

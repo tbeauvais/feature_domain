@@ -3,7 +3,7 @@ import { asInt, asList, asString, clamp, disableInput, nameInput } from '../inpu
 import { node } from '../nodes.js'
 import type { NodeKinds, TableColumn } from '../types.js'
 import { DATA_RESOURCE_TYPES, isDataResourceExports } from './data-resource.js'
-import { columnsFromRows, listSource } from './sources.js'
+import { actionFor, columnsFromRows, listSource, withInputs } from './sources.js'
 
 function fromInputs(fields: string[], labels: string[], filters: string[]): TableColumn[] {
   return fields.map((field, i) => {
@@ -59,15 +59,20 @@ export const TableFeature: FeatureDefinition = {
     if (listed.source) {
       props.source = listed.source
       // Columns: a spec's (which win, as in the legacy app, for an address), else the chosen fields, else the rows' keys.
+      const fields = asList(inputs.fields)
       if (listed.schemaColumns && (!listed.source.rows || props.columns.length === 0)) props.columns = listed.schemaColumns
       else if (props.columns.length === 0 && listed.source.rows) props.columns = columnsFromRows(listed.source.rows)
+      // With no Fields of its own, Labels and Filters apply to these columns in order (e.g. "currency" for an amount).
+      if (fields.length === 0) props.columns = withInputs(props.columns, asList(inputs.labels), asList(inputs.filters))
+      // Columns only known once rows load (an address no spec describes): the renderer applies them then.
+      const byPosition = { labels: asList(inputs.labels), filters: asList(inputs.filters) }
+      if (fields.length === 0 && props.columns.length === 0 && (byPosition.labels.length > 0 || byPosition.filters.length > 0)) props.byPosition = byPosition
     }
 
     const deleteName = asString(inputs.delete_operation)
     if (deleteName) {
       const del = resource.operations.find((o) => o.name === deleteName)
-      if (del?.sample) ctx.report('warning', `Sample data has no delete operation; "${deleteName}" is ignored`)
-      else if (del) props.deleteAction = { operation: del.name, endPoint: del.endPoint }
+      if (del) props.deleteAction = actionFor(resolved.id, resource, del)
       else ctx.report('warning', `Delete operation "${deleteName}" is not provided by ${resource.resource || resolved.id}`)
     }
 

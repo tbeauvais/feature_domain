@@ -72,6 +72,22 @@ describe('upgradeSample', () => {
     expect(table.props).toMatchObject({ source: { operation: 'GET /v1/sales', rows: expect.arrayContaining([expect.objectContaining({ name: 'Avery Chen' })]) } })
   })
 
+  it('shows the Swagger sample\'s amounts as dollars, in its table and its chart', () => {
+    const swagger = sampleModels().find((m) => m.name === 'Swagger Data Sample')!
+    expect(swagger.features.find((f) => f.feature === 'TableFeature')!.inputs.filters).toEqual(['', '', 'currency'])
+    expect(swagger.features.find((f) => f.feature === 'GoogleChartFeature')!.inputs.value_format).toBe('currency')
+    const nodes: DocNode[] = []
+    walkNodes(generate(swagger).root, (n) => nodes.push(n))
+    expect(nodes.find((n) => n.kind === 'table')!.props).toMatchObject({ columns: [{ field: 'id' }, { field: 'name' }, { field: 'amount', filter: 'currency' }] })
+  })
+
+  it('makes the Swagger sample\'s Add Sale form require a name and an amount', () => {
+    const swagger = sampleModels().find((m) => m.name === 'Swagger Data Sample')!
+    expect(swagger.features.find((f) => f.feature === 'FormFeature')!.inputs.required_fields).toEqual(['name', 'amount'])
+    const mine = model(page(), inst('FormFeature', 'f', { name: 'Add Sale', operation: 'POST /v1/sales', required_fields: [] }))
+    expect(upgradeSample(mine)).toBe(mine)
+  })
+
   it('titles the Swagger sample\'s sales chart and draws it as columns, leaving charts of the user\'s own alone', () => {
     const swagger = sampleModels().find((m) => m.name === 'Swagger Data Sample')!
     expect(swagger.features.find((f) => f.feature === 'GoogleChartFeature')!.inputs).toMatchObject({ title: 'Sales by person', chart_type: 'column', value_field: 'amount' })

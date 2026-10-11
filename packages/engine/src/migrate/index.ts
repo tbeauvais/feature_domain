@@ -21,6 +21,7 @@ export type MigrationNoteCode =
   | 'dropped-style'
   | 'mapped-style'
   | 'dropped-input'
+  | 'mapped-input'
 
 export interface MigrationNote {
   code: MigrationNoteCode
@@ -422,6 +423,16 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
       // "Cool chart" was the legacy default, not a description of anything.
       description: str(i.alt).trim() === 'Cool chart' ? '' : str(i.alt).trim(),
     }
+  },
+
+  // The legacy form built its fields from the Swagger operation's parameters and posted them form-encoded; ours does the
+  // same from the spec. Its unused fields / labels inputs carry over (they override the spec when set).
+  FormFeature: (i, ctx) => {
+    const { resourceId, operation } = dataReference(i, ctx)
+    if (str(i.filters).trim() !== '') ctx.note('dropped-input', 'info', `Dropped form filters "${str(i.filters)}", which forms don't use`)
+    // The legacy form built its fields from the operation alone; here its own Fields list wins over the spec.
+    if (list(i.fields).length > 0) ctx.note('mapped-input', 'info', `The form's fields are now "${list(i.fields).join(', ')}"; the legacy app took them from the operation instead`)
+    return { name: str(i.name), disable: disable(i.disable, ctx), data_resource: resourceId ?? '', operation, fields: list(i.fields), labels: list(i.labels) }
   },
 
   TableFeature: (i, ctx) => {

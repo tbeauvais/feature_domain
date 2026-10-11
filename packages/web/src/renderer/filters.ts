@@ -1,6 +1,7 @@
 // Display filters for table cells. Legacy models used AngularJS filter expressions ("uppercase", "date",
 // "dataLink :data.html_url"); this is a small, safe language with the same names: `name` or `name :argument`.
-// Added since: "number" (grouped digits; "number :2" for fixed places) and "badge" (a tinted chip for categories such as a language).
+// Added since: "number" (grouped digits; "number :2" for fixed places), "currency" (US dollars, or "currency :EUR")
+// and "badge" (a tinted chip for categories such as a language).
 
 import { BADGE_COUNT } from '@feature-domain/engine'
 import { safeHref } from './urls'
@@ -33,7 +34,17 @@ export function badgeTints(values: readonly string[]): Map<string, number> {
 export const badgeKey = (value: string) => value.trim().toLowerCase()
 
 /** Filters whose cells are figures: right-aligned with tabular digits. */
-export const NUMERIC_FILTERS: readonly string[] = ['number', 'date']
+export const NUMERIC_FILTERS: readonly string[] = ['number', 'currency', 'date']
+
+/** A currency formatter: US dollars, or the ISO code given (`currency :EUR`); an unknown code falls back to dollars. */
+function currencyFormat(argument: string | undefined): Intl.NumberFormat {
+  const code = argument !== undefined && /^[A-Za-z]{3}$/.test(argument.trim()) ? argument.trim().toUpperCase() : 'USD'
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: code })
+  } catch {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
+  }
+}
 
 /**
  * The number filter's formatter: every decimal the value has, or exactly `:n` places (0-20). Text is formatted as text,
@@ -95,6 +106,12 @@ export function cellContent(row: unknown, field: string, filter?: string): CellC
       const decimal = typeof value === 'string' ? value.trim() : ''
       if (typeof value === 'number' && Number.isFinite(value)) return { text: numberFormat(spec.argument).format(value) }
       if (DECIMAL.test(decimal)) return { text: numberFormat(spec.argument).format(decimal as `${number}`) }
+      return { text: toText(value) }
+    }
+    case 'currency': {
+      const decimal = typeof value === 'string' ? value.trim() : ''
+      if (typeof value === 'number' && Number.isFinite(value)) return { text: currencyFormat(spec.argument).format(value) }
+      if (DECIMAL.test(decimal)) return { text: currencyFormat(spec.argument).format(decimal as `${number}`) }
       return { text: toText(value) }
     }
     case 'badge': {

@@ -9,6 +9,8 @@ export interface DataSchema {
   /** For an array schema: the item schema's name. */
   items?: { $ref?: string }
   properties?: Record<string, { type?: string; description?: string; items?: { $ref?: string } }>
+  /** Properties that must be given (e.g. in a request body). */
+  required?: string[]
 }
 
 /** An operation's input, as a Form shows it: from the spec's parameters or its request body's properties. */
@@ -31,7 +33,9 @@ export interface DataOperation {
   summary?: string
   /** The operation's inputs, when a spec describes them. */
   parameters?: DataParameter[]
-  /** Served in the browser from the resource's sample rows (GET lists them, POST adds one) instead of an address. */
+  /** How a request body is sent: as a form (form-encoded or multipart) when the spec says so, else JSON. */
+  requestType?: 'form' | 'multipart'
+  /** Served in the browser from the resource's sample rows (GET lists them, POST adds one, DELETE removes one a form added) instead of an address. */
   sample?: true
 }
 
@@ -150,6 +154,8 @@ function parseRows(text: string): { rows: Record<string, unknown>[]; problem?: s
 export const SAMPLE_OPERATIONS: readonly DataOperation[] = [
   { name: 'GET rows', method: 'GET', endPoint: '', sample: true },
   { name: 'POST rows', method: 'POST', endPoint: '', sample: true },
+  // Removes a row a form added (the model's own rows stay: they are the sample).
+  { name: 'DELETE rows', method: 'DELETE', endPoint: '', sample: true },
 ]
 
 export const DataResourceFeature: FeatureDefinition = {

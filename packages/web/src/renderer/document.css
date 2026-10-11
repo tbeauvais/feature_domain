@@ -41,6 +41,11 @@
   user-select: none;
 }
 
+/* Form fields inside a draggable feature still take text selection with the mouse. */
+.fd-root [draggable='true'] :is(input, textarea) {
+  user-select: text;
+}
+
 .fd-root {
   all: initial;
   display: block;
@@ -222,10 +227,10 @@ h6.fd-heading { font-size: var(--fd-h6); }
   box-shadow: none;
 }
 /*
- * A panel holding only tables or charts: they are the cards. Placeholders for unported features don't count (the editor
- * shows them, the page doesn't), so the editor and the preview agree.
+ * A panel holding only tables, charts or forms: they are the cards. Placeholders for unported features don't count (the
+ * editor shows them, the page doesn't), so the editor and the preview agree.
  */
-.fd-panel[data-fd-panel='card'] > .fd-panel-body:has(> :is(.fd-table-block, .fd-chart-block)):not(:has(> :not(.fd-table-block, .fd-chart-block, .fd-placeholder))) {
+.fd-panel[data-fd-panel='card'] > .fd-panel-body:has(> :is(.fd-table-block, .fd-chart-block, .fd-form)):not(:has(> :not(.fd-table-block, .fd-chart-block, .fd-form, .fd-placeholder))) {
   padding: 0;
   background: none;
   border: 0;
@@ -705,3 +710,63 @@ h6.fd-heading { font-size: var(--fd-h6); }
   white-space: nowrap;
   border: 0;
 }
+
+/* Forms: a card of labelled fields and a primary button; what happened after sending is said beside the button. */
+.fd-form {
+  display: grid;
+  gap: calc(var(--fd-space) * 2);
+  margin: 0 0 calc(var(--fd-space) * 4);
+  padding: calc(var(--fd-space) * 3);
+  background: var(--fd-surface);
+  border: 1px solid var(--fd-border);
+  border-radius: var(--fd-radius-lg);
+  box-shadow: var(--fd-shadow);
+}
+.fd-form-title {
+  margin: 0;
+  font-family: var(--fd-font-display);
+  font-size: var(--fd-h4);
+  font-weight: var(--fd-display-weight);
+  letter-spacing: var(--fd-display-tracking);
+  line-height: 1.15;
+  color: var(--fd-ink);
+}
+.fd-form-field { display: grid; gap: calc(var(--fd-space) * 0.5); }
+.fd-form-label { font-weight: 500; color: var(--fd-ink); }
+.fd-form-required { color: var(--fd-accent); }
+.fd-form-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 calc(var(--fd-space) * 1.5);
+  font: inherit;
+  color: var(--fd-ink);
+  background: var(--fd-bg);
+  border: 1px solid var(--fd-border);
+  border-radius: var(--fd-radius-sm);
+}
+.fd-form-input:focus-visible { outline: 2px solid var(--fd-accent); outline-offset: 1px; }
+.fd-form-hint, .fd-form-note { margin: 0; font-size: var(--fd-size-small); color: var(--fd-muted); }
+.fd-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--fd-space) * 1.5); }
+.fd-form-actions .fd-button { border: 0; font: inherit; font-weight: 600; cursor: pointer; }
+.fd-form-actions .fd-button:disabled { cursor: default; opacity: 0.6; }
+.fd-form-sent { margin: 0; color: var(--fd-ink); }
+.fd-form-error { margin: 0; color: var(--fd-danger); }
+
+/* Row delete: a quiet button, asked inline first. */
+.fd-table .fd-table-actions { width: 1%; white-space: nowrap; text-align: right; }
+.fd-table-confirm { display: inline-flex; align-items: center; gap: calc(var(--fd-space) * 0.75); color: var(--fd-ink); }
+.fd-table-action {
+  min-height: 32px;
+  padding: 0 calc(var(--fd-space) * 1.25);
+  border: 1px solid var(--fd-border);
+  border-radius: 999px;
+  background: var(--fd-surface);
+  color: var(--fd-ink);
+  font: inherit;
+  font-size: var(--fd-size-small);
+  cursor: pointer;
+}
+.fd-table-action-danger { color: var(--fd-danger); border-color: currentColor; }
+.fd-table-action:disabled { opacity: 0.6; cursor: default; }
+.fd-table-delete-problem { padding: 0 calc(var(--fd-space) * 3) calc(var(--fd-space) * 1.5); color: var(--fd-danger); }
