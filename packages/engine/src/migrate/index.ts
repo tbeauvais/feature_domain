@@ -46,13 +46,14 @@ interface Context {
   cache: Raw
 }
 
-/** Cache keys an input migration moves into the inputs, so they aren't kept twice. */
-const CONSUMED_CACHE: Readonly<Record<string, readonly string[]>> = { SwaggerDataResourceFeature: ['swagger'] }
-
+/**
+ * The cache kept for a migrated feature, without what its input migration moved into its inputs: a legacy Swagger 1.2
+ * spec, which became the stored (converted) spec. Anything it couldn't convert stays, so nothing fetched is lost.
+ */
 function keptCache(feature: string, cache: unknown): Raw | undefined {
   if (!isNonEmptyObject(cache)) return undefined
-  const consumed = Object.hasOwn(CONSUMED_CACHE, feature) ? CONSUMED_CACHE[feature]! : []
-  const kept = Object.fromEntries(Object.entries(cache as Raw).filter(([key]) => !consumed.includes(key)))
+  const consumed = (key: string) => feature === 'SwaggerDataResourceFeature' && key === 'swagger' && isSwagger12((cache as Raw).swagger)
+  const kept = Object.fromEntries(Object.entries(cache as Raw).filter(([key]) => !consumed(key)))
   return Object.keys(kept).length > 0 ? kept : undefined
 }
 
@@ -386,11 +387,18 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
   SwaggerDataResourceFeature: (i, ctx) => {
     const spec = ctx.cache.swagger
     if (!isSwagger12(spec)) {
-      ctx.note('invalid-value', 'info', 'The legacy spec was never fetched; load an OpenAPI 3 spec from the Spec URL')
+      ctx.note(
+        'invalid-value',
+        'info',
+        spec === undefined
+          ? 'The legacy spec was never fetched; load an OpenAPI 3 spec from the Spec URL'
+          : 'The legacy cached spec is not Swagger 1.2, so it was not converted (it stays in the cache); load an OpenAPI 3 spec from the Spec URL',
+      )
       return { name: str(i.name), spec_url: str(i.resource), spec: '' }
     }
     ctx.note('coerced-value', 'info', 'Converted the legacy Swagger 1.2 spec to OpenAPI 3')
-    return { name: str(i.name), spec_url: str(i.resource), spec: JSON.stringify(swagger12ToOpenApi(spec), null, 2) }
+    // Compact: specs are stored with every model, in browser storage.
+    return { name: str(i.name), spec_url: str(i.resource), spec: JSON.stringify(swagger12ToOpenApi(spec)) }
   },
 
   TableFeature: (i, ctx) => {

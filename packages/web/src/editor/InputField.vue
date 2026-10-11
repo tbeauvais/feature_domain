@@ -29,7 +29,9 @@ const swatch = computed(() => {
 })
 
 /** Controls made of several buttons are labelled as a group rather than through `for`. */
-const grouped = computed(() => (props.def.control === 'segmented' || props.def.control === 'illustration-gallery') && props.def.options !== undefined)
+const grouped = computed(
+  () => ((props.def.control === 'segmented' || props.def.control === 'illustration-gallery') && props.def.options !== undefined) || props.def.control === 'api-spec',
+)
 
 const field = 'w-full rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-sky-500 focus:outline-none'
 
@@ -85,7 +87,7 @@ function settle() {
     </div>
 
     <IllustrationGallery
-      v-else-if="grouped"
+      v-else-if="grouped && def.control === 'illustration-gallery'"
       :labelledby="`${id}-label`"
       :value="text"
       :options="def.options ?? []"
@@ -147,6 +149,7 @@ function settle() {
     <ApiSpecField
       v-else-if="def.control === 'api-spec'"
       :id="id"
+      :labelledby="`${id}-label`"
       :value="text"
       :spec-url="typeof inputs?.spec_url === 'string' ? inputs.spec_url : ''"
       @change="emit('change', $event)"

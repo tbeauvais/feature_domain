@@ -1,4 +1,4 @@
-import { MemoryModelStore, type AppModel } from '@feature-domain/engine'
+import { MAX_SPEC_CHARS, MemoryModelStore, type AppModel } from '@feature-domain/engine'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -24,7 +24,7 @@ const pets = {
 }
 
 const field = (props: { value?: string; specUrl?: string }, fetchJson: FetchJson = async () => pets) =>
-  mount(ApiSpecField, { props: { id: 'spec', value: props.value ?? '', specUrl: props.specUrl ?? '' }, global: { provide: { [FETCH_JSON as symbol]: fetchJson } } })
+  mount(ApiSpecField, { props: { id: 'spec', labelledby: 'spec-label', value: props.value ?? '', specUrl: props.specUrl ?? '' }, global: { provide: { [FETCH_JSON as symbol]: fetchJson } } })
 
 describe('ApiSpecField', () => {
   it('summarises the stored spec, or says none is loaded', () => {
@@ -39,7 +39,8 @@ describe('ApiSpecField', () => {
     await w.get('[data-testid="load-spec"]').trigger('click')
     await flushPromises()
     expect(fetchJson).toHaveBeenCalledWith('https://pets.test/openapi.json')
-    expect(JSON.parse(w.emitted('change')![0]![0] as string)).toEqual(pets)
+    // Stored compact.
+    expect(w.emitted('change')![0]![0]).toBe(JSON.stringify(pets))
 
     const failing = field({ specUrl: 'https://pets.test/openapi.json' }, async () => {
       throw new Error('Failed to fetch')
@@ -54,6 +55,29 @@ describe('ApiSpecField', () => {
     await flushPromises()
     expect(swagger.get('[data-testid="api-spec-problem"]').text()).toContain('Only OpenAPI 3 specs are read')
     expect(swagger.emitted('change')).toBeUndefined()
+  })
+
+  it('ignores a load for an address changed meanwhile, and refuses a spec too large to store', async () => {
+    let resolve: (v: unknown) => void = () => {}
+    const w = field({ specUrl: 'https://a.test/openapi.json' }, () => new Promise((r) => (resolve = r)))
+    await w.get('[data-testid="load-spec"]').trigger('click')
+    await w.setProps({ specUrl: 'https://b.test/openapi.json' })
+    resolve(pets)
+    await flushPromises()
+    expect(w.emitted('change')).toBeUndefined()
+
+    const huge = { ...pets, info: { title: 'Huge', description: 'x'.repeat(MAX_SPEC_CHARS) } }
+    const big = field({ specUrl: 'https://pets.test/openapi.json' }, async () => huge)
+    await big.get('[data-testid="load-spec"]').trigger('click')
+    await flushPromises()
+    expect(big.emitted('change')).toBeUndefined()
+    expect(big.get('[data-testid="api-spec-problem"]').text()).toMatch(/^The spec is too large to store/)
+  })
+
+  it('is a labelled group, and its paste box has a label of its own', () => {
+    const w = field({})
+    expect(w.get('[data-testid="api-spec-field"]').attributes()).toMatchObject({ role: 'group', 'aria-labelledby': 'spec-label' })
+    expect(w.get('label[for="spec"]').text()).toBe('Spec (JSON)')
   })
 
   it('only loads http(s) addresses, and takes a pasted spec', async () => {
@@ -76,6 +100,14 @@ describe('Operation pickers in the inspector', () => {
     doc.select(selected)
     return { doc, w: mount(Inspector) }
   }
+
+  it('shows the spec field (not another grouped control) for an API spec, labelled as a group', async () => {
+    const { w } = await inspect(model(inst('SwaggerDataResourceFeature', 's', { name: 'Pets', spec: JSON.stringify(pets) }, null), page()), 's')
+    const group = w.get('[data-testid="api-spec-field"]')
+    expect(group.get('[data-testid="api-spec-summary"]').text()).toBe('OpenAPI 3.1.0 · Pets · 3 operations')
+    expect(w.get(`#${group.attributes('aria-labelledby')}`).text()).toBe('Spec')
+    expect(w.find('[data-testid="illustration-gallery"]').exists()).toBe(false)
+  })
 
   it("offers a table the referenced resource's operations, only those with fitting methods", async () => {
     const { doc, w } = await inspect(model(inst('SwaggerDataResourceFeature', 's', { name: 'Pets', spec: JSON.stringify(pets) }, null), page(), inst('TableFeature', 't', { data_resource: 's' })), 't')

@@ -4,6 +4,7 @@ import {
   ApiSpecFeature,
   generate,
   initialInputs,
+  MAX_SPEC_CHARS,
   MAX_SPEC_OPERATIONS,
   migrate,
   readApiSpec,
@@ -62,6 +63,69 @@ describe('readApiSpec', () => {
     expect(r.operations.map((o) => o.endPoint)).toEqual(['https://pets.test/api/v3/pets', 'https://pets.test/api/v3/pets'])
     expect(read({ ...petstore3, servers: [{ url: 'v2/' }] }, 'https://pets.test/docs/openapi.json').operations[0]!.endPoint).toBe('https://pets.test/docs/v2/pets')
     expect(r.operations[1]!.parameters?.map((p) => p.name)).toEqual(['name', 'tag'])
+  })
+
+  it('uses the spec\'s own site when there is no server, fills in server variables, and resolves protocol-relative servers', () => {
+    const at = (servers: unknown, specUrl = 'https://pets.test/docs/openapi.json') => read({ ...petstore3, servers }, specUrl).operations[0]!.endPoint
+    expect(at(undefined)).toBe('https://pets.test/pets')
+    expect(at([])).toBe('https://pets.test/pets')
+    expect(at([{ url: 5 }])).toBe('https://pets.test/pets')
+    expect(at([{ url: 'https://{env}.pets.test/v{ver}', variables: { env: { default: 'api' }, ver: { enum: ['2', '3'] } } }])).toBe('https://api.pets.test/v2/pets')
+    expect(at([{ url: '//cdn.pets.test/v1' }], 'http://pets.test/openapi.json')).toBe('http://cdn.pets.test/v1/pets')
+    expect(at([{ url: '/' }], '')).toBe('/pets')
+  })
+
+  it('follows shared parameters, request bodies and responses, any success response and any JSON media type', () => {
+    const spec = {
+      openapi: '3.0.3',
+      components: {
+        schemas: { Item: { type: 'object', properties: { id: { type: 'integer' } } } },
+        parameters: { Limit: { name: 'limit', in: 'query', schema: { type: 'integer' } }, Session: { name: 's', in: 'cookie' } },
+        requestBodies: { NewItem: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Item' } } } } },
+        responses: { Items: { description: 'ok', content: { 'application/vnd.example+json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Item' } } } } } },
+      },
+      paths: {
+        '/a': {
+          parameters: [{ name: 'limit', in: 'query', schema: { type: 'string' } }],
+          get: { parameters: [{ $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/Session' }], responses: { '2XX': { $ref: '#/components/responses/Items' } } },
+          post: { requestBody: { $ref: '#/components/requestBodies/NewItem' }, responses: { default: { description: 'x', content: { 'application/json; charset=utf-8': { schema: { $ref: '#/components/schemas/Item' } } } } } },
+        },
+        '/loop': { get: { parameters: [{ $ref: '#/components/parameters/Loop' }], responses: { '204': {} } } },
+      },
+    }
+    ;(spec.components.parameters as Record<string, unknown>).Loop = { $ref: '#/components/parameters/Loop' }
+    const r = read(spec, 'https://x.test/openapi.json')
+    const [get, post, loop] = r.operations
+    // The operation's own "limit" (an integer) replaces the path's (a string); the cookie is left out.
+    expect(get!.parameters).toEqual([{ name: 'limit', in: 'query', type: 'integer', description: '', required: false }])
+    expect(r.schemas[get!.responseType!]).toEqual({ type: 'array', items: { $ref: 'Item' } })
+    // The POST inherits the path's "limit", then takes the body's fields.
+    expect(post!.parameters?.map((p) => p.name)).toEqual(['limit', 'id'])
+    expect(post!.responseType).toBe('Item')
+    expect(loop!.parameters).toBeUndefined()
+  })
+
+  it('gives inline list items a schema of their own, so a table gets columns', () => {
+    const spec = { openapi: '3.0.0', paths: { '/pets': { get: { responses: { '200': { content: { 'application/json': { schema: { type: 'array', items: { type: 'object', properties: { name: { type: 'string', description: 'Name.' } } } } } } } } } } } }
+    const r = generate(model(inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify(spec), spec_url: 'https://pets.test/openapi.json' }, null), page(), inst('TableFeature', 't', { data_resource: 's' })))
+    expect(r.root.children[0]!.children[0]!.props).toMatchObject({ source: { endPoint: 'https://pets.test/pets' }, columns: [{ field: 'name', label: 'Name' }] })
+  })
+
+  it('lists the first GET when a table has no operation chosen, whatever order the spec gives', () => {
+    const spec = { openapi: '3.0.0', servers: [{ url: 'https://pets.test' }], paths: { '/pets': { post: {}, get: {} } } }
+    const r = generate(model(inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify(spec) }, null), page(), inst('TableFeature', 't', { data_resource: 's' })))
+    expect(r.root.children[0]!.children[0]!.props).toMatchObject({ source: { operation: 'GET /pets' } })
+    const postOnly = { ...spec, paths: { '/pets': { post: {} } } }
+    const p = generate(model(inst('SwaggerDataResourceFeature', 's', { name: 'Pets', spec: JSON.stringify(postOnly) }, null), page(), inst('TableFeature', 't', { data_resource: 's' })))
+    expect(p.diagnostics.map((d) => d.message)).toContain('Pets has no GET operation to list rows from')
+  })
+
+  it('refuses a spec too large to store', () => {
+    const huge = JSON.stringify({ openapi: '3.0.0', paths: {}, info: { description: 'x'.repeat(MAX_SPEC_CHARS) } })
+    const report = vi.fn<FeatureContext['report']>()
+    const out = ApiSpecFeature.generate({ ...initialInputs(ApiSpecFeature.inputs), spec: huge } as never, { instanceId: 's', nodeId: () => 's', resolve: () => undefined, report })
+    expect((out.exports as unknown as DataResourceExports).operations).toEqual([])
+    expect(report.mock.calls[0]![1]).toMatch(/^The spec is too large \(1\.0 MB; at most 1 MB/)
   })
 
   it('says what is wrong with something that is not a spec, and never follows prototype keys', () => {
@@ -141,6 +205,14 @@ describe('migrating the legacy Swagger resource', () => {
     expect(upgraded.notes.map((n) => n.code)).toEqual(['coerced-value', 'upgraded-feature'])
     expect(JSON.parse(upgraded.model.features[0]!.inputs.spec as string).openapi).toBe('3.0.3')
     expect(migrate(upgraded.model).model).toBe(upgraded.model)
+  })
+
+  it('keeps a cached spec it cannot convert, saying so', () => {
+    const swagger2 = { swagger: '2.0', paths: {} }
+    const r = migrate({ features: [{ feature: 'SwaggerDataResourceFeature', id: '1', inputs: { name: 'X', resource: 'https://x.test/spec.json' }, cache: { swagger: swagger2 } }] })
+    expect(r.model.features[0]!.inputs.spec).toBe('')
+    expect(r.model.features[0]!.cache).toEqual({ swagger: swagger2 })
+    expect(r.notes.map((n) => n.message)).toContain('The legacy cached spec is not Swagger 1.2, so it was not converted (it stays in the cache); load an OpenAPI 3 spec from the Spec URL')
   })
 
   it('notes a legacy resource whose spec was never fetched', () => {

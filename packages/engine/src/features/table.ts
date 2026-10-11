@@ -34,6 +34,10 @@ function fromSchema(resource: DataResourceExports, operation: DataOperation): { 
  * One column per key of the sample rows, in the order JavaScript lists them (first appearance, but integer-like keys
  * first), capped so wide rows stay readable. Labels read as words: "joined_on" is "Joined on".
  */
+export function columnsFromRows(rows: readonly unknown[]): TableColumn[] {
+  return fromRows(rows.filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null && !Array.isArray(row)))
+}
+
 function fromRows(rows: readonly Record<string, unknown>[]): TableColumn[] {
   const keys = [...new Set(rows.flatMap((row) => Object.keys(row)))].filter((key) => key.trim() !== '').slice(0, 12)
   return keys.map((field) => {
@@ -93,7 +97,9 @@ export const TableFeature: FeatureDefinition = {
     const resource = resolved.exports
 
     const operationName = asString(inputs.operation)
-    const operation = resource.operations.find((o) => o.name === operationName) ?? (operationName ? undefined : resource.operations[0])
+    // No operation chosen: the first one a table can list (a GET), as the inspector's "First (…)" option says.
+    const operation = operationName ? resource.operations.find((o) => o.name === operationName) : resource.operations.find((o) => o.method === 'GET')
+    if (!operationName && !operation && resource.operations.length > 0) ctx.report('warning', `${resource.resource || resolved.id} has no GET operation to list rows from`)
     if (operation?.sample && operation.method !== 'GET') {
       ctx.report('warning', `"${operation.name}" adds rows; a table lists them with the GET operation`)
     } else if (operation?.sample) {
@@ -110,7 +116,7 @@ export const TableFeature: FeatureDefinition = {
         if (schema.path) props.source.path = schema.path
         props.columns = schema.columns
       }
-    } else {
+    } else if (operationName) {
       ctx.report('warning', `Operation "${operationName}" is not provided by ${resource.resource || resolved.id}`)
     }
 

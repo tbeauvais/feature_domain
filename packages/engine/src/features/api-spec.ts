@@ -38,89 +38,155 @@ function typeOf(raw: unknown): string {
   return Array.isArray(type) ? str(type.find((t) => t !== 'null')) : str(type)
 }
 
-/** A JSON-Schema-like object as our DataSchema: properties with their type, description and item reference. */
-function schemaOf(raw: unknown): DataSchema {
+/** At most this many characters of spec are stored and read; bigger specs would fill the browser's storage. */
+export const MAX_SPEC_CHARS = 1_000_000
+
+/** What reading one spec needs: the spec (for its shared components), and the schemas found so far. */
+interface Reader {
+  spec: Raw
+  schemas: Record<string, DataSchema>
+}
+
+/**
+ * A value, or what its local "$ref" ("#/components/<kind>/<name>") points to, followed a few levels at most (a loop of
+ * references ends there). Specs share parameters, request bodies and responses this way.
+ */
+function deref(reader: Reader, value: unknown, kind: string, depth = 0): unknown {
+  const ref = str(own(value, '$ref'))
+  if (!ref || depth > 5) return value
+  const match = /^#\/components\/([^/]+)\/([^/]+)$/.exec(ref)
+  if (!match || match[1] !== kind) return value
+  return deref(reader, own(own(own(reader.spec, 'components'), kind), match[2]!), kind, depth + 1)
+}
+
+/** A JSON-Schema-like object as our DataSchema. An inline list item with properties is registered as `<name> item`. */
+function schemaOf(reader: Reader, raw: unknown, name: string): DataSchema {
   const out: DataSchema = {}
   const type = typeOf(raw)
   if (type) out.type = type
-  const items = refName(own(own(raw, 'items'), '$ref'))
+  const items = itemRef(reader, own(raw, 'items'), `${name} item`)
   if (items) out.items = { $ref: items }
   const properties = entries(own(raw, 'properties'))
   if (properties.length > 0) {
     out.properties = Object.fromEntries(
-      properties.map(([name, p]) => {
+      properties.map(([prop, p]) => {
         const property: NonNullable<DataSchema['properties']>[string] = {}
         const pType = typeOf(p) || (own(p, '$ref') ? 'object' : '')
         if (pType) property.type = pType
         const description = str(own(p, 'description'))
         if (description) property.description = description
-        const itemRef = refName(own(own(p, 'items'), '$ref'))
-        if (itemRef) property.items = { $ref: itemRef }
-        return [name, property]
+        const ref = itemRef(reader, own(p, 'items'), `${name}.${prop} item`)
+        if (ref) property.items = { $ref: ref }
+        return [prop, property]
       }),
     )
   }
   return out
 }
 
+/** A list's item schema as a schema name: a reference by its name, an inline object with properties registered. */
+function itemRef(reader: Reader, items: unknown, name: string): string | undefined {
+  const ref = refName(own(items, '$ref'))
+  if (ref) return ref
+  if (!isObject(own(items, 'properties'))) return undefined
+  reader.schemas[name] = schemaOf(reader, items, name)
+  return name
+}
+
 /** A response schema as a schema name: a reference by its name, an inline schema registered under `name`. */
-function responseType(raw: unknown, name: string, schemas: Record<string, DataSchema>): string | undefined {
+function responseType(reader: Reader, raw: unknown, name: string): string | undefined {
   if (!isObject(raw)) return undefined
   const ref = refName(own(raw, '$ref'))
   if (ref) return ref
-  schemas[name] = schemaOf(raw)
+  reader.schemas[name] = schemaOf(reader, raw, name)
   return name
 }
 
 const method = (m: string) => m.toUpperCase()
 const isMethod = (m: string): m is (typeof HTTP_METHODS)[number] => (HTTP_METHODS as readonly string[]).includes(method(m))
 
-function parameter(raw: unknown, fallbackIn: DataParameter['in']): DataParameter | undefined {
-  const name = str(own(raw, 'name'))
-  if (!name) return undefined
-  const where = str(own(raw, 'in')) || fallbackIn
+/** A parameter (followed if shared), or nothing for cookies and nameless ones. */
+function parameter(reader: Reader, raw: unknown): DataParameter | undefined {
+  const p = deref(reader, raw, 'parameters')
+  const name = str(own(p, 'name'))
+  const where = str(own(p, 'in')) || 'query'
+  if (!name || where === 'cookie') return undefined
   return {
     name,
-    in: (['path', 'query', 'header'] as const).find((w) => w === where) ?? fallbackIn,
-    type: typeOf(raw) || typeOf(own(raw, 'schema')) || 'string',
-    description: str(own(raw, 'description')),
-    required: own(raw, 'required') === true,
+    in: (['path', 'query', 'header'] as const).find((w) => w === where) ?? 'query',
+    type: typeOf(p) || typeOf(own(p, 'schema')) || 'string',
+    description: str(own(p, 'description')),
+    required: own(p, 'required') === true,
   }
 }
 
 /** A request body schema's properties as form fields (what a Form shows). */
-function bodyFields(schema: unknown, schemas: Record<string, DataSchema>): DataParameter[] {
+function bodyFields(reader: Reader, schema: unknown, name: string): DataParameter[] {
   const ref = refName(own(schema, '$ref'))
-  const resolved = ref ? (Object.hasOwn(schemas, ref) ? schemas[ref] : undefined) : schemaOf(schema)
-  return Object.entries(resolved?.properties ?? {}).map(([name, p]) => ({ name, in: 'form' as const, type: p.type ?? 'string', description: p.description ?? '', required: false }))
+  const resolved = ref ? (Object.hasOwn(reader.schemas, ref) ? reader.schemas[ref] : undefined) : schemaOf(reader, schema, name)
+  return Object.entries(resolved?.properties ?? {}).map(([field, p]) => ({ name: field, in: 'form' as const, type: p.type ?? 'string', description: p.description ?? '', required: false }))
+}
+
+/** The schema of a request body or response: JSON (any JSON media type) first, then a form, then whatever is there. */
+function mediaSchema(content: unknown): unknown {
+  const types = entries(content)
+  const pick =
+    types.find(([t]) => /^application\/([\w.-]+\+)?json\b/i.test(t)) ??
+    types.find(([t]) => /^(application\/x-www-form-urlencoded|multipart\/form-data)\b/i.test(t)) ??
+    types[0]
+  return pick ? own(pick[1], 'schema') : undefined
+}
+
+/** The success response: 200, 201, 2XX, default, then any other 2xx. */
+function successResponse(reader: Reader, responses: unknown): unknown {
+  const keys = entries(responses).map(([k]) => k)
+  const key = ['200', '201', '2XX', '2xx', 'default'].find((k) => keys.includes(k)) ?? keys.find((k) => /^2\d\d$/.test(k))
+  return key === undefined ? undefined : deref(reader, own(responses, key), 'responses')
+}
+
+/**
+ * The base URL operations hang off: the first server, with its variables filled in from their defaults. No server
+ * means the spec's own site ("/"); a relative or protocol-relative one is resolved against where the spec came from
+ * (by hand: the engine uses no platform URL API).
+ */
+function baseUrl(spec: Raw, specUrl: string): string {
+  const first = Array.isArray(spec.servers) ? spec.servers[0] : undefined
+  const variables = own(first, 'variables')
+  let server = (str(own(first, 'url')) || '/').replace(/\{([^}]+)\}/g, (whole, name: string) => {
+    const variable = own(variables, name)
+    const value = str(own(variable, 'default')) || str(Array.isArray(own(variable, 'enum')) ? (own(variable, 'enum') as unknown[])[0] : '')
+    return value || whole
+  })
+  const from = /^(https?:)\/\/([^/?#]+)([^?#]*)/i.exec(specUrl)
+  if (server.startsWith('//')) server = `${from?.[1] ?? 'https:'}${server}`
+  else if (!/^[a-z][a-z\d+.-]*:/i.test(server) && from) {
+    const origin = `${from[1]}//${from[2]}`
+    server = server.startsWith('/') ? `${origin}${server}` : `${origin}${from[3]!.replace(/[^/]*$/, '')}${server.replace(/^\.\//, '')}`
+  }
+  return server.replace(/\/+$/, '')
 }
 
 function read3(spec: Raw, specUrl: string): ReadSpec {
-  const schemas: Record<string, DataSchema> = Object.fromEntries(entries(own(spec.components, 'schemas')).map(([name, s]) => [name, schemaOf(s)]))
-  const server = str(own(Array.isArray(spec.servers) ? spec.servers[0] : undefined, 'url'))
-  // A relative server URL is relative to where the spec came from (resolved by hand: the engine uses no platform URL API).
-  let base = server
-  const from = /^(https?:\/\/[^/?#]+)([^?#]*)/i.exec(specUrl)
-  if (server && !/^[a-z][a-z\d+.-]*:/i.test(server) && from) {
-    base = server.startsWith('/') ? `${from[1]}${server}` : `${from[1]}${from[2]!.replace(/[^/]*$/, '')}${server.replace(/^\.\//, '')}`
-  }
-  base = base.replace(/\/$/, '')
-  const json = (content: unknown) => own(own(content, 'application/json'), 'schema') ?? own(own(content, 'application/x-www-form-urlencoded'), 'schema')
+  const reader: Reader = { spec, schemas: {} }
+  for (const [name, schema] of entries(own(spec.components, 'schemas'))) reader.schemas[name] = schemaOf(reader, schema, name)
+  const base = baseUrl(spec, specUrl)
   const operations: DataOperation[] = []
   for (const [path, item] of entries(spec.paths)) {
     const shared = Array.isArray(own(item, 'parameters')) ? (own(item, 'parameters') as unknown[]) : []
     for (const [m, op] of entries(item)) {
       if (!isMethod(m)) continue
-      const params = [...shared, ...(Array.isArray(own(op, 'parameters')) ? (own(op, 'parameters') as unknown[]) : [])].flatMap((p) => parameter(p, 'query') ?? [])
-      const body = json(own(own(op, 'requestBody'), 'content'))
-      const fields = body ? [...params, ...bodyFields(body, schemas)] : params
-      const responses = own(op, 'responses')
-      const ok = own(responses, '200') ?? own(responses, '201')
       const name = `${method(m)} ${path}`
-      operations.push(operation(method(m), path, base, str(own(op, 'summary')), fields, responseType(json(own(ok, 'content')), `${name} response`, schemas)))
+      // Parameters declared on the operation replace those of the path with the same name and location.
+      const byKey = new Map<string, DataParameter>()
+      const own_ = Array.isArray(own(op, 'parameters')) ? (own(op, 'parameters') as unknown[]) : []
+      for (const p of [...shared, ...own_].flatMap((raw) => parameter(reader, raw) ?? [])) byKey.set(`${p.in} ${p.name}`, p)
+      const body = mediaSchema(own(deref(reader, own(op, 'requestBody'), 'requestBodies'), 'content'))
+      const fields = body ? [...byKey.values(), ...bodyFields(reader, body, `${name} body`)] : [...byKey.values()]
+      const ok = successResponse(reader, own(op, 'responses'))
+      operations.push(operation(method(m), path, base, str(own(op, 'summary')), fields, responseType(reader, mediaSchema(own(ok, 'content')), `${name} response`)))
     }
   }
-  return { format: `OpenAPI ${str(spec.openapi)}`, title: str(own(spec.info, 'title')), operations, schemas }
+  return { format: `OpenAPI ${str(spec.openapi)}`, title: str(own(spec.info, 'title')), operations, schemas: reader.schemas }
 }
 
 function operation(m: string, path: string, base: string, summary: string, parameters: DataParameter[], response: string | undefined): DataOperation {
@@ -175,7 +241,9 @@ export const ApiSpecFeature: FeatureDefinition = {
   generate(inputs, ctx) {
     const exports: DataResourceExports = { resource: asString(inputs.name), operations: [], schemas: {} }
     const text = asString(inputs.spec).trim()
-    if (text === '') {
+    if (text.length > MAX_SPEC_CHARS) {
+      ctx.report('error', `The spec is too large (${(text.length / 1_000_000).toFixed(1)} MB; at most ${MAX_SPEC_CHARS / 1_000_000} MB can be stored in the browser)`)
+    } else if (text === '') {
       ctx.report('warning', 'No spec loaded yet: enter the Spec URL and choose Load spec, or paste the spec')
     } else {
       let parsed: unknown
