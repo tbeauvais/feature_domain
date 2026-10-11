@@ -1,4 +1,5 @@
 import { createRegistry } from '../feature.js'
+import { ApiSpecFeature } from './api-spec.js'
 import { ButtonFeature } from './button.js'
 import { ContainerFeature } from './container.js'
 import { DataResourceFeature } from './data-resource.js'
@@ -16,6 +17,7 @@ import { TextFeature } from './text.js'
 import { TextWithParagraphFeature } from './text-with-paragraph.js'
 import { ThemeFeature } from './theme.js'
 
+export { ApiSpecFeature, MAX_SPEC_OPERATIONS, readApiSpec, type ReadSpec } from './api-spec.js'
 export { ButtonFeature } from './button.js'
 export { ContainerFeature, cellSlot, MAX_COLUMNS, MAX_ROWS } from './container.js'
 export {
@@ -30,6 +32,7 @@ export {
   operationName,
   pathname,
   type DataOperation,
+  type DataParameter,
   type DataResourceExports,
   type DataSchema,
 } from './data-resource.js'
@@ -62,6 +65,7 @@ export const coreFeatures = [
   LinkFeature,
   ButtonFeature,
   DataResourceFeature,
+  ApiSpecFeature,
   TableFeature,
   ThemeFeature,
 ]

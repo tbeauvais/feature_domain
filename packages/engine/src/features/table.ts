@@ -2,19 +2,29 @@ import type { FeatureDefinition } from '../feature.js'
 import { asInt, asList, asString, clamp, disableInput, nameInput } from '../inputs.js'
 import { node } from '../nodes.js'
 import type { NodeKinds, TableColumn } from '../types.js'
-import { DATA_RESOURCE_TYPES, isDataResourceExports, type DataResourceExports, type DataOperation } from './data-resource.js'
+import { DATA_RESOURCE_TYPES, isDataResourceExports, type DataOperation, type DataResourceExports, type DataSchema } from './data-resource.js'
+
+/** A column per schema property, labelled by its description (without a closing full stop), else its name. */
+function columnsOf(properties: NonNullable<DataSchema['properties']>): TableColumn[] {
+  return Object.entries(properties).map(([field, p]) => ({ field, label: p.description?.trim().replace(/\.$/, '') || field }))
+}
 
 /**
  * When the operation's response schema contains an array of objects, the table shows that array (`path`) with one
  * column per item property, labelled by its description. This mirrors the legacy Swagger-driven behaviour.
  */
 function fromSchema(resource: DataResourceExports, operation: DataOperation): { path: string; columns: TableColumn[] } | undefined {
-  const response = operation.responseType ? resource.schemas[operation.responseType] : undefined
+  const response = operation.responseType && Object.hasOwn(resource.schemas, operation.responseType) ? resource.schemas[operation.responseType] : undefined
+  // The response is itself a list (OpenAPI often says so): the table shows the whole response.
+  if (response?.type === 'array' && response.items?.$ref) {
+    const item = Object.hasOwn(resource.schemas, response.items.$ref) ? resource.schemas[response.items.$ref] : undefined
+    if (item?.properties) return { path: '', columns: columnsOf(item.properties) }
+  }
   for (const [key, property] of Object.entries(response?.properties ?? {})) {
     if (property.type !== 'array' || !property.items?.$ref) continue
-    const item = resource.schemas[property.items.$ref]
+    const item = Object.hasOwn(resource.schemas, property.items.$ref) ? resource.schemas[property.items.$ref] : undefined
     if (!item?.properties) continue
-    const columns = Object.entries(item.properties).map(([field, p]) => ({ field, label: p.description || field }))
+    const columns = columnsOf(item.properties)
     return { path: key, columns }
   }
   return undefined
@@ -58,8 +68,8 @@ export const TableFeature: FeatureDefinition = {
       default: '',
       control: 'resource-select',
     },
-    { name: 'operation', label: 'Operation', type: 'string', default: '', control: 'operation-select' },
-    { name: 'delete_operation', label: 'Delete Operation', type: 'string', default: '', control: 'operation-select' },
+    { name: 'operation', label: 'Operation', type: 'string', default: '', control: 'operation-select', methods: ['GET'] },
+    { name: 'delete_operation', label: 'Delete Operation', type: 'string', default: '', control: 'operation-select', methods: ['DELETE'] },
     { name: 'fields', label: 'Fields', type: 'list', default: [], control: 'list-input' },
     { name: 'labels', label: 'Labels', type: 'list', default: [], control: 'list-input' },
     { name: 'filters', label: 'Filters', type: 'list', default: [], control: 'list-input' },
@@ -89,14 +99,15 @@ export const TableFeature: FeatureDefinition = {
     } else if (operation?.sample) {
       const rows = resource.sampleRows ?? []
       props.source = { feature: resolved.id, resource: resource.resource, operation: operation.name, endPoint: '', rows }
-      if (props.columns.length === 0) props.columns = fromRows(rows)
+      // Columns: the chosen fields, else what a spec says the rows hold, else the sample rows' own keys.
+      if (props.columns.length === 0) props.columns = fromSchema(resource, operation)?.columns ?? fromRows(rows)
     } else if (operation && !/^https?:\/\//i.test(operation.endPoint)) {
       ctx.report('warning', `Operation "${operation.name}" of ${resource.resource || resolved.id} has no http(s) URL`)
     } else if (operation) {
       const schema = fromSchema(resource, operation)
       props.source = { feature: resolved.id, resource: resource.resource, operation: operation.name, endPoint: operation.endPoint }
       if (schema) {
-        props.source.path = schema.path
+        if (schema.path) props.source.path = schema.path
         props.columns = schema.columns
       }
     } else {

@@ -30,6 +30,8 @@ export interface InputDef {
   min?: number
   max?: number
   placeholder?: string
+  /** For `operation-select` inputs: the HTTP methods whose operations fit (e.g. GET for what a table lists). */
+  methods?: readonly string[]
   /** The inspector section the input sits in (inputs with the same group are shown together under it); none: the top. */
   group?: string
   /** For `reference` inputs: feature types the referenced instance may have. */

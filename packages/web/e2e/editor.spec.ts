@@ -442,3 +442,33 @@ test('a new model guides the first steps, and a theme starts from a built-in one
   await inspector(page).locator('[data-used-by="1"]').click()
   await expect(inspector(page)).toContainText('Page #1')
 })
+
+test('an API spec loads from its URL, offers its operations, and can answer with sample rows', async ({ page }) => {
+  const spec = {
+    openapi: '3.1.0',
+    info: { title: 'Pets' },
+    servers: [{ url: 'https://pets.test' }],
+    components: { schemas: { Pet: { type: 'object', properties: { name: { type: 'string', description: 'Name' }, kind: { type: 'string', description: 'Kind' } } } } },
+    paths: { '/pets': { get: { summary: 'List pets', responses: { '200': { content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Pet' } } } } } } } } },
+  }
+  await page.context().route('https://pets.test/**', (route) => route.fulfill({ json: route.request().url().endsWith('openapi.json') ? spec : [{ name: 'Rex', kind: 'dog' }] }))
+  await newModel(page)
+  await page.getByTestId('palette-TableFeature').click()
+  await page.getByTestId('palette-SwaggerDataResourceFeature').click()
+  await inspector(page).getByLabel('Spec URL').fill('https://pets.test/openapi.json')
+  await inspector(page).getByTestId('load-spec').click()
+  await expect(inspector(page).getByTestId('api-spec-summary')).toHaveText('OpenAPI 3.1.0 · Pets · 1 operation')
+
+  await tree(page).locator('[data-tree-id="2"]').click()
+  await inspector(page).getByLabel('Data Resource').selectOption({ label: 'untitled (#3)' })
+  await inspector(page).getByLabel('Operation', { exact: true }).selectOption('GET /pets')
+  const table = canvas(page).locator('[data-feature-id="2"]')
+  await expect(table.locator('th')).toHaveText(['Name', 'Kind'])
+  await expect(table.locator('tbody td')).toHaveText(['Rex', 'dog'])
+
+  // With sample data the same table answers from the rows, fetching nothing.
+  await tree(page).locator('[data-tree-id="3"]').click()
+  await inspector(page).getByRole('button', { name: 'Sample data' }).click()
+  await inspector(page).getByLabel('Sample rows (JSON)').fill('[{"name": "Tom", "kind": "cat"}]')
+  await expect(table.locator('tbody td')).toHaveText(['Tom', 'cat'])
+})

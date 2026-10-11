@@ -8,15 +8,26 @@ const legacySample = import.meta.glob<unknown>('../../../../sample.json', { eage
  * Bumped whenever `upgradeSample` changes, so browsers that seeded older samples get the change once
  * (`BrowserModelStore.upgradeSeeded`). 2: stock header photos became built-in banners. 3: those banners are short.
  * 4: the GitHub repo tables show languages as badges, names as they are, and scroll after 10 rows. 5: their date column
- * is labelled "Updated", and Getting Started's headline loses its stray keystrokes.
+ * is labelled "Updated", and Getting Started's headline loses its stray keystrokes. 6: the Sales API (its server is gone)
+ * answers with sample sales.
  */
-export const SAMPLES_VERSION = 5
+export const SAMPLES_VERSION = 6
 
 /** The samples' GitHub repo tables, exactly as migrated, and what they become. */
 const LEGACY_REPO_TABLE = { fields: ['name', 'description', 'language', 'updated_at'], filters: ['uppercase', 'dataLink :data.html_url', '', 'date'] }
 const REPO_TABLE_FILTERS = ['', 'dataLink :data.html_url', 'badge', 'date']
 const LEGACY_REPO_LABELS = ['Name', 'Description', 'Language', 'Updated At']
 const REPO_TABLE_LABELS = ['Name', 'Description', 'Language', 'Updated']
+
+/** The Swagger sample's API, whose server (sales-api.mybluemix.net) is gone, and the sales it answers with instead. */
+const SALES_SPEC_URL = 'http://sales-api.mybluemix.net/swagger_doc/sales.json'
+const SAMPLE_SALES = [
+  { id: '1', name: 'Avery Chen', amount: 18250 },
+  { id: '2', name: 'Jordan Patel', amount: 12900 },
+  { id: '3', name: 'Sam Rivera', amount: 9600 },
+  { id: '4', name: 'Morgan Lee', amount: 7400 },
+  { id: '5', name: 'Riley Brooks', amount: 4300 },
+]
 
 /** Sample texts with typos from the legacy samples, and their fixes. */
 const TEXT_FIXES: Readonly<Record<string, string>> = { 'Here is some content for ya...gfdgfd': 'Here is some content for ya...' }
@@ -34,12 +45,21 @@ const LEGACY_HEADERS: Readonly<Record<string, IllustrationId>> = {
  * - Repo tables still exactly as migrated show languages as badges and names as they are, and scroll after 10 rows.
  * - Repo tables still labelled as migrated label their date column "Updated".
  * - Headers with a known typo from the legacy samples are fixed.
+ * - The Sales API, still answering from its dead server, answers with sample sales instead.
  * - Image features still showing one of the legacy header photos as a link show the matching banner instead, full
  *   width and short (the photos were 150px tall), described by its own alt text. The address stays, so switching
  *   Source back to Link restores it.
  */
-export function upgradeSample(model: AppModel): AppModel {
-  if (!Array.isArray(model.features)) return model
+export function upgradeSample(stored: AppModel): AppModel {
+  if (!Array.isArray(stored.features)) return stored
+  // Features ported since the sample was stored are migrated first (the editor would on load anyway), so the changes
+  // below see their current inputs. The same object comes back when there is nothing to migrate.
+  let model = stored
+  try {
+    model = migrate(stored).model
+  } catch {
+    return stored
+  }
   let changed = false
   const features = model.features.map((f) => {
     if (typeof f?.inputs !== 'object' || f.inputs === null) return f
@@ -52,6 +72,11 @@ export function upgradeSample(model: AppModel): AppModel {
       if (inputs === f.inputs) return f
       changed = true
       return { ...f, inputs }
+    }
+    if (f.feature === 'SwaggerDataResourceFeature') {
+      if (f.inputs.spec_url !== SALES_SPEC_URL || (f.inputs.source !== undefined && f.inputs.source !== 'address')) return f
+      changed = true
+      return { ...f, inputs: { ...f.inputs, source: 'sample', sample_rows: JSON.stringify(SAMPLE_SALES, null, 2) } }
     }
     if (f.feature === 'HeaderFeature') {
       const text = f.inputs.text

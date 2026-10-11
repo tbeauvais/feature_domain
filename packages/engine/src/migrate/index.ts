@@ -1,4 +1,6 @@
 import { cellSlot, MAX_COLUMNS, MAX_ROWS } from '../features/container.js'
+import { readApiSpec } from '../features/api-spec.js'
+import { isSwagger12, swagger12ToOpenApi } from './swagger12.js'
 import { DATA_RESOURCE_TYPES, HTTP_METHODS, httpMethod, operationName } from '../features/data-resource.js'
 import { ROOT_ID, ROOT_SLOT, type AppModel, type FeatureInstance, type InputValue, type Placement, type Tone } from '../types.js'
 import { legacyDomId, legacyGrid, normalizeAlign, normalizeTarget, normalizeTone } from './legacy.js'
@@ -40,6 +42,35 @@ interface Context {
   resourceId(name: string): string | undefined
   /** Name and operation names of a migrated DataResource, when they are known without fetching anything. */
   resourceOperations(id: string): { name: string; operations: string[] } | undefined
+  /** The legacy instance's cache (e.g. the Swagger spec the legacy app fetched and kept). */
+  cache: Raw
+}
+
+/** Cache keys an input migration moves into the inputs, so they aren't kept twice. */
+const CONSUMED_CACHE: Readonly<Record<string, readonly string[]>> = { SwaggerDataResourceFeature: ['swagger'] }
+
+function keptCache(feature: string, cache: unknown): Raw | undefined {
+  if (!isNonEmptyObject(cache)) return undefined
+  const consumed = Object.hasOwn(CONSUMED_CACHE, feature) ? CONSUMED_CACHE[feature]! : []
+  const kept = Object.fromEntries(Object.entries(cache as Raw).filter(([key]) => !consumed.includes(key)))
+  return Object.keys(kept).length > 0 ? kept : undefined
+}
+
+/** The operation names a data resource provides, as legacy references named them, for checking those references. */
+function providedOperations(feature: string, inputs: Raw, cache: unknown): string[] | undefined {
+  if (feature === 'DataResourceFeature') return [operationName(httpMethod(str(inputs.operation)), str(inputs.resource))]
+  if (feature !== 'SwaggerDataResourceFeature') return undefined
+  let spec: unknown = isNonEmptyObject(cache) ? (cache as Raw).swagger : undefined
+  if (isSwagger12(spec)) spec = swagger12ToOpenApi(spec)
+  if (spec === undefined && str(inputs.spec).trim() !== '') {
+    try {
+      spec = JSON.parse(str(inputs.spec))
+    } catch {
+      return undefined
+    }
+  }
+  const read = spec === undefined ? undefined : readApiSpec(spec, str(inputs.spec_url) || str(inputs.resource))
+  return read && !('problem' in read) ? read.operations.map((o) => o.name) : undefined
 }
 
 export function isV2Model(value: unknown): value is AppModel {
@@ -104,23 +135,26 @@ export function migrate(input: unknown): MigrationResult {
   // Legacy references were by data resource name; the first resource with a name won.
   const resources = new Map<string, string>()
   const operations = new Map<string, { name: string; operations: string[] }>()
-  for (const { id, feature, inputs } of instances) {
+  for (const { id, feature, inputs, raw } of instances) {
     const name = str(inputs.name)
     if (DATA_RESOURCE_TYPES.includes(feature) && !resources.has(name)) resources.set(name, id)
-    if (feature === 'DataResourceFeature') operations.set(id, { name, operations: [operationName(httpMethod(str(inputs.operation)), str(inputs.resource))] })
+    const provided = providedOperations(feature, inputs, raw.cache)
+    if (provided) operations.set(id, { name, operations: provided })
   }
 
   const features = instances.map(({ id, feature, inputs, raw }): FeatureInstance => {
     const note = noteFor(id)
-    const ctx: Context = { note, resourceId: (name) => resources.get(name), resourceOperations: (rid) => operations.get(rid) }
+    const cache = isNonEmptyObject(raw.cache) ? (raw.cache as Raw) : {}
+    const ctx: Context = { note, resourceId: (name) => resources.get(name), resourceOperations: (rid) => operations.get(rid), cache }
     const migrateInputs = Object.hasOwn(INPUTS, feature) ? INPUTS[feature] : undefined
     const out: FeatureInstance = { feature, id, inputs: migrateInputs ? migrateInputs(inputs, ctx) : scalarInputs(inputs) }
 
     if (!migrateInputs) {
       note('unported-feature', 'info', `${feature} is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy`)
       out.cache = { legacy: raw }
-    } else if (isNonEmptyObject(raw.cache)) {
-      out.cache = raw.cache
+    } else {
+      const kept = keptCache(feature, raw.cache)
+      if (kept) out.cache = kept
     }
 
     if (!DATA_RESOURCE_TYPES.includes(feature)) {
@@ -221,7 +255,8 @@ function upgrade(model: AppModel): MigrationResult {
     const inputs = legacyInputs(f)
     const name = str(inputs.name)
     if (DATA_RESOURCE_TYPES.includes(f.feature) && !resources.has(name)) resources.set(name, f.id)
-    if (f.feature === 'DataResourceFeature') operations.set(f.id, { name, operations: [operationName(httpMethod(str(inputs.operation)), str(inputs.resource))] })
+    const provided = providedOperations(f.feature, inputs, pendingLegacy(f)?.cache)
+    if (provided) operations.set(f.id, { name, operations: provided })
   }
 
   const features = model.features.map((f): FeatureInstance => {
@@ -231,11 +266,13 @@ function upgrade(model: AppModel): MigrationResult {
       const inputs = upgradeInputs(f, note)
       return inputs ? { ...f, inputs } : f
     }
-    const ctx: Context = { note, resourceId: (name) => resources.get(name), resourceOperations: (rid) => operations.get(rid) }
+    const cache = isNonEmptyObject(legacy.cache) ? (legacy.cache as Raw) : {}
+    const ctx: Context = { note, resourceId: (name) => resources.get(name), resourceOperations: (rid) => operations.get(rid), cache }
     const out: FeatureInstance = { feature: f.feature, id: f.id, inputs: INPUTS[f.feature]!(legacyInputs(f), ctx) }
     // Placement was resolved when the model was first migrated (unported features were placed too).
     if (f.placement && !DATA_RESOURCE_TYPES.includes(f.feature)) out.placement = f.placement
-    if (isNonEmptyObject(legacy.cache)) out.cache = legacy.cache
+    const kept = keptCache(f.feature, legacy.cache)
+    if (kept) out.cache = kept
     note('upgraded-feature', 'info', `${f.feature} is ported now; migrated from the legacy settings kept in cache.legacy`)
     return out
   })
@@ -343,6 +380,18 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
   },
 
   DataResourceFeature: (i) => ({ name: str(i.name), resource: str(i.resource), operation: httpMethod(str(i.operation)) }),
+
+  // The legacy app fetched the spec when the page first ran and kept it in the instance's cache: converted from Swagger
+  // 1.2 to OpenAPI 3 (the only version the feature reads), it becomes the stored spec. Its server is long gone.
+  SwaggerDataResourceFeature: (i, ctx) => {
+    const spec = ctx.cache.swagger
+    if (!isSwagger12(spec)) {
+      ctx.note('invalid-value', 'info', 'The legacy spec was never fetched; load an OpenAPI 3 spec from the Spec URL')
+      return { name: str(i.name), spec_url: str(i.resource), spec: '' }
+    }
+    ctx.note('coerced-value', 'info', 'Converted the legacy Swagger 1.2 spec to OpenAPI 3')
+    return { name: str(i.name), spec_url: str(i.resource), spec: JSON.stringify(swagger12ToOpenApi(spec), null, 2) }
+  },
 
   TableFeature: (i, ctx) => {
     const ref = typeof i.data_resource === 'object' && i.data_resource !== null ? (i.data_resource as Raw) : {}
