@@ -20,7 +20,7 @@ onBeforeUnmount(() => window.removeEventListener('storage', onStorage))
 </script>
 
 <template>
-  <DocumentView v-if="status === 'ready' && result" :root="result.root" />
+  <DocumentView v-if="status === 'ready' && result" :root="result.root" :model-id="id ?? undefined" />
   <p v-else-if="!id">No model selected.</p>
   <p v-else-if="status === 'missing'">This model does not exist.</p>
   <p v-else-if="status === 'error'">Could not load the model: {{ error }}</p>

@@ -28,6 +28,15 @@ describe('InputField', () => {
     expect(lastChange(list)).toEqual(['one', 'two'])
   })
 
+  it('edits JSON in a tall monospace area without spell-checking', async () => {
+    const w = mount(InputField, { props: { def: def({ type: 'text', control: 'json-area' }), value: '[]' } })
+    const area = w.get('textarea')
+    expect(area.attributes()).toMatchObject({ rows: '12', spellcheck: 'false' })
+    expect(area.classes()).toContain('font-mono')
+    await area.setValue('[{"a": 1}]')
+    expect(lastChange(w)).toBe('[{"a": 1}]')
+  })
+
   it('edits numbers, clearing to undefined when empty', async () => {
     const w = mount(InputField, { props: { def: def({ type: 'integer', min: 1, max: 6 }), value: 3 } })
     expect(w.get('input').attributes()).toMatchObject({ type: 'number', min: '1', max: '6' })

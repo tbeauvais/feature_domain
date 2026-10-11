@@ -435,9 +435,8 @@ function errorMessage(error: unknown): string {
 export function frozenCopy<T>(value: T): T {
   if (Array.isArray(value)) return Object.freeze(value.map(frozenCopy)) as T
   if (typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype) {
-    const out: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(value)) out[k] = frozenCopy(v)
-    return Object.freeze(out) as T
+    // fromEntries defines each key as an own property: a "__proto__" key stays data, never the copy's prototype.
+    return Object.freeze(Object.fromEntries(Object.entries(value).map(([k, v]) => [k, frozenCopy(v)]))) as T
   }
   return value
 }

@@ -24,6 +24,9 @@ import {
   TextFeature,
   TextWithParagraphFeature,
   walkNodes,
+  MAX_SAMPLE_ROWS,
+  parseSampleRows,
+  SAMPLE_OPERATIONS,
   type DataResourceExports,
   type DocNode,
   type FeatureContext,
@@ -254,7 +257,7 @@ describe('PanelFeature', () => {
 
 describe('DataResourceFeature', () => {
   it('exports one operation named after its method and path', () => {
-    const { out } = run(DataResourceFeature, { name: 'Repos', resource: 'https://api.github.com/users/x/repos?per_page=5', operation: 'GET' })
+    const { out } = run(DataResourceFeature, { name: 'Repos', source: 'address', resource: 'https://api.github.com/users/x/repos?per_page=5', operation: 'GET' })
     expect(out.exports).toEqual({
       resource: 'Repos',
       operations: [{ name: 'GET /users/x/repos', method: 'GET', endPoint: 'https://api.github.com/users/x/repos?per_page=5' }],
@@ -275,8 +278,42 @@ describe('DataResourceFeature', () => {
   })
 
   it('falls back to GET and tolerates non-URL resources', () => {
-    const { out } = run(DataResourceFeature, { resource: '/local/data', operation: 'FETCH' })
+    const { out } = run(DataResourceFeature, { source: 'address', resource: '/local/data', operation: 'FETCH' })
     expect((out.exports as unknown as DataResourceExports).operations[0]).toMatchObject({ name: 'GET /local/data', method: 'GET' })
+  })
+
+  it('fetches its address when stored without a Source, and starts new resources on example sample rows', () => {
+    expect(runStored(DataResourceFeature, { name: 'Old', resource: 'https://x.test/rows' }).out.exports).toMatchObject({ operations: [{ endPoint: 'https://x.test/rows' }] })
+    const fresh = run(DataResourceFeature).out.exports as unknown as DataResourceExports
+    expect(fresh.operations.map((o) => [o.name, o.method, o.sample])).toEqual([
+      ['GET rows', 'GET', true],
+      ['POST rows', 'POST', true],
+    ])
+    expect(fresh.sampleRows).toHaveLength(3)
+    expect(Object.keys(fresh.sampleRows![0]!)).toEqual(['name', 'role', 'city', 'joined'])
+  })
+
+  it('reads sample rows as a list of objects, saying what is wrong otherwise', () => {
+    const sample = (text: string) => {
+      const { out, report } = run(DataResourceFeature, { source: 'sample', sample_rows: text })
+      return { rows: (out.exports as unknown as DataResourceExports).sampleRows, problems: report.mock.calls.map((c) => c[1]) }
+    }
+    expect(sample('[{"a": 1}, {"a": 2}]')).toEqual({ rows: [{ a: 1 }, { a: 2 }], problems: [] })
+    expect(sample('')).toEqual({ rows: [], problems: [] })
+    expect(sample('{"a": 1}').problems).toEqual(['Sample rows must be a list, like [{"name": "Ada"}]'])
+    expect(sample('[{"a": 1}, 2, null]')).toEqual({ rows: [{ a: 1 }], problems: ['2 sample row(s) are not objects and were left out'] })
+    expect(sample('[oops').problems[0]).toMatch(/^Sample rows are not valid JSON/)
+    const many = sample(JSON.stringify(Array.from({ length: MAX_SAMPLE_ROWS + 5 }, (_, i) => ({ i }))))
+    expect(many.rows).toHaveLength(MAX_SAMPLE_ROWS)
+    expect(many.problems).toEqual([`Only the first ${MAX_SAMPLE_ROWS} of ${MAX_SAMPLE_ROWS + 5} sample rows are used`])
+  })
+
+  it('leaves out "__proto__" keys and warns about numbers too long to keep exactly', () => {
+    const proto = parseSampleRows('[{"__proto__": {"x": 1}, "name": "Ada"}]')
+    expect(proto).toEqual({ rows: [{ name: 'Ada' }], problem: 'The "__proto__" key in sample rows was left out' })
+    expect(Object.getPrototypeOf(proto.rows[0])).toBe(Object.prototype)
+    expect(parseSampleRows('[{"id": 9007199254740993}]').problem).toBe('"id" has a number too long to keep exactly; put it in quotes to keep every digit')
+    expect(parseSampleRows('[{"id": "9007199254740993", "n": 1.5, "big": 9007199254740991}]').problem).toBeUndefined()
   })
 })
 
@@ -291,6 +328,44 @@ describe('TableFeature', () => {
     ...overrides,
   })
   const resolveTo = (exports: unknown) => (id: string) => (id === 'r' ? { id, feature: 'DataResourceFeature', name: 'Repos', exports: exports as Record<string, unknown> } : undefined)
+
+  it('shows sample rows with a column per key when it has no fields, and the chosen fields otherwise', () => {
+    const rows = [{ name: 'Ada', joined_on: '2015' }, { name: 'Grace', city: 'NYC' }]
+    const sample = exportsOf({ operations: SAMPLE_OPERATIONS.map((o) => ({ ...o })), sampleRows: rows })
+    const { out, report } = run(TableFeature, { data_resource: 'r' }, resolveTo(sample))
+    expect(report).not.toHaveBeenCalled()
+    expect(out.node?.props).toMatchObject({
+      source: { feature: 'r', resource: 'Repos', operation: 'GET rows', endPoint: '', rows },
+      columns: [
+        { field: 'name', label: 'Name' },
+        { field: 'joined_on', label: 'Joined on' },
+        { field: 'city', label: 'City' },
+      ],
+    })
+    expect(run(TableFeature, { data_resource: 'r', fields: ['city'] }, resolveTo(sample)).out.node?.props).toMatchObject({ columns: [{ field: 'city', label: 'city' }] })
+  })
+
+  it('labels derived columns as words, skipping empty keys', () => {
+    const rows = [{ _id: 1, '': 'x', first_name: 'Ada', 'last-name': 'L' }]
+    const sample = exportsOf({ operations: SAMPLE_OPERATIONS.map((o) => ({ ...o })), sampleRows: rows })
+    expect(run(TableFeature, { data_resource: 'r' }, resolveTo(sample)).out.node?.props).toMatchObject({
+      columns: [
+        { field: '_id', label: 'Id' },
+        { field: 'first_name', label: 'First name' },
+        { field: 'last-name', label: 'Last name' },
+      ],
+    })
+  })
+
+  it('lists sample rows only with the GET operation, and has no delete on sample data', () => {
+    const sample = exportsOf({ operations: SAMPLE_OPERATIONS.map((o) => ({ ...o })), sampleRows: [{ a: 1 }] })
+    const post = run(TableFeature, { data_resource: 'r', operation: 'POST rows' }, resolveTo(sample))
+    expect(post.out.node?.props).not.toHaveProperty('source')
+    expect(post.report).toHaveBeenCalledWith('warning', '"POST rows" adds rows; a table lists them with the GET operation')
+    const del = run(TableFeature, { data_resource: 'r', delete_operation: 'GET rows' }, resolveTo(sample))
+    expect(del.out.node?.props).not.toHaveProperty('deleteAction')
+    expect(del.report).toHaveBeenCalledWith('warning', 'Sample data has no delete operation; "GET rows" is ignored')
+  })
 
   it('reads its source operation from the referenced resource', () => {
     const { out, report } = run(

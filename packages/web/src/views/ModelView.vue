@@ -15,6 +15,7 @@ import { REDO_KEYS, UNDO_KEYS } from '../editor/keys'
 import { themeSummary } from '../editor/status'
 import { CANVAS_WIDTHS, loadCanvasWidth, saveCanvasWidth, type CanvasWidth } from '../editor/canvasWidth'
 import { useEditorDnd } from '../editor/useEditorDnd'
+import { forgetSampleRows } from '../renderer/data'
 import DocumentView from '../renderer/DocumentView.vue'
 import { modelStore } from '../services'
 import { confirmAction, pendingConfirm } from '../editor/confirm'
@@ -131,6 +132,7 @@ async function deleteModel() {
   // The model is going away: an edit still waiting to be saved must not be saved (or trip the leave guard).
   store.discard()
   await modelStore().delete(props.id)
+  forgetSampleRows(props.id)
   await router.push('/')
 }
 </script>
@@ -222,7 +224,7 @@ async function deleteModel() {
               @click="onCanvasClick"
               @auxclick="onCanvasAuxClick"
             >
-              <DocumentView :root="result.root" />
+              <DocumentView :key="id" :root="result.root" :model-id="id" />
               <SelectionOverlay :container="canvas" :selected-id="selectedId" :version="result" />
               <DropIndicator :container="canvas" />
               <EmptyPageHint :container="canvas" :root="result.root" />
