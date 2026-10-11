@@ -11,6 +11,7 @@ import {
   renderOutline,
   ROOT_ID,
   TableFeature,
+  usedBy,
   type FeatureDefinition,
 } from '../src'
 import { at, deepFreeze, inst, model, page, resource } from './helpers'
@@ -154,6 +155,24 @@ describe('suppression and skipping', () => {
 })
 
 describe('references', () => {
+  it('lists what uses a feature: the pages on a theme, the tables on a data resource, never children', () => {
+    const r = generate(
+      model(
+        inst('ThemeFeature', 'th', {}, null),
+        inst('PageFeature', '1', { theme: 'th' }, at('$root', 'content')),
+        resource('r'),
+        inst('PageFeature', '2', { theme: 'th' }, at('$root', 'content')),
+        inst('TableFeature', 't', { data_resource: 'r' }, at('2', 'content')),
+        inst('PageFeature', '3', { theme: 'missing' }, at('$root', 'content')),
+      ),
+    )
+    expect(usedBy(r, 'th')).toEqual(['1', '2'])
+    expect(usedBy(r, 'r')).toEqual(['t'])
+    // Page 2 holds the table but doesn't use it.
+    expect(usedBy(r, '2')).toEqual([])
+    expect(usedBy(r, 'nope')).toEqual([])
+  })
+
   const table = (id: string, inputs: Record<string, string | string[]> = {}, placement = at('1', 'content')) =>
     inst('TableFeature', id, { data_resource: 'r', fields: ['name'], ...inputs }, placement)
 

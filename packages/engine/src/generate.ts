@@ -433,3 +433,12 @@ export function frozenCopy<T>(value: T): T {
   }
   return value
 }
+
+/**
+ * The features that reference `id` (through `reference` inputs or declared dependencies), in model order: e.g. the
+ * pages using a Theme, or the tables reading a data resource. Placement (children) doesn't count.
+ */
+export function usedBy(result: Pick<GenerateResult, 'graph' | 'edgeKinds'>, id: string): string[] {
+  const children = new Set(result.graph.children.get(id) ?? [])
+  return result.graph.nodes.filter((node) => children.has(node) && result.edgeKinds.get(edgeKey(id, node)) === 'reference')
+}

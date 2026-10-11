@@ -11,7 +11,9 @@ const severityClass: Record<Diagnostic['severity'], string> = {
 </script>
 
 <template>
-  <p v-if="diagnostics.length === 0" class="text-sm text-slate-500">No problems.</p>
+  <p v-if="diagnostics.length === 0" class="text-sm text-slate-600" data-testid="no-problems">
+    <span class="text-green-700" aria-hidden="true">✓</span> No problems. A feature with a problem would be listed here, with the reason.
+  </p>
   <ul v-else class="space-y-2" data-testid="diagnostics">
     <li v-for="(d, i) in diagnostics" :key="i" class="text-sm" :data-code="d.code">
       <span class="mr-2 rounded px-1.5 py-0.5 text-xs font-medium" :class="severityClass[d.severity]">{{ d.severity }}</span>

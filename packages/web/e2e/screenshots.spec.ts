@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { isolateNetwork } from './network'
 
-// Screenshots of every sample, and of every Header and Panel option, at desktop and phone width, so the look can't
+// Screenshots of every sample (and one in the Night Garden theme), and of every Header and Panel option, at desktop and phone width, so the look can't
 // regress unnoticed. Text rendering differs between operating systems, so baselines are Linux only: they are made and
 // compared in the Playwright Docker image (`npm run e2e:docker`), which CI runs in too.
 test.skip(process.platform !== 'linux', 'Screenshots are compared on Linux only; run `npm run e2e:docker` from packages/web')
@@ -70,6 +70,17 @@ for (const [size, viewport] of Object.entries(WIDTHS)) {
         await snapshot(page, await modelId(page, sample), `${sample.toLowerCase().replaceAll(' ', '-')}-${size}`)
       })
     }
+
+    test('Data Sample in the Night Garden theme looks as it should', async ({ page }) => {
+      // Applied as a user would: add a Theme (it themes the page), then start it from Night Garden.
+      const id = await modelId(page, 'Data Sample')
+      await page.goto(`/models/${encodeURIComponent(id)}`)
+      await page.getByTestId('palette-ThemeFeature').click()
+      await page.getByTestId('inspector').locator('[data-preset="night-garden"]').click()
+      await expect(page.getByTestId('theme-summary')).toContainText('Night Garden')
+      await expect(page.getByText('Saved')).toBeVisible()
+      await snapshot(page, id, `data-sample-night-garden-${size}`)
+    })
 
     for (const scheme of ['light', 'dark'] as const) {
       test(`every Header and Panel option looks as it should (${scheme})`, async ({ page }) => {

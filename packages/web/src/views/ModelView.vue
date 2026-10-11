@@ -7,6 +7,7 @@ import FeatureTree from '../editor/FeatureTree.vue'
 import Inspector from '../editor/Inspector.vue'
 import Palette from '../editor/Palette.vue'
 import DropIndicator from '../editor/DropIndicator.vue'
+import EmptyPageHint from '../editor/EmptyPageHint.vue'
 import SelectionOverlay from '../editor/SelectionOverlay.vue'
 import ShortcutsDialog from '../editor/ShortcutsDialog.vue'
 import StatusBar from '../editor/StatusBar.vue'
@@ -224,6 +225,7 @@ async function deleteModel() {
               <DocumentView :root="result.root" />
               <SelectionOverlay :container="canvas" :selected-id="selectedId" :version="result" />
               <DropIndicator :container="canvas" />
+              <EmptyPageHint :container="canvas" :root="result.root" />
             </div>
           </div>
         </main>

@@ -54,6 +54,34 @@ export const DEFAULT_THEME: Readonly<ThemeParams> = Object.freeze({
   well: 'tint',
 })
 
+/** Night Garden: dark, a forest accent and band, serif headings, small corners, compact, flat, a tighter type scale. */
+export const NIGHT_GARDEN: Readonly<ThemeParams> = Object.freeze({
+  accent: '#3f9b5a',
+  band: '#1f3a26',
+  scheme: 'dark',
+  fonts: 'editorial',
+  baseSize: 15,
+  scale: 'minor-third',
+  radius: 'small',
+  density: 'compact',
+  shadow: 'none',
+  panel: 'card',
+  table: 'hairline',
+  well: 'band',
+})
+
+export interface ThemePreset {
+  id: string
+  name: string
+  params: Readonly<ThemeParams>
+}
+
+/** The built-in themes a Theme can start from. Each is only a set of settings, so a new one is data, not code. */
+export const THEME_PRESETS: readonly ThemePreset[] = Object.freeze([
+  { id: 'warm-editorial', name: 'Warm Editorial', params: DEFAULT_THEME },
+  { id: 'night-garden', name: 'Night Garden', params: NIGHT_GARDEN },
+])
+
 /** Any stored values as valid theme parameters: unknown or invalid ones fall back to the default theme's. */
 export function clampThemeParams(raw: Readonly<Record<string, unknown>>): ThemeParams {
   const out = { ...DEFAULT_THEME } as ThemeParams
