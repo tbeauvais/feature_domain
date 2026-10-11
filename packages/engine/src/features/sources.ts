@@ -4,7 +4,7 @@ import type { FeatureContext } from '../feature.js'
 import type { DataAction, DataSource, TableColumn } from '../types.js'
 import type { DataOperation, DataResourceExports, DataSchema } from './data-resource.js'
 
-/** A column per schema property, labeled by its description (without a closing full stop), else its name. */
+/** A column per schema property, labeled by its description (without a closing period), else its name. */
 export function columnsOf(properties: NonNullable<DataSchema['properties']>): TableColumn[] {
   return Object.entries(properties).map(([field, p]) => ({ field, label: p.description?.trim().replace(/\.$/, '') || field }))
 }

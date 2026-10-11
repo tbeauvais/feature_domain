@@ -65,7 +65,7 @@ function contrastPairs(t: ThemeTokens): [string, string, string, string][] {
 
 const L = (hex: string) => hexToOklch(hex)!.l
 
-describe('color maths', () => {
+describe('color math', () => {
   it('round-trips hex through OKLCH', () => {
     for (const hex of ['#000000', '#ffffff', '#e5531a', '#3a1128', '#2563eb', '#808080']) {
       expect(oklchToHex(hexToOklch(hex)!)).toBe(hex)

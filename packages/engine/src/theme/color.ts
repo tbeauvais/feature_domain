@@ -1,4 +1,4 @@
-// Color maths for theme tokens: sRGB hex <-> OKLCH, gamut mapping and WCAG contrast. OKLCH is perceptually uniform,
+// Color math for theme tokens: sRGB hex <-> OKLCH, gamut mapping and WCAG contrast. OKLCH is perceptually uniform,
 // so changing lightness keeps the hue and a ramp of lightness steps looks evenly spaced whatever the accent color.
 
 /** A color in OKLCH: lightness 0..1, chroma 0..~0.4, hue in degrees. */
