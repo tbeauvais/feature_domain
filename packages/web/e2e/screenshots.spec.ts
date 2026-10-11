@@ -57,12 +57,16 @@ function chartsModel(id: string, scheme: 'light' | 'dark') {
   ]
   const at = { parent: '1', slot: 'content' }
   const features: object[] = [
-    { feature: 'ThemeFeature', id: 't', inputs: { name: 'Theme', scheme } },
+    { feature: 'ThemeFeature', id: 't', inputs: { name: 'Theme', scheme, well: 'band' } },
     { feature: 'DataResourceFeature', id: 'r', inputs: { name: 'Sales', source: 'sample', sample_rows: JSON.stringify(rows) } },
     { feature: 'PageFeature', id: '1', inputs: { name: 'Page', theme: 't' }, placement: { parent: '$root', slot: 'content' } },
   ]
   for (const chart_type of ['pie', 'donut', 'column', 'bar', 'line'])
     features.push({ feature: 'GoogleChartFeature', id: `c-${chart_type}`, inputs: { title: `Sales by region (${chart_type})`, data_resource: 'r', chart_type, height: 'short' }, placement: at })
+  // On a band well, charts use the band's own colours.
+  features.push({ feature: 'ContainerFeature', id: 'well', inputs: { rows: 1, columns: 2, well: true }, placement: at })
+  features.push({ feature: 'GoogleChartFeature', id: 'c-band-col', inputs: { title: 'On a band', data_resource: 'r', chart_type: 'column', height: 'short' }, placement: { parent: 'well', slot: 'r1c1' } })
+  features.push({ feature: 'GoogleChartFeature', id: 'c-band-pie', inputs: { title: 'On a band', data_resource: 'r', chart_type: 'donut', height: 'short' }, placement: { parent: 'well', slot: 'r1c2' } })
   return { version: 2, id, name: `Charts (${scheme})`, features }
 }
 

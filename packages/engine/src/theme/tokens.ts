@@ -241,6 +241,12 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
   for (const [tone, [h, c]] of Object.entries(TONE_HUES)) {
     vars[`--fd-band-${tone}`] = ensureContrast(at(bandIsDark ? 0.8 : 0.45, c, h), bandSurfaces)
   }
+  // Chart colours for bands: the same hues, fitted to 3:1 against the band (a band well re-points --fd-chart-<n> here).
+  for (let i = 0; i < CHART_COLOURS; i++) {
+    const h = (hue + CHART_STEPS[i]! * 60) % 360
+    const l = bandIsDark ? (i % 2 === 0 ? 0.78 : 0.66) : i % 2 === 0 ? 0.5 : 0.62
+    vars[`--fd-band-chart-${i}`] = fitContrast(i === 0 ? { ...accent, l } : at(l, 0.14, h), bandSurfaces, 3).hex
+  }
 
   // Type: a modular scale from the base size. h1/h2 shrink on narrow documents (cqi: the document's own width, so the
   // editor's phone-width canvas matches a phone) but never below h3.

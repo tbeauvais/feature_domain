@@ -176,6 +176,12 @@ h6.fd-heading { font-size: var(--fd-h6); }
   --fd-warning: var(--fd-band-warning);
   --fd-danger: var(--fd-band-danger);
   --fd-accent-soft: var(--fd-band-raised);
+  --fd-chart-0: var(--fd-band-chart-0);
+  --fd-chart-1: var(--fd-band-chart-1);
+  --fd-chart-2: var(--fd-band-chart-2);
+  --fd-chart-3: var(--fd-band-chart-3);
+  --fd-chart-4: var(--fd-band-chart-4);
+  --fd-chart-5: var(--fd-band-chart-5);
   color: var(--fd-text);
 }
 
@@ -215,8 +221,11 @@ h6.fd-heading { font-size: var(--fd-h6); }
   border: 0;
   box-shadow: none;
 }
-/* A panel holding only a table: the table is the card. */
-.fd-panel[data-fd-panel='card'] > .fd-panel-body:has(> :is(.fd-table-block, .fd-chart-block):only-child) {
+/*
+ * A panel holding only tables or charts: they are the cards. Placeholders for unported features don't count (the editor
+ * shows them, the page doesn't), so the editor and the preview agree.
+ */
+.fd-panel[data-fd-panel='card'] > .fd-panel-body:has(> :is(.fd-table-block, .fd-chart-block)):not(:has(> :not(.fd-table-block, .fd-chart-block, .fd-placeholder))) {
   padding: 0;
   background: none;
   border: 0;

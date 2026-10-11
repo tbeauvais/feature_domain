@@ -17,7 +17,7 @@ import {
   type ChartConfiguration,
 } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
-import { chartData } from '../chartData'
+import { chartData, MAX_CHART_POINTS } from '../chartData'
 import { useTableRows } from '../rows'
 import { useTheme } from '../theme'
 
@@ -81,28 +81,56 @@ function config(el: HTMLElement): ChartConfiguration {
   } as ChartConfiguration
 }
 
+/**
+ * What the drawing depends on, as text: the points, the type and height, and the theme's values. Generation makes new
+ * objects on every edit anywhere on the page; comparing this instead means a chart redraws only when it would look
+ * different. `look` is the part that needs a new chart; when only the points change, the chart is updated in place.
+ */
+const look = computed(() => JSON.stringify([props.node.props.type, props.node.props.height, theme.value.scheme, theme.value.vars]))
+const signature = computed(() => JSON.stringify([look.value, data.value.labels, data.value.values, data.value.labelField, data.value.valueField]))
+
 let drawing = 0
+let drawnLook = ''
 async function draw() {
   const current = ++drawing
   // Wait for the theme's web fonts, so labels are drawn in them (a canvas never redraws when a font arrives).
   await document.fonts?.ready
   if (current !== drawing || !canvas.value || !block.value) return
-  chart?.destroy()
-  chart = undefined
-  if (data.value.values.length === 0) return
+  if (data.value.values.length === 0) {
+    destroy()
+    return
+  }
+  const next = config(block.value)
+  if (chart && drawnLook === look.value) {
+    // Same look, new points: update in place (keeps the chart, its hover state and its observers).
+    chart.data = next.data
+    chart.update('none')
+    return
+  }
+  destroy()
   try {
-    chart = new Chart(canvas.value, config(block.value))
-  } catch {
+    chart = new Chart(canvas.value, next)
+    drawnLook = look.value
+  } catch (error) {
     // No canvas support (e.g. in tests): the hidden table still carries the numbers.
+    console.warn('Could not draw the chart', error)
+    destroy()
   }
 }
 
+/** Removes the chart, and anything Chart.js still holds on the canvas (so a failed draw can't block the next one). */
+function destroy() {
+  chart?.destroy()
+  chart = undefined
+  if (canvas.value) Chart.getChart(canvas.value)?.destroy()
+}
+
 onMounted(() => void draw())
-// Redraw when the data, the chart's settings or the theme change (a canvas doesn't follow CSS on its own).
-watch([data, () => props.node.props.type, () => props.node.props.height, theme], () => void draw())
+// Redraw only when the drawing would change (a canvas doesn't follow CSS on its own).
+watch(signature, () => void draw())
 onBeforeUnmount(() => {
   drawing++
-  chart?.destroy()
+  destroy()
 })
 </script>
 
@@ -122,6 +150,9 @@ onBeforeUnmount(() => {
     <div v-show="state.status === 'loaded' && data.values.length > 0" class="fd-chart-canvas" :style="{ height: `${node.props.height}px` }">
       <canvas ref="canvas" role="img" :aria-label="label" />
     </div>
+    <p v-if="state.status === 'loaded' && data.values.length > 0 && data.skipped > 0" class="fd-chart-note fd-chart-skipped">
+      {{ data.skipped === 1 ? '1 row' : `${data.skipped} rows` }} left out ({{ data.values.length >= MAX_CHART_POINTS ? `at most ${MAX_CHART_POINTS} points are drawn, or no number` : 'no number' }}{{ data.valueField ? ` in "${data.valueField}"` : '' }})
+    </p>
     <!-- The numbers for screen readers. A div does the hiding: overflow does not clip a table box itself. -->
     <div v-if="data.values.length > 0" class="fd-visually-hidden">
       <table class="fd-chart-data">

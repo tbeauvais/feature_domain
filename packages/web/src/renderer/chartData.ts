@@ -20,16 +20,23 @@ export function asNumber(value: unknown): number | undefined {
   return undefined
 }
 
+const isId = (key: string) => /^(id|.+_id|.+Id)$/.test(key)
+
 const keysOf = (rows: readonly unknown[]) => [...new Set(rows.flatMap((row) => (typeof row === 'object' && row !== null && !Array.isArray(row) ? Object.keys(row) : [])))]
 
 /**
  * Chart points from rows: one per row, valued by `valueField` and labelled by `labelField`. A field that isn't given is
- * guessed from the rows: the first whose values are numbers, and the first text one other than that.
+ * guessed from the rows: the first whose values are numbers, and the first short text one other than that (id-like
+ * fields only when nothing else fits).
  */
 export function chartData(rows: readonly unknown[], labelField?: string, valueField?: string): ChartData {
-  const keys = keysOf(rows)
-  const value = valueField ?? keys.find((k) => rows.some((r) => asNumber(getPath(r, k)) !== undefined) && rows.every((r) => getPath(r, k) === undefined || getPath(r, k) === null || asNumber(getPath(r, k)) !== undefined))
-  const label = labelField ?? keys.find((k) => k !== value && rows.some((r) => typeof getPath(r, k) === 'string'))
+  // Ids ("id", "user_id", "nodeId") are numbers and opaque text, but rarely what anyone wants charted: they come last.
+  const keys = keysOf(rows).sort((a, b) => Number(isId(a)) - Number(isId(b)))
+  const numeric = (k: string) => rows.some((r) => asNumber(getPath(r, k)) !== undefined) && rows.every((r) => getPath(r, k) === undefined || getPath(r, k) === null || asNumber(getPath(r, k)) !== undefined)
+  const value = valueField ?? keys.find(numeric)
+  // A label reads best short: the first text field whose values are short, else any text field.
+  const texts = keys.filter((k) => k !== value && rows.some((r) => typeof getPath(r, k) === 'string'))
+  const label = labelField ?? texts.find((k) => rows.every((r) => toText(getPath(r, k)).length <= 40)) ?? texts[0]
   const out: ChartData = { labels: [], values: [], skipped: 0 }
   if (label !== undefined) out.labelField = label
   if (value !== undefined) out.valueField = value

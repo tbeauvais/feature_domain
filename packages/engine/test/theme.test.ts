@@ -178,6 +178,10 @@ describe('deriveTokens', () => {
       const t = deriveTokens(params)
       const colours = Array.from({ length: CHART_COLOURS }, (_, n) => v(t, `chart-${n}`))
       for (const c of colours) for (const bg of ['bg', 'surface']) expect(contrast(c, v(t, bg)), `${c} on ${bg} ${JSON.stringify(params)}`).toBeGreaterThanOrEqual(3)
+      // Inside a band well the band's own chart colours apply: 3:1 against the band and its raised cards.
+      for (let n = 0; n < CHART_COLOURS; n++) {
+        for (const bg of ['band', 'band-raised']) expect(contrast(v(t, `band-chart-${n}`), v(t, bg)), `band-chart-${n} on ${bg} ${JSON.stringify(params)}`).toBeGreaterThanOrEqual(3)
+      }
       expect(new Set(colours).size, JSON.stringify(params)).toBe(CHART_COLOURS)
       // Neighbours (a pie's adjacent slices) differ in hue by a sixth of a turn or in lightness.
       for (let n = 1; n < CHART_COLOURS; n++) {

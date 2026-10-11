@@ -12,9 +12,15 @@ describe('chartData', () => {
       { id: 1, region: 'North', sales: '18250' },
       { id: 2, region: 'South', sales: 12900 },
     ]
-    // "id" is a number too, but appears first: the first numeric field wins, as documented.
-    expect(chartData(rows)).toEqual({ labels: ['North', 'South'], values: [1, 2], labelField: 'region', valueField: 'id', skipped: 0 })
+    // "id" is a number too, but ids are rarely what anyone wants charted: it is passed over.
+    expect(chartData(rows)).toEqual({ labels: ['North', 'South'], values: [18250, 12900], labelField: 'region', valueField: 'sales', skipped: 0 })
     expect(chartData(rows, 'region', 'sales')).toMatchObject({ labels: ['North', 'South'], values: [18250, 12900] })
+  })
+
+  it('passes over id-like fields and long text when guessing, but uses them when nothing else fits', () => {
+    const repos = [{ id: 7, node_id: 'MDEwOlJlcG9z', ownerId: 3, description: 'A very long description of the repository, far past forty characters', name: 'engine', stars: 12 }]
+    expect(chartData(repos)).toMatchObject({ labelField: 'name', valueField: 'stars' })
+    expect(chartData([{ id: 1, node_id: 'abc' }])).toMatchObject({ labelField: 'node_id', valueField: 'id' })
   })
 
   it('skips rows without a number, numbers rows without a label, and caps the points', () => {
@@ -52,6 +58,12 @@ describe('ChartNode', () => {
     const table = w.get('.fd-visually-hidden table')
     expect(table.findAll('thead th').map((th) => th.text())).toEqual(['region', 'sales'])
     expect(table.findAll('tbody tr').map((tr) => tr.text())).toEqual(['North5', 'South3'])
+  })
+
+  it('says how many rows were left out of the drawing, and why', async () => {
+    const mixed = inst('DataResourceFeature', 'r', { source: 'sample', sample_rows: JSON.stringify([{ region: 'North', sales: 5 }, { region: 'South', sales: 'n/a' }, { region: 'East', sales: 2 }]) }, null)
+    const w = await render(model(mixed, page(), inst('GoogleChartFeature', 'c', { data_resource: 'r', value_field: 'sales' })))
+    expect(w.get('.fd-chart-skipped').text()).toBe('1 row left out (no number in "sales")')
   })
 
   it('uses the description for screen readers when there is one', async () => {
