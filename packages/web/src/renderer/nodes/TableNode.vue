@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { columnsFromRows, type DocNodeOf } from '@feature-domain/engine'
-import { computed, onBeforeUnmount, onMounted, onUpdated, ref, useId } from 'vue'
+import { computed, onBeforeUnmount, onMounted, onUpdated, ref, shallowRef, useId } from 'vue'
 import { badgeKey, badgeTints, cellContent, getPath, NUMERIC_FILTERS, parseFilter } from '../filters'
 import SpotEmpty from '../illustrations/SpotEmpty.vue'
+import { useDataStore } from '../data'
 import { useTableRows } from '../rows'
 import { useTheme } from '../theme'
 
@@ -14,6 +15,32 @@ const { state, reload } = useTableRows(computed(() => props.node.props.source))
 const rows = computed(() => (state.value.status === 'loaded' ? state.value.rows : []))
 /** The columns to show: the table's own, else one per key of the loaded rows (e.g. a response no spec describes). */
 const columns = computed(() => (props.node.props.columns.length > 0 ? props.node.props.columns : columnsFromRows(rows.value)))
+
+// Row delete (legacy tables had a Delete button per row): asked inline first ("Delete this row?"), since a deleted row
+// is gone from a real API; on sample data only rows a form added can go.
+const store = useDataStore()
+/** The delete action, while some row can use it (on sample data, only once a form has added a row). */
+const deleteAction = computed(() => {
+  const action = props.node.props.deleteAction
+  return action && rows.value.some((row) => store.canDelete(action, row)) ? action : undefined
+})
+// shallowRef: rows are compared by identity, and ref() would wrap them in a proxy.
+const confirming = shallowRef<unknown>(undefined)
+const deleting = ref(false)
+const deleteProblem = ref('')
+async function deleteRow(row: unknown) {
+  if (!deleteAction.value || deleting.value) return
+  deleting.value = true
+  deleteProblem.value = ''
+  try {
+    await store.delete(deleteAction.value, row)
+    confirming.value = undefined
+  } catch (error) {
+    deleteProblem.value = `Couldn't delete the row: ${error instanceof Error ? error.message : String(error)}`
+  } finally {
+    deleting.value = false
+  }
+}
 
 /**
  * Figures (numbers, dates) are right-aligned with tabular digits: by filter, or when every loaded value is a number
@@ -103,6 +130,7 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
         <thead role="rowgroup">
           <tr role="row">
             <th v-for="(column, c) in columns" :key="column.field" scope="col" role="columnheader" :class="{ 'fd-num': numeric[c] }">{{ column.label }}</th>
+            <th v-if="deleteAction" scope="col" role="columnheader" class="fd-table-actions"><span class="fd-visually-hidden">Actions</span></th>
           </tr>
         </thead>
         <tbody v-if="state.status === 'loading'" class="fd-table-skeleton" aria-hidden="true">
@@ -117,6 +145,16 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
                 <a v-if="cell.href" :href="cell.href" target="_blank" rel="noopener noreferrer">{{ cell.text }}</a>
                 <span v-else-if="cell.badge" class="fd-badge" :class="`fd-badge-${tints[c]?.get(badgeKey(cell.text)) ?? 0}`">{{ cell.text }}</span>
                 <template v-else>{{ cell.text }}</template>
+              </template>
+            </td>
+            <td v-if="deleteAction" role="cell" class="fd-table-actions" data-label="">
+              <template v-if="store.canDelete(deleteAction, row)">
+                <span v-if="confirming === row" class="fd-table-confirm">
+                  <span>Delete this row?</span>
+                  <button type="button" class="fd-table-action fd-table-action-danger" :disabled="deleting" @click="deleteRow(row)">Delete</button>
+                  <button type="button" class="fd-table-action" :disabled="deleting" @click="confirming = undefined">Keep</button>
+                </span>
+                <button v-else type="button" class="fd-table-action" :aria-label="`Delete row ${index + 1}`" @click="confirming = row">Delete</button>
               </template>
             </td>
           </tr>
@@ -135,6 +173,7 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
       <p class="fd-table-state-title">No rows yet</p>
       <p class="fd-table-state-text">The data source returned an empty list.</p>
     </div>
+    <p v-if="deleteProblem" class="fd-table-note fd-table-delete-problem" role="alert">{{ deleteProblem }}</p>
     <p v-if="!node.props.title && state.status === 'loaded' && rows.length > 0" class="fd-table-foot">{{ count }}</p>
   </section>
 </template>

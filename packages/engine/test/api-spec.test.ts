@@ -176,6 +176,14 @@ describe('ApiSpecFeature', () => {
     })
   })
 
+  it('applies a table\'s Labels and Filters to a spec\'s columns in order when it has no Fields', () => {
+    const rows = [{ id: '1', name: 'Avery', amount: 18250 }]
+    const r = generate(model(inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify(salesSpec), source: 'sample', sample_rows: JSON.stringify(rows) }, null), page(), inst('TableFeature', 't', { data_resource: 's', operation: 'GET /v1/sales', labels: ['', 'Who'], filters: ['', '', 'currency'] })))
+    expect(r.root.children[0]!.children[0]!.props).toMatchObject({
+      columns: [{ field: 'id', label: 'ID of sales person' }, { field: 'name', label: 'Who' }, { field: 'amount', label: 'Total sales for sales person', filter: 'currency' }],
+    })
+  })
+
   it('makes a table on an OpenAPI list response show the whole response', () => {
     const r = generate(model(inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify(petstore3), spec_url: 'https://pets.test/openapi.json' }, null), page(), inst('TableFeature', 't', { data_resource: 's', operation: 'GET /pets' })))
     const props = r.root.children[0]!.children[0]!.props as { source: { path?: string; endPoint: string }; columns: unknown[] }

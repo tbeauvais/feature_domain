@@ -60,8 +60,8 @@ test('neighbouring texts and links sit on their own lines, and empty containers 
   expect(tops[1]!).toBeGreaterThan(tops[0]! + 10)
   expect(tops[2]!).toBeGreaterThan(tops[1]! + 10)
 
-  // In the preview, a container holding only unported maps adds no margin, and panels holding only unported charts and
-  // forms draw no empty card.
+  // In the preview, a container holding only unported maps adds no margin, and panels holding only tables, charts and
+  // forms (which are cards themselves) draw no card of their own.
   const id = await openSample(page, 'Getting Started')
   await page.goto(`/preview.html?model=${encodeURIComponent(id)}`)
   await expect(page.locator('[data-feature-id="19"]')).toHaveCSS('margin-bottom', '0px')
@@ -335,4 +335,35 @@ test('cards and the buttons under them stay inside their container, and cards si
   const cell = canvas.locator('.fd-cell:has([data-feature-id="28"])')
   await expect(cell.locator('.fd-text')).toHaveCount(1)
   await expect(cell).toHaveCSS('display', 'flex')
+})
+
+test('the Swagger sample\'s form adds a sale that its table and chart show at once, and the sale can be deleted', async ({ page }) => {
+  const id = await openSample(page, 'Swagger Data Sample')
+  await page.goto(`/preview.html?model=${encodeURIComponent(id)}`)
+  const table = page.locator('.fd-table-block')
+  await expect(table.locator('tbody tr')).toHaveCount(5)
+  const chartRows = page.locator('.fd-chart-block .fd-visually-hidden tbody tr')
+  await expect(chartRows).toHaveCount(5)
+
+  // Both are required: an amount alone is refused.
+  await page.getByLabel(/^Amount/).fill('15000')
+  await page.getByRole('button', { name: 'Submit' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Name is required.')
+  await expect(table.locator('tbody tr')).toHaveCount(5)
+  await page.getByLabel(/^Name/).fill('Casey Morgan')
+  await page.getByRole('button', { name: 'Submit' }).click()
+  await expect(page.getByRole('status')).toHaveText('Thanks, that was sent.')
+  await expect(table.locator('tbody tr')).toHaveCount(6)
+  // Numbered after the sample's own sales, as a server would.
+  await expect(table.locator('tbody tr').last().locator('td').first()).toHaveText('6')
+  await expect(table.locator('tbody tr').last()).toContainText('Casey Morgan')
+  await expect(chartRows.last()).toHaveText('Casey Morgan$15,000.00')
+
+  // Only the added sale can be deleted, after confirming.
+  await expect(table.getByRole('button', { name: /^Delete row/ })).toHaveCount(1)
+  await table.getByRole('button', { name: 'Delete row 6' }).click()
+  await expect(table.getByText('Delete this row?')).toBeVisible()
+  await table.getByRole('button', { name: 'Delete', exact: true }).click()
+  await expect(table.locator('tbody tr')).toHaveCount(5)
+  await expect(chartRows).toHaveCount(5)
 })

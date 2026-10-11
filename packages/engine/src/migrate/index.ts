@@ -424,6 +424,14 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     }
   },
 
+  // The legacy form built its fields from the Swagger operation's parameters and posted them form-encoded; ours does the
+  // same from the spec. Its unused fields / labels inputs carry over (they override the spec when set).
+  FormFeature: (i, ctx) => {
+    const { resourceId, operation } = dataReference(i, ctx)
+    if (str(i.filters).trim() !== '') ctx.note('dropped-input', 'info', `Dropped form filters "${str(i.filters)}", which forms don't use`)
+    return { name: str(i.name), disable: disable(i.disable, ctx), data_resource: resourceId ?? '', operation, fields: list(i.fields), labels: list(i.labels) }
+  },
+
   TableFeature: (i, ctx) => {
     const { resourceId, operation, deleteOperation } = dataReference(i, ctx)
     return {

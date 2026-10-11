@@ -288,6 +288,7 @@ describe('DataResourceFeature', () => {
     expect(fresh.operations.map((o) => [o.name, o.method, o.sample])).toEqual([
       ['GET rows', 'GET', true],
       ['POST rows', 'POST', true],
+      ['DELETE rows', 'DELETE', true],
     ])
     expect(fresh.sampleRows).toHaveLength(3)
     expect(Object.keys(fresh.sampleRows![0]!)).toEqual(['name', 'role', 'city', 'projects'])
@@ -357,15 +358,16 @@ describe('TableFeature', () => {
     })
   })
 
-  it('lists sample rows only with the GET operation, and has no delete on sample data', () => {
+  it('lists sample rows only with the GET operation, and deletes added rows with the DELETE one', () => {
     const sample = exportsOf({ operations: SAMPLE_OPERATIONS.map((o) => ({ ...o })), sampleRows: [{ a: 1 }] })
     const post = run(TableFeature, { data_resource: 'r', operation: 'POST rows' }, resolveTo(sample))
     expect(post.out.node?.props).not.toHaveProperty('source')
     expect(post.report).toHaveBeenCalledWith('warning', '"POST rows" adds rows; a table lists them with the GET operation')
-    const del = run(TableFeature, { data_resource: 'r', delete_operation: 'GET rows' }, resolveTo(sample))
-    expect(del.out.node?.props).not.toHaveProperty('deleteAction')
-    expect(del.report).toHaveBeenCalledWith('warning', 'Sample data has no delete operation; "GET rows" is ignored')
+    const del = run(TableFeature, { data_resource: 'r', delete_operation: 'DELETE rows' }, resolveTo(sample))
+    expect(del.out.node?.props).toMatchObject({ deleteAction: { feature: 'r', operation: 'DELETE rows', method: 'DELETE', endPoint: '', sample: true } })
+    expect(del.report).not.toHaveBeenCalled()
   })
+
 
   it('reads its source operation from the referenced resource', () => {
     const { out, report } = run(

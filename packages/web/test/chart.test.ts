@@ -66,6 +66,11 @@ describe('ChartNode', () => {
     expect(w.get('.fd-chart-skipped').text()).toBe('1 row left out (no number in "sales")')
   })
 
+  it('shows values in its Value format, as tables do', async () => {
+    const w = await render(model(sales, page(), inst('GoogleChartFeature', 'c', { data_resource: 'r', value_format: 'currency' })))
+    expect(w.findAll('.fd-visually-hidden tbody td').map((td) => td.text())).toEqual(['$5.00', '$3.00'])
+  })
+
   it('uses the description for screen readers when there is one', async () => {
     const w = await render(model(sales, page(), inst('GoogleChartFeature', 'c', { data_resource: 'r', description: 'North sells most' })))
     await flushPromises()

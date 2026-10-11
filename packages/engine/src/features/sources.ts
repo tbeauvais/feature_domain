@@ -1,7 +1,7 @@
 // Where a data-reading feature (Table, Chart) gets its rows: the operation it lists, and what a spec says the rows hold.
 
 import type { FeatureContext } from '../feature.js'
-import type { DataSource, TableColumn } from '../types.js'
+import type { DataAction, DataSource, TableColumn } from '../types.js'
 import type { DataOperation, DataResourceExports, DataSchema } from './data-resource.js'
 
 /** A column per schema property, labelled by its description (without a closing full stop), else its name. */
@@ -40,10 +40,13 @@ export function columnsFromRows(rows: readonly unknown[]): TableColumn[] {
 
 function fromRows(rows: readonly Record<string, unknown>[]): TableColumn[] {
   const keys = [...new Set(rows.flatMap((row) => Object.keys(row)))].filter((key) => key.trim() !== '').slice(0, 12)
-  return keys.map((field) => {
-    const words = field.replace(/[_-]+/g, ' ').trim()
-    return { field, label: words ? words[0]!.toUpperCase() + words.slice(1) : field }
-  })
+  return keys.map((field) => ({ field, label: fieldLabel(field) }))
+}
+
+/** A field name read as words: "joined_on" is "Joined on" (the name itself when nothing is left). */
+export function fieldLabel(field: string): string {
+  const words = field.replace(/[_-]+/g, ' ').trim()
+  return words ? words[0]!.toUpperCase() + words.slice(1) : field
 }
 
 
@@ -82,4 +85,29 @@ export function listSource(
   const source: DataSource = { feature: resourceId, resource: resource.resource, operation: operation.name, endPoint: operation.endPoint }
   if (schema?.path) source.path = schema.path
   return schema ? { source, schemaColumns: schema.columns } : { source }
+}
+
+/** What a feature sends to an operation: its address, or the resource's sample rows. */
+export function actionFor(resourceId: string, resource: DataResourceExports, operation: DataOperation): DataAction {
+  const action: DataAction = { feature: resourceId, resource: resource.resource, operation: operation.name, method: operation.method, endPoint: operation.endPoint }
+  if (operation.sample) action.sample = true
+  if (operation.requestType) action.requestType = operation.requestType
+  const ids = operation.sample && operation.method === 'POST' ? sampleIds(resource.sampleRows ?? []) : undefined
+  if (ids) action.sampleIds = ids
+  return action
+}
+
+/**
+ * The id field of sample rows (an "id", else the first id-like field every row has) when its values are whole numbers
+ * (or text of them), and the highest: what a server would number the next row from.
+ */
+function sampleIds(rows: readonly Record<string, unknown>[]): DataAction['sampleIds'] {
+  if (rows.length === 0) return undefined
+  const keys = Object.keys(rows[0]!)
+  const field = keys.includes('id') ? 'id' : keys.find((k) => /^.+(_id|Id)$/.test(k))
+  if (field === undefined || !rows.every((r) => Object.hasOwn(r, field))) return undefined
+  const values = rows.map((r) => r[field])
+  const numbers = values.map((v) => (typeof v === 'number' ? v : typeof v === 'string' && /^\d+$/.test(v.trim()) ? Number(v) : Number.NaN))
+  if (!numbers.every((n) => Number.isSafeInteger(n))) return undefined
+  return { field, after: Math.max(...numbers), text: values.every((v) => typeof v === 'string') }
 }

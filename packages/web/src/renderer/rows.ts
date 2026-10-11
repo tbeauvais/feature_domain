@@ -20,6 +20,38 @@ export const browserFetchJson: FetchJson = async (url) => {
   return response.json()
 }
 
+/** A request that changes data (a Form's submit, a row's delete). `form` sends the body form-encoded, else JSON. */
+export interface DataRequest {
+  method: string
+  url: string
+  body?: Record<string, unknown>
+  form?: boolean
+}
+export type SendRequest = (request: DataRequest) => Promise<unknown>
+
+/** How forms and row deletes reach a data resource; tests provide a fake. Only http(s) addresses are ever sent to. */
+export const SEND_REQUEST: InjectionKey<SendRequest> = Symbol('sendRequest')
+
+export const browserSendRequest: SendRequest = async ({ method, url, body, form }) => {
+  if (!isHttpUrl(url)) throw new Error(`Only http(s) URLs can be sent to, not "${url}"`)
+  const init: RequestInit = { method }
+  if (body) {
+    if (form) init.body = new URLSearchParams(Object.entries(body).map(([k, v]) => [k, v === undefined || v === null ? '' : String(v)]))
+    else {
+      init.headers = { 'Content-Type': 'application/json' }
+      init.body = JSON.stringify(body)
+    }
+  }
+  const response = await fetch(url, init)
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`.trim())
+  const text = await response.text()
+  try {
+    return text ? JSON.parse(text) : undefined
+  } catch {
+    return text
+  }
+}
+
 export type TableSource = DataSource
 
 export type RowsState =

@@ -4,6 +4,7 @@ import { ButtonFeature } from './button.js'
 import { ChartFeature } from './chart.js'
 import { ContainerFeature } from './container.js'
 import { DataResourceFeature } from './data-resource.js'
+import { FormFeature } from './form.js'
 import { HeaderFeature } from './header.js'
 import { ImageFeature } from './image.js'
 import { ImageWithParagraphFeature } from './image-with-paragraph.js'
@@ -38,6 +39,7 @@ export {
   type DataResourceExports,
   type DataSchema,
 } from './data-resource.js'
+export { FormFeature, MAX_FORM_FIELDS } from './form.js'
 export { HeaderFeature } from './header.js'
 export { ImageFeature } from './image.js'
 export { ImageWithParagraphFeature } from './image-with-paragraph.js'
@@ -47,7 +49,7 @@ export { ListFeature } from './list.js'
 export { PageFeature } from './page.js'
 export { PanelFeature } from './panel.js'
 export { SeparatorFeature } from './separator.js'
-export { columnsFromRows } from './sources.js'
+export { columnsFromRows, fieldLabel } from './sources.js'
 export { TableFeature } from './table.js'
 export { TextFeature } from './text.js'
 export { TextWithParagraphFeature } from './text-with-paragraph.js'
@@ -71,6 +73,7 @@ export const coreFeatures = [
   ApiSpecFeature,
   TableFeature,
   ChartFeature,
+  FormFeature,
   ThemeFeature,
 ]
 

@@ -79,6 +79,36 @@ export interface DataSource {
   rows?: Record<string, unknown>[]
 }
 
+/**
+ * Something a feature does to a data resource (a Form's submit, a Table row's delete): the operation, its method and
+ * address (`{name}` placeholders filled from the values), or the resource's sample rows when `sample` is set.
+ */
+export interface DataAction {
+  feature: string
+  resource: string
+  operation: string
+  method: string
+  endPoint: string
+  sample?: true
+  /** Send the body form-encoded (the spec says so), else as JSON. */
+  requestType?: 'form'
+  /**
+   * For adding to sample data, which has no server to number rows: the id field its rows carry, the highest id among
+   * them, and whether ids are text ("6") or numbers. A row added without one gets the next.
+   */
+  sampleIds?: { field: string; after: number; text: boolean }
+}
+
+/** A Form input: a text or number field; `in` says where its value goes (path placeholder, query, or the body). */
+export interface FormField {
+  name: string
+  label: string
+  type: 'text' | 'number'
+  required: boolean
+  hint?: string
+  in: 'path' | 'query' | 'body'
+}
+
 /** What a Chart draws: slices of one whole, bars across, columns up, or a line. */
 export const CHART_TYPES = ['pie', 'donut', 'bar', 'column', 'line'] as const
 export type ChartType = (typeof CHART_TYPES)[number]
@@ -141,7 +171,9 @@ export interface NodeKinds {
    * A chart of one value per row, labelled by another field (either guessed from the loaded rows when absent). Drawn
    * in the theme's chart colours; `description` is what screen readers hear (the data also sits in a hidden table).
    */
-  chart: { type: ChartType; height: number; title?: string; description?: string; labelField?: string; valueField?: string; source?: DataSource }
+  /** A form that sends its fields to a data resource (`action`); absent action: nothing to send to. */
+  form: { title?: string; fields: FormField[]; submit: string; success: string; action?: DataAction }
+  chart: { type: ChartType; height: number; title?: string; description?: string; labelField?: string; valueField?: string; valueFormat?: string; source?: DataSource }
   table: {
     /** Shown in the table's header with the row count. */
     title?: string
@@ -151,7 +183,7 @@ export interface NodeKinds {
     source?: DataSource
     columns: TableColumn[]
     /** Per-row delete action; `endPoint` may contain `{field}` placeholders filled from the row. */
-    deleteAction?: { operation: string; endPoint: string }
+    deleteAction?: DataAction
   }
 }
 

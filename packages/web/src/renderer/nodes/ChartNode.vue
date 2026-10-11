@@ -18,6 +18,7 @@ import {
 } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { chartData, MAX_CHART_POINTS } from '../chartData'
+import { cellContent } from '../filters'
 import { useTableRows } from '../rows'
 import { useTheme } from '../theme'
 
@@ -31,6 +32,9 @@ const titleId = `fd-${useId()}`
 const { state, reload } = useTableRows(computed(() => props.node.props.source))
 const rows = computed(() => (state.value.status === 'loaded' ? state.value.rows : []))
 const data = computed(() => chartData(rows.value, props.node.props.labelField, props.node.props.valueField))
+
+/** A value as shown: through the chart's Value format (the same filters tables use), else as it is. */
+const format = (value: number) => (props.node.props.valueFormat ? cellContent({ value }, 'value', props.node.props.valueFormat).text : String(value))
 
 /** What screen readers hear for the drawing; the numbers themselves are in the hidden table. */
 const label = computed(() => {
@@ -64,6 +68,11 @@ function config(el: HTMLElement): ChartConfiguration {
       ? { data: values, borderColor: palette[0]!, backgroundColor: palette[0]!, pointRadius: 3, tension: 0.25, label: data.value.valueField ?? '' }
       : { data: values, backgroundColor: palette[0]!, borderRadius: 4, maxBarThickness: 48, label: data.value.valueField ?? '' }
   const axis = { ticks: { color: text, font }, grid: { color: grid }, border: { color: grid } }
+  // The value axis and tooltips show values in the chart's format (e.g. $18,250.00).
+  // Axis ticks are round numbers: drop a ".00" ($20,000 rather than $20,000.00). Without a format, Chart.js's own.
+  const tick = (v: number | string) => (typeof v === 'number' ? (Number.isInteger(v) ? format(v).replace(/\.0+(?=\D*$)/, '') : format(v)) : v)
+  const valueAxis = { ...axis, beginAtZero: true, ticks: props.node.props.valueFormat ? { ...axis.ticks, callback: tick } : axis.ticks }
+  const tooltip = props.node.props.valueFormat ? { enabled: true, callbacks: { label: (item: { label: string; raw: unknown }) => `${round ? `${item.label}: ` : ''}${typeof item.raw === 'number' ? format(item.raw) : String(item.raw)}` } } : { enabled: true }
   return {
     type: type === 'donut' ? 'doughnut' : round ? 'pie' : type === 'line' ? 'line' : 'bar',
     data: { labels: data.value.labels, datasets: [dataset] },
@@ -75,8 +84,8 @@ function config(el: HTMLElement): ChartConfiguration {
       indexAxis: type === 'bar' ? 'y' : 'x',
       color: text,
       font,
-      plugins: { legend: { display: round, position: 'bottom', labels: { color: text, font, boxWidth: 12, padding: 14 } }, tooltip: { enabled: true } },
-      scales: round ? {} : { x: axis, y: { ...axis, beginAtZero: true } },
+      plugins: { legend: { display: round, position: 'bottom', labels: { color: text, font, boxWidth: 12, padding: 14 } }, tooltip },
+      scales: round ? {} : type === 'bar' ? { x: valueAxis, y: axis } : { x: axis, y: valueAxis },
     } as ChartConfiguration['options'],
   } as ChartConfiguration
 }
@@ -86,7 +95,7 @@ function config(el: HTMLElement): ChartConfiguration {
  * objects on every edit anywhere on the page; comparing this instead means a chart redraws only when it would look
  * different. `look` is the part that needs a new chart; when only the points change, the chart is updated in place.
  */
-const look = computed(() => JSON.stringify([props.node.props.type, props.node.props.height, theme.value.scheme, theme.value.vars]))
+const look = computed(() => JSON.stringify([props.node.props.type, props.node.props.height, props.node.props.valueFormat ?? '', theme.value.scheme, theme.value.vars]))
 const signature = computed(() => JSON.stringify([look.value, data.value.labels, data.value.values, data.value.labelField, data.value.valueField]))
 
 let drawing = 0
@@ -166,7 +175,7 @@ onBeforeUnmount(() => {
         <tbody>
           <tr v-for="(value, i) in data.values" :key="i">
             <th scope="row">{{ data.labels[i] }}</th>
-            <td>{{ value }}</td>
+            <td>{{ format(value) }}</td>
           </tr>
         </tbody>
       </table>
