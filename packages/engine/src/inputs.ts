@@ -30,6 +30,8 @@ export interface InputDef {
   min?: number
   max?: number
   placeholder?: string
+  /** The inspector section the input sits in (inputs with the same group are shown together under it); none: the top. */
+  group?: string
   /** For `reference` inputs: feature types the referenced instance may have. */
   accepts?: string[]
   /** For `reference` inputs: generation fails (the feature is skipped) when no instance is referenced. */

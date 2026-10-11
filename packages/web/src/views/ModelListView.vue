@@ -38,7 +38,15 @@ onMounted(async () => {
       </button>
     </div>
     <p v-if="models === null" class="text-slate-500">Loading…</p>
-    <p v-else-if="models.length === 0" class="text-slate-500">No models yet.</p>
+    <div v-else-if="models.length === 0" class="flex flex-col items-center gap-2 rounded-lg border border-slate-200 bg-white px-6 py-10 text-center" data-testid="no-models">
+      <svg width="60" height="45" viewBox="0 0 120 90" aria-hidden="true" class="text-slate-400">
+        <rect x="16" y="12" width="88" height="66" rx="8" fill="none" stroke="currentColor" stroke-width="2" />
+        <path d="M28 30h40M28 42h56M28 54h32" stroke="currentColor" stroke-opacity="0.5" stroke-width="4" stroke-linecap="round" />
+      </svg>
+      <p class="text-base font-semibold">No models yet</p>
+      <p class="max-w-sm text-sm text-slate-600">A model is a page built from features. Start one, then add features from the palette.</p>
+      <button type="button" class="mt-1 rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700" @click="createModel">New model</button>
+    </div>
     <ul v-else class="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white" data-testid="model-list">
       <li v-for="model in models" :key="model.id">
         <RouterLink :to="{ name: 'model', params: { id: model.id } }" class="block px-4 py-3 hover:bg-slate-50">

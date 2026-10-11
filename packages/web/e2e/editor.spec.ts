@@ -265,8 +265,9 @@ test('adding a Theme restyles the page at once, and its settings drive the previ
   await expect(root).toHaveAttribute('data-fd-scheme', 'light')
 
   await page.getByTestId('palette-ThemeFeature').click()
-  await expect(inspector(page).getByLabel('Scheme')).toHaveValue('light')
-  await inspector(page).getByLabel('Scheme').selectOption('dark')
+  const scheme = inspector(page).getByRole('group', { name: 'Scheme' })
+  await expect(scheme.getByRole('button', { name: 'Light' })).toHaveAttribute('aria-pressed', 'true')
+  await scheme.getByRole('button', { name: 'Dark' }).click()
   await expect(root).toHaveAttribute('data-fd-scheme', 'dark')
   const darkBg = await root.evaluate((el) => getComputedStyle(el).backgroundColor)
   // A dark scheme paints a dark background: every channel well below mid-grey.
@@ -383,4 +384,33 @@ test('buttons keep their colours on hover, in every style', async ({ page }) => 
     // Links may change on hover; filled and outlined buttons must not (accent text on an accent fill was unreadable).
     if (style !== 'link') expect(await colour(), style).toBe(before)
   }
+})
+
+test('a new model guides the first steps, and a theme starts from a built-in one', async ({ page }) => {
+  await newModel(page)
+  // The empty page says what to do, and quick-adds a first feature.
+  const hint = canvas(page).getByTestId('empty-page-hint')
+  await expect(hint).toContainText('This page is empty')
+  await expect(inspector(page)).toContainText('1 page · nothing on it yet')
+  await hint.getByRole('button', { name: 'Header' }).click()
+  await expect(hint).toHaveCount(0)
+  await expect(canvas(page).locator('.fd-heading')).toHaveText('Your headline goes here')
+
+  // A new theme is used by the page at once and starts as Warm Editorial.
+  await page.getByTestId('palette-ThemeFeature').click()
+  await expect(inspector(page).getByTestId('used-by-summary')).toHaveText('used by 1 page')
+  await expect(inspector(page).locator('[data-preset="warm-editorial"]')).toHaveAttribute('aria-pressed', 'true')
+
+  // Night Garden restyles the page at once and renames the theme; one undo puts it all back.
+  await inspector(page).locator('[data-preset="night-garden"]').click()
+  await expect(canvas(page).locator('.fd-page')).toHaveAttribute('data-fd-scheme', 'dark')
+  await expect(inspector(page).getByLabel('Name')).toHaveValue('Night Garden')
+  await expect(page.getByTestId('theme-summary')).toContainText('Night Garden')
+  await page.getByTestId('undo').click()
+  await expect(canvas(page).locator('.fd-page')).toHaveAttribute('data-fd-scheme', 'light')
+  await expect(inspector(page).getByLabel('Name')).toHaveValue('Warm Editorial')
+
+  // Used by selects the page.
+  await inspector(page).locator('[data-used-by="1"]').click()
+  await expect(inspector(page)).toContainText('Page #1')
 })

@@ -47,6 +47,11 @@ export interface GenerateResult {
   /** Dependencies over every known feature: an edge a -> b means b is placed in a, or references a. */
   graph: Graph
   edgeKinds: ReadonlyMap<string, EdgeKind>
+  /**
+   * Every reference edge (`edgeKey(referenced, referencing)`), including those whose kind in `edgeKinds` is
+   * `placement` because the referencing feature is also placed in the referenced one.
+   */
+  referenceEdges: ReadonlySet<string>
   /** Dependency order of the graph (dependencies first). Features on or behind a cycle are absent. */
   order: string[]
   diagnostics: Diagnostic[]
@@ -136,8 +141,10 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
   const softEdges = new Set<string>()
   /** Broken soft references: reading them resolves to undefined without a further problem. */
   const unresolvedSoft = new Set<string>()
+  const referenceEdges = new Set<string>()
   const addEdge = (from: string, to: string, kind: EdgeKind) => {
     const key = edgeKey(from, to)
+    if (kind === 'reference') referenceEdges.add(key)
     if (edgeKinds.get(key) === 'placement') return
     if (!edgeKinds.has(key)) edges.push([from, to])
     edgeKinds.set(key, kind)
@@ -360,6 +367,7 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
     metadata: buildMetadata(modelIds, entries, unknown, status, reasons, new Set(slotNodes.keys())),
     graph,
     edgeKinds,
+    referenceEdges,
     order,
     diagnostics,
   }
@@ -432,4 +440,13 @@ export function frozenCopy<T>(value: T): T {
     return Object.freeze(out) as T
   }
   return value
+}
+
+/**
+ * The features that reference `id` (through `reference` inputs or declared dependencies), in model order: e.g. the
+ * pages using a Theme, or the tables reading a data resource. Being placed in it doesn't count, but a feature that is
+ * placed in it and also references it does.
+ */
+export function usedBy(result: Pick<GenerateResult, 'graph' | 'referenceEdges'>, id: string): string[] {
+  return result.graph.nodes.filter((node) => result.referenceEdges.has(edgeKey(id, node)))
 }

@@ -53,6 +53,10 @@ provide(THEME_ACCENTS, accents)
     <ul role="tree" aria-labelledby="tree-heading">
       <TreeRow v-for="item in tree.roots" :key="item.id" :item="item" :depth="0" />
     </ul>
+    <p v-if="tree.roots.length === 0" class="px-1.5 text-sm text-slate-500" data-testid="tree-empty">No pages yet. Add a Page to start.</p>
+    <p v-else-if="tree.roots.every((item) => item.children.length === 0)" class="px-1.5 pt-1 text-sm text-slate-500" data-testid="tree-empty">
+      Nothing on {{ tree.roots.length === 1 ? 'this page' : 'these pages' }} yet.
+    </p>
     <template v-if="tree.resources.length > 0">
       <h3 class="mx-1.5 mt-3.5 mb-1.5 text-xs font-medium text-slate-500">Resources and themes</h3>
       <ul role="tree" aria-label="Resources and themes">

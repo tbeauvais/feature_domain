@@ -42,7 +42,7 @@ export { SeparatorFeature } from './separator.js'
 export { TableFeature } from './table.js'
 export { TextFeature } from './text.js'
 export { TextWithParagraphFeature } from './text-with-paragraph.js'
-export { isThemeExports, ThemeFeature, type ThemeExports } from './theme.js'
+export { isThemeExports, matchingPreset, ThemeFeature, themeInputs, themeParams, type ThemeExports } from './theme.js'
 
 export const coreFeatures = [
   PageFeature,
