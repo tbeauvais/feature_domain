@@ -11,8 +11,15 @@ const props = defineProps<{ container: HTMLElement | null; root: DocNode }>()
 
 const store = useDocumentStore()
 
-/** Pages with nothing on them (placeholders count as something: they can be selected and deleted). */
-const emptyPages = computed(() => props.root.children.filter((n) => n.kind === 'page' && n.children.length === 0).map((n) => n.id))
+/**
+ * Pages the model puts nothing on. Decided from the model, not what renders: a page holding only disabled features
+ * renders nothing but isn't empty (the tree lists them).
+ */
+const emptyPages = computed(() => {
+  const features = store.model?.features ?? []
+  const used = new Set(features.map((f) => f.placement?.parent))
+  return props.root.children.filter((n) => n.kind === 'page' && !used.has(n.id)).map((n) => n.id)
+})
 
 const QUICK_ADD = [
   { type: 'HeaderFeature', label: 'Header' },

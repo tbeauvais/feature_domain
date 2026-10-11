@@ -1,5 +1,6 @@
 import type { FeatureDefinition } from '../feature.js'
 import { asInt, asString, nameInput, resolveInputs, type InputDef, type InputOption } from '../inputs.js'
+import { hexToOklch } from '../theme/color.js'
 import type { InputValue } from '../types.js'
 import { BASE_SIZE_RANGE, clampThemeParams, DEFAULT_THEME, deriveTokens, THEME_OPTIONS, THEME_PRESETS, type ThemeParams, type ThemePreset, type ThemeTokens } from '../theme/tokens.js'
 
@@ -112,8 +113,19 @@ export function themeParams(inputs: Readonly<Record<string, InputValue>>): Theme
   return clampThemeParams({ ...resolved, baseSize: asInt(resolved.base_size, DEFAULT_THEME.baseSize) })
 }
 
-/** The built-in theme whose settings a Theme's inputs match exactly, if any. */
+/** The built-in theme whose settings a Theme's inputs match exactly, if any. A stored value that is invalid (generation
+ * falls back from it, with a warning) matches nothing, so the editor never marks a theme it shows as broken. */
 export function matchingPreset(inputs: Readonly<Record<string, InputValue>>): ThemePreset | undefined {
+  const present = (key: string) => inputs[key] !== undefined && inputs[key] !== null
+  for (const key of Object.keys(THEME_OPTIONS) as (keyof typeof THEME_OPTIONS)[]) {
+    if (present(key) && !(THEME_OPTIONS[key] as readonly unknown[]).includes(inputs[key])) return undefined
+  }
+  for (const key of ['accent', 'band']) {
+    // An empty colour means the default (as in generation); anything else must be a colour.
+    const colour = asString(inputs[key]).trim()
+    if (colour !== '' && hexToOklch(colour) === undefined) return undefined
+  }
+  if (present('base_size') && !Number.isFinite(Number(inputs.base_size))) return undefined
   const params = themeParams(inputs)
   return THEME_PRESETS.find((preset) => {
     const wanted = clampThemeParams(preset.params)

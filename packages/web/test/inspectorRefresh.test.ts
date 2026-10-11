@@ -7,6 +7,7 @@ import { dragState } from '../src/editor/dndState'
 import EmptyPageHint from '../src/editor/EmptyPageHint.vue'
 import FeatureTree from '../src/editor/FeatureTree.vue'
 import Inspector from '../src/editor/Inspector.vue'
+import { inspectorSections } from '../src/editor/sections'
 import { setModelStore } from '../src/services'
 import { useDocumentStore } from '../src/stores/document'
 import DiagnosticsList from '../src/views/DiagnosticsList.vue'
@@ -171,5 +172,56 @@ describe('Empty states', () => {
     await empty.get('button').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('model')
+  })
+})
+
+describe('review fixes', () => {
+  it('ignores picking the built-in theme a Theme already is, so no empty undo step appears', async () => {
+    const doc = await load(model(page()))
+    doc.add('ThemeFeature')
+    const id = doc.selectedId!
+    const before = doc.model
+    const steps = doc.canUndo
+    doc.applyThemePreset(id, 'warm-editorial')
+    expect(doc.model).toBe(before)
+    expect(doc.canUndo).toBe(steps)
+    // Only Themes take a built-in theme.
+    doc.applyThemePreset('1', 'night-garden')
+    expect(doc.model).toBe(before)
+  })
+
+  it('treats a page holding only disabled features as not empty, and counts only what is on a page', async () => {
+    const doc = await load(model(page(), inst('TextFeature', 't', { text: 'x', disable: true }), inst('TextFeature', 'lost', { text: 'y' }, at('nowhere', 'content'))))
+    const container = document.createElement('div')
+    container.innerHTML = '<div data-node-id="1"></div>'
+    document.body.append(container)
+    const hint = mount(EmptyPageHint, { props: { container, root: doc.result!.root }, attachTo: document.body })
+    await flushPromises()
+    expect(hint.find('[data-testid="empty-page-hint"]').exists()).toBe(false)
+    hint.unmount()
+    container.remove()
+
+    const w = mount(Inspector)
+    // The disabled Text is on the page; the one with a broken placement is not.
+    expect(w.get('[data-testid="inspector-idle"]').text()).toContain('1 page · 1 feature on it')
+  })
+
+  it('says which users of a feature are not shown', async () => {
+    const repos = inst('DataResourceFeature', 'r', { resource: 'https://api.github.com/users/x/repos', operation: 'GET' }, null)
+    await load(model(repos, page(), inst('TableFeature', 't', { data_resource: 'r', disable: true }), inst('TableFeature', 'u', { data_resource: 'r' })), 'r')
+    const w = mount(Inspector)
+    expect(w.get('[data-used-by="t"]').text()).toContain('(disabled)')
+    expect(w.get('[data-used-by="u"]').text()).not.toContain('(')
+  })
+})
+
+describe('inspectorSections', () => {
+  const input = (name: string, group?: string) => ({ name, label: name, type: 'string' as const, control: 'text-input', group })
+  it('keeps the declared section order whichever inputs are shown, and drops empty sections', () => {
+    const all = [input('name'), input('a1', 'A'), input('b1', 'B'), input('a2', 'A'), input('c1', 'C')]
+    const groups = (shown: string[]) => inspectorSections(all, all.filter((i) => shown.includes(i.name))).map((s) => [s.group, s.inputs.map((i) => i.name)])
+    expect(groups(['name', 'a1', 'b1', 'a2', 'c1'])).toEqual([[undefined, ['name']], ['A', ['a1', 'a2']], ['B', ['b1']], ['C', ['c1']]])
+    // A's first input hidden: A still comes before B.
+    expect(groups(['b1', 'a2'])).toEqual([['A', ['a2']], ['B', ['b1']]])
   })
 })

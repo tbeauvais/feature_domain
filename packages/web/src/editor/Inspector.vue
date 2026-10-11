@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { canPlace, defaultRegistry, isInputShown, removeFeature, usedBy, type InputDef, type InputValue } from '@feature-domain/engine'
+import { canPlace, defaultRegistry, isInputShown, removeFeature, usedBy, type InputValue } from '@feature-domain/engine'
 import { computed } from 'vue'
 import { useDocumentStore } from '../stores/document'
 import { confirmAction } from './confirm'
 import { siblingsIn } from './dnd'
 import DiagnosticsList from '../views/DiagnosticsList.vue'
+import { buildFeatureTree, descendantCount } from './featureTree'
 import InputField from './InputField.vue'
+import { inspectorSections } from './sections'
 import ThemePresets from './ThemePresets.vue'
 import { themeForFeature } from './themeFor'
 
@@ -18,22 +20,16 @@ const diagnostics = computed(() => store.result?.diagnostics.filter((d) => d.fea
 
 /** Inputs that apply to the current values (e.g. the image address only when Source is Link). */
 const shownInputs = computed(() => (def.value && instance.value ? def.value.inputs.filter((i) => isInputShown(i, def.value!.inputs, instance.value!.inputs)) : []))
-/** Inputs grouped into the feature's sections, in order; the ungrouped ones (name, disable, ...) come first. */
-const sections = computed(() => {
-  const out: { group: string | undefined; inputs: InputDef[] }[] = []
-  for (const input of shownInputs.value) {
-    const section = out.find((s) => s.group === input.group)
-    if (section) section.inputs.push(input)
-    else out.push({ group: input.group, inputs: [input] })
-  }
-  return out.sort((a, b) => (a.group === undefined ? -1 : b.group === undefined ? 1 : 0))
-})
+/** Inputs grouped into the feature's sections. */
+const sections = computed(() => inspectorSections(def.value?.inputs ?? [], shownInputs.value))
 
 /** With nothing selected: the model in a line or two, and a way to add a theme when it has none. */
 const summary = computed(() => {
   const features = store.model?.features ?? []
   const pages = features.filter((f) => f.feature === 'PageFeature').length
-  const onPages = features.filter((f) => f.placement && f.feature !== 'PageFeature').length
+  // What is actually on a page (as the tree shows it), not features whose placement is missing or broken.
+  const tree = store.result ? buildFeatureTree(store.result) : undefined
+  const onPages = (tree?.roots ?? []).reduce((n, page) => n + descendantCount(page), 0)
   const themes = features.filter((f) => f.feature === 'ThemeFeature').length
   return {
     counts: `${pages} page${pages === 1 ? '' : 's'} · ${onPages === 0 ? `nothing on ${pages === 1 ? 'it' : 'them'} yet` : `${onPages} feature${onPages === 1 ? '' : 's'} on ${pages === 1 ? 'it' : 'them'}`}`,
@@ -51,7 +47,10 @@ const users = computed(() => {
     const feature = store.model?.features.find((f) => f.id === id)
     const type = feature ? (defaultRegistry.get(feature.feature)?.name ?? feature.feature) : ''
     const name = typeof feature?.inputs.name === 'string' && feature.inputs.name.trim() ? feature.inputs.name : type
-    return { id, name, type }
+    // Disabled or skipped ones still reference it, but don't show it: say so.
+    const status = result.metadata.features.find((f) => f.id === id)?.status
+    const note = status === 'suppressed' ? 'disabled' : status === 'skipped' ? 'not generated' : status === 'unknown' ? 'not ported' : ''
+    return { id, name, type, note }
   })
 })
 /** Pages whose theme is missing or not a Theme (they show the default theme). */
@@ -246,13 +245,13 @@ async function remove() {
                 :data-used-by="user.id"
                 @click="store.select(user.id)"
               >
-                <span class="truncate">{{ user.name }}</span>
+                <span class="truncate">{{ user.name }}<span v-if="user.note" class="ml-1 text-xs text-amber-700">({{ user.note }})</span></span>
                 <span class="shrink-0 text-xs text-slate-500">{{ user.type }} #{{ user.id }}</span>
               </button>
             </li>
           </ul>
           <template v-if="isTheme">
-            <p v-if="users.length > 0" class="text-xs text-slate-500">Changing a setting restyles every page listed.</p>
+            <p v-if="users.length > 0" class="text-xs text-slate-500">{{ users.some((u) => u.note) ? 'Changing a setting restyles the pages listed whenever they are shown.' : 'Changing a setting restyles every page listed.' }}</p>
             <template v-else>
               <p class="text-sm text-slate-600">No page uses this theme yet.</p>
               <p v-if="unthemedPages.length === 0" class="text-xs text-slate-500">Every page uses another theme; choose this one in a page's Theme setting.</p>

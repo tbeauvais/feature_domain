@@ -5,6 +5,7 @@ import {
   migrate,
   moveFeature,
   removeFeature,
+  matchingPreset,
   THEME_PRESETS,
   themeInputs,
   updateInputs,
@@ -258,10 +259,12 @@ export const useDocumentStore = defineStore('document', () => {
   function applyThemePreset(id: string, presetId: string): void {
     const preset = THEME_PRESETS.find((p) => p.id === presetId)
     const theme = current().features.find((f) => f.id === id)
-    if (!preset || !theme) return
+    if (!preset || theme?.feature !== 'ThemeFeature') return
     const name = typeof theme.inputs.name === 'string' ? theme.inputs.name.trim() : ''
-    const renamed = name === '' || THEME_PRESETS.some((p) => p.name === name) ? { name: preset.name } : {}
-    apply(updateInputs(current(), id, { ...themeInputs(preset.params), ...renamed }))
+    const renamed = name === '' || THEME_PRESETS.some((p) => p.name === name) ? preset.name : theme.inputs.name
+    // Already that theme under the name it would get: nothing to change, so no undo step either.
+    if (matchingPreset(theme.inputs)?.id === preset.id && renamed === theme.inputs.name) return
+    apply(updateInputs(current(), id, { ...themeInputs(preset.params), name: renamed }))
   }
 
   /** Points every page without a working theme at this Theme. */

@@ -220,6 +220,12 @@ describe('built-in themes', () => {
     }
     // Stored themes without some settings mean the default for them, so an empty Theme is Warm Editorial.
     expect(matchingPreset({})?.id).toBe('warm-editorial')
-    expect(matchingPreset({ accent: 'E5531A' })?.id).toBe('warm-editorial')
+    expect(matchingPreset({ accent: 'E5531A', base_size: '16' })?.id).toBe('warm-editorial')
+    expect(matchingPreset({ accent: '' })?.id).toBe('warm-editorial')
+    // A broken stored value (generation falls back from it, with a warning) matches nothing.
+    const brokenValues: Record<string, string>[] = [{ scheme: 'purple' }, { accent: 'red' }, { band: '#12' }, { panel: 'constructor' }, { base_size: 'big' }]
+    for (const broken of brokenValues) {
+      expect(matchingPreset(broken), JSON.stringify(broken)).toBeUndefined()
+    }
   })
 })

@@ -173,6 +173,21 @@ describe('references', () => {
     expect(usedBy(r, 'nope')).toEqual([])
   })
 
+  it('lists a feature placed in another that also references it', () => {
+    const Note: FeatureDefinition = {
+      type: 'NoteFeature',
+      name: 'Note',
+      icon: 'note',
+      placement: 'required',
+      inputs: [{ name: 'about', label: 'About', type: 'reference', control: 'resource-select' }],
+      generate: (_inputs, ctx) => ({ node: node('text', ctx.nodeId(), { text: 'note' }) }),
+    }
+    const registry = createRegistry([...defaultRegistry.values(), Note])
+    const r = generate(model(page(), inst('NoteFeature', 'n', { about: '1' })), registry)
+    expect(r.diagnostics).toEqual([])
+    expect(usedBy(r, '1')).toEqual(['n'])
+  })
+
   const table = (id: string, inputs: Record<string, string | string[]> = {}, placement = at('1', 'content')) =>
     inst('TableFeature', id, { data_resource: 'r', fields: ['name'], ...inputs }, placement)
 
