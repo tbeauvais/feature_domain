@@ -17,7 +17,7 @@ const sources = readdirSync(dir)
 const render = (m: AppModel) => mount(DocumentView, { props: { root: generate(m).root } })
 
 describe('illustration drawings', () => {
-  it('has a drawing for every illustration in the engine catalogue, and no others', () => {
+  it('has a drawing for every illustration in the engine catalog, and no others', () => {
     expect(Object.keys(illustrationComponents).sort()).toEqual(ILLUSTRATIONS.map((i) => i.id).sort())
     expect(sources).toHaveLength(ILLUSTRATIONS.length)
   })
@@ -47,11 +47,11 @@ describe('illustration drawings', () => {
     }
   })
 
-  it('colours only with theme tokens the engine emits (or the current colour)', () => {
+  it('colors only with theme tokens the engine emits (or the current color)', () => {
     const emitted = new Set(Object.keys(deriveTokens().vars))
     for (const { file, text } of sources) {
       for (const [, name] of text.matchAll(/var\((--[\w-]+)\)/g)) expect(emitted, `${file}: ${name}`).toContain(name)
-      // Colours never hard-coded: every fill and stroke is a token, the current colour, a pattern or none.
+      // Colors never hard-coded: every fill and stroke is a token, the current color, a pattern or none.
       for (const [, value] of text.matchAll(/\s(?:fill|stroke)="([^"]*)"/g)) expect(['none', 'currentColor'], file).toContain(value)
       for (const [, style] of text.matchAll(/\sstyle="([^"]*)"/g)) {
         for (const declaration of (style ?? '').split(';')) {
@@ -105,7 +105,7 @@ describe('illustration nodes', () => {
 })
 
 describe('separator styles', () => {
-  it('draw a divider illustration in the chosen colour, or a plain rule', () => {
+  it('draw a divider illustration in the chosen color, or a plain rule', () => {
     const w = render(
       model(page(), inst('SeparatorFeature', 's', { style: 'wave', color: '#123456', width: 50 }), inst('SeparatorFeature', 'l', {}, at('1', 'content'))),
     )

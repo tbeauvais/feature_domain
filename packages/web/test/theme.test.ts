@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { BADGE_COUNT, BUTTON_SIZES, BUTTON_VARIANTS, deriveTokens, generate, HEADING_BACKGROUNDS, HEADING_COLOURS, PANEL_EMPHASES, THEME_OPTIONS, THEME_STYLE_KEYS } from '@feature-domain/engine'
+import { BADGE_COUNT, BUTTON_SIZES, BUTTON_VARIANTS, deriveTokens, generate, HEADING_BACKGROUNDS, HEADING_COLORS, PANEL_EMPHASES, THEME_OPTIONS, THEME_STYLE_KEYS } from '@feature-domain/engine'
 import { mount } from '@vue/test-utils'
 import { computed, defineComponent, h } from 'vue'
 import { describe, expect, it } from 'vitest'
@@ -35,12 +35,12 @@ describe('document.css and the theme tokens', () => {
     for (const option of [...BUTTON_VARIANTS, ...BUTTON_SIZES.filter((size) => size !== 'medium')]) expect(css).toContain(`.fd-button-${option} {`)
   })
 
-  it('has rules for every header colour and background, and every panel emphasis, except the plain defaults', () => {
-    for (const colour of HEADING_COLOURS.filter((c) => c !== 'ink')) expect(css).toContain(`.fd-heading.fd-colour-${colour} {`)
+  it('has rules for every header color and background, and every panel emphasis, except the plain defaults', () => {
+    for (const color of HEADING_COLORS.filter((c) => c !== 'ink')) expect(css).toContain(`.fd-heading.fd-color-${color} {`)
     for (const background of HEADING_BACKGROUNDS.filter((b) => b !== 'none')) {
       expect(css).toContain(`.fd-heading.fd-bg-${background} {`)
-      // On the band, the accent and muted colours switch to the band's own readable set.
-      if (background === 'band') for (const colour of ['accent', 'muted']) expect(css).toContain(`.fd-heading.fd-bg-band.fd-colour-${colour} {`)
+      // On the band, the accent and muted colors switch to the band's own readable set.
+      if (background === 'band') for (const color of ['accent', 'muted']) expect(css).toContain(`.fd-heading.fd-bg-band.fd-color-${color} {`)
     }
     for (const emphasis of PANEL_EMPHASES.filter((e) => e !== 'normal')) expect(css).toContain(`.fd-panel[data-fd-emphasis='${emphasis}']`)
     // Bootstrap's tones are gone from generated pages.
@@ -149,7 +149,7 @@ describe('theme in the renderer', () => {
     expect(w.get('[data-feature-id="q"]').attributes('data-fd-panel')).toBe('bare')
   })
 
-  it('a band well inside a themed page uses that theme\'s band colours', () => {
+  it('a band well inside a themed page uses that theme\'s band colors', () => {
     const m = model(
       inst('ThemeFeature', 'th', { band: '#123456', well: 'band' }, null),
       page({ theme: 'th' }),

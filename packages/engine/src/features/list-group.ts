@@ -3,7 +3,7 @@ import { asList, asString, disableInput, nameInput } from '../inputs.js'
 import { node } from '../nodes.js'
 import { title } from './blocks.js'
 
-/** A card with a heading, a description, a checklist and an emphasised closing line (e.g. plans and prices). */
+/** A card with a heading, a description, a checklist and an emphasized closing line (e.g. plans and prices). */
 export const ListGroupFeature: FeatureDefinition = {
   type: 'ListGroupFeature',
   name: 'List card',

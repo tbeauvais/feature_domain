@@ -14,7 +14,7 @@ describe('DocumentView', () => {
     const w = render(
       model(
         page({ background_image: 'bg.png' }),
-        inst('HeaderFeature', '2', { text: 'Title', size: 3, align: 'right', colour: 'accent', background: 'band' }),
+        inst('HeaderFeature', '2', { text: 'Title', size: 3, align: 'right', color: 'accent', background: 'band' }),
         inst('ContainerFeature', 'c', { columns: 2, well: true }),
         inst('TextFeature', 't', { text: 'In a cell' }, at('c', 'r1c2')),
         inst('PanelFeature', 'p', { heading: 'Panel', emphasis: 'quiet' }, at('c', 'r1c1')),
@@ -27,7 +27,7 @@ describe('DocumentView', () => {
 
     const heading = w.get('[data-feature-id="2"]')
     expect(heading.element.tagName).toBe('H3')
-    expect(heading.classes()).toEqual(['fd-heading', 'fd-align-right', 'fd-colour-accent', 'fd-bg-band'])
+    expect(heading.classes()).toEqual(['fd-heading', 'fd-align-right', 'fd-color-accent', 'fd-bg-band'])
     expect(heading.text()).toBe('Title')
 
     const grid = w.get('[data-feature-id="c"]')
@@ -237,7 +237,7 @@ describe('selectRows', () => {
 })
 
 describe('separators, links and buttons', () => {
-  it('renders a themed separator with its sizes and alignment, and only a plain colour', () => {
+  it('renders a themed separator with its sizes and alignment, and only a plain color', () => {
     const w = render(model(page(), inst('SeparatorFeature', 's', { thickness: 3, width: 60, align: 'left', color: '#123456' }), inst('SeparatorFeature', 'x', { color: 'url(https://evil.example/x.png)' })))
     const hr = w.get('[data-feature-id="s"]')
     expect(hr.element.tagName).toBe('HR')

@@ -52,7 +52,7 @@ test('a table that really scrolls is a named, focusable region, until phone widt
   await expect(wrap).not.toHaveAttribute('role')
 })
 
-test('neighbouring texts and links sit on their own lines, and empty containers and panels leave no gaps or empty cards', async ({ page }) => {
+test('neighboring texts and links sit on their own lines, and empty containers and panels leave no gaps or empty cards', async ({ page }) => {
   await openSample(page, 'Getting Started')
   const canvas = page.getByTestId('canvas')
   // Two Text features and a Link in a row: each starts on its own line, instead of "textThis is from Feature #1GitHub".
@@ -115,7 +115,7 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
     date: ['right', 'tabular-nums'],
   })
 
-  // At phone width each row is a small card: no header row, and labelled values.
+  // At phone width each row is a small card: no header row, and labeled values.
   await page.getByTestId('canvas-width-phone').click()
   await expect(table.locator('thead')).toHaveCSS('position', 'absolute')
   await expect(table.locator('tbody tr').first()).toHaveCSS('display', 'block')
@@ -144,7 +144,7 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
   await expect(diagnostics).toContainText('Listed before feature 36 ("repo panel"), which it is placed in')
 })
 
-test('draws built-in illustrations in the theme\'s colours, in the editor and the preview', async ({ page, context }) => {
+test('draws built-in illustrations in the theme\'s colors, in the editor and the preview', async ({ page, context }) => {
   const id = await openSample(page, 'Data Sample')
   const preview = await context.newPage()
   await preview.goto(`/preview.html?model=${encodeURIComponent(id)}`)
@@ -201,16 +201,16 @@ const measureDocument = (target: Page) =>
       for (const name of Array.from(style)) {
         if (!name.startsWith('--') && !skip.test(name)) values[name] = style.getPropertyValue(name)
       }
-      // Centred boxes use space that depends on the container width: images, illustrations, separators and lists auto margins, pages equal
-      // side padding. Compare "centred" instead (allowing a sub-pixel rounding step).
+      // Centered boxes use space that depends on the container width: images, illustrations, separators and lists auto margins, pages equal
+      // side padding. Compare "centered" instead (allowing a sub-pixel rounding step).
       const equal = (a: string, b: string) => Math.abs(parseFloat(values[a]!) - parseFloat(values[b]!)) < 0.5
       if (/\bfd-(image|illustration|separator|list)-center\b/.test(String(el.getAttribute('class'))) && equal('margin-left', 'margin-right')) {
-        values['margin-left'] = values['margin-right'] = values['margin-inline-start'] = values['margin-inline-end'] = 'centred'
+        values['margin-left'] = values['margin-right'] = values['margin-inline-start'] = values['margin-inline-end'] = 'centered'
       }
       if (/\bfd-page\b/.test(el.className) && equal('padding-left', 'padding-right')) {
-        values['padding-left'] = values['padding-right'] = values['padding-inline-start'] = values['padding-inline-end'] = 'centred'
+        values['padding-left'] = values['padding-right'] = values['padding-inline-start'] = values['padding-inline-end'] = 'centered'
       }
-      // What the editor changes on purpose, and only where it does: drag behaviour on draggable elements (user-select
+      // What the editor changes on purpose, and only where it does: drag behavior on draggable elements (user-select
       // is inherited by their content), and a visible drop area on empty slots.
       const editorOnly = [
         ...(el.closest('[draggable="true"]') ? ['user-select', '-webkit-user-select'] : []),
@@ -274,7 +274,7 @@ for (const sample of SAMPLES) {
     expect(inPreview.length).toBeGreaterThan(40)
     expect(Object.keys(inPreview[0]!.values).length).toBeGreaterThan(200)
     const inEditor = await measureDocument(editor)
-    // The exclusions stay narrow: only the editor's drag behaviour (no empty slots in these samples).
+    // The exclusions stay narrow: only the editor's drag behavior (no empty slots in these samples).
     expect(new Set(inEditor.flatMap((e) => e.editorOnly))).toEqual(new Set(['user-select', '-webkit-user-select', '-webkit-user-drag']))
     const first = comparable(inPreview, inEditor)
     expect(first.editor).toEqual(first.preview)
@@ -330,7 +330,7 @@ test('cards and the buttons under them stay inside their container, and cards si
   const heights = await Promise.all((await cards.all()).map(async (card) => (await card.boundingBox())!.height))
   expect(new Set(heights.map(Math.round)).size).toBe(1)
 
-  // A Text feature in a card's cell (a paragraph of its own) doesn't stop that cell lining up with its neighbours.
+  // A Text feature in a card's cell (a paragraph of its own) doesn't stop that cell lining up with its neighbors.
   await page.getByTestId('palette-TextFeature').click()
   const cell = canvas.locator('.fd-cell:has([data-feature-id="28"])')
   await expect(cell.locator('.fd-text')).toHaveCount(1)

@@ -28,7 +28,7 @@ isolateNetwork((route, url) => {
 const WIDTHS = { desktop: { width: 1280, height: 800 }, phone: { width: 390, height: 844 } } as const
 const SAMPLES = ['Getting Started', 'Buy Deal', 'Data Sample', 'Swagger Data Sample', 'Watson Sample']
 
-/** A model showing every Header colour on every background, and every Panel emphasis, in the given scheme. */
+/** A model showing every Header color on every background, and every Panel emphasis, in the given scheme. */
 function optionsModel(id: string, scheme: 'light' | 'dark') {
   const at = { parent: '1', slot: 'content' }
   const features: object[] = [
@@ -36,8 +36,8 @@ function optionsModel(id: string, scheme: 'light' | 'dark') {
     { feature: 'PageFeature', id: '1', inputs: { name: 'Page', theme: 't' }, placement: { parent: '$root', slot: 'content' } },
   ]
   for (const background of ['none', 'tint', 'band'])
-    for (const colour of ['ink', 'accent', 'muted'])
-      features.push({ feature: 'HeaderFeature', id: `h-${background}-${colour}`, inputs: { text: `${colour} on ${background}`, colour, background, size: 3 }, placement: at })
+    for (const color of ['ink', 'accent', 'muted'])
+      features.push({ feature: 'HeaderFeature', id: `h-${background}-${color}`, inputs: { text: `${color} on ${background}`, color, background, size: 3 }, placement: at })
   for (const emphasis of ['normal', 'highlight', 'quiet']) {
     features.push({ feature: 'PanelFeature', id: `p-${emphasis}`, inputs: { heading: `Panel, ${emphasis}`, emphasis }, placement: at })
     features.push({ feature: 'TextFeature', id: `t-${emphasis}`, inputs: { text: 'Open weekdays 9 to 6. Free parking behind the building.' }, placement: { parent: `p-${emphasis}`, slot: 'body' } })
@@ -63,7 +63,7 @@ function chartsModel(id: string, scheme: 'light' | 'dark') {
   ]
   for (const chart_type of ['pie', 'donut', 'column', 'bar', 'line'])
     features.push({ feature: 'GoogleChartFeature', id: `c-${chart_type}`, inputs: { title: `Sales by region (${chart_type})`, data_resource: 'r', chart_type, height: 'short' }, placement: at })
-  // On a band well, charts use the band's own colours.
+  // On a band well, charts use the band's own colors.
   features.push({ feature: 'ContainerFeature', id: 'well', inputs: { rows: 1, columns: 2, well: true }, placement: at })
   features.push({ feature: 'GoogleChartFeature', id: 'c-band-col', inputs: { title: 'On a band', data_resource: 'r', chart_type: 'column', height: 'short' }, placement: { parent: 'well', slot: 'r1c1' } })
   features.push({ feature: 'GoogleChartFeature', id: 'c-band-pie', inputs: { title: 'On a band', data_resource: 'r', chart_type: 'donut', height: 'short' }, placement: { parent: 'well', slot: 'r1c2' } })

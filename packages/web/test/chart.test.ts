@@ -47,7 +47,7 @@ describe('ChartNode', () => {
     return w
   }
 
-  it('draws on a labelled canvas and gives screen readers the numbers in a table', async () => {
+  it('draws on a labeled canvas and gives screen readers the numbers in a table', async () => {
     const w = await render(model(sales, page(), inst('GoogleChartFeature', 'c', { data_resource: 'r', title: 'Sales by region', chart_type: 'pie', height: 'short' })))
     await flushPromises()
     const figure = w.get('figure.fd-chart-block')

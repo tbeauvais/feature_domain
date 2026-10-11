@@ -25,7 +25,7 @@ export const PageFeature: FeatureDefinition = {
   slots: () => ['content'],
 
   generate(inputs, ctx) {
-    // Colours come from the theme (legacy border_color / background_color inputs are dropped by the migration and
+    // Colors come from the theme (legacy border_color / background_color inputs are dropped by the migration and
     // ignored if still stored). A background image is content, so it stays.
     const style: Record<string, string> = {}
     const image = asString(inputs.background_image)

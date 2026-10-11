@@ -8,7 +8,7 @@ const legacySample = import.meta.glob<unknown>('../../../../sample.json', { eage
  * Bumped whenever `upgradeSample` changes, so browsers that seeded older samples get the change once
  * (`BrowserModelStore.upgradeSeeded`). 2: stock header photos became built-in banners. 3: those banners are short.
  * 4: the GitHub repo tables show languages as badges, names as they are, and scroll after 10 rows. 5: their date column
- * is labelled "Updated", and Getting Started's headline loses its stray keystrokes. 6: the Sales API (its server is gone)
+ * is labeled "Updated", and Getting Started's headline loses its stray keystrokes. 6: the Sales API (its server is gone)
  * answers with sample sales. 7: its sales chart is titled and drawn as columns (better for comparing people than a pie).
  * 8: its Add Sale form requires a name and an amount (the spec requires neither). 9: its amounts show as dollars.
  */
@@ -44,7 +44,7 @@ const LEGACY_HEADERS: Readonly<Record<string, IllustrationId>> = {
 /**
  * A sample brought up to date. Returns the same object when nothing changes.
  * - Repo tables still exactly as migrated show languages as badges and names as they are, and scroll after 10 rows.
- * - Repo tables still labelled as migrated label their date column "Updated".
+ * - Repo tables still labeled as migrated label their date column "Updated".
  * - Headers with a known typo from the legacy samples are fixed.
  * - The Sales API, still answering from its dead server, answers with sample sales instead.
  * - The Sales chart, still the untitled pie the legacy sample had, gets a title and is drawn as columns.

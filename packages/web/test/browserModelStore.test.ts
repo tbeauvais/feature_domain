@@ -29,7 +29,7 @@ describe('BrowserModelStore', () => {
     expect(await store.list()).toEqual([{ id: 'id-2', name: 'B' }])
   })
 
-  it('upgrades models seeded with older samples once, leaving unrecognised models alone', async () => {
+  it('upgrades models seeded with older samples once, leaving unrecognized models alone', async () => {
     const storage = new MemoryStorage()
     const store = new BrowserModelStore(storage, counterIds())
     await store.seedOnce([{ ...model(page()), name: 'Old' }, { ...model(page()), name: 'Mine' }])

@@ -111,7 +111,7 @@ describe('PageFeature', () => {
     expect(run(PageFeature).out.node).toMatchObject({ kind: 'page', id: '7', slot: 'content' })
   })
 
-  it('turns a background image into style and ignores legacy colours (the theme styles pages)', () => {
+  it('turns a background image into style and ignores legacy colors (the theme styles pages)', () => {
     const { out } = run(PageFeature, { border_color: '#00a3ff', background_color: '#e6fcfc', background_image: 'a.png' })
     expect(out.node?.style).toEqual({ backgroundImage: 'url("a.png")' })
   })
@@ -133,19 +133,19 @@ describe('TextFeature', () => {
 })
 
 describe('HeaderFeature', () => {
-  it('defaults new instances to centred level-1 headlines in ink, on nothing', () => {
+  it('defaults new instances to centered level-1 headlines in ink, on nothing', () => {
     expect(run(HeaderFeature).out.node?.props).toEqual({ text: 'Your headline goes here', level: 1, align: 'center' })
   })
 
   it('reads plain v2 values', () => {
-    const { out } = run(HeaderFeature, { text: 'Hi', size: 3, align: 'left', colour: 'accent', background: 'band' })
-    expect(out.node?.props).toEqual({ text: 'Hi', level: 3, align: 'left', colour: 'accent', background: 'band' })
-    expect(run(HeaderFeature, { colour: 'muted', background: 'tint' }).out.node?.props).toMatchObject({ colour: 'muted', background: 'tint' })
+    const { out } = run(HeaderFeature, { text: 'Hi', size: 3, align: 'left', color: 'accent', background: 'band' })
+    expect(out.node?.props).toEqual({ text: 'Hi', level: 3, align: 'left', color: 'accent', background: 'band' })
+    expect(run(HeaderFeature, { color: 'muted', background: 'tint' }).out.node?.props).toMatchObject({ color: 'muted', background: 'tint' })
   })
 
   it('clamps the level and ignores unknown values', () => {
     expect(run(HeaderFeature, { size: 9 }).out.node?.props).toMatchObject({ level: 6 })
-    const props = run(HeaderFeature, { size: 0, align: 'text-left', colour: 'info', background: 'primary' }).out.node?.props
+    const props = run(HeaderFeature, { size: 0, align: 'text-left', color: 'info', background: 'primary' }).out.node?.props
     expect(props).toEqual({ text: 'Your headline goes here', level: 1, align: 'center' })
   })
 })
@@ -189,7 +189,7 @@ describe('ImageFeature', () => {
     expect(isInputShown(height, ImageFeature.inputs, { source: 'link', illustration: 'banner/shapes' })).toBe(false)
   })
 
-  it('treats an unrecognised Source as a link, and shows the address for it', () => {
+  it('treats an unrecognized Source as a link, and shows the address for it', () => {
     expect(runStored(ImageFeature, { source: 'url', src: 'x.jpg' }).out.node).toMatchObject({ kind: 'image', props: { src: 'x.jpg' } })
     const src = ImageFeature.inputs.find((i) => i.name === 'src')!
     expect(isInputShown(src, ImageFeature.inputs, { source: 'url' })).toBe(true)
@@ -464,10 +464,10 @@ describe('SeparatorFeature', () => {
     expect(run(SeparatorFeature, { style: 'zigzag' }).out.node?.props).toMatchObject({ style: 'line' })
   })
 
-  it('warns about colours that are not hex, and uses the theme colour instead', () => {
+  it('warns about colors that are not hex, and uses the theme color instead', () => {
     const { out, report } = run(SeparatorFeature, { color: 'blue;' })
     expect(out.node?.props).toMatchObject({ color: '' })
-    expect(report).toHaveBeenCalledWith('warning', 'Colour "blue;" is not a hex colour; using the theme\'s colour')
+    expect(report).toHaveBeenCalledWith('warning', 'Color "blue;" is not a hex color; using the theme\'s color')
     expect(run(SeparatorFeature, { color: '#abc' }).report).not.toHaveBeenCalled()
   })
 })

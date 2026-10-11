@@ -43,11 +43,11 @@ describe('ThemeFeature', () => {
     expect(tokens.vars['--fd-radius-lg']).toBe('28px')
   })
 
-  it('warns about colours that are not hex, and reports readability adjustments as info', () => {
+  it('warns about colors that are not hex, and reports readability adjustments as info', () => {
     const r = generate(model(theme('t', { accent: 'red', band: '#808080' }), page({ theme: 't' })))
     expect(messages(r)).toEqual([
-      'warning feature [t]: Accent "red" is not a hex colour; using #e5531a',
-      'info feature [t]: Band colour #808080 darkened to #484848 so text on it stays readable',
+      'warning feature [t]: Accent "red" is not a hex color; using #e5531a',
+      'info feature [t]: Band color #808080 darkened to #484848 so text on it stays readable',
     ])
   })
 })

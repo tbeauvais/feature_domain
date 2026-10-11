@@ -65,7 +65,7 @@ export class BrowserModelStore implements ModelStore {
 
   /**
    * Brings storage seeded with older samples up to `version`, once: `upgrade` sees every stored model (the samples'
-   * ids are not recorded, so it must change only what it recognises) and returns the same object to leave one alone.
+   * ids are not recorded, so it must change only what it recognizes) and returns the same object to leave one alone.
    * Does nothing before the first seeding, which seeds current samples. Never throws: invalid models are left alone
    * (loading one shows its problems in the editor), and a failed upgrade of one model doesn't stop the others.
    */

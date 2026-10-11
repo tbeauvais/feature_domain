@@ -46,7 +46,7 @@ describe('evaluateDrop', () => {
     expect(evaluateDrop(m, result, { kind: 'palette', featureType: 'DataResourceFeature' }, { kind: 'slot', parent: '1', slot: 'content' })).toMatchObject({ allowed: false })
   })
 
-  it('recognises drops that would leave a feature where it is', () => {
+  it('recognizes drops that would leave a feature where it is', () => {
     const noop = (id: string, zone: DropZone) => (evaluateDrop(m, result, { kind: 'feature', id }, zone) as { noop?: boolean }).noop
     expect(noop('c', feature('c', 'reorder-before'))).toBe(true)
     expect(noop('c', feature('a', 'reorder-after'))).toBe(true)

@@ -8,7 +8,7 @@ import {
   hexToOklch,
   oklchToHex,
   BADGE_COUNT,
-  CHART_COLOURS,
+  CHART_COLORS,
   THEME_OPTIONS,
   THEME_PRESETS,
   matchingPreset,
@@ -43,8 +43,8 @@ const v = (t: ThemeTokens, name: string) => {
 }
 
 /**
- * Every text colour and the surfaces it is drawn on, as used by document.css. Keep this in step with the stylesheet:
- * a new `color:` (or a text colour on a new `background:`) there needs its pair here, or the contrast check below
+ * Every text color and the surfaces it is drawn on, as used by document.css. Keep this in step with the stylesheet:
+ * a new `color:` (or a text color on a new `background:`) there needs its pair here, or the contrast check below
  * won't cover it.
  */
 function contrastPairs(t: ThemeTokens): [string, string, string, string][] {
@@ -54,7 +54,7 @@ function contrastPairs(t: ThemeTokens): [string, string, string, string][] {
   }
   const page = ['bg', 'surface', 'sunken', 'stripe', 'info-bg', 'success-bg', 'warning-bg', 'danger-bg']
   for (const fg of ['ink', 'text', 'muted', 'accent', 'primary', 'info', 'success', 'warning', 'danger']) add(fg, page)
-  // Soft buttons, tinted headers and highlighted panels: any text colour can sit on the accent tint.
+  // Soft buttons, tinted headers and highlighted panels: any text color can sit on the accent tint.
   for (const fg of ['ink', 'text', 'muted', 'accent']) add(fg, ['accent-soft'])
   add('on-accent', ['accent-solid'])
   add('primary-on', ['primary-bg'])
@@ -65,14 +65,14 @@ function contrastPairs(t: ThemeTokens): [string, string, string, string][] {
 
 const L = (hex: string) => hexToOklch(hex)!.l
 
-describe('colour maths', () => {
+describe('color math', () => {
   it('round-trips hex through OKLCH', () => {
     for (const hex of ['#000000', '#ffffff', '#e5531a', '#3a1128', '#2563eb', '#808080']) {
       expect(oklchToHex(hexToOklch(hex)!)).toBe(hex)
     }
   })
 
-  it('round-trips 2,000 random colours', () => {
+  it('round-trips 2,000 random colors', () => {
     const random = rng(99)
     for (let i = 0; i < 2000; i++) {
       const hex = `#${Math.floor(random() * 0x1000000).toString(16).padStart(6, '0')}`
@@ -81,12 +81,12 @@ describe('colour maths', () => {
   })
 
   it('reports when a contrast target cannot be reached', () => {
-    // Mid grey against both black and white: no colour reaches 4.5:1 on both.
+    // Mid gray against both black and white: no color reaches 4.5:1 on both.
     expect(fitContrast({ l: 0.6, c: 0, h: 0 }, ['#000000', '#ffffff']).reached).toBe(false)
     expect(fitContrast({ l: 0.6, c: 0, h: 0 }, ['#ffffff'])).toEqual({ hex: expect.any(String), reached: true })
   })
 
-  it('maps out-of-gamut colours into sRGB keeping lightness and hue', () => {
+  it('maps out-of-gamut colors into sRGB keeping lightness and hue', () => {
     const vivid = { l: 0.7, c: 0.4, h: 145 }
     const mapped = hexToOklch(oklchToHex(vivid))!
     expect(mapped.l).toBeCloseTo(0.7, 1)
@@ -99,7 +99,7 @@ describe('colour maths', () => {
     expect(contrast('#777777', '#ffffff')).toBeCloseTo(4.48, 2)
   })
 
-  it('rejects malformed colours', () => {
+  it('rejects malformed colors', () => {
     expect(hexToOklch('red')).toBeUndefined()
     expect(hexToOklch('#12')).toBeUndefined()
     expect(hexToOklch('#abc')).toEqual(hexToOklch('#aabbcc'))
@@ -130,10 +130,10 @@ describe('deriveTokens', () => {
     expect(v(t, 'size')).toBe('16px')
   })
 
-  it('reports colours it changed for readability', () => {
+  it('reports colors it changed for readability', () => {
     expect(deriveTokens().adjustments).toEqual([])
-    expect(deriveTokens({ band: '#808080' }).adjustments).toContain('Band colour #808080 darkened to #484848 so text on it stays readable')
-    expect(deriveTokens({ band: '#999999' }).adjustments.some((a) => a.startsWith('Band colour #999999 lightened'))).toBe(true)
+    expect(deriveTokens({ band: '#808080' }).adjustments).toContain('Band color #808080 darkened to #484848 so text on it stays readable')
+    expect(deriveTokens({ band: '#999999' }).adjustments.some((a) => a.startsWith('Band color #999999 lightened'))).toBe(true)
     expect(deriveTokens({ accent: '#1d4ed8' }).adjustments).toEqual([])
   })
 
@@ -144,7 +144,7 @@ describe('deriveTokens', () => {
     expect(deriveTokens(reversed)).toEqual(deriveTokens(p))
   })
 
-  it('every text colour reaches 4.5:1 on its surfaces, for 3000 random themes', () => {
+  it('every text color reaches 4.5:1 on its surfaces, for 3000 random themes', () => {
     const random = rng(42)
     for (let i = 0; i < 3000; i++) {
       const params = randomParams(random)
@@ -171,23 +171,23 @@ describe('deriveTokens', () => {
     }
   })
 
-  it('gives charts six colours that stand out from the page and from each other, for 1000 random themes', () => {
+  it('gives charts six colors that stand out from the page and from each other, for 1000 random themes', () => {
     const random = rng(21)
     for (let i = 0; i < 1000; i++) {
       const params = randomParams(random)
       const t = deriveTokens(params)
-      const colours = Array.from({ length: CHART_COLOURS }, (_, n) => v(t, `chart-${n}`))
-      for (const c of colours) for (const bg of ['bg', 'surface']) expect(contrast(c, v(t, bg)), `${c} on ${bg} ${JSON.stringify(params)}`).toBeGreaterThanOrEqual(3)
-      // Inside a band well the band's own chart colours apply: 3:1 against the band and its raised cards.
-      for (let n = 0; n < CHART_COLOURS; n++) {
+      const colors = Array.from({ length: CHART_COLORS }, (_, n) => v(t, `chart-${n}`))
+      for (const c of colors) for (const bg of ['bg', 'surface']) expect(contrast(c, v(t, bg)), `${c} on ${bg} ${JSON.stringify(params)}`).toBeGreaterThanOrEqual(3)
+      // Inside a band well the band's own chart colors apply: 3:1 against the band and its raised cards.
+      for (let n = 0; n < CHART_COLORS; n++) {
         for (const bg of ['band', 'band-raised']) expect(contrast(v(t, `band-chart-${n}`), v(t, bg)), `band-chart-${n} on ${bg} ${JSON.stringify(params)}`).toBeGreaterThanOrEqual(3)
       }
-      expect(new Set(colours).size, JSON.stringify(params)).toBe(CHART_COLOURS)
-      // Neighbours (a pie's adjacent slices) differ in hue by a sixth of a turn or in lightness.
-      for (let n = 1; n < CHART_COLOURS; n++) {
-        const [a, b] = [hexToOklch(colours[n - 1]!)!, hexToOklch(colours[n]!)!]
+      expect(new Set(colors).size, JSON.stringify(params)).toBe(CHART_COLORS)
+      // Neighbors (a pie's adjacent slices) differ in hue by a sixth of a turn or in lightness.
+      for (let n = 1; n < CHART_COLORS; n++) {
+        const [a, b] = [hexToOklch(colors[n - 1]!)!, hexToOklch(colors[n]!)!]
         const hueGap = Math.min(Math.abs(a.h - b.h), 360 - Math.abs(a.h - b.h))
-        expect(hueGap > 30 || Math.abs(a.l - b.l) > 0.08, `${colours[n - 1]} / ${colours[n]} ${JSON.stringify(params)}`).toBe(true)
+        expect(hueGap > 30 || Math.abs(a.l - b.l) > 0.08, `${colors[n - 1]} / ${colors[n]} ${JSON.stringify(params)}`).toBe(true)
       }
     }
   })
@@ -227,13 +227,13 @@ describe('built-in themes', () => {
       expect(clampThemeParams(preset.params), preset.id).toEqual(preset.params)
       expect(deriveTokens(preset.params).adjustments, preset.id).toEqual([])
     }
-    // A second theme proves the style layer: it differs in scheme, colours, shape, space and type, not just the accent.
+    // A second theme proves the style layer: it differs in scheme, colors, shape, space and type, not just the accent.
     const [warm, night] = THEME_PRESETS.map((p) => p.params)
     const differing = (Object.keys(warm!) as (keyof ThemeParams)[]).filter((key) => warm![key] !== night![key])
     expect(differing).toEqual(expect.arrayContaining(['accent', 'band', 'scheme', 'baseSize', 'scale', 'radius', 'density', 'shadow', 'well']))
   })
 
-  it('round-trip through a Theme feature, which recognises the one it matches', () => {
+  it('round-trip through a Theme feature, which recognizes the one it matches', () => {
     for (const preset of THEME_PRESETS) {
       const inputs = themeInputs(preset.params)
       expect(themeParams(inputs)).toEqual(preset.params)

@@ -175,11 +175,11 @@ export function migrate(input: unknown): MigrationResult {
   return { model, notes }
 }
 
-// Page colours came from the legacy Bootstrap look; pages are now styled by their theme.
-const LEGACY_PAGE_COLOURS = ['border_color', 'background_color'] as const
+// Page colors came from the legacy Bootstrap look; pages are now styled by their theme.
+const LEGACY_PAGE_COLORS = ['border_color', 'background_color'] as const
 
-function notePageColours(inputs: Raw, note: Context['note']): void {
-  const dropped = LEGACY_PAGE_COLOURS.filter((name) => str(inputs[name]).trim() !== '')
+function notePageColors(inputs: Raw, note: Context['note']): void {
+  const dropped = LEGACY_PAGE_COLORS.filter((name) => str(inputs[name]).trim() !== '')
   if (dropped.length > 0) {
     note('dropped-style', 'info', `Dropped legacy page ${dropped.map((name) => `${name} "${str(inputs[name])}"`).join(' and ')}; pages are styled by their theme`)
   }
@@ -187,15 +187,20 @@ function notePageColours(inputs: Raw, note: Context['note']): void {
 
 /**
  * Header looks: Bootstrap's tones become our own options. Primary and info were the accent; success, warning and danger
- * become the accent too (status colours are kept for status, not decoration), and any tinted background becomes a tint.
+ * become the accent too (status colors are kept for status, not decoration), and any tinted background becomes a tint.
  */
-function headerLooks(textStyle: unknown, background: unknown, note: Context['note']): { colour: string; background: string } {
+function headerLooks(textStyle: unknown, background: unknown, note: Context['note']): { color: string; background: string } {
   const text = normalizeTone(textStyle)
   const fill = normalizeTone(background)
   const status = (tone: Tone | undefined) => tone === 'success' || tone === 'warning' || tone === 'danger'
-  if (status(text)) note('mapped-style', 'info', `Header text style "${text}" is now the accent colour; status colours are kept for status`)
-  if (status(fill)) note('mapped-style', 'info', `Header background "${fill}" is now the accent tint; status colours are kept for status`)
-  return { colour: text === undefined ? 'ink' : text === 'muted' ? 'muted' : 'accent', background: fill === undefined ? 'none' : 'tint' }
+  if (status(text)) note('mapped-style', 'info', `Header text style "${text}" is now the accent color; status colors are kept for status`)
+  if (status(fill)) note('mapped-style', 'info', `Header background "${fill}" is now the accent tint; status colors are kept for status`)
+  return { color: text === undefined ? 'ink' : text === 'muted' ? 'muted' : 'accent', background: fill === undefined ? 'none' : 'tint' }
+}
+
+/** Inputs with one renamed, in the same place; a value already under the new name wins. */
+function renameInput(inputs: Raw, from: string, to: string): Raw {
+  return Object.fromEntries(Object.entries(inputs).flatMap(([name, value]) => (name !== from ? [[name, value]] : to in inputs ? [] : [[to, value]])))
 }
 
 function without(inputs: Raw, names: readonly string[]): Record<string, InputValue> {
@@ -207,20 +212,23 @@ function without(inputs: Raw, names: readonly string[]): Record<string, InputVal
  * instance is already current, so a model with nothing to upgrade stays the same object.
  */
 const INPUT_UPGRADES: Record<string, (inputs: Raw, note: Context['note']) => Record<string, InputValue> | undefined> = {
-  // Saved before page colours were dropped: they still carry them, though nothing renders them.
+  // Saved before page colors were dropped: they still carry them, though nothing renders them.
   PageFeature: (i, note) => {
-    if (!LEGACY_PAGE_COLOURS.some((name) => name in i)) return undefined
-    notePageColours(i, note)
-    return without(i, LEGACY_PAGE_COLOURS)
+    if (!LEGACY_PAGE_COLORS.some((name) => name in i)) return undefined
+    notePageColors(i, note)
+    return without(i, LEGACY_PAGE_COLORS)
   },
-  // Saved with Bootstrap tones (text_style, and background as a tone). A Colour or Background already chosen (a model
-  // also saved by a newer version) is kept; only what is still in the old shape is converted.
-  HeaderFeature: (i, note) => {
+  // Saved with Bootstrap tones (text_style, and background as a tone). A Color or Background already chosen (a model
+  // also saved by a newer version) is kept; only what is still in the old shape is converted. Saved before US
+  // spelling, the Color input was `colour`.
+  HeaderFeature: (saved, note) => {
+    const renamed = 'colour' in saved
+    const i: Raw = renamed ? renameInput(saved, 'colour', 'color') : saved
     const toneBackground = normalizeTone(i.background) !== undefined
-    if (!('text_style' in i) && !toneBackground) return undefined
-    const looks = headerLooks('colour' in i ? undefined : i.text_style, toneBackground ? i.background : undefined, note)
+    if (!('text_style' in i) && !toneBackground) return renamed ? (i as Record<string, InputValue>) : undefined
+    const looks = headerLooks('color' in i ? undefined : i.text_style, toneBackground ? i.background : undefined, note)
     const out: Record<string, InputValue> = without(i, ['text_style'])
-    if (!('colour' in i)) out.colour = looks.colour
+    if (!('color' in i)) out.color = looks.color
     if (toneBackground || !('background' in i) || i.background === '') out.background = looks.background
     return out
   },
@@ -287,7 +295,7 @@ function upgrade(model: AppModel): MigrationResult {
 
 const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, InputValue>> = {
   PageFeature: (i, ctx) => {
-    notePageColours(i, ctx.note)
+    notePageColors(i, ctx.note)
     return { name: str(i.name), background_image: str(i.background_image) }
   },
 
@@ -402,7 +410,7 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     return { name: str(i.name), spec_url: str(i.resource), spec: JSON.stringify(swagger12ToOpenApi(spec)) }
   },
 
-  // Google Image Charts is retired: the chart is drawn by the app now, in the theme's colours (the legacy colour, size
+  // Google Image Charts is retired: the chart is drawn by the app now, in the theme's colors (the legacy color, size
   // and alignment are dropped). The legacy app rendered "alt" nowhere visible; it becomes the screen-reader description.
   GoogleChartFeature: (i, ctx) => {
     const { resourceId, operation } = dataReference(i, ctx)
@@ -452,7 +460,7 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
 
 /**
  * A legacy reference to a data resource (`data_resource: { name, operation, delete_operation }`, by name) as an instance
- * id and normalised operation names, noting a missing resource or an operation it doesn't provide.
+ * id and normalized operation names, noting a missing resource or an operation it doesn't provide.
  */
 function dataReference(i: Raw, ctx: Context): { resourceId: string | undefined; operation: string; deleteOperation: string } {
   const ref = typeof i.data_resource === 'object' && i.data_resource !== null ? (i.data_resource as Raw) : {}

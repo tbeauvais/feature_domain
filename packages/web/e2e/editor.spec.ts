@@ -298,7 +298,7 @@ test('adding a Theme restyles the page at once, and its settings drive the previ
   await scheme.getByRole('button', { name: 'Dark' }).click()
   await expect(root).toHaveAttribute('data-fd-scheme', 'dark')
   const darkBg = await root.evaluate((el) => getComputedStyle(el).backgroundColor)
-  // A dark scheme paints a dark background: every channel well below mid-grey.
+  // A dark scheme paints a dark background: every channel well below mid-gray.
   expect(darkBg.match(/\d+/g)!.slice(0, 3).map(Number).every((channel) => channel < 64), darkBg).toBe(true)
 
   const [preview] = await Promise.all([context.waitForEvent('page'), page.getByTestId('open-preview').click()])
@@ -395,7 +395,7 @@ test('the status bar opens the problems list, and ? shows the keyboard shortcuts
   await page.keyboard.press('Escape')
 })
 
-test('buttons keep their colours on hover, in every style', async ({ page }) => {
+test('buttons keep their colors on hover, in every style', async ({ page }) => {
   await newModel(page)
   const styles = ['primary', 'secondary', 'soft', 'link']
   for (const [index, style] of styles.entries()) {
@@ -405,12 +405,12 @@ test('buttons keep their colours on hover, in every style', async ({ page }) => 
   }
   for (const [index, style] of styles.entries()) {
     const button = canvas(page).locator(`[data-feature-id="${index + 2}"] a`)
-    const colour = () => button.evaluate((el) => getComputedStyle(el).color)
+    const color = () => button.evaluate((el) => getComputedStyle(el).color)
     await page.mouse.move(0, 0)
-    const before = await colour()
+    const before = await color()
     await button.hover()
     // Links may change on hover; filled and outlined buttons must not (accent text on an accent fill was unreadable).
-    if (style !== 'link') expect(await colour(), style).toBe(before)
+    if (style !== 'link') expect(await color(), style).toBe(before)
   }
 })
 
@@ -473,7 +473,7 @@ test('an API spec loads from its URL, offers its operations, and can answer with
   await expect(table.locator('tbody td')).toHaveText(['Tom', 'cat'])
 })
 
-test('a chart draws a data resource\'s rows in the theme\'s colours, and follows its type and data', async ({ page }) => {
+test('a chart draws a data resource\'s rows in the theme\'s colors, and follows its type and data', async ({ page }) => {
   await newModel(page)
   await page.getByTestId('palette-GoogleChartFeature').click()
   await page.getByTestId('palette-DataResourceFeature').click()
@@ -487,7 +487,7 @@ test('a chart draws a data resource\'s rows in the theme\'s colours, and follows
   await tree(page).locator('[data-tree-id="3"]').click()
   await inspector(page).getByLabel('Sample rows (JSON)').fill('[{"region": "North", "sales": 5}, {"region": "South", "sales": 3}]')
   await expect(drawn).toHaveAttribute('aria-label', 'column chart of sales by region')
-  // Something was actually drawn on the canvas, in the accent colour.
+  // Something was actually drawn on the canvas, in the accent color.
   const painted = async () =>
     drawn.evaluate((c: HTMLCanvasElement) => {
       const data = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data

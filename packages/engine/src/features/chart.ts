@@ -10,7 +10,7 @@ const HEIGHTS = Object.keys(CHART_HEIGHTS) as ChartHeight[]
 
 /**
  * A chart of a data resource's rows (legacy GoogleChart, whose Google Image Charts service is retired): one value per
- * row, labelled by another field. The renderer draws it with Chart.js in the theme's chart colours.
+ * row, labeled by another field. The renderer draws it with Chart.js in the theme's chart colors.
  */
 export const ChartFeature: FeatureDefinition = {
   type: 'GoogleChartFeature',

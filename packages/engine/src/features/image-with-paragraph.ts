@@ -31,7 +31,7 @@ export const ImageWithParagraphFeature: FeatureDefinition = {
 
   generate(inputs, ctx) {
     const side = inputs.image_side === 'right' ? 'right' : 'left'
-    // An empty or unusable image URL renders as a quiet frame (the image node's own behaviour).
+    // An empty or unusable image URL renders as a quiet frame (the image node's own behavior).
     const image = node('image', ctx.nodeId('image'), { src: asString(inputs.src).trim(), alt: asString(inputs.alt), width: '', height: '', responsive: true, align: 'left' })
     const body = node('stack', ctx.nodeId('body'), {}, { children: [...title(ctx, 'title', asString(inputs.title)), ...paragraphs(ctx, 'p', asString(inputs.text))] })
     return { node: node('media', ctx.nodeId(), { side }, { children: [image, body] }) }
