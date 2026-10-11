@@ -5,7 +5,7 @@ import { computed } from 'vue'
 const props = defineProps<{ inputs: Readonly<Record<string, InputValue>> }>()
 const emit = defineEmits<{ pick: [presetId: string] }>()
 
-/** Each built-in theme drawn in its own colours, type and corners: a small page with a card, the accent and the band. */
+/** Each built-in theme drawn in its own colors, type and corners: a small page with a card, the accent and the band. */
 const presets = THEME_PRESETS.map((preset) => {
   const vars = deriveTokens(preset.params).vars
   return {

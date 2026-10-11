@@ -27,7 +27,7 @@ const field = (props: { value?: string; specUrl?: string }, fetchJson: FetchJson
   mount(ApiSpecField, { props: { id: 'spec', labelledby: 'spec-label', value: props.value ?? '', specUrl: props.specUrl ?? '' }, global: { provide: { [FETCH_JSON as symbol]: fetchJson } } })
 
 describe('ApiSpecField', () => {
-  it('summarises the stored spec, or says none is loaded', () => {
+  it('summarizes the stored spec, or says none is loaded', () => {
     expect(field({}).get('[data-testid="api-spec-summary"]').text()).toBe('No spec loaded yet.')
     expect(field({ value: JSON.stringify(pets) }).get('[data-testid="api-spec-summary"]').text()).toBe('OpenAPI 3.1.0 · Pets · 3 operations')
     expect(field({ value: '{"swagger": "2.0"}' }).get('[data-testid="api-spec-summary"]').text()).toBe('Only OpenAPI 3 specs are read; convert this Swagger spec to OpenAPI 3 first.')
@@ -74,7 +74,7 @@ describe('ApiSpecField', () => {
     expect(big.get('[data-testid="api-spec-problem"]').text()).toMatch(/^The spec is too large to store/)
   })
 
-  it('is a labelled group, and its paste box has a label of its own', () => {
+  it('is a labeled group, and its paste box has a label of its own', () => {
     const w = field({})
     expect(w.get('[data-testid="api-spec-field"]').attributes()).toMatchObject({ role: 'group', 'aria-labelledby': 'spec-label' })
     expect(w.get('label[for="spec"]').text()).toBe('Spec (JSON)')
@@ -101,7 +101,7 @@ describe('Operation pickers in the inspector', () => {
     return { doc, w: mount(Inspector) }
   }
 
-  it('shows the spec field (not another grouped control) for an API spec, labelled as a group', async () => {
+  it('shows the spec field (not another grouped control) for an API spec, labeled as a group', async () => {
     const { w } = await inspect(model(inst('SwaggerDataResourceFeature', 's', { name: 'Pets', spec: JSON.stringify(pets) }, null), page()), 's')
     const group = w.get('[data-testid="api-spec-field"]')
     expect(group.get('[data-testid="api-spec-summary"]').text()).toBe('OpenAPI 3.1.0 · Pets · 3 operations')

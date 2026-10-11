@@ -23,7 +23,7 @@ export interface InputDef {
   /**
    * Show the input in the editor only while other inputs have these values (e.g. the image address for Source = Link).
    * Every condition must hold; `equals` may list several values, any of which matches, and `notEquals` matches any
-   * other value (so an unrecognised stored value still shows what generation falls back to).
+   * other value (so an unrecognized stored value still shows what generation falls back to).
    */
   showWhen?: ShowCondition | readonly ShowCondition[]
   options?: InputOption[]
@@ -162,5 +162,5 @@ export const alignInput = (defaultAlign: Align): InputDef => ({
   ],
 })
 
-/** Options labelled by their value, capitalised: "accent" -> "Accent". */
-export const capitalisedOptions = (values: readonly string[]): InputOption[] => values.map((value) => ({ value, text: value[0]!.toUpperCase() + value.slice(1) }))
+/** Options labeled by their value, capitalized: "accent" -> "Accent". */
+export const capitalizedOptions = (values: readonly string[]): InputOption[] => values.map((value) => ({ value, text: value[0]!.toUpperCase() + value.slice(1) }))

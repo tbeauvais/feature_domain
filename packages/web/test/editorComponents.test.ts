@@ -46,7 +46,7 @@ describe('InputField', () => {
     expect(lastChange(w)).toBeUndefined()
   })
 
-  it('edits booleans, options, colours and references', async () => {
+  it('edits booleans, options, colors and references', async () => {
     const bool = mount(InputField, { props: { def: def({ type: 'boolean', label: 'On' }), value: false } })
     await bool.get('input').setValue(true)
     expect(lastChange(bool)).toBe(true)
@@ -75,7 +75,7 @@ describe('InputField choices drawn as buttons', () => {
     { value: 'link', text: 'Link' },
   ]
 
-  it('shows a segmented control labelled as a group, marking the current option', async () => {
+  it('shows a segmented control labeled as a group, marking the current option', async () => {
     const w = mount(InputField, { props: { def: def({ name: 'source', label: 'Source', type: 'string', control: 'segmented', default: 'link', options }), value: undefined } })
     const group = w.get('[role="group"]')
     expect(w.get(`#${group.attributes('aria-labelledby')}`).text()).toBe('Source')
@@ -191,7 +191,7 @@ describe('Inspector', () => {
     expect(w.text()).toContain('Header #h')
     await w.get('#input-text').setValue('Hello')
     expect(doc.result?.root.children[0]?.children[0]?.props).toMatchObject({ text: 'Hello' })
-    // Colour and Background are our own options, drawn as buttons.
+    // Color and Background are our own options, drawn as buttons.
     const groups = w.findAll('[role="group"]').map((g) => g.findAll('button').map((b) => b.text()))
     expect(groups).toEqual([
       ['Ink', 'Accent', 'Muted'],
@@ -303,16 +303,16 @@ describe('confirmAction and ConfirmHost', () => {
       expect(await answer).toBe(true)
       expect(pendingConfirm.value).toBeNull()
 
-      const cancelled = confirmAction({ title: 'Again?', description: '', confirmLabel: 'OK' })
+      const canceled = confirmAction({ title: 'Again?', description: '', confirmLabel: 'OK' })
       await flushPromises()
       ;(document.querySelector('[data-testid="confirm-cancel"]') as HTMLElement).click()
-      expect(await cancelled).toBe(false)
+      expect(await canceled).toBe(false)
     } finally {
       w.unmount()
     }
   })
 
-  it('treats a new request, or cancelling, as "no" for the earlier one', async () => {
+  it('treats a new request, or canceling, as "no" for the earlier one', async () => {
     const first = confirmAction({ title: 'A', description: '', confirmLabel: 'OK' })
     const second = confirmAction({ title: 'B', description: '', confirmLabel: 'OK' })
     expect(await first).toBe(false)

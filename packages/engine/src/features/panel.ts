@@ -1,5 +1,5 @@
 import type { FeatureDefinition } from '../feature.js'
-import { asOneOf, asString, capitalisedOptions, disableInput, nameInput } from '../inputs.js'
+import { asOneOf, asString, capitalizedOptions, disableInput, nameInput } from '../inputs.js'
 import { node } from '../nodes.js'
 import { PANEL_EMPHASES, type NodeKinds } from '../types.js'
 
@@ -12,7 +12,7 @@ export const PanelFeature: FeatureDefinition = {
     nameInput(),
     disableInput,
     { name: 'heading', label: 'Heading', type: 'string', default: 'Details', control: 'text-input' },
-    { name: 'emphasis', label: 'Emphasis', type: 'string', default: 'normal', control: 'segmented', options: capitalisedOptions(PANEL_EMPHASES) },
+    { name: 'emphasis', label: 'Emphasis', type: 'string', default: 'normal', control: 'segmented', options: capitalizedOptions(PANEL_EMPHASES) },
   ],
 
   slots: () => ['body'],

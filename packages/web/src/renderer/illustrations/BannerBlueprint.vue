@@ -1,6 +1,6 @@
 <!--
   A drafted part with dimensions and a title block on a blueprint grid. Two layers, so the banner can be any height:
-  the grid fills the frame (cropped), and the drawing always fits whole, centred.
+  the grid fills the frame (cropped), and the drawing always fits whole, centered.
 -->
 <script setup lang="ts">
 import { useId } from 'vue'

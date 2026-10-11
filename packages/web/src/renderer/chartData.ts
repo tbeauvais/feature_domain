@@ -25,7 +25,7 @@ const isId = (key: string) => /^(id|.+_id|.+Id)$/.test(key)
 const keysOf = (rows: readonly unknown[]) => [...new Set(rows.flatMap((row) => (typeof row === 'object' && row !== null && !Array.isArray(row) ? Object.keys(row) : [])))]
 
 /**
- * Chart points from rows: one per row, valued by `valueField` and labelled by `labelField`. A field that isn't given is
+ * Chart points from rows: one per row, valued by `valueField` and labeled by `labelField`. A field that isn't given is
  * guessed from the rows: the first whose values are numbers, and the first short text one other than that (id-like
  * fields only when nothing else fits).
  */

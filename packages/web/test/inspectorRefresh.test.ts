@@ -33,7 +33,7 @@ describe('Theme inspector', () => {
   it('groups the settings into sections, with short choices as buttons', async () => {
     await load(model(theme('th'), page({ theme: 'th' })), 'th')
     const w = mount(Inspector)
-    expect(w.findAll('section[aria-label] > h3').map((h) => h.text())).toEqual(['Colour', 'Typography', 'Shape and space', 'Components'])
+    expect(w.findAll('section[aria-label] > h3').map((h) => h.text())).toEqual(['Color', 'Typography', 'Shape and space', 'Components'])
     const corners = w.get('[data-testid="inspector-section-Shape and space"]').findAll('[role="group"]')[0]!
     expect(corners.findAll('button').map((b) => b.text())).toEqual(['None', 'Small', 'Soft', 'Round'])
     // Long labels (font pairings, scales) stay a select.
@@ -112,7 +112,7 @@ describe('Used by', () => {
 })
 
 describe('Empty states', () => {
-  it('summarises the model when nothing is selected, and adds a theme from there', async () => {
+  it('summarizes the model when nothing is selected, and adds a theme from there', async () => {
     const doc = await load(model(page()))
     const w = mount(Inspector)
     expect(w.get('[data-testid="inspector-idle"]').text()).toContain('1 page · nothing on it yet')

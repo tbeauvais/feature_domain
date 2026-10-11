@@ -1,5 +1,5 @@
 <!--
-  Three dots between hairlines; the dots in the current colour. Framed around the dots (so they keep their size and
+  Three dots between hairlines; the dots in the current color. Framed around the dots (so they keep their size and
   gap at any width), with the hairlines running far past the frame: the separator clips them at its edges.
 -->
 <template>

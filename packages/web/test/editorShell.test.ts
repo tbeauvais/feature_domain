@@ -123,7 +123,7 @@ describe('FeatureTree collapsing', () => {
     expect(w.get('[data-tree-id="th"] span[aria-hidden="true"]').attributes('style')).toContain('background-color: rgb(229, 83, 26)')
   })
 
-  it('the swatch shows the colour the theme really uses: never raw input, which could load from other sites', async () => {
+  it('the swatch shows the color the theme really uses: never raw input, which could load from other sites', async () => {
     const store = new MemoryModelStore()
     setModelStore(store)
     const doc = useDocumentStore()

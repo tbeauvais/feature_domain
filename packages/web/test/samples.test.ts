@@ -46,9 +46,9 @@ describe('upgradeSample', () => {
   })
 
   it('labels the legacy repo tables\' date column "Updated", unless the labels were changed', () => {
-    const labelled = (labels: string[]) => model(page(), inst('TableFeature', 't', { fields: ['name', 'description', 'language', 'updated_at'], filters: ['', '', '', ''], labels }))
-    expect(upgradeSample(labelled(['Name', 'Description', 'Language', 'Updated At'])).features[1]!.inputs.labels).toEqual(['Name', 'Description', 'Language', 'Updated'])
-    const mine = labelled(['Name', 'About', 'Language', 'Updated At'])
+    const labeled = (labels: string[]) => model(page(), inst('TableFeature', 't', { fields: ['name', 'description', 'language', 'updated_at'], filters: ['', '', '', ''], labels }))
+    expect(upgradeSample(labeled(['Name', 'Description', 'Language', 'Updated At'])).features[1]!.inputs.labels).toEqual(['Name', 'Description', 'Language', 'Updated'])
+    const mine = labeled(['Name', 'About', 'Language', 'Updated At'])
     expect(upgradeSample(mine)).toBe(mine)
   })
 

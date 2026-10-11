@@ -16,7 +16,7 @@ export const pendingConfirm = shallowRef<Pending | null>(null)
 
 /**
  * Asks the user to confirm in an in-page dialog (rendered by <ConfirmHost>) instead of the browser's blocking
- * `confirm()`. Resolves to true when confirmed, false when cancelled or dismissed.
+ * `confirm()`. Resolves to true when confirmed, false when canceled or dismissed.
  */
 export function confirmAction(request: ConfirmRequest): Promise<boolean> {
   pendingConfirm.value?.resolve(false)

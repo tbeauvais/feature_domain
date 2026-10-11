@@ -7,7 +7,7 @@ const PICTURES = ILLUSTRATIONS.filter((i) => i.kind !== 'divider')
 const BANNERS = ILLUSTRATIONS.filter((i) => i.kind === 'banner').map((i) => i.id)
 
 /**
- * A picture: one of our built-in illustrations (in the theme's colours) or an image at an address. Stored images without
+ * A picture: one of our built-in illustrations (in the theme's colors) or an image at an address. Stored images without
  * a Source are links, as they were before illustrations existed; new ones start as an illustration.
  */
 export const ImageFeature: FeatureDefinition = {

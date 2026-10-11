@@ -4,12 +4,12 @@
  * The editor page uses Tailwind, whose reset (preflight) restyles headings, images and tables; the preview page does
  * not. To render identically in both, .fd-root is a hard boundary:
  * - .fd-root itself starts from `all: initial`, so nothing is inherited from the page around it (editor fonts,
- *   colours, or any utility class on a wrapper such as `uppercase` or `whitespace-nowrap`);
+ *   colors, or any utility class on a wrapper such as `uppercase` or `whitespace-nowrap`);
  * - everything inside is reverted to browser defaults, which also means Tailwind utilities have no effect inside a
  *   generated page. Editor overlays (selection, drop indicators) must therefore live outside .fd-root.
  * Then everything is styled here.
  *
- * The look comes from the theme (packages/engine/src/theme): colours, type and spacing are `--fd-*` custom properties
+ * The look comes from the theme (packages/engine/src/theme): colors, type and spacing are `--fd-*` custom properties
  * set on the element that carries the theme (`[data-fd-scheme]`: the root now, pages later). Each component style the
  * theme selects is a `data-fd-<component>` attribute on the component's own element (never an ancestor, so a nested
  * theme wins over an outer one), with one rule block per option below. Tests check that every `var(--fd-*)` here is a token the engine emits and that every style
@@ -79,7 +79,7 @@
   text-decoration-thickness: 1.5px;
   text-underline-offset: 0.25em;
 }
-/* Not buttons: their colours are fixed pairs (a hover recolour would put accent text on an accent fill). */
+/* Not buttons: their colors are fixed pairs (a hover recolor would put accent text on an accent fill). */
 .fd-root a:not(.fd-button):hover { color: var(--fd-accent); }
 
 /* Full width, so a page with its own theme paints its background edge to edge; its content stays within 1120px. */
@@ -88,7 +88,7 @@
   padding: calc(var(--fd-space) * 6) max(clamp(16px, 4cqi, calc(var(--fd-space) * 5)), (100% - 1120px) / 2) calc(var(--fd-space) * 10);
 }
 
-/* A Text feature is a paragraph of its own (the legacy app ran neighbouring texts and links together on one line). */
+/* A Text feature is a paragraph of its own (the legacy app ran neighboring texts and links together on one line). */
 .fd-text {
   display: block;
   margin: 0 0 calc(var(--fd-space) * 1.5);
@@ -118,11 +118,11 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-align-right { text-align: right; }
 
 /*
- * Header colour (ink is the default) and background. Text colours reach 4.5:1 on the page, cards, wells and the accent
+ * Header color (ink is the default) and background. Text colors reach 4.5:1 on the page, cards, wells and the accent
  * tint; on the band they switch to the band's own set.
  */
-.fd-heading.fd-colour-accent { color: var(--fd-accent); }
-.fd-heading.fd-colour-muted { color: var(--fd-muted); }
+.fd-heading.fd-color-accent { color: var(--fd-accent); }
+.fd-heading.fd-color-muted { color: var(--fd-muted); }
 .fd-heading.fd-bg-tint,
 .fd-heading.fd-bg-band {
   padding: calc(var(--fd-space) * 2.5) calc(var(--fd-space) * 3);
@@ -130,8 +130,8 @@ h6.fd-heading { font-size: var(--fd-h6); }
 }
 .fd-heading.fd-bg-tint { background: var(--fd-accent-soft); }
 .fd-heading.fd-bg-band { background: var(--fd-band); color: var(--fd-band-ink); }
-.fd-heading.fd-bg-band.fd-colour-accent { color: var(--fd-band-accent); }
-.fd-heading.fd-bg-band.fd-colour-muted { color: var(--fd-band-muted); }
+.fd-heading.fd-bg-band.fd-color-accent { color: var(--fd-band-accent); }
+.fd-heading.fd-bg-band.fd-color-muted { color: var(--fd-band-muted); }
 
 /* Images (legacy pull-left / center-block / pull-right) */
 .fd-image { vertical-align: middle; border-radius: var(--fd-radius-lg); }
@@ -165,7 +165,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-well[data-fd-well='tint'] {
   background: var(--fd-sunken);
 }
-/* A band re-points the colour tokens, so everything inside reads correctly on the band colour. */
+/* A band re-points the color tokens, so everything inside reads correctly on the band color. */
 .fd-well[data-fd-well='band'] {
   background: var(--fd-band);
   --fd-bg: var(--fd-band);
@@ -466,7 +466,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-list-check li:last-child { border: 0; }
 .fd-list-check li::before { content: '\2713'; font-family: var(--fd-font-body); font-size: 1em; font-weight: 600; }
 
-/* Illustrations: built-in SVG, coloured by the theme tokens (see the revert at the top). */
+/* Illustrations: built-in SVG, colored by the theme tokens (see the revert at the top). */
 .fd-illustration {
   position: relative;
   display: block;
@@ -483,7 +483,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-illustration-banner { min-height: 6rem; }
 .fd-media > .fd-illustration { margin: 0; }
 
-/* Separators: a rule in the theme's border colour unless the feature sets one; thickness and width are inline. */
+/* Separators: a rule in the theme's border color unless the feature sets one; thickness and width are inline. */
 .fd-separator {
   display: block;
   margin: calc(var(--fd-space) * 4) auto;
@@ -493,7 +493,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
 }
 .fd-separator-left { margin-left: 0; }
 .fd-separator-right { margin-right: 0; }
-/* Divider illustrations draw in the current colour: the feature's colour, else the accent. */
+/* Divider illustrations draw in the current color: the feature's color, else the accent. */
 .fd-separator-divider {
   height: auto;
   overflow: hidden;
@@ -511,7 +511,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
 }
 .fd-root a.fd-link::after { content: ' \2197'; color: var(--fd-accent); }
 
-/* Buttons: our own styles, in theme colours (text/background pairs the contrast tests cover). */
+/* Buttons: our own styles, in theme colors (text/background pairs the contrast tests cover). */
 .fd-button-row {
   display: block;
   margin: calc(var(--fd-space) * 1.5) 0;
@@ -652,7 +652,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-placeholder-skipped { border-color: var(--fd-warning); color: var(--fd-warning); }
 
 /*
- * Charts: a card like a table's, holding a drawing (Chart.js, in the theme's chart colours, read from these tokens) and
+ * Charts: a card like a table's, holding a drawing (Chart.js, in the theme's chart colors, read from these tokens) and
  * the same numbers in a table only screen readers see.
  */
 .fd-chart-block {
@@ -711,7 +711,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
   border: 0;
 }
 
-/* Forms: a card of labelled fields and a primary button; what happened after sending is said beside the button. */
+/* Forms: a card of labeled fields and a primary button; what happened after sending is said beside the button. */
 .fd-form {
   display: grid;
   gap: calc(var(--fd-space) * 2);

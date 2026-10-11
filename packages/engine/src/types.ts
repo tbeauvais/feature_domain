@@ -54,10 +54,10 @@ export type ButtonSize = (typeof BUTTON_SIZES)[number]
 export const TONES = ['muted', 'primary', 'success', 'info', 'warning', 'danger'] as const
 export type Tone = (typeof TONES)[number]
 
-/** A header's text colour from the theme: its ink (the default), the accent, or muted. */
-export const HEADING_COLOURS = ['ink', 'accent', 'muted'] as const
-export type HeadingColour = (typeof HEADING_COLOURS)[number]
-/** What a header sits on: nothing, the accent's tint, or the theme's band colour. */
+/** A header's text color from the theme: its ink (the default), the accent, or muted. */
+export const HEADING_COLORS = ['ink', 'accent', 'muted'] as const
+export type HeadingColor = (typeof HEADING_COLORS)[number]
+/** What a header sits on: nothing, the accent's tint, or the theme's band color. */
 export const HEADING_BACKGROUNDS = ['none', 'tint', 'band'] as const
 export type HeadingBackground = (typeof HEADING_BACKGROUNDS)[number]
 /** How much a panel stands out: normal, highlighted in the accent, or quiet (a small heading, no card fill). */
@@ -132,11 +132,11 @@ export interface NodeKinds {
   /** `theme`: the tokens of the Theme the page references; absent means the default theme. */
   page: { theme?: ThemeTokens }
   text: { text: string }
-  /** `colour` and `background` are absent for the defaults (ink, none). */
-  heading: { text: string; level: number; align: Align; colour?: Exclude<HeadingColour, 'ink'>; background?: Exclude<HeadingBackground, 'none'> }
+  /** `color` and `background` are absent for the defaults (ink, none). */
+  heading: { text: string; level: number; align: Align; color?: Exclude<HeadingColor, 'ink'>; background?: Exclude<HeadingBackground, 'none'> }
   image: { src: string; alt: string; width: string; height: string; responsive: boolean; align: Align }
   /**
-   * A built-in illustration (see `ILLUSTRATIONS`), drawn in the theme's colours. `alt` is empty for a decorative one;
+   * A built-in illustration (see `ILLUSTRATIONS`), drawn in the theme's colors. `alt` is empty for a decorative one;
    * `width` is a CSS size, or empty for the full width. The height follows from `aspect` (width / height; banners
    * only), else the illustration's own shape.
    */
@@ -148,11 +148,11 @@ export interface NodeKinds {
   'panel-body': Record<string, never>
   /** `marker`: numbered (the default) or check marks. */
   list: { items: string[]; align: Align; marker?: 'number' | 'check' }
-  /** A horizontal rule. `color` is empty for the theme's border colour; `thickness` in px, `width` in % of the line. */
+  /** A horizontal rule. `color` is empty for the theme's border color; `thickness` in px, `width` in % of the line. */
   separator: { style: SeparatorStyle; color: string; thickness: number; width: number; align: Align }
   /** A text link; `href` is shown only if it is http(s) (the renderer enforces that). */
   link: { text: string; href: string }
-  /** A paragraph of plain text. `muted` is secondary text; `highlight` an emphasised closing line (e.g. a price). */
+  /** A paragraph of plain text. `muted` is secondary text; `highlight` an emphasized closing line (e.g. a price). */
   paragraph: { text: string; emphasis?: 'muted' | 'highlight' }
   /** Layout: children stacked vertically with even spacing. */
   stack: Record<string, never>
@@ -168,8 +168,8 @@ export interface NodeKinds {
    */
   placeholder: { feature: string; name: string; status: 'unknown' | 'skipped'; reason: string }
   /**
-   * A chart of one value per row, labelled by another field (either guessed from the loaded rows when absent). Drawn
-   * in the theme's chart colours; `description` is what screen readers hear (the data also sits in a hidden table).
+   * A chart of one value per row, labeled by another field (either guessed from the loaded rows when absent). Drawn
+   * in the theme's chart colors; `description` is what screen readers hear (the data also sits in a hidden table).
    */
   /** A form that sends its fields to a data resource (`action`); absent action: nothing to send to. */
   form: { title?: string; fields: FormField[]; submit: string; success: string; action?: DataAction }

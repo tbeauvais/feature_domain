@@ -70,12 +70,12 @@ describe('FormFeature', () => {
       ['name', true],
       ['age', false],
     ])
-    const own = formOf(s, { required_fields: ['age', 'colour'] })
+    const own = formOf(s, { required_fields: ['age', 'color'] })
     expect(own.props.fields.map((f) => [f.name, f.required])).toEqual([
       ['name', true],
       ['age', true],
     ])
-    expect(own.problems).toEqual(['Required field "colour" is not in the form'])
+    expect(own.problems).toEqual(['Required field "color" is not in the form'])
   })
 
   it('uses its own fields and labels when given, and its own button text and message', () => {

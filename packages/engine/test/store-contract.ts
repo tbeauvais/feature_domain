@@ -1,4 +1,4 @@
-// The behaviour every ModelStore implementation must have. Each implementation's test file calls
+// The behavior every ModelStore implementation must have. Each implementation's test file calls
 // `describeModelStore` with a factory for a fresh, empty store (packages/web imports this file too).
 
 import { describe, expect, it } from 'vitest'

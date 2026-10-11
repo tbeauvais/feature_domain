@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CHART_COLOURS, type DocNodeOf } from '@feature-domain/engine'
+import { CHART_COLORS, type DocNodeOf } from '@feature-domain/engine'
 import {
   ArcElement,
   BarController,
@@ -50,11 +50,11 @@ const block = ref<HTMLElement>()
 const canvas = ref<HTMLCanvasElement>()
 let chart: Chart | undefined
 
-/** Colours and type come from the theme tokens on the page around the chart, so every theme draws its own way. */
+/** Colors and type come from the theme tokens on the page around the chart, so every theme draws its own way. */
 function config(el: HTMLElement): ChartConfiguration {
   const css = getComputedStyle(el)
   const token = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback
-  const palette = Array.from({ length: CHART_COLOURS }, (_, i) => token(`--fd-chart-${i}`, '#555555'))
+  const palette = Array.from({ length: CHART_COLORS }, (_, i) => token(`--fd-chart-${i}`, '#555555'))
   const text = token('--fd-muted', '#555555')
   const grid = token('--fd-border-subtle', '#dddddd')
   const surface = token('--fd-surface', '#ffffff')

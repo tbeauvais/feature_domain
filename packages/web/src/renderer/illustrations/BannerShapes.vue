@@ -1,4 +1,4 @@
-<!-- Abstract forms on the band colour. Cropped to any height; the small forms sit in the middle band so they stay whole. -->
+<!-- Abstract forms on the band color. Cropped to any height; the small forms sit in the middle band so they stay whole. -->
 <template>
   <svg viewBox="0 0 1600 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
     <rect style="fill: var(--fd-band)" width="1600" height="500" />

@@ -1,6 +1,6 @@
 <!--
   A rising scatter with a trend line over a dot grid. Two layers, so the banner can be any height: the grid fills the
-  frame (cropped), and the scatter always fits whole, centred.
+  frame (cropped), and the scatter always fits whole, centered.
 -->
 <script setup lang="ts">
 import { useId } from 'vue'

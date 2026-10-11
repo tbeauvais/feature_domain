@@ -45,7 +45,7 @@ describe('migrating the legacy Google Chart', () => {
       ],
     })
 
-  it('maps the Google types, fields and alt text, dropping the legacy colour, size and alignment', () => {
+  it('maps the Google types, fields and alt text, dropping the legacy color, size and alignment', () => {
     const r = legacy({ type: 'bhs', color: '#179de8', field: 'amount', label: 'name', alt: 'Sales by person', height: '200', width: '300', align: 'center-block' })
     expect(r.model.features[2]!.inputs).toEqual({ name: 'Chart', disable: false, data_resource: '2', operation: 'GET /sales', chart_type: 'bar', label_field: 'name', value_field: 'amount', description: 'Sales by person' })
     expect(r.model.features[2]!.placement).toEqual({ parent: '1', slot: 'content' })

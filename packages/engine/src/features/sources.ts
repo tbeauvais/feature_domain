@@ -4,14 +4,14 @@ import type { FeatureContext } from '../feature.js'
 import type { DataAction, DataSource, TableColumn } from '../types.js'
 import type { DataOperation, DataResourceExports, DataSchema } from './data-resource.js'
 
-/** A column per schema property, labelled by its description (without a closing full stop), else its name. */
+/** A column per schema property, labeled by its description (without a closing full stop), else its name. */
 export function columnsOf(properties: NonNullable<DataSchema['properties']>): TableColumn[] {
   return Object.entries(properties).map(([field, p]) => ({ field, label: p.description?.trim().replace(/\.$/, '') || field }))
 }
 
 /**
  * When the operation's response schema contains an array of objects, the table shows that array (`path`) with one
- * column per item property, labelled by its description. This mirrors the legacy Swagger-driven behaviour.
+ * column per item property, labeled by its description. This mirrors the legacy Swagger-driven behavior.
  */
 export function fromSchema(resource: DataResourceExports, operation: DataOperation): { path: string; columns: TableColumn[] } | undefined {
   const response = operation.responseType && Object.hasOwn(resource.schemas, operation.responseType) ? resource.schemas[operation.responseType] : undefined

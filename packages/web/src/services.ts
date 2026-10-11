@@ -6,7 +6,7 @@ let store: ModelStore | undefined
 
 /** The model store the app uses. Tests replace it with `setModelStore`. */
 export function modelStore(): ModelStore {
-  if (!store) throw new Error('Model store not initialised; call initBrowserModelStore() at startup')
+  if (!store) throw new Error('Model store not initialized; call initBrowserModelStore() at startup')
   return store
 }
 

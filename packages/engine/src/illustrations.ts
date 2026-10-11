@@ -1,6 +1,6 @@
 // The built-in illustrations: our own SVG drawings, shipped with the app (pages load nothing from other sites). The
-// engine knows only their names and shapes; the renderer draws them, taking every colour from the theme tokens, so a
-// change of accent or scheme recolours them.
+// engine knows only their names and shapes; the renderer draws them, taking every color from the theme tokens, so a
+// change of accent or scheme recolors them.
 
 export type IllustrationKind = 'banner' | 'spot' | 'divider'
 

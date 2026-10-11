@@ -10,7 +10,7 @@ export interface CellContent {
   text: string
   /** Set when the cell is a link. Only http(s) URLs are ever returned. */
   href?: string
-  /** Set for the badge filter: the cell shows a tinted chip (see `badgeTints` for its colour). */
+  /** Set for the badge filter: the cell shows a tinted chip (see `badgeTints` for its color). */
   badge?: true
 }
 

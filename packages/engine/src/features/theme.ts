@@ -63,9 +63,9 @@ export const ThemeFeature: FeatureDefinition = {
   placement: 'none',
   inputs: [
     nameInput('Warm Editorial'),
-    { name: 'accent', label: 'Accent', type: 'color', default: DEFAULT_THEME.accent, control: 'color-picker', group: 'Colour' },
-    { name: 'band', label: 'Band colour', type: 'color', default: DEFAULT_THEME.band, control: 'color-picker', group: 'Colour' },
-    choice('scheme', 'Scheme', 'Colour'),
+    { name: 'accent', label: 'Accent', type: 'color', default: DEFAULT_THEME.accent, control: 'color-picker', group: 'Color' },
+    { name: 'band', label: 'Band color', type: 'color', default: DEFAULT_THEME.band, control: 'color-picker', group: 'Color' },
+    choice('scheme', 'Scheme', 'Color'),
     choice('fonts', 'Fonts', 'Typography', 'text-select'),
     {
       name: 'base_size',
@@ -90,7 +90,7 @@ export const ThemeFeature: FeatureDefinition = {
     const raw: Record<string, unknown> = { ...inputs, baseSize: asInt(inputs.base_size, DEFAULT_THEME.baseSize) }
     for (const key of ['accent', 'band'] as const) {
       if (asString(inputs[key]).trim() !== '' && !/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.test(asString(inputs[key]).trim())) {
-        ctx.report('warning', `${key === 'accent' ? 'Accent' : 'Band colour'} "${asString(inputs[key])}" is not a hex colour; using ${DEFAULT_THEME[key]}`)
+        ctx.report('warning', `${key === 'accent' ? 'Accent' : 'Band color'} "${asString(inputs[key])}" is not a hex color; using ${DEFAULT_THEME[key]}`)
       }
     }
     const params = clampThemeParams(raw)
@@ -121,9 +121,9 @@ export function matchingPreset(inputs: Readonly<Record<string, InputValue>>): Th
     if (present(key) && !(THEME_OPTIONS[key] as readonly unknown[]).includes(inputs[key])) return undefined
   }
   for (const key of ['accent', 'band']) {
-    // An empty colour means the default (as in generation); anything else must be a colour.
-    const colour = asString(inputs[key]).trim()
-    if (colour !== '' && hexToOklch(colour) === undefined) return undefined
+    // An empty color means the default (as in generation); anything else must be a color.
+    const color = asString(inputs[key]).trim()
+    if (color !== '' && hexToOklch(color) === undefined) return undefined
   }
   if (present('base_size') && !Number.isFinite(Number(inputs.base_size))) return undefined
   const params = themeParams(inputs)

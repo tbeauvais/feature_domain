@@ -17,5 +17,5 @@ export function toggleCollapsed(id: string): void {
   collapsedRows.value = next
 }
 
-/** Accent colour per Theme instance id, for the swatch on Theme rows. */
+/** Accent color per Theme instance id, for the swatch on Theme rows. */
 export const THEME_ACCENTS: InjectionKey<ComputedRef<Map<string, string>>> = Symbol('theme-accents')

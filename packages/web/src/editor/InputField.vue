@@ -28,7 +28,7 @@ const swatch = computed(() => {
   return '#ffffff'
 })
 
-/** Controls made of several buttons are labelled as a group rather than through `for`. */
+/** Controls made of several buttons are labeled as a group rather than through `for`. */
 const grouped = computed(
   () => ((props.def.control === 'segmented' || props.def.control === 'illustration-gallery') && props.def.options !== undefined) || props.def.control === 'api-spec',
 )

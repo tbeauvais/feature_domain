@@ -2,8 +2,8 @@ import { asInt, asString } from '../inputs.js'
 import { fitContrast, hexToOklch, oklchToHex, type Oklch } from './color.js'
 
 // A theme has two layers:
-// - settings (accent colour, scheme, sizes, radius, density, shadow) from which `deriveTokens` computes CSS custom
-//   properties (`--fd-*`), with every text colour checked for WCAG AA contrast against the surfaces it sits on;
+// - settings (accent color, scheme, sizes, radius, density, shadow) from which `deriveTokens` computes CSS custom
+//   properties (`--fd-*`), with every text color checked for WCAG AA contrast against the surfaces it sits on;
 // - styles: a named look per component (panel, table, well) that the renderer exposes as `data-fd-*` attributes and
 //   `document.css` implements with one rule block per option.
 // A new theme is a combination of settings and styles, so adding one is data, not code.
@@ -28,9 +28,9 @@ export const THEME_STYLE_KEYS = ['panel', 'table', 'well'] as const
 export type ThemeStyles = { [K in (typeof THEME_STYLE_KEYS)[number]]: ThemeChoice<K> }
 
 export type ThemeParams = { [K in keyof Options]: ThemeChoice<K> } & {
-  /** Accent colour, `#rrggbb`. */
+  /** Accent color, `#rrggbb`. */
   accent: string
-  /** Background of emphasised bands (wells with the `band` style), `#rrggbb`. */
+  /** Background of emphasized bands (wells with the `band` style), `#rrggbb`. */
   band: string
   /** Body text size in pixels. */
   baseSize: number
@@ -105,7 +105,7 @@ export interface ThemeTokens {
   styles: ThemeStyles
   /** CSS custom properties, applied to the element that carries the theme. */
   vars: Record<TokenName, string>
-  /** Changes made to colours the user chose (not derived ones) so text stays readable, in words, for the editor. */
+  /** Changes made to colors the user chose (not derived ones) so text stays readable, in words, for the editor. */
   adjustments: string[]
 }
 
@@ -130,8 +130,8 @@ const FONTS: Record<ThemeChoice<'fonts'>, { display: string; body: string; mono:
   system: { display: SYSTEM, body: SYSTEM, mono: SYSTEM_MONO, weight: '650', tracking: '-0.02em' },
 }
 
-/** How many chart colours a theme provides (`--fd-chart-<n>`), for slices, bars and lines in order. */
-export const CHART_COLOURS = 6
+/** How many chart colors a theme provides (`--fd-chart-<n>`), for slices, bars and lines in order. */
+export const CHART_COLORS = 6
 
 /** How many badge tints a theme provides (`--fd-badge-<n>` on `--fd-badge-<n>-bg`). */
 export const BADGE_COUNT = 4
@@ -140,8 +140,8 @@ export const BADGE_COUNT = 4
 const TONE_HUES = { success: [148, 0.13], warning: [70, 0.13], danger: [27, 0.17] } as const
 
 /**
- * Computes the CSS custom properties for a theme. Deterministic, and every text colour reaches 4.5:1 contrast against
- * each surface it is used on (see the contrast pairs in the tests). Colours changed to get there are listed in
+ * Computes the CSS custom properties for a theme. Deterministic, and every text color reaches 4.5:1 contrast against
+ * each surface it is used on (see the contrast pairs in the tests). Colors changed to get there are listed in
  * `adjustments`.
  */
 export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_THEME): ThemeTokens {
@@ -149,14 +149,14 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
   const dark = p.scheme === 'dark'
   const accent = hexToOklch(p.accent)!
   const hue = accent.h
-  // Neutrals are tinted very slightly towards the accent, so a warm accent gives warm paper and a cool one cool grey.
+  // Neutrals are tinted very slightly towards the accent, so a warm accent gives warm paper and a cool one cool gray.
   const nc = Math.min(accent.c, 0.2) * 0.065
   const at = (l: number, c: number, h = hue): Oklch => ({ l, c, h })
   const hex = (color: Oklch) => oklchToHex(color)
   const adjustments: string[] = []
   const ensureContrast = (fg: Oklch, backgrounds: string[]) => {
     const fitted = fitContrast(fg, backgrounds)
-    if (!fitted.reached) adjustments.push(`A text colour (${fitted.hex}) could not reach 4.5:1 contrast on ${backgrounds.join(', ')}`)
+    if (!fitted.reached) adjustments.push(`A text color (${fitted.hex}) could not reach 4.5:1 contrast on ${backgrounds.join(', ')}`)
     return fitted.hex
   }
 
@@ -169,7 +169,7 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
   const toneSoft = Object.fromEntries(
     Object.entries(TONE_HUES).map(([tone, [h, c]]) => [tone, hex(dark ? at(0.3, c * 0.35, h) : at(0.94, c * 0.3, h))]),
   )
-  // Text of any colour can sit on the page, a card, a well or a tinted heading background.
+  // Text of any color can sit on the page, a card, a well or a tinted heading background.
   const surfaces = [bg, surface, sunken, accentSoft, ...Object.values(toneSoft)]
 
   const accentSolid = hex(accent)
@@ -207,24 +207,24 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
     vars[`--fd-badge-${i}`] = ensureContrast(at(dark ? 0.84 : 0.42, 0.12, h), [tint])
   }
 
-  // Chart colours: the accent first, then hues a sixth of a turn apart taken in an order that puts neighbours a third of
+  // Chart colors: the accent first, then hues a sixth of a turn apart taken in an order that puts neighbors a third of
   // a turn apart (adjacent pie slices), alternating lighter and darker so they differ in lightness too, not hue alone.
   // Each reaches 3:1 against the page and cards, as graphics must (WCAG 1.4.11).
   const CHART_STEPS = [0, 2, 4, 1, 3, 5]
-  for (let i = 0; i < CHART_COLOURS; i++) {
+  for (let i = 0; i < CHART_COLORS; i++) {
     const h = (hue + CHART_STEPS[i]! * 60) % 360
     const l = dark ? (i % 2 === 0 ? 0.72 : 0.6) : i % 2 === 0 ? 0.58 : 0.72
     vars[`--fd-chart-${i}`] = i === 0 ? fitContrast(accent, [bg, surface], 3).hex : fitContrast(at(l, 0.14, h), [bg, surface], 3).hex
   }
 
-  // Bands (emphasised wells) get their own set: text on the band colour, whatever scheme the page uses. A mid-lightness
+  // Bands (emphasized wells) get their own set: text on the band color, whatever scheme the page uses. A mid-lightness
   // band can't carry readable text, so its lightness is kept clearly dark or clearly light.
   const chosenBand = hexToOklch(p.band)!
   const bandIsDark = chosenBand.l < 0.6
   const bandColor = { ...chosenBand, l: bandIsDark ? Math.min(chosenBand.l, 0.4) : Math.max(chosenBand.l, 0.82) }
   const band = hex(bandColor)
   if (bandColor.l !== chosenBand.l) {
-    adjustments.push(`Band colour ${p.band} ${bandIsDark ? 'darkened' : 'lightened'} to ${band} so text on it stays readable`)
+    adjustments.push(`Band color ${p.band} ${bandIsDark ? 'darkened' : 'lightened'} to ${band} so text on it stays readable`)
   }
   const bandRaised = hex({ ...bandColor, l: bandColor.l + (bandIsDark ? 0.05 : -0.04) })
   const bandSurfaces = [band, bandRaised]
@@ -241,8 +241,8 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
   for (const [tone, [h, c]] of Object.entries(TONE_HUES)) {
     vars[`--fd-band-${tone}`] = ensureContrast(at(bandIsDark ? 0.8 : 0.45, c, h), bandSurfaces)
   }
-  // Chart colours for bands: the same hues, fitted to 3:1 against the band (a band well re-points --fd-chart-<n> here).
-  for (let i = 0; i < CHART_COLOURS; i++) {
+  // Chart colors for bands: the same hues, fitted to 3:1 against the band (a band well re-points --fd-chart-<n> here).
+  for (let i = 0; i < CHART_COLORS; i++) {
     const h = (hue + CHART_STEPS[i]! * 60) % 360
     const l = bandIsDark ? (i % 2 === 0 ? 0.78 : 0.66) : i % 2 === 0 ? 0.5 : 0.62
     vars[`--fd-band-chart-${i}`] = fitContrast(i === 0 ? { ...accent, l } : at(l, 0.14, h), bandSurfaces, 3).hex

@@ -4,7 +4,7 @@ import { expect, test, type Page, type Route } from '@playwright/test'
 const APP_ASSETS = new Set(['stylesheet', 'font', 'script'])
 
 /**
- * Keeps every request on localhost: `handle` may fulfil some (e.g. mock the GitHub API); the rest are aborted. Aborting
+ * Keeps every request on localhost: `handle` may fulfill some (e.g. mock the GitHub API); the rest are aborted. Aborting
  * alone would hide a regression (a CDN font just falls back), so an aborted stylesheet, font or script fails the test.
  */
 export function isolateNetwork(handle?: (route: Route, url: URL) => Promise<void> | undefined) {

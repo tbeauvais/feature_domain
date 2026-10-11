@@ -168,7 +168,7 @@ async function remove() {
           <button type="button" class="font-medium text-slate-900 underline hover:text-slate-700" data-testid="add-theme" @click="store.add('ThemeFeature')">
             Add a theme
           </button>
-          to change colours and type.
+          to change colors and type.
         </p>
       </div>
     </div>

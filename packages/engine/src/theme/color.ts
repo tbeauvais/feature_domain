@@ -1,7 +1,7 @@
-// Colour maths for theme tokens: sRGB hex <-> OKLCH, gamut mapping and WCAG contrast. OKLCH is perceptually uniform,
-// so changing lightness keeps the hue and a ramp of lightness steps looks evenly spaced whatever the accent colour.
+// Color maths for theme tokens: sRGB hex <-> OKLCH, gamut mapping and WCAG contrast. OKLCH is perceptually uniform,
+// so changing lightness keeps the hue and a ramp of lightness steps looks evenly spaced whatever the accent color.
 
-/** A colour in OKLCH: lightness 0..1, chroma 0..~0.4, hue in degrees. */
+/** A color in OKLCH: lightness 0..1, chroma 0..~0.4, hue in degrees. */
 export interface Oklch {
   l: number
   c: number
@@ -62,7 +62,7 @@ export function hexToOklch(hex: string): Oklch | undefined {
 }
 
 /**
- * The nearest displayable sRGB colour as `#rrggbb`. Out-of-gamut colours keep their lightness and hue and lose chroma
+ * The nearest displayable sRGB color as `#rrggbb`. Out-of-gamut colors keep their lightness and hue and lose chroma
  * (binary search), which preserves contrast decisions made on lightness far better than clipping each channel.
  */
 export function oklchToHex(color: Oklch): string {
@@ -82,13 +82,13 @@ export function oklchToHex(color: Oklch): string {
   return toHex(rgb)
 }
 
-/** WCAG 2 relative luminance of a hex colour. */
+/** WCAG 2 relative luminance of a hex color. */
 export function luminance(hex: string): number {
   const [r, g, b] = (parseHex(hex) ?? [0, 0, 0]).map(toLinear) as Rgb
   return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 
-/** WCAG 2 contrast ratio between two hex colours (1..21). */
+/** WCAG 2 contrast ratio between two hex colors (1..21). */
 export function contrast(a: string, b: string): number {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number]
   return (hi + 0.05) / (lo + 0.05)
@@ -114,7 +114,7 @@ export function fitContrast(fg: Oklch, backgrounds: string[], min = 4.5): { hex:
   return { hex, reached: false }
 }
 
-/** `fitContrast`, returning only the colour. */
+/** `fitContrast`, returning only the color. */
 export function ensureContrast(fg: Oklch, backgrounds: string[], min = 4.5): string {
   return fitContrast(fg, backgrounds, min).hex
 }
