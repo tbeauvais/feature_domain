@@ -4,6 +4,9 @@ import { isolateNetwork } from './network'
 // Drag-and-drop, undo/redo and keyboard moves, on fresh models. External requests are blocked.
 isolateNetwork()
 
+// Tall enough that the feature tree (below the palette) shows every row these tests drag to.
+test.use({ viewport: { width: 1280, height: 900 } })
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await page.getByTestId('new-model').click()

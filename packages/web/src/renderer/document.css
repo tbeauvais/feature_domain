@@ -580,6 +580,9 @@ h6.fd-heading { font-size: var(--fd-h6); }
 :is(.fd-stack, .fd-card) > :is(.fd-heading, .fd-paragraph, .fd-list) { margin: 0; }
 :is(.fd-stack, .fd-card) > .fd-list { max-width: none; }
 :is(.fd-stack, .fd-card) > .fd-list ul { margin: 0; }
+/* An illustration in a layout fills its width (auto margins would shrink it in the flex column). This also overrides
+   left / right alignment, so a sized, aligned illustration composed directly into a card would need its own rule. */
+:is(.fd-stack, .fd-card) > .fd-illustration { margin: 0; }
 
 .fd-media {
   display: grid;

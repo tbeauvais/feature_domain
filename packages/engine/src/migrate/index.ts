@@ -345,6 +345,17 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     return { name: str(i.name), disable: disable(i.disable, ctx), title: text(i.title, ctx).trim(), text: text(i.text, ctx), src: str(i.src), alt: '', image_side: 'left' }
   },
 
+  // The legacy map was a keyless Google Static Maps image of the address; ours is a drawing with a Google Maps link.
+  GoogleMapFeature: (i, ctx) => {
+    dropLegacyLooks(i, ['height', 'width'], 'map', ctx)
+    const out: Record<string, InputValue> = { name: str(i.name), disable: disable(i.disable, ctx), title: text(i.title, ctx).trim() }
+    // A map with no usable address takes the input's default (the legacy palette's), as a missing one does.
+    const address = text(i.address, ctx).trim()
+    if (address !== '') out.address = address
+    else if ('address' in i) ctx.note('invalid-value', 'warning', 'The map had no address; it shows the default address (131 Willow Rd. Guilford, CT) until one is set')
+    return out
+  },
+
   // The legacy list was one comma-separated string whose last item was shown large (the price in the samples).
   ListGroupFeature: (i, ctx) => {
     dropLegacyLooks(i, ['style', 'align'], 'list group', ctx)

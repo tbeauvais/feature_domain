@@ -60,10 +60,18 @@ test('neighboring texts and links sit on their own lines, and empty containers a
   expect(tops[1]!).toBeGreaterThan(tops[0]! + 10)
   expect(tops[2]!).toBeGreaterThan(tops[1]! + 10)
 
-  // In the preview, a container holding only unported maps adds no margin, and panels holding only tables, charts and
-  // forms (which are cards themselves) draw no card of their own.
+  // In the preview, a container holding nothing (here its two maps, disabled) adds no margin, and panels holding only
+  // tables, charts and forms (which are cards themselves) draw no card of their own.
   const id = await openSample(page, 'Getting Started')
+  // Away from the editor first, so its autosave can't write over the change.
   await page.goto(`/preview.html?model=${encodeURIComponent(id)}`)
+  await page.evaluate((modelId) => {
+    const stored = JSON.parse(localStorage.getItem('feature-domain:models')!)
+    for (const f of stored.models[modelId].features) if (f.feature === 'GoogleMapFeature') f.inputs.disable = true
+    localStorage.setItem('feature-domain:models', JSON.stringify(stored))
+  }, id)
+  await page.reload()
+  await expect(page.locator('[data-feature-id="16"]')).toHaveCount(0)
   await expect(page.locator('[data-feature-id="19"]')).toHaveCSS('margin-bottom', '0px')
   const swagger = await openSample(page, 'Swagger Data Sample')
   await page.goto(`/preview.html?model=${encodeURIComponent(swagger)}`)
@@ -132,12 +140,17 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
   const overflowing = await canvas.locator('.fd-cell').evaluateAll((cells) => cells.filter((c) => c.scrollWidth > c.clientWidth + 1).map((c) => c.getAttribute('data-node-id')))
   expect(overflowing).toEqual([])
 
-  // List is ported now; unported features show as placeholders in the editor.
+  // List and Map are ported now: the maps are cards with our drawing and a link to Google Maps.
   await expect(canvas.locator('[data-feature-id="7"] li')).toHaveText(['Red', 'Green', 'Blue', 'Yellow'])
-  await expect(canvas.locator('.fd-placeholder[data-feature-id="16"]')).toContainText('GoogleMapFeature is not ported yet')
+  const map = canvas.locator('[data-feature-id="16"]')
+  await expect(map.locator('.fd-heading')).toHaveText('Where it\'s Warm')
+  await expect(map.getByRole('link', { name: 'Open Palm Beach, FL in Google Maps' })).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL')
+  // The drawing fills the card's width (auto margins would shrink it to its minimum in the card's flex column).
+  const fill = await map.evaluate((card) => [card.querySelector('.fd-illustration')!.getBoundingClientRect().width, card.querySelector('.fd-paragraph')!.getBoundingClientRect().width])
+  expect(fill[0]).toBeCloseTo(fill[1]!, 0)
+  await expect(canvas.locator('.fd-placeholder')).toHaveCount(0)
 
   // Problems open from the status bar.
-  await expect(page.getByTestId('problems-toggle')).toContainText('not ported yet')
   await page.getByTestId('problems-toggle').click()
   const diagnostics = page.getByTestId('diagnostics')
   await expect(diagnostics.locator('[data-code="out-of-order"]')).toHaveCount(3)
@@ -240,8 +253,8 @@ const hasTailwindReset = (target: Page) =>
 /** Waits until a sample's generated page has settled (data loaded, cards rendered). */
 const SAMPLES: { name: string; ready: (target: Page) => Promise<void> }[] = [
   { name: 'Data Sample', ready: (target) => expect(target.locator('[data-feature-id="24"] tbody tr')).toHaveCount(2) },
-  // Cards, check lists, buttons and an image beside text (Buy Deal has no placeholders other than its maps).
-  { name: 'Buy Deal', ready: (target) => expect(target.locator('.fd-card')).toHaveCount(3) },
+  // Cards (three list cards and two maps), check lists, buttons and an image beside text.
+  { name: 'Buy Deal', ready: (target) => expect(target.locator('.fd-card')).toHaveCount(5) },
   // A table and a chart in card panels, one beside a placeholder (its unported Form) in the editor only.
   {
     name: 'Swagger Data Sample',
@@ -313,15 +326,16 @@ test('shows a message for a missing model', async ({ page }) => {
 test('cards and the buttons under them stay inside their container, and cards side by side line up', async ({ page }) => {
   await openSample(page, 'Buy Deal')
   const canvas = page.getByTestId('canvas')
-  const cards = canvas.locator('.fd-card')
+  // The three list cards, in a well of their own (the maps are cards too, in another).
+  const well = canvas.locator('.fd-well:has([data-feature-id="28"])')
+  const cards = well.locator('.fd-card')
   await expect(cards).toHaveCount(3)
   // Make one card much longer than the others, so equal heights mean the layout stretched them.
   await canvas.locator('[data-feature-id="28"] h4').click()
   await page.getByTestId('inspector').getByLabel('Description').fill('A much longer description. '.repeat(12))
   await expect(canvas.locator('[data-feature-id="28"] .fd-paragraph-muted')).toContainText('much longer')
-  const well = canvas.locator('.fd-well:has(.fd-card)')
   const wellBox = (await well.boundingBox())!
-  const boxes = await Promise.all((await canvas.locator('.fd-well .fd-card, .fd-well .fd-button').all()).map((el) => el.boundingBox()))
+  const boxes = await Promise.all((await well.locator('.fd-card, .fd-button').all()).map((el) => el.boundingBox()))
   expect(boxes.length).toBe(6)
   for (const box of boxes) {
     expect(box!.y).toBeGreaterThanOrEqual(wellBox.y)
