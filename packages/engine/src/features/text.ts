@@ -1,6 +1,6 @@
 import type { FeatureDefinition } from '../feature.js'
 import { asString, disableInput, nameInput } from '../inputs.js'
-import { node } from '../nodes.js'
+import { node as makeNode } from '../nodes.js'
 import { VALUE_FILTERS, type NodeKinds, type TextPart } from '../types.js'
 import { DATA_RESOURCE_TYPES, isDataResourceExports } from './data-resource.js'
 import { listSource } from './sources.js'
@@ -55,6 +55,9 @@ export const TextFeature: FeatureDefinition = {
   ],
 
   generate(inputs, ctx) {
+    const node = (props: NodeKinds['text']) =>
+      // Text whose values are filled in from data isn't a plain copy of the input, so only text without them is edited in place.
+      makeNode('text', ctx.nodeId(), props, props.data ? {} : { edit: { text: { input: 'text', kind: 'text' } } })
     const text = asString(inputs.text)
     const props: NodeKinds['text'] = { text }
     const parts = parseBindings(text)
@@ -62,14 +65,14 @@ export const TextFeature: FeatureDefinition = {
     const resourceId = asString(inputs.data_resource)
     if (resourceId === '') {
       if (bound) ctx.report('warning', 'The text has {{…}} values but no Data Resource to read them from, so they show as written')
-      return { node: node('text', ctx.nodeId(), props) }
+      return { node: node(props) }
     }
     const resolved = ctx.resolve(resourceId)
     // A missing or unusable resource is reported by the engine (a soft reference); the values show as written.
-    if (!resolved || !isDataResourceExports(resolved.exports)) return { node: node('text', ctx.nodeId(), props) }
+    if (!resolved || !isDataResourceExports(resolved.exports)) return { node: node(props) }
     if (!bound) {
       ctx.report('info', 'The text has a Data Resource but no {{…}} values to fill in')
-      return { node: node('text', ctx.nodeId(), props) }
+      return { node: node(props) }
     }
     for (const part of parts) {
       if (!('filter' in part) || part.filter === undefined) continue
@@ -82,6 +85,6 @@ export const TextFeature: FeatureDefinition = {
       const { path: _list, ...whole } = source
       props.data = { source: whole, parts }
     }
-    return { node: node('text', ctx.nodeId(), props) }
+    return { node: node(props) }
   },
 }

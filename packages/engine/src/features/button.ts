@@ -29,6 +29,6 @@ export const ButtonFeature: FeatureDefinition = {
     const variant = (BUTTON_VARIANTS as readonly unknown[]).includes(inputs.style) ? (inputs.style as ButtonVariant) : 'primary'
     const size = (BUTTON_SIZES as readonly unknown[]).includes(inputs.size) ? (inputs.size as ButtonSize) : 'medium'
     const props = { text: asString(inputs.text), href, variant, size, align: asAlign(inputs.align, 'center') }
-    return { node: node('button', ctx.nodeId(), props) }
+    return { node: node('button', ctx.nodeId(), props, { edit: { text: { input: 'text', kind: 'text' } } }) }
   },
 }

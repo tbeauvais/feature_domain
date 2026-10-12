@@ -8,6 +8,7 @@ import { useDocumentStore } from '../stores/document'
 import { evaluateDrop, intoSlot, type DragSource, type DropZone } from './dnd'
 import { dragState } from './dndState'
 import { collapsedRows } from './treeCollapse'
+import { inlineEdit } from './useInlineEdit'
 
 // Marks drag data as ours, so other drags (files, text) are ignored.
 const OURS = 'featureDomain'
@@ -55,6 +56,8 @@ export function useEditorDnd(roots: { canvas: Ref<HTMLElement | null>; tree: Ref
   // A press in a form field (or on a button) is for typing, selecting text or clicking, not for moving the feature.
   const notFromAField = ({ input }: { input: { clientX: number; clientY: number } }) =>
     !document.elementFromPoint(input.clientX, input.clientY)?.closest('.fd-root :is(input, textarea, select, button)')
+  // A feature whose text is being edited in place doesn't move: the mouse selects its text.
+  const notEditing = (id: string) => inlineEdit.value?.feature !== id
 
   function register() {
     cleanup()
@@ -63,7 +66,7 @@ export function useEditorDnd(roots: { canvas: Ref<HTMLElement | null>; tree: Ref
     if (canvas) {
       for (const el of canvas.querySelectorAll<HTMLElement>('[data-feature-id]')) {
         const id = el.getAttribute('data-feature-id')!
-        parts.push(draggable({ element: el, canDrag: notFromAField, getInitialData: () => ({ [OURS]: true, source: { kind: 'feature', id } }) satisfies SourceData }))
+        parts.push(draggable({ element: el, canDrag: (args) => notEditing(id) && notFromAField(args), getInitialData: () => ({ [OURS]: true, source: { kind: 'feature', id } }) satisfies SourceData }))
         parts.push(featureTarget(el, id))
       }
       // Links and images inside a feature are natively draggable, so a drag starting on one would be a plain
@@ -71,7 +74,7 @@ export function useEditorDnd(roots: { canvas: Ref<HTMLElement | null>; tree: Ref
       for (const el of canvas.querySelectorAll<HTMLElement>('a[href], img')) {
         if (el.hasAttribute('data-feature-id')) continue
         const id = el.closest('[data-feature-id]')?.getAttribute('data-feature-id')
-        if (id) parts.push(draggable({ element: el, getInitialData: () => ({ [OURS]: true, source: { kind: 'feature', id } }) satisfies SourceData }))
+        if (id) parts.push(draggable({ element: el, canDrag: () => notEditing(id), getInitialData: () => ({ [OURS]: true, source: { kind: 'feature', id } }) satisfies SourceData }))
       }
       // Slots that are not themselves features (container cells, panel bodies, the document root): append.
       for (const el of canvas.querySelectorAll<HTMLElement>('[data-slot]:not([data-feature-id])')) {

@@ -40,6 +40,7 @@ export interface AppModel {
 // Document tree
 // ---------------------------------------------------------------------------------------------------------------------
 
+import type { EditMarks } from './text-edit.js'
 import type { ThemeTokens } from './theme/tokens.js'
 
 export type Align = 'left' | 'center' | 'right'
@@ -223,6 +224,8 @@ export interface DocNodeOf<K extends NodeKind> {
   /** Set on nodes that are slots: other features can be placed here under this key. */
   slot?: string
   featureInstanceId?: string
+  /** Text props that are a plain copy of one of the feature's inputs, so the editor can edit them in place. */
+  edit?: EditMarks
   style?: Record<string, string>
   children: DocNode[]
 }
@@ -245,6 +248,7 @@ export type DiagnosticCode =
   | 'missing-node'
   | 'invalid-node-id'
   | 'duplicate-node-id'
+  | 'invalid-edit-mark'
   | 'cycle'
   | 'parent-skipped'
   | 'dependency-skipped'

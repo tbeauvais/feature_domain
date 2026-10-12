@@ -41,6 +41,13 @@
   user-select: none;
 }
 
+/* Text being edited in place on the editor canvas takes text selection with the mouse (only the editor sets this). */
+.fd-root [contenteditable] {
+  user-select: text;
+  -webkit-user-drag: none;
+  cursor: text;
+}
+
 /* Form fields inside a draggable feature still take text selection with the mouse. */
 .fd-root [draggable='true'] :is(input, textarea) {
   user-select: text;

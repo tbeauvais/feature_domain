@@ -2,6 +2,7 @@
 import type { DocNodeOf } from '@feature-domain/engine'
 import { computed } from 'vue'
 import { useDataStore } from '../data'
+import { useEditAttrs } from '../editable'
 import { cellContent, getPath } from '../filters'
 
 // Always plain text: Vue escapes interpolation, so legacy HTML or {{...}} bindings show literally (never executed).
@@ -10,6 +11,7 @@ import { cellContent, getPath } from '../filters'
 // editor canvas, where the mark says why. Screen readers hear words instead of the marks.
 const props = defineProps<{ node: DocNodeOf<'text'> }>()
 const store = useDataStore()
+const editAttrs = useEditAttrs()
 const answer = store.answer(computed(() => props.node.props.data?.source))
 
 /** `shown` is drawn, `spoken` is read by screen readers instead; `why` explains a marked value. */
@@ -42,7 +44,7 @@ const runs = computed((): Run[] => {
 </script>
 
 <template>
-  <span class="fd-text" :aria-busy="node.props.data && answer.status === 'loading' ? 'true' : undefined">
+  <span class="fd-text" :aria-busy="node.props.data && answer.status === 'loading' ? 'true' : undefined" v-bind="editAttrs(node, 'text')">
     <template v-for="(run, i) in runs" :key="i">
       <template v-if="'text' in run">{{ run.text }}</template>
       <span v-else :class="{ 'fd-text-missing': run.why !== undefined || run.shown === '—' }" :title="run.why"
