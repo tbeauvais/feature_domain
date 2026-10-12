@@ -31,7 +31,7 @@ export const pricing = sample('Ledgerly pricing', (add) => {
   const grid = add('ContainerFeature', { name: 'Plans', rows: 1, columns: 3, well: true }, inPage(page))
   plans.forEach((plan, i) => {
     add('ListGroupFeature', { name: plan.name, heading: plan.name, description: plan.description, items: plan.items, highlight: plan.price }, inCell(grid, 1, i + 1))
-    add('ButtonFeature', { name: `${plan.name} trial`, text: 'Start free trial', href: `https://example.com/ledgerly/signup?plan=${plan.name.toLowerCase()}`, style: i === 1 ? 'primary' : 'secondary', size: 'medium', align: 'center' }, inCell(grid, 1, i + 1))
+    add('ButtonFeature', { name: `${plan.name} trial`, text: `Try ${plan.name}`, href: `https://example.com/ledgerly/signup?plan=${plan.name.toLowerCase()}`, style: i === 1 ? 'primary' : 'secondary', size: 'medium', align: 'center' }, inCell(grid, 1, i + 1))
   })
   add('HeaderFeature', { name: 'FAQ', text: 'Questions, answered', size: 2, align: 'left' }, inPage(page))
   for (const item of faq) add('TextWithParagraphFeature', { name: item.title, title: item.title, text: item.text }, inPage(page))

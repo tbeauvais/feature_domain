@@ -17,7 +17,8 @@ export const SAMPLE_SET = 2
  * 8: its Add Sale form requires a name and an amount (the spec requires neither). 9: its amounts show as dollars.
  * 10: the weather texts reading Yahoo's dead service become Weather cards, and the Yahoo resources go.
  * 11: Data Sample says live how many public repos and followers Tom has, above his repo table.
- * 12: samples are put in dependency order (Getting Started listed a map before the container it is in).
+ * 12: every stored model, the user's own too, is put in dependency order (Getting Started listed a map before the
+ * container it is in); `normalizeOrder` leaves the page as it is, and a model whose ids repeat alone.
  */
 export const SAMPLES_VERSION = 12
 

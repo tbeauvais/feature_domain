@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { isolateNetwork } from './network'
+import { store as storeModel } from './storage'
 
 // Editor flows on a fresh model. All external requests are blocked except a mocked GitHub API (and Open-Meteo, mocked in the test that uses it).
 isolateNetwork((route, url) => (url.hostname === 'api.github.com' ? route.fulfill({ json: [{ name: 'engine', html_url: 'https://github.com/x/engine' }] }) : undefined))
@@ -217,15 +218,10 @@ test('leaving after a failed save asks before losing the changes', async ({ page
 })
 
 /** Puts a model into the app's browser storage (after the home page has loaded, so the samples are seeded first). */
-async function store(page: Page, model: { id: string }) {
+async function store(page: Page, model: { id: string; [key: string]: unknown }) {
   await page.goto('/')
   await expect(page.getByTestId('model-list')).toBeVisible()
-  await page.evaluate((m) => {
-    const stored = JSON.parse(localStorage.getItem('feature-domain:models')!)
-    stored.models[m.id] = m
-    stored.order.push(m.id)
-    localStorage.setItem('feature-domain:models', JSON.stringify(stored))
-  }, model)
+  await storeModel(page, model)
 }
 
 test('a model stored before List was ported is upgraded when opened', async ({ page }) => {

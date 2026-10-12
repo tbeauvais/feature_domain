@@ -40,7 +40,20 @@ describe('sampleModels', () => {
     for (const m of samples) {
       const text = JSON.stringify(m.features.map((f) => f.inputs))
       expect(text, m.name).not.toMatch(/lorem|ipsum|frog|untitled|Your headline goes here|Say what this part/i)
-      for (const n of nodes(m).filter((n) => n.kind === 'link' || n.kind === 'button')) expect((n.props as { href: string }).href, m.name).toMatch(/^https:\/\//)
+      for (const n of nodes(m).filter((n) => n.kind === 'link' || n.kind === 'button')) {
+        const { href } = n.props as { href: string }
+        expect(href, m.name).toMatch(/^https:\/\//)
+        // Real sites only for real things (the code on GitHub, places on Google Maps, the weather's credit); the café, pricing and meetup
+        // are fictional, so their links go to example.com on purpose.
+        expect(['github.com', 'www.google.com', 'open-meteo.com', 'example.com'], `${m.name}: ${href}`).toContain(new URL(href).hostname)
+      }
+    }
+  })
+
+  it('give each button on a page its own words, so screen readers can tell them apart', () => {
+    for (const m of samples) {
+      const words = nodes(m).filter((n) => n.kind === 'button').map((n) => (n.props as { text: string }).text)
+      expect(new Set(words).size, `${m.name}: ${words.join(', ')}`).toBe(words.length)
     }
   })
 
@@ -135,6 +148,8 @@ describe('upgradeSample', () => {
 
   it('brings the seeded samples fully up to date, so a second pass changes nothing', () => {
     for (const sample of legacySamples()) expect(upgradeSample(sample)).toBe(sample)
+    // Browsers seeded with set 1 store set 2 too, so later upgrades see it: it must already be current.
+    for (const sample of sampleModels()) expect(upgradeSample(sample), sample.name).toBe(sample)
     // In dependency order: Getting Started listed a map before the container it is in.
     for (const sample of legacySamples()) expect(generate(sample).diagnostics.filter((d) => d.code === 'out-of-order'), sample.name).toEqual([])
     const texts = legacySamples().flatMap((m) => m.features.map((f) => JSON.stringify(f.inputs)))

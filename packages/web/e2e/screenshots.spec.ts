@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { isolateNetwork } from './network'
+import { store } from './storage'
 
 // Screenshots of every sample (and Start here in the Night Garden theme), of every Header and Panel option, every chart type and Weather card, at desktop and phone width, so the look can't
 // regress unnoticed. Text rendering differs between operating systems, so baselines are Linux only: they are made and
@@ -108,17 +109,6 @@ function weatherModel(id: string, scheme: 'light' | 'dark') {
     { feature: 'WeatherFeature', id: 'w4', inputs: { place: 'Somewhere offline', latitude: '10', longitude: '10' }, placement: cell('r2c2') },
   ]
   return { version: 2, id, name: `Weather (${scheme})`, features }
-}
-
-/** Puts a model into the app's browser storage. */
-async function store(page: Page, model: { id: string }) {
-  await page.evaluate((m) => {
-    const key = 'feature-domain:models'
-    const stored = JSON.parse(localStorage.getItem(key) ?? '{"order":[],"models":{}}')
-    stored.models[m.id] = m
-    if (!stored.order.includes(m.id)) stored.order.push(m.id)
-    localStorage.setItem(key, JSON.stringify(stored))
-  }, model)
 }
 
 /** A sample's name as a file name: "Tom Beauvais · projects" -> "tom-beauvais-projects". */

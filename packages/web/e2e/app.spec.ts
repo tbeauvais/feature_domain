@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { isolateNetwork } from './network'
+import { featureId, store } from './storage'
 
 // Every request leaves localhost only to the GitHub and Open-Meteo APIs, which are mocked, so runs are deterministic and
 // offline-safe.
@@ -32,16 +33,6 @@ async function openSample(page: Page, name: string): Promise<string> {
   return decodeURIComponent(new URL(page.url()).pathname.split('/').pop()!)
 }
 
-/** Puts a model into the app's browser storage (the home page must have loaded, so the samples are seeded first). */
-async function store(page: Page, model: { id: string }) {
-  await page.evaluate((m) => {
-    const stored = JSON.parse(localStorage.getItem('feature-domain:models')!)
-    stored.models[m.id] = m
-    stored.order.push(m.id)
-    localStorage.setItem('feature-domain:models', JSON.stringify(stored))
-  }, model)
-}
-
 test('lists the sample models', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByTestId('model-list').getByRole('link')).toHaveText(['Start here', 'Harbor Coffee', 'Ledgerly pricing', 'Northwind sales', 'Tom Beauvais · projects', 'Shoreline JS meetup'])
@@ -51,8 +42,8 @@ test('a table that really scrolls is a named, focusable region, until phone widt
   await page.context().route('https://api.github.com/**', (route) =>
     route.fulfill({ json: Array.from({ length: 30 }, (_, i) => ({ name: `repo-${i}`, description: '', language: 'Vue', updated_at: '2015-03-07T10:00:00Z', html_url: 'https://github.com/x/r' })) }),
   )
-  await openSample(page, 'Tom Beauvais · projects')
-  const wrap = page.getByTestId('canvas').locator('[data-feature-id="9"] .fd-table-wrap')
+  const id = await openSample(page, 'Tom Beauvais · projects')
+  const wrap = page.getByTestId('canvas').locator(`[data-feature-id="${await featureId(page, id, 'Repositories')}"] .fd-table-wrap`)
   await expect(wrap.locator('tbody tr')).toHaveCount(30)
   await expect(wrap).toHaveAttribute('tabindex', '0')
   await expect(wrap).toHaveAttribute('role', 'region')
@@ -68,10 +59,12 @@ test('a table that really scrolls is a named, focusable region, until phone widt
 })
 
 test('neighboring texts and links sit on their own lines, and empty containers and panels leave no gaps or empty cards', async ({ page }) => {
-  await openSample(page, 'Tom Beauvais · projects')
+  const portfolio = await openSample(page, 'Tom Beauvais · projects')
   const canvas = page.getByTestId('canvas')
   // A Text and a Link one after the other: each starts on its own line, not run together as in the legacy app.
-  const tops = await Promise.all(['7', '8'].map(async (id) => (await canvas.locator(`[data-feature-id="${id}"]`).boundingBox())!.y))
+  const tops = await Promise.all(
+    ['Profile', 'GitHub'].map(async (name) => (await canvas.locator(`[data-feature-id="${await featureId(page, portfolio, name)}"]`).boundingBox())!.y),
+  )
   expect(tops[1]!).toBeGreaterThan(tops[0]! + 10)
 
   // In the preview, a container holding nothing (here its map and weather, disabled) adds no margin.
@@ -84,8 +77,8 @@ test('neighboring texts and links sit on their own lines, and empty containers a
     localStorage.setItem('feature-domain:models', JSON.stringify(stored))
   }, id)
   await page.reload()
-  await expect(page.locator('[data-feature-id="14"]')).toHaveCount(0)
-  await expect(page.locator('[data-feature-id="13"]')).toHaveCSS('margin-bottom', '0px')
+  await expect(page.locator(`[data-feature-id="${await featureId(page, id, 'Map')}"]`)).toHaveCount(0)
+  await expect(page.locator(`[data-feature-id="${await featureId(page, id, 'Visit')}"]`)).toHaveCSS('margin-bottom', '0px')
 
   // Panels holding only tables, charts and forms (which are cards themselves) draw no card of their own.
   await store(page, {
@@ -110,15 +103,47 @@ test('neighboring texts and links sit on their own lines, and empty containers a
   }
 })
 
+test('a card after a line of text or a link keeps the same distance, in the page and in a container cell', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByTestId('model-list')).toBeVisible()
+  const card = (id: string, parent: string, slot: string) => ({ feature: 'ListGroupFeature', id, inputs: { heading: 'Plan', items: ['One'] }, placement: { parent, slot } })
+  await store(page, {
+    id: 'gaps',
+    version: 2,
+    name: 'Gaps',
+    features: [
+      { feature: 'PageFeature', id: '1', inputs: { name: 'Page' }, placement: { parent: '$root', slot: 'content' } },
+      { feature: 'TextFeature', id: 't1', inputs: { text: 'Text, then a card' }, placement: { parent: '1', slot: 'content' } },
+      card('c1', '1', 'content'),
+      { feature: 'LinkFeature', id: 'l', inputs: { text: 'A link, then a card', href: 'https://example.com/' }, placement: { parent: '1', slot: 'content' } },
+      card('c2', '1', 'content'),
+      { feature: 'ContainerFeature', id: 'g', inputs: { rows: 1, columns: 1 }, placement: { parent: '1', slot: 'content' } },
+      { feature: 'TextFeature', id: 't2', inputs: { text: 'Text, then a card, in a cell' }, placement: { parent: 'g', slot: 'r1c1' } },
+      card('c3', 'g', 'r1c1'),
+    ],
+  })
+  await page.goto('/preview.html?model=gaps')
+  const gap = async (above: string, below: string) => {
+    const a = (await page.locator(`[data-feature-id="${above}"]`).boundingBox())!
+    const b = (await page.locator(`[data-feature-id="${below}"]`).boundingBox())!
+    return b.y - (a.y + a.height)
+  }
+  await expect(page.locator('[data-feature-id="g"] .fd-cell')).toHaveCSS('display', 'flex')
+  const gaps = [await gap('t1', 'c1'), await gap('l', 'c2'), await gap('t2', 'c3')]
+  expect(gaps[0]).toBeGreaterThan(15)
+  for (const g of gaps) expect(g).toBeCloseTo(gaps[0]!, 0)
+})
+
 test('renders the samples\' live tables and values, maps and weather, with no problems', async ({ page }) => {
-  await openSample(page, 'Tom Beauvais · projects')
+  const portfolio = await openSample(page, 'Tom Beauvais · projects')
   const canvas = page.getByTestId('canvas')
+  const feature = async (modelId: string, name: string) => canvas.locator(`[data-feature-id="${await featureId(page, modelId, name)}"]`)
   await expect(canvas.getByRole('heading', { name: 'Tom Beauvais', level: 1 })).toBeVisible()
   // A text reads values from the GitHub profile, live.
-  await expect(canvas.locator('[data-feature-id="7"]')).toHaveText('30 public repositories · 12 followers · on GitHub since Mar 7, 2011')
+  await expect(await feature(portfolio, 'Profile')).toHaveText('30 public repositories · 12 followers · on GitHub since Mar 7, 2011')
 
   // The repo table: fields name/description/language/updated_at, filtered as a link, plain, badge and date.
-  const table = canvas.locator('[data-feature-id="9"]')
+  const table = await feature(portfolio, 'Repositories')
   await expect(table.locator('th')).toHaveText(['Repository', 'Description', 'Language', 'Updated'])
   await expect(table.locator('tbody tr').first().locator('td')).toHaveText(['tbeauvais-engine', 'Parametric engine', 'TypeScript', 'Mar 7, 2015'])
   await expect(table.getByRole('link', { name: 'tbeauvais-engine' })).toHaveAttribute('href', 'https://github.com/tbeauvais/engine')
@@ -151,15 +176,15 @@ test('renders the samples\' live tables and values, maps and weather, with no pr
   await page.getByTestId('canvas-width-desktop').click()
   await expect(page.getByTestId('problems-toggle')).toContainText('No problems')
 
-  await openSample(page, 'Harbor Coffee')
+  const cafe = await openSample(page, 'Harbor Coffee')
   // Panel headings are plain text: no decorative dot before them.
   const marker = await canvas.locator('.fd-panel-heading h4', { hasText: 'Hours' }).evaluate((h) => getComputedStyle(h, '::before').content)
   expect(marker).toBe('none')
-  const weather = canvas.locator('[data-feature-id="15"]')
+  const weather = await feature(cafe, 'Weather')
   await expect(weather.locator('.fd-heading')).toHaveText('Weather on the green')
   await expect(weather.locator('.fd-weather-temp')).toHaveText('54°F')
   // The map is a card with our drawing and a link to Google Maps, named with the address.
-  const map = canvas.locator('[data-feature-id="14"]')
+  const map = await feature(cafe, 'Map')
   await expect(map.locator('.fd-heading')).toHaveText('Visit us')
   await expect(map.getByRole('link', { name: 'Open 37 Whitfield St, Guilford, CT in Google Maps' })).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=37%20Whitfield%20St%2C%20Guilford%2C%20CT')
   // The drawing fills the card's width (auto margins would shrink it to its minimum in the card's flex column).
@@ -177,7 +202,7 @@ test('draws built-in illustrations in the theme\'s colors, in the editor and the
   await preview.goto(`/preview.html?model=${encodeURIComponent(id)}`)
   for (const p of [page, preview]) {
     // The banner is decorative: hidden from screen readers, so found by its feature.
-    const banner = p.locator('.fd-illustration[data-feature-id="2"]')
+    const banner = p.locator(`.fd-illustration[data-feature-id="${await featureId(page, id, 'Banner')}"]`)
     await expect(banner).toBeVisible()
     await expect(banner).toHaveAttribute('aria-hidden', 'true')
     // Inside .fd-root everything is reset (`all: revert`); SVG geometry and paint are CSS properties, so a reset that
@@ -352,16 +377,17 @@ test('shows a message for a missing model', async ({ page }) => {
 })
 
 test('cards and the buttons under them stay inside their container, and cards side by side line up', async ({ page }) => {
-  await openSample(page, 'Ledgerly pricing')
+  const id = await openSample(page, 'Ledgerly pricing')
   const canvas = page.getByTestId('canvas')
+  const starter = await featureId(page, id, 'Starter')
   // The three plan cards, in a well of their own.
-  const well = canvas.locator('.fd-well:has([data-feature-id="6"])')
+  const well = canvas.locator(`.fd-well:has([data-feature-id="${starter}"])`)
   const cards = well.locator('.fd-card')
   await expect(cards).toHaveCount(3)
   // Make one card much longer than the others, so equal heights mean the layout stretched them.
-  await canvas.locator('[data-feature-id="6"] h4').click()
+  await canvas.locator(`[data-feature-id="${starter}"] h4`).click()
   await page.getByTestId('inspector').getByLabel('Description').fill('A much longer description. '.repeat(12))
-  await expect(canvas.locator('[data-feature-id="6"] .fd-paragraph-muted')).toContainText('much longer')
+  await expect(canvas.locator(`[data-feature-id="${starter}"] .fd-paragraph-muted`)).toContainText('much longer')
   const wellBox = (await well.boundingBox())!
   const boxes = await Promise.all((await well.locator('.fd-card, .fd-button').all()).map((el) => el.boundingBox()))
   expect(boxes.length).toBe(6)
@@ -374,7 +400,7 @@ test('cards and the buttons under them stay inside their container, and cards si
 
   // A Text feature in a card's cell (a paragraph of its own) doesn't stop that cell lining up with its neighbors.
   await page.getByTestId('palette-TextFeature').click()
-  const cell = canvas.locator('.fd-cell:has([data-feature-id="6"])')
+  const cell = canvas.locator(`.fd-cell:has([data-feature-id="${starter}"])`)
   await expect(cell.locator('.fd-text')).toHaveCount(1)
   await expect(cell).toHaveCSS('display', 'flex')
 })
@@ -386,7 +412,7 @@ test('the sales dashboard\'s form logs a deal that its table, chart and count sh
   await expect(table.locator('tbody tr')).toHaveCount(6)
   const chartRows = page.locator('.fd-chart-block .fd-visually-hidden tbody tr')
   await expect(chartRows).toHaveCount(6)
-  const count = page.locator('[data-feature-id="5"]')
+  const count = page.locator(`[data-feature-id="${await featureId(page, id, 'Count')}"]`)
   await expect(count).toContainText('6 deals closed this quarter.')
 
   // The spec requires a rep, a region and an amount: an amount alone is refused.

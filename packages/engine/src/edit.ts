@@ -67,12 +67,14 @@ function dependenciesOf(instance: FeatureInstance, registry: FeatureRegistry): s
  * Stable reorder so every feature comes after its parent and the features it references, without changing the page:
  * siblings in a slot keep their relative order (that order is what the page shows), so dependencies are pulled
  * forward rather than dependents pushed back. Features on a dependency cycle go last, in model order. Returns the same
- * model object when nothing moves.
+ * model object when nothing moves, and leaves a model whose ids repeat alone (reordering it could change which copy
+ * of an id the page shows, or lose one).
  */
 export function normalizeOrder(model: AppModel, options: EditOptions = {}): AppModel {
   const registry = options.registry ?? defaultRegistry
   const ids = model.features.map((f) => f.id)
   const known = new Set(ids)
+  if (known.size !== ids.length) return model
   const dependencyEdges: [string, string][] = []
   const siblingEdges: [string, string][] = []
   const lastInSlot = new Map<string, string>()
