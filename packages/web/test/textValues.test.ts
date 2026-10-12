@@ -9,13 +9,22 @@ const profile = inst('DataResourceFeature', 'r', { name: 'Profile', resource: 'h
 const render = (m: AppModel, fetchJson: FetchJson, editing = false) =>
   mount(DocumentView, { props: { root: generate(m).root, editing }, global: { provide: { [FETCH_JSON as symbol]: fetchJson } } })
 const text = (value: string) => inst('TextFeature', 't', { text: value, data_resource: 'r' })
+/** What a text draws, and what a screen reader hears instead. */
+const without = (selector: string) => (w: { element: Element }) => {
+  const copy = w.element.cloneNode(true) as Element
+  for (const n of copy.querySelectorAll(selector)) n.remove()
+  return copy.textContent
+}
+const shown = without('.fd-visually-hidden')
+const spoken = without('[aria-hidden="true"]')
 
 describe('Text values from data', () => {
   it('fills in its values from the answer once it loads, through table filters, as plain text', async () => {
     const fetchJson = vi.fn<FetchJson>(async () => ({ public_repos: 35, followers: 1234, created_at: '2011-03-07T10:00:00Z', bio: '<b>hi</b>' }))
     const w = render(model(page(), profile, text('Tom has {{public_repos}} repos, {{followers | number}} followers, since {{created_at | date}}. {{bio}}')), fetchJson)
     const el = () => w.get('[data-feature-id="t"]')
-    expect(el().text()).toBe('Tom has … repos, … followers, since …. …')
+    expect(shown(el())).toBe('Tom has … repos, … followers, since …. …')
+    expect(spoken(el())).toBe('Tom has loading repos, loading followers, since loading. loading')
     expect(el().attributes('aria-busy')).toBe('true')
     await flushPromises()
     expect(fetchJson.mock.calls).toEqual([['https://api.example.com/users/tom']])
@@ -37,17 +46,30 @@ describe('Text values from data', () => {
     const preview = render(model(page(), profile, text('{{public_repos}} and {{followrs}}')), fetchJson)
     const editor = render(model(page(), profile, text('{{public_repos}} and {{followrs}}')), fetchJson, true)
     await flushPromises()
-    expect(preview.get('[data-feature-id="t"]').text()).toBe('35 and —')
-    expect(editor.get('[data-feature-id="t"]').text()).toBe('35 and {{followrs}}')
+    expect(shown(preview.get('[data-feature-id="t"]'))).toBe('35 and —')
+    expect(spoken(preview.get('[data-feature-id="t"]'))).toBe('35 and no value')
+    expect(shown(editor.get('[data-feature-id="t"]'))).toBe('35 and {{followrs}}')
+    expect(spoken(editor.get('[data-feature-id="t"]'))).toBe('35 and No value at “followrs”')
     expect(editor.get('.fd-text-missing').attributes('title')).toBe('No value at “followrs”')
   })
 
-  it('shows missing values when the answer fails to load', async () => {
-    const w = render(model(page(), profile, text('Tom has {{public_repos}} repos')), async () => {
+  it('shows "—" when the answer fails to load, and on the editor canvas says it couldn\'t load, naming the site', async () => {
+    const fail: FetchJson = async () => {
       throw new Error('403 Forbidden')
-    })
+    }
+    const preview = render(model(page(), profile, text('Tom has {{public_repos}} repos')), fail)
+    const editor = render(model(page(), profile, text('Tom has {{public_repos}} repos')), fail, true)
     await flushPromises()
-    expect(w.get('[data-feature-id="t"]').text()).toBe('Tom has — repos')
+    expect(shown(preview.get('[data-feature-id="t"]'))).toBe('Tom has — repos')
+    expect(editor.get('.fd-text-missing').attributes('title')).toBe("Couldn't load from api.example.com: 403 Forbidden")
+    expect(spoken(editor.get('[data-feature-id="t"]'))).toBe("Tom has Couldn't load from api.example.com: 403 Forbidden repos")
+  })
+
+  it('shows a value that is there but empty as empty, not as missing', async () => {
+    const w = render(model(page(), profile, text('[{{bio}}][{{blog}}]')), async () => ({ bio: '', blog: null }), true)
+    await flushPromises()
+    expect(w.get('[data-feature-id="t"]').text()).toBe('[][]')
+    expect(w.find('.fd-text-missing').exists()).toBe(false)
   })
 
   it('reads sample data as its rows, including rows a form added', async () => {
@@ -62,5 +84,16 @@ describe('Text values from data', () => {
   it('leaves a text without a resource exactly as written', async () => {
     const w = render(model(page(), inst('TextFeature', 't', { text: 'Temp {{x}} degrees' })), vi.fn<FetchJson>())
     expect(w.get('[data-feature-id="t"]').text()).toBe('Temp {{x}} degrees')
+  })
+})
+
+describe('value filters', () => {
+  it('are the ones the renderer applies', async () => {
+    const { VALUE_FILTERS } = await import('@feature-domain/engine')
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const source = readFileSync(join(import.meta.dirname, '../src/renderer/filters.ts'), 'utf8')
+    const handled = [...source.matchAll(/case '(\w+)':/g)].map((m) => m[1])
+    expect([...handled].sort()).toEqual([...VALUE_FILTERS].sort())
   })
 })

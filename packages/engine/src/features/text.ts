@@ -1,7 +1,7 @@
 import type { FeatureDefinition } from '../feature.js'
 import { asString, disableInput, nameInput } from '../inputs.js'
 import { node } from '../nodes.js'
-import type { NodeKinds, TextPart } from '../types.js'
+import { VALUE_FILTERS, type NodeKinds, type TextPart } from '../types.js'
 import { DATA_RESOURCE_TYPES, isDataResourceExports } from './data-resource.js'
 import { listSource } from './sources.js'
 
@@ -46,7 +46,7 @@ export const TextFeature: FeatureDefinition = {
       label: 'Text',
       type: 'string',
       default: 'Say what this part of the page is about in a sentence or two.',
-      placeholder: 'Values from data: {{path}}',
+      hint: 'Values from data, with a Data Resource below: {{public_repos}}, {{0.name}}, {{length}}, {{0.updated_at | date}}',
       control: 'text-input',
     },
     // Soft: a text whose resource goes away still shows, with its values as written.
@@ -71,7 +71,12 @@ export const TextFeature: FeatureDefinition = {
       ctx.report('info', 'The text has a Data Resource but no {{…}} values to fill in')
       return { node: node('text', ctx.nodeId(), props) }
     }
-    const { source } = listSource(resolved.id, resolved.exports, asString(inputs.operation), ctx, 'a text')
+    for (const part of parts) {
+      if (!('filter' in part) || part.filter === undefined) continue
+      const name = /^([A-Za-z]\w*)/.exec(part.filter)?.[1]
+      if (!name || !(VALUE_FILTERS as readonly string[]).includes(name)) ctx.report('warning', `${part.binding} names an unknown filter "${part.filter}"; the value shows unfiltered`)
+    }
+    const { source } = listSource(resolved.id, resolved.exports, asString(inputs.operation), ctx, 'a text', 'values')
     if (source) {
       // Values read the whole answer (as the legacy app's did), not the list a table picks out of it.
       const { path: _list, ...whole } = source

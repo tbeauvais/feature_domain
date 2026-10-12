@@ -170,13 +170,17 @@ export class DataStore {
    * sample data its rows with any added since.
    */
   answer(source: Ref<DataSource | undefined>): ComputedRef<FetchState> {
-    const address = computed(() => (source.value && !source.value.rows ? source.value.endPoint : undefined))
-    const fetched = this.json(address)
+    // Read through the resource like a table's rows, so a change made through it (a Form's send) reloads this too.
+    this.track(
+      () => (source.value && !source.value.rows ? source.value.endPoint : undefined),
+      () => source.value?.feature,
+    )
     return computed((): FetchState => {
       const s = source.value
       if (!s) return { status: 'idle' }
       if (s.rows) return { status: 'loaded', response: [...s.rows, ...(this.added.value[s.feature] ?? [])] }
-      return fetched.value
+      const state = (this.fetched.get(s.endPoint) ?? this.entry(s.endPoint)).state.value
+      return state.status === 'idle' ? { status: 'loading' } : state
     })
   }
 

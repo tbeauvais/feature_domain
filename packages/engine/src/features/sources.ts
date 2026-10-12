@@ -82,16 +82,19 @@ export function listSource(
   operationName: string,
   ctx: Pick<FeatureContext, 'report'>,
   what: string,
+  /** What the feature does with the answer, for its warnings: lists rows (a table, a chart) or reads values (a text). */
+  reads: 'rows' | 'values' = 'rows',
 ): { source?: DataSource; schemaColumns?: TableColumn[] } {
   const name = resource.resource || resourceId
   const operation = operationName ? resource.operations.find((o) => o.name === operationName) : defaultOperation(resource.operations, ['GET'])
-  if (!operationName && !operation && resource.operations.length > 0) ctx.report('warning', `${name} has no GET operation to list rows from`)
+  const verb = reads === 'rows' ? 'list rows from' : 'read values from'
+  if (!operationName && !operation && resource.operations.length > 0) ctx.report('warning', `${name} has no GET operation to ${verb}`)
   if (!operation) {
     if (operationName) ctx.report('warning', `Operation "${operationName}" is not provided by ${name}`)
     return {}
   }
   if (operation.sample && operation.method !== 'GET') {
-    ctx.report('warning', `"${operation.name}" adds rows; ${what} lists them with the GET operation`)
+    ctx.report('warning', `"${operation.name}" adds rows; ${what} ${reads === 'rows' ? 'lists them' : 'reads values'} with the GET operation`)
     return {}
   }
   const schema = fromSchema(resource, operation)

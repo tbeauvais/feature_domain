@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generate, migrate, parseBindings } from '../src'
+import { generate, migrate, parseBindings, type AppModel } from '../src'
 import { inst, model, page, resource } from './helpers'
 
 const sample = (rows: object[]) => inst('DataResourceFeature', 'r', { name: 'People', source: 'sample', sample_rows: JSON.stringify(rows) }, null)
@@ -90,5 +90,44 @@ describe('migrating legacy {{DataResource…}} bindings', () => {
     )
     for (const f of r.model.features.filter((f) => f.feature === 'TextFeature')) expect(f.inputs.data_resource, String(f.inputs.text)).toBeUndefined()
     expect(r.notes.map((n) => n.code)).toEqual(['data-binding', 'data-binding', 'data-binding', 'data-binding'])
+  })
+})
+
+describe('upgrading stored Texts that still hold legacy bindings', () => {
+  const stored = (text: string, extra: Record<string, string> = {}): AppModel => ({
+    version: 2,
+    name: 'Stored',
+    features: [
+      { feature: 'PageFeature', id: '1', inputs: { name: 'Page' }, placement: { parent: '$root', slot: 'content' } },
+      { feature: 'DataResourceFeature', id: '21', inputs: { name: 'Weather Service', resource: 'https://api.example.com/w', operation: 'GET' } },
+      { feature: 'TextFeature', id: '2', inputs: { name: 'Text', text, ...extra }, placement: { parent: '1', slot: 'content' } },
+    ],
+  })
+
+  it('points them at the resource they name, as a legacy model\'s would be, once', () => {
+    const r = migrate(stored('Temp {{DataResource.WeatherService.query.temp}} degrees'))
+    expect(r.model.features[2]!.inputs).toEqual({ name: 'Text', text: 'Temp {{query.temp}} degrees', data_resource: '21' })
+    expect(r.notes.map((n) => `${n.code}:${n.featureInstanceId}`)).toEqual(['mapped-input:2'])
+    expect(migrate(r.model).model).toBe(r.model)
+  })
+
+  it('returns the same model for bindings it can\'t map, or a Text that already has a resource', () => {
+    for (const m of [stored('{{DataResource.Nope.x}}'), stored('{{DataResource.WeatherService.x}}', { data_resource: '21' }), stored('No bindings')]) {
+      expect(migrate(m)).toEqual({ model: m, notes: [] })
+      expect(migrate(m).model).toBe(m)
+    }
+  })
+})
+
+describe('Text value warnings', () => {
+  it('warn about a filter the renderer doesn\'t know, and talk about values, not rows', () => {
+    expect(text({ text: '{{a | date}} {{b | shout}} {{c | currency :EUR}}', data_resource: 'r' }).problems).toEqual(['{{b | shout}} names an unknown filter "shout"; the value shows unfiltered'])
+    const r = generate(model(page(), inst('DataResourceFeature', 'r', { name: 'Adder', resource: 'https://api.example.com/x', operation: 'POST' }, null), inst('TextFeature', 't', { text: '{{a}}', data_resource: 'r' })))
+    expect(r.diagnostics.map((d) => d.message)).toEqual(['Adder has no GET operation to read values from'])
+  })
+
+  it('give the Text input a hint about the syntax', async () => {
+    const { TextFeature } = await import('../src')
+    expect(TextFeature.inputs.find((i) => i.name === 'text')!.hint).toContain('{{0.updated_at | date}}')
   })
 })

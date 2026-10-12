@@ -123,6 +123,12 @@ export interface TableColumn {
   filter?: string
 }
 
+/**
+ * Display filters a table column or a Text's value can name (`date`, `currency :EUR`, …); the web renderer applies them
+ * (`renderer/filters.ts`, which a test keeps in step with this list).
+ */
+export const VALUE_FILTERS = ['uppercase', 'lowercase', 'date', 'number', 'currency', 'badge', 'dataLink'] as const
+
 /** A run of a Text: literal text, or a value read at `path` from a data resource's answer (`binding`: as written). */
 export type TextPart = { text: string } | { path: string; filter?: string; binding: string }
 
