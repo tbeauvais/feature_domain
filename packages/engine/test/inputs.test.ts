@@ -98,7 +98,7 @@ describe('createFeatureInstance', () => {
     expect(instance).toEqual({
       feature: 'TextFeature',
       id: '9',
-      inputs: { name: 'untitled', disable: false, text: 'Say what this part of the page is about in a sentence or two.' },
+      inputs: { name: 'untitled', disable: false, text: 'Say what this part of the page is about in a sentence or two.', data_resource: '', operation: '' },
       placement,
     })
     expect(instance.placement).not.toBe(placement)

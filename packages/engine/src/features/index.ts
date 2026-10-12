@@ -55,7 +55,7 @@ export { PanelFeature } from './panel.js'
 export { SeparatorFeature } from './separator.js'
 export { columnsFromRows, defaultOperation, fieldLabel, withInputs } from './sources.js'
 export { TableFeature } from './table.js'
-export { TextFeature } from './text.js'
+export { parseBindings, TextFeature } from './text.js'
 export { TextWithParagraphFeature } from './text-with-paragraph.js'
 export { isThemeExports, matchingPreset, ThemeFeature, themeInputs, themeParams, type ThemeExports } from './theme.js'
 

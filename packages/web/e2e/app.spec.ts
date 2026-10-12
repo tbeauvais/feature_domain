@@ -15,6 +15,8 @@ isolateNetwork((route, url) => {
   }
   if (url.hostname !== 'api.github.com') return undefined
   const user = url.pathname.split('/')[2]
+  // A user's profile (Data Sample's line above the repo table reads it); anything else is their repos.
+  if (/^\/users\/[^/]+$/.test(url.pathname)) return route.fulfill({ json: { login: user, public_repos: 30, followers: 12 } })
   return route.fulfill({
     json: [
       { name: `${user}-engine`, description: 'Parametric engine', language: 'TypeScript', updated_at: '2015-03-07T10:00:00Z', html_url: `https://github.com/${user}/engine` },
@@ -143,6 +145,9 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
   expect((await badge.boundingBox())!.width).toBeLessThan(120)
   await expect(table.locator('.fd-table-wrap')).toHaveCSS('max-height', 'none')
   await page.getByTestId('canvas-width-desktop').click()
+
+  // A text reads values from Tom's GitHub profile, live.
+  await expect(canvas.locator('.fd-text', { hasText: 'Tom has' })).toHaveText('Tom has 30 public repos and 12 followers on GitHub.')
 
   // The weather texts that read Yahoo's dead service are Weather cards now, beside the maps; nothing overflows its cell.
   await expect(canvas.locator('[data-feature-id="2"] .fd-heading')).toHaveText('Guilford, Connecticut')

@@ -1,4 +1,4 @@
-import { defaultRegistry, migrate, referencedIds, type AppModel, type FeatureInstance, type IllustrationId } from '@feature-domain/engine'
+import { defaultRegistry, migrate, nextInstanceId, referencedIds, type AppModel, type FeatureInstance, type IllustrationId } from '@feature-domain/engine'
 
 // The legacy sample models from the repository root, migrated to v2. Seeded into browser storage on first use.
 const legacyModels = import.meta.glob<unknown>('../../../../app_models/*.json', { eager: true, import: 'default' })
@@ -12,8 +12,9 @@ const legacySample = import.meta.glob<unknown>('../../../../sample.json', { eage
  * answers with sample sales. 7: its sales chart is titled and drawn as columns (better for comparing people than a pie).
  * 8: its Add Sale form requires a name and an amount (the spec requires neither). 9: its amounts show as dollars.
  * 10: the weather texts reading Yahoo's dead service become Weather cards, and the Yahoo resources go.
+ * 11: Data Sample says live how many public repos and followers Tom has, above his repo table.
  */
-export const SAMPLES_VERSION = 10
+export const SAMPLES_VERSION = 11
 
 /** The samples' GitHub repo tables, exactly as migrated, and what they become. */
 const LEGACY_REPO_TABLE = { fields: ['name', 'description', 'language', 'updated_at'], filters: ['uppercase', 'dataLink :data.html_url', '', 'date'] }
@@ -37,12 +38,56 @@ const SAMPLE_SALES = [
  */
 const yahooText = (resource: string) =>
   `Temp {{DataResource.${resource}.query.results.channel.item.condition.temp}} degrees. {{DataResource.${resource}.query.results.channel.item.condition.text}}`
-const LEGACY_WEATHER_TEXTS: Readonly<Record<string, Record<string, string>>> = {
-  [yahooText('WeatherService')]: { place: 'Guilford, Connecticut', latitude: '41.2890', longitude: '-72.6818' },
-  [yahooText('WeatherServiceFL')]: { place: 'Palm Beach, Florida', latitude: '26.7056', longitude: '-80.0364' },
+const GUILFORD = { place: 'Guilford, Connecticut', latitude: '41.2890', longitude: '-72.6818' }
+const PALM_BEACH = { place: 'Palm Beach, Florida', latitude: '26.7056', longitude: '-80.0364' }
+/** As stored before data values in text: the bindings as written. */
+const LEGACY_WEATHER_TEXTS: Readonly<Record<string, Record<string, string>>> = { [yahooText('WeatherService')]: GUILFORD, [yahooText('WeatherServiceFL')]: PALM_BEACH }
+/** As migrated since: values of the Yahoo resource the text reads, whose Yahoo place id (woeid) says where. */
+const MIGRATED_WEATHER_TEXT = 'Temp {{query.results.channel.item.condition.temp}} degrees. {{query.results.channel.item.condition.text}}'
+const WEATHER_PLACES: Readonly<Record<string, Record<string, string>>> = { '2415484': GUILFORD, '91560673': PALM_BEACH }
+const YAHOO_WEATHER = 'https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast'
+const isYahooWeather = (f: FeatureInstance) => f.feature === 'DataResourceFeature' && typeof f.inputs.resource === 'string' && f.inputs.resource.startsWith(YAHOO_WEATHER)
+
+/** The Weather card a sample's weather text becomes, if it is one. */
+function weatherPlace(text: FeatureInstance, features: readonly FeatureInstance[]): Record<string, string> | undefined {
+  const value = text.inputs.text
+  if (typeof value !== 'string') return undefined
+  if (Object.hasOwn(LEGACY_WEATHER_TEXTS, value)) return LEGACY_WEATHER_TEXTS[value]
+  if (value !== MIGRATED_WEATHER_TEXT) return undefined
+  const resource = features.find((f) => f?.id === text.inputs.data_resource)
+  if (!resource || typeof resource.inputs !== 'object' || resource.inputs === null || !isYahooWeather(resource)) return undefined
+  const woeid = /woeid%20%3D%20(\d+)/.exec(String(resource.inputs.resource))?.[1]
+  return woeid !== undefined && Object.hasOwn(WEATHER_PLACES, woeid) ? WEATHER_PLACES[woeid] : undefined
 }
-const isYahooWeather = (f: FeatureInstance) =>
-  f.feature === 'DataResourceFeature' && typeof f.inputs.resource === 'string' && f.inputs.resource.startsWith('https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast')
+
+/** Data Sample's repos of Tom's, and his GitHub profile, which a text above the repo table reads values from. */
+const TOMS_REPOS = 'https://api.github.com/users/tbeauvais/repos?per_page=5'
+const TOMS_PROFILE = 'https://api.github.com/users/tbeauvais'
+const PROFILE_TEXT = 'Tom has {{public_repos}} public repos and {{followers}} followers on GitHub.'
+
+/**
+ * A sample with Tom's repo table but not yet his profile gets the profile as a data resource and a text reading it,
+ * placed just before the panel holding the table.
+ */
+function withProfileText(model: AppModel): AppModel {
+  const features = model.features
+  const isResource = (f: FeatureInstance, url: string) => f?.feature === 'DataResourceFeature' && typeof f.inputs === 'object' && f.inputs !== null && f.inputs.resource === url
+  const repos = features.find((f) => isResource(f, TOMS_REPOS))
+  if (!repos || features.some((f) => isResource(f, TOMS_PROFILE))) return model
+  const table = features.find((f) => f?.feature === 'TableFeature' && f.inputs?.data_resource === repos.id)
+  const panel = table?.placement && features.find((f) => f?.id === table.placement!.parent && f.feature === 'PanelFeature')
+  if (!panel?.placement) return model
+  const profileId = nextInstanceId(model)
+  const profile: FeatureInstance = { feature: 'DataResourceFeature', id: profileId, inputs: { name: "Tom's Profile", resource: TOMS_PROFILE, operation: 'GET' } }
+  const text: FeatureInstance = {
+    feature: 'TextFeature',
+    id: String(Number(profileId) + 1),
+    inputs: { name: 'Repo count', text: PROFILE_TEXT, data_resource: profileId },
+    placement: { ...panel.placement },
+  }
+  const at = features.indexOf(panel)
+  return { ...model, features: [...features.slice(0, at), profile, text, ...features.slice(at)] }
+}
 
 /** Sample texts with typos from the legacy samples, and their fixes. */
 const TEXT_FIXES: Readonly<Record<string, string>> = { 'Here is some content for ya...gfdgfd': 'Here is some content for ya...' }
@@ -64,8 +109,9 @@ const LEGACY_HEADERS: Readonly<Record<string, IllustrationId>> = {
  * - Image features still showing one of the legacy header photos as a link show the matching banner instead, full
  *   width and short (the photos were 150px tall), described by its own alt text. The address stays, so switching
  *   Source back to Link restores it.
- * - Text features still exactly the samples' Yahoo weather texts become Weather cards for the place beside them, in the
+ * - Text features still exactly the samples' Yahoo weather texts (as written, or as migrated to values) become Weather cards for the place beside them, in the
  *   same place on the page; data resources reading Yahoo's weather that nothing references are removed.
+ * - A sample with Tom's repo table gets his GitHub profile and a text reading values from it, above the table.
  */
 export function upgradeSample(stored: AppModel): AppModel {
   if (!Array.isArray(stored.features)) return stored
@@ -78,20 +124,10 @@ export function upgradeSample(stored: AppModel): AppModel {
     return stored
   }
   let changed = false
-  // Yahoo weather resources nothing points at (texts bound to them by name, which the step below replaces).
-  const referenced = new Set(
-    model.features.flatMap((f) => {
-      const def = typeof f?.inputs === 'object' && f.inputs !== null ? defaultRegistry.get(f.feature) : undefined
-      return def ? referencedIds(def, f.inputs).map((r) => r.id) : []
-    }),
-  )
-  const unused = model.features.filter((f) => typeof f?.inputs === 'object' && f.inputs !== null && isYahooWeather(f) && !referenced.has(f.id))
-  if (unused.length > 0) changed = true
-  const features = model.features.filter((f) => !unused.includes(f)).map((f) => {
+  const upgraded = model.features.map((f) => {
     if (typeof f?.inputs !== 'object' || f.inputs === null) return f
     if (f.feature === 'TextFeature') {
-      const text = f.inputs.text
-      const place = typeof text === 'string' && Object.hasOwn(LEGACY_WEATHER_TEXTS, text) ? LEGACY_WEATHER_TEXTS[text] : undefined
+      const place = weatherPlace(f, model.features)
       if (!place) return f
       changed = true
       const weather: FeatureInstance = { feature: 'WeatherFeature', id: f.id, inputs: { name: 'Weather', ...place, units: 'fahrenheit', show: 'forecast' } }
@@ -153,7 +189,16 @@ export function upgradeSample(stored: AppModel): AppModel {
     }
     return f
   })
-  return changed ? { ...model, features } : model
+  // Yahoo weather resources nothing points at any more (their texts became Weather cards above) go.
+  const referenced = new Set(
+    upgraded.flatMap((f) => {
+      const def = typeof f?.inputs === 'object' && f.inputs !== null ? defaultRegistry.get(f.feature) : undefined
+      return def ? referencedIds(def, f.inputs).map((r) => r.id) : []
+    }),
+  )
+  const features = upgraded.filter((f) => !(typeof f?.inputs === 'object' && f.inputs !== null && isYahooWeather(f) && !referenced.has(f.id)))
+  if (features.length !== upgraded.length) changed = true
+  return withProfileText(changed ? { ...model, features } : model)
 }
 
 export function sampleModels(): AppModel[] {

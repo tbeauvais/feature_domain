@@ -95,6 +95,8 @@
   max-width: 68ch;
   color: var(--fd-text);
 }
+/* A value from data that isn't there: "—" on the page, its {{binding}} on the editor canvas. */
+.fd-text-missing { color: var(--fd-muted); text-decoration: underline dashed; text-underline-offset: 0.2em; }
 
 /* Headings: display face; sizes follow the theme's modular scale. */
 .fd-heading {
