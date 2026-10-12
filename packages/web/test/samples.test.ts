@@ -148,6 +148,36 @@ describe('upgradeSample', () => {
     expect(upgraded.features[1]).toMatchObject({ feature: 'WeatherFeature', id: 't', inputs: { disable: true, place: 'Palm Beach, Florida' }, placement: { parent: '1', slot: 'content' } })
   })
 
+  it('gives Data Sample a line reading Tom\'s GitHub profile, just above his repo table', () => {
+    const sample = sampleModels().find((m) => m.name === 'Data Sample')!
+    const ids = sample.features.map((f) => f.id)
+    const profile = sample.features.find((f) => f.inputs.resource === 'https://api.github.com/users/tbeauvais')!
+    const line = sample.features.find((f) => f.inputs.name === 'Repo count')!
+    expect(profile).toMatchObject({ feature: 'DataResourceFeature', inputs: { name: "Tom's Profile", operation: 'GET' } })
+    expect(profile.placement).toBeUndefined()
+    expect(line).toMatchObject({ feature: 'TextFeature', inputs: { text: 'Tom has {{public_repos}} public repos and {{followers}} followers on GitHub.', data_resource: profile.id }, placement: { parent: '15', slot: 'content' } })
+    // The resource first (dependencies come first), then the line, just before the panel holding the repo table.
+    expect(ids.indexOf(profile.id)).toBe(ids.indexOf(line.id) - 1)
+    expect(ids.indexOf(line.id)).toBe(ids.indexOf('36') - 1)
+    expect(new Set(ids).size).toBe(ids.length)
+    const { root, diagnostics } = generate(sample)
+    expect(diagnostics.filter((d) => d.featureInstanceId === line.id || d.featureInstanceId === profile.id)).toEqual([])
+    const nodes: DocNode[] = []
+    walkNodes(root, (n) => nodes.push(n))
+    expect(nodes.find((n) => n.featureInstanceId === line.id)!.props).toMatchObject({ data: { source: { endPoint: 'https://api.github.com/users/tbeauvais' } } })
+    // Only that sample gets it.
+    expect(sampleModels().filter((m) => m.features.some((f) => f.inputs.name === 'Repo count')).map((m) => m.name)).toEqual(['Data Sample'])
+  })
+
+  it('adds the profile line once, and not to a model whose repo table isn\'t in a panel', () => {
+    const repos = inst('DataResourceFeature', 'r', { name: 'TomsRepos', resource: 'https://api.github.com/users/tbeauvais/repos?per_page=5', operation: 'GET' }, null)
+    const loose = model(page(), repos, inst('TableFeature', 't', { data_resource: 'r' }))
+    expect(upgradeSample(loose)).toBe(loose)
+    const once = upgradeSample(model(page(), repos, inst('PanelFeature', 'p'), inst('TableFeature', 't', { data_resource: 'r' }, { parent: 'p', slot: 'body' })))
+    expect(once.features.filter((f) => f.inputs.name === 'Repo count')).toHaveLength(1)
+    expect(upgradeSample(once)).toBe(once)
+  })
+
   const header = 'http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg'
 
   it('turns a legacy header photo into its banner, keeping the address for switching back', () => {

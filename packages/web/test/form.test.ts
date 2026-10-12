@@ -132,6 +132,20 @@ describe('Form on an address', () => {
     w.unmount()
   })
 
+  it('reloads a text reading the resource too, after sending', async () => {
+    const fetchJson = vi.fn<FetchJson>(async () => [{ name: 'Rex' }])
+    const w = render(model(pets, page(), inst('FormFeature', 'f', { data_resource: 's' }), inst('TextFeature', 'x', { text: '{{length}} pets', data_resource: 's', operation: 'GET /owners/{owner}/pets' })), fetchJson)
+    await flushPromises()
+    expect(fetchJson).toHaveBeenCalledTimes(1)
+    fetchJson.mockResolvedValue([{ name: 'Rex' }, { name: 'Tom' }])
+    await fill(w, { Owner: 'tom', Name: 'Tom', Age: '2' })
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(fetchJson).toHaveBeenCalledTimes(2)
+    expect(w.get('[data-feature-id="x"]').text()).toBe('2 pets')
+    w.unmount()
+  })
+
   it('says what went wrong, naming the site', async () => {
     const w = render(model(pets, page(), inst('FormFeature', 'f', { data_resource: 's' })), async () => [], async () => {
       throw new Error('500 Server Error')

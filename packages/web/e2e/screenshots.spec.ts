@@ -9,11 +9,12 @@ test.skip(process.platform !== 'linux', 'Screenshots are compared on Linux only;
 
 const PHOTO = readFileSync(new URL('./fixtures/photo.png', import.meta.url))
 
-// Sample photos from other sites become one flat local picture, GitHub returns fixed rows and Open-Meteo fixed weather, so
+// Sample photos from other sites become one flat local picture, GitHub returns fixed rows and profiles, and Open-Meteo fixed weather, so
 // every run looks the same.
 isolateNetwork((route, url) => {
   if (url.hostname === 'api.github.com') {
     const user = url.pathname.split('/')[2]
+    if (/^\/users\/[^/]+$/.test(url.pathname)) return route.fulfill({ json: { login: user, public_repos: 30, followers: 12 } })
     return route.fulfill({
       json: [
         { name: `${user}-engine`, description: 'Parametric engine', language: 'TypeScript', updated_at: '2015-03-07T10:00:00Z', html_url: `https://github.com/${user}/engine` },

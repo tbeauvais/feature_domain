@@ -55,7 +55,7 @@ export class DataStore {
     private readonly modelId?: string,
     private readonly storage?: SampleRowsStorage,
     private readonly sendRequest: SendRequest = browserSendRequest,
-    private readonly live = true,
+    readonly live = true,
   ) {
     const stored = this.storageKey ? this.read(this.storageKey) : undefined
     if (stored) this.restore(stored)
@@ -161,6 +161,25 @@ export class DataStore {
     return computed((): FetchState => {
       if (endPoint.value === undefined) return { status: 'idle' }
       const state = (this.fetched.get(endPoint.value) ?? this.entry(endPoint.value)).state.value
+      return state.status === 'idle' ? { status: 'loading' } : state
+    })
+  }
+
+  /**
+   * A source's whole answer as it loads, for values read out of it (a Text's {{path}}): the JSON at its address, or for
+   * sample data its rows with any added since.
+   */
+  answer(source: Ref<DataSource | undefined>): ComputedRef<FetchState> {
+    // Read through the resource like a table's rows, so a change made through it (a Form's send) reloads this too.
+    this.track(
+      () => (source.value && !source.value.rows ? source.value.endPoint : undefined),
+      () => source.value?.feature,
+    )
+    return computed((): FetchState => {
+      const s = source.value
+      if (!s) return { status: 'idle' }
+      if (s.rows) return { status: 'loaded', response: [...s.rows, ...(this.added.value[s.feature] ?? [])] }
+      const state = (this.fetched.get(s.endPoint) ?? this.entry(s.endPoint)).state.value
       return state.status === 'idle' ? { status: 'loading' } : state
     })
   }

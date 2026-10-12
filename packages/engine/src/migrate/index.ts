@@ -43,6 +43,8 @@ interface Context {
   note(code: MigrationNoteCode, severity: MigrationNote['severity'], message: string): void
   /** Instance id of the first data resource with this legacy name. */
   resourceId(name: string): string | undefined
+  /** Instance id of the first data resource a legacy `{{DataResource.<name>…}}` binding names (its name without spaces). */
+  boundResourceId(name: string): string | undefined
   /** Name and operation names of a migrated DataResource, when they are known without fetching anything. */
   resourceOperations(id: string): { name: string; operations: string[] } | undefined
   /** The legacy instance's cache (e.g. the Swagger spec the legacy app fetched and kept). */
@@ -158,7 +160,7 @@ export function migrate(input: unknown): MigrationResult {
       return []
     }
     const cache = isNonEmptyObject(raw.cache) ? (raw.cache as Raw) : {}
-    const ctx: Context = { note, resourceId: (name) => resources.get(name), resourceOperations: (rid) => operations.get(rid), cache }
+    const ctx: Context = { note, resourceId: (name) => resources.get(name), boundResourceId: (name) => boundResource(resources, name), resourceOperations: (rid) => operations.get(rid), cache }
     const migrateInputs = Object.hasOwn(INPUTS, feature) ? INPUTS[feature] : undefined
     const out: FeatureInstance = { feature, id, inputs: migrateInputs ? migrateInputs(inputs, ctx) : scalarInputs(inputs) }
 
@@ -274,7 +276,7 @@ function pendingLegacy(f: FeatureInstance): Raw | undefined {
 }
 
 function upgrade(model: AppModel): MigrationResult {
-  if (!model.features.some((f) => isDropped(f.feature) || pendingLegacy(f) || upgradeInputs(f, () => {}))) return { model, notes: [] }
+  if (!model.features.some((f) => isDropped(f.feature) || pendingLegacy(f) || upgradeInputs(f, () => {}) || unboundLegacyText(f))) return { model, notes: [] }
   const notes: MigrationNote[] = []
   const legacyInputs = (f: FeatureInstance): Raw => {
     const raw = pendingLegacy(f)?.inputs
@@ -300,11 +302,17 @@ function upgrade(model: AppModel): MigrationResult {
       return []
     }
     if (!legacy) {
+      // A Text stored before values from data, still holding legacy bindings: mapped as a legacy model's would be.
+      const bound = unboundLegacyText(f) ? legacyBindings(String(f.inputs.text), { boundResourceId: (name) => boundResource(resources, name) }) : undefined
+      if (bound) {
+        note('mapped-input', 'info', `The text's {{DataResource.${bound.name}…}} values read data resource ${bound.resourceId} now, as {{path}}`)
+        return [{ ...f, inputs: { ...f.inputs, text: bound.text, data_resource: bound.resourceId } }]
+      }
       const inputs = upgradeInputs(f, note)
       return inputs ? [{ ...f, inputs }] : [f]
     }
     const cache = isNonEmptyObject(legacy.cache) ? (legacy.cache as Raw) : {}
-    const ctx: Context = { note, resourceId: (name) => resources.get(name), resourceOperations: (rid) => operations.get(rid), cache }
+    const ctx: Context = { note, resourceId: (name) => resources.get(name), boundResourceId: (name) => boundResource(resources, name), resourceOperations: (rid) => operations.get(rid), cache }
     const out: FeatureInstance = { feature: f.feature, id: f.id, inputs: INPUTS[f.feature]!(legacyInputs(f), ctx) }
     // Placement was resolved when the model was first migrated (unported features were placed too).
     if (f.placement && !DATA_RESOURCE_TYPES.includes(f.feature)) out.placement = f.placement
@@ -313,7 +321,14 @@ function upgrade(model: AppModel): MigrationResult {
     note('upgraded-feature', 'info', `${f.feature} is ported now; migrated from the legacy settings kept in cache.legacy`)
     return [out]
   })
+  // Legacy bindings that name no data resource change nothing: the same model comes back.
+  if (notes.length === 0 && features.length === model.features.length && features.every((f, i) => f === model.features[i])) return { model, notes: [] }
   return { model: { ...model, features }, notes }
+}
+
+/** A Text with no Data Resource whose text still has legacy {{DataResource.…}} bindings. */
+function unboundLegacyText(f: FeatureInstance): boolean {
+  return f.feature === 'TextFeature' && !f.inputs.data_resource && typeof f.inputs.text === 'string' && f.inputs.text.includes('{{') && f.inputs.text.includes('DataResource.')
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -326,7 +341,15 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     return { name: str(i.name), background_image: str(i.background_image) }
   },
 
-  TextFeature: (i, ctx) => ({ name: str(i.name), disable: disable(i.disable, ctx), text: text(i.text, ctx) }),
+  // Legacy bindings ({{DataResource.Name.path}}) read a data resource's whole answer; one resource's become values.
+  TextFeature: (i, ctx) => {
+    const out: Record<string, InputValue> = { name: str(i.name), disable: disable(i.disable, ctx) }
+    const bound = legacyBindings(str(i.text), ctx)
+    if (!bound) return { ...out, text: text(i.text, ctx) }
+    ctx.note('mapped-input', 'info', `The text's {{DataResource.${bound.name}…}} values read data resource ${bound.resourceId} now, as {{path}}`)
+    if (/<[a-z!/]/i.test(bound.text)) ctx.note('markup-in-text', 'warning', 'Text contains HTML markup, which the legacy app rendered as HTML; it now renders as plain text')
+    return { ...out, text: bound.text, data_resource: bound.resourceId }
+  },
 
   HeaderFeature: (i, ctx) => ({
     name: str(i.name),
@@ -570,9 +593,36 @@ function int(value: unknown, name: string, fallback: number, ctx: Context): numb
 /** Legacy features injected text as raw HTML. v2 renders plain text, so flag anything that relied on HTML. */
 function text(value: unknown, ctx: Context): string {
   const s = str(value)
-  if (s.includes('{{')) ctx.note('data-binding', 'warning', 'Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported')
+  if (s.includes('{{')) ctx.note('data-binding', 'warning', 'Text contains a legacy {{...}} data binding; it shows as written (only a Text feature whose bindings all read one data resource gets values from data)')
   else if (/<[a-z!/]/i.test(s)) ctx.note('markup-in-text', 'warning', 'Text contains HTML markup, which the legacy app rendered as HTML; it now renders as plain text')
   return s
+}
+
+/** The first data resource whose name, without spaces, is `name` (how legacy bindings named resources). */
+function boundResource(resources: ReadonlyMap<string, string>, name: string): string | undefined {
+  for (const [resourceName, id] of resources) if (resourceName.replace(/\s+/g, '') === name) return id
+  return undefined
+}
+
+/**
+ * A legacy text whose every {{...}} binding reads one data resource (`DataResource.<name>.<path>`, optionally with a
+ * filter), rewritten as {{path}} values of that resource; undefined when it has none or reads anything else.
+ */
+function legacyBindings(text: string, ctx: Pick<Context, 'boundResourceId'>): { text: string; resourceId: string; name: string } | undefined {
+  const bindings = [...text.matchAll(/\{\{([^{}]*)\}\}/g)]
+  if (bindings.length === 0) return undefined
+  let name: string | undefined
+  const rewritten: string[] = []
+  for (const [, inner] of bindings) {
+    const match = /^\s*DataResource\.([A-Za-z_$][\w$]*)\.([\w$]+(?:\.[\w$]+)*)\s*(\|[^|]*)?$/.exec(inner!)
+    if (!match || (name !== undefined && match[1] !== name)) return undefined
+    name = match[1]!
+    rewritten.push(`{{${match[2]}${match[3] ? ` ${match[3].trim()}` : ''}}}`)
+  }
+  const resourceId = ctx.boundResourceId(name!)
+  if (resourceId === undefined) return undefined
+  let i = 0
+  return { text: text.replace(/\{\{([^{}]*)\}\}/g, () => rewritten[i++]!), resourceId, name: name! }
 }
 
 /** "get /path" -> "GET /path": operation names start with an uppercase HTTP method. */

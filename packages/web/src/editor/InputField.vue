@@ -194,6 +194,7 @@ function settle() {
       type="text"
       :class="field"
       :placeholder="def.placeholder"
+      :aria-describedby="def.hint ? `${id}-hint` : undefined"
       :value="text"
       @change="emit('change', ($event.target as HTMLInputElement).value)"
     />
@@ -204,8 +205,10 @@ function settle() {
       type="text"
       :class="field"
       :placeholder="def.placeholder"
+      :aria-describedby="def.hint ? `${id}-hint` : undefined"
       :value="text"
       @input="emit('change', ($event.target as HTMLInputElement).value)"
     />
+    <p v-if="def.hint" :id="`${id}-hint`" class="text-xs text-slate-500">{{ def.hint }}</p>
   </div>
 </template>

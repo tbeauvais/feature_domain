@@ -30,6 +30,8 @@ export interface InputDef {
   min?: number
   max?: number
   placeholder?: string
+  /** A line of help the editor shows under the input (e.g. the syntax a text's values use). */
+  hint?: string
   /** For `operation-select` inputs: the HTTP methods whose operations fit (e.g. GET for what a table lists). */
   methods?: readonly string[]
   /**

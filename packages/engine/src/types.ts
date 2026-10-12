@@ -124,6 +124,15 @@ export interface TableColumn {
 }
 
 /**
+ * Display filters a table column or a Text's value can name (`date`, `currency :EUR`, …); the web renderer applies them
+ * (`renderer/filters.ts`, which a test keeps in step with this list).
+ */
+export const VALUE_FILTERS = ['uppercase', 'lowercase', 'date', 'number', 'currency', 'badge', 'dataLink'] as const
+
+/** A run of a Text: literal text, or a value read at `path` from a data resource's answer (`binding`: as written). */
+export type TextPart = { text: string } | { path: string; filter?: string; binding: string }
+
+/**
  * Props for each node kind. Renderers map a kind to a component typed by these props. Other packages can add kinds
  * with declaration merging: `declare module '@feature-domain/engine' { interface NodeKinds { chart: ChartProps } }`.
  */
@@ -131,7 +140,11 @@ export interface NodeKinds {
   root: Record<string, never>
   /** `theme`: the tokens of the Theme the page references; absent means the default theme. */
   page: { theme?: ThemeTokens }
-  text: { text: string }
+  /**
+   * Plain text. With `data`, its `{{path}}` values are filled in at runtime from a data resource's answer: `parts` is the
+   * text split into literal runs and values (`path` read from the answer, shown through a table filter such as `date`).
+   */
+  text: { text: string; data?: { source: DataSource; parts: TextPart[] } }
   /** `color` and `background` are absent for the defaults (ink, none). */
   heading: { text: string; level: number; align: Align; color?: Exclude<HeadingColor, 'ink'>; background?: Exclude<HeadingBackground, 'none'> }
   image: { src: string; alt: string; width: string; height: string; responsive: boolean; align: Align }

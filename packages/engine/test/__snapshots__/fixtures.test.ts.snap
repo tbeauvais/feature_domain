@@ -33,14 +33,14 @@ exports[`app_models/buy_deal_sample.json > generates the golden document 1`] = `
       grid-cell #18.r2c1 <r2c1> {"row":2,"column":1}
         grid #19 [19] {"rows":1,"columns":2,"well":false}
           grid-cell #19.r1c1 <r1c1> {"row":1,"column":1}
-            text #2 [2] {"text":"Temp {{DataResource.WeatherService.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherService.query.results.channel.item.condition.text}}"}
+            text #2 [2] {"text":"Temp {{query.results.channel.item.condition.temp}} degrees. {{query.results.channel.item.condition.text}}","data":{"source":{"feature":"21","resource":"Weather Service","operation":"GET /v1/public/yql","endPoint":"https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%202415484&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys"},"parts":[{"text":"Temp "},{"path":"query.results.channel.item.condition.temp","binding":"{{query.results.channel.item.condition.temp}}"},{"text":" degrees. "},{"path":"query.results.channel.item.condition.text","binding":"{{query.results.channel.item.condition.text}}"}]}}
             card #6 [6]
               heading #6.title {"text":"Too Cold Here","level":4,"align":"left"}
               illustration #6.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
               paragraph #6.address {"text":"131 Willow Rd. Guilford, CT"}
               link #6.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=131%20Willow%20Rd.%20Guilford%2C%20CT","ariaLabel":"Open 131 Willow Rd. Guilford, CT in Google Maps"}
           grid-cell #19.r1c2 <r1c2> {"row":1,"column":2}
-            text #35 [35] {"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
+            text #35 [35] {"text":"Temp {{query.results.channel.item.condition.temp}} degrees. {{query.results.channel.item.condition.text}}","data":{"source":{"feature":"34","resource":"Weather Service FL","operation":"GET /v1/public/yql","endPoint":"https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%2091560673&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys"},"parts":[{"text":"Temp "},{"path":"query.results.channel.item.condition.temp","binding":"{{query.results.channel.item.condition.temp}}"},{"text":" degrees. "},{"path":"query.results.channel.item.condition.text","binding":"{{query.results.channel.item.condition.text}}"}]}}
             card #16 [16]
               heading #16.title {"text":"Where it's Warm","level":4,"align":"left"}
               illustration #16.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
@@ -74,9 +74,9 @@ exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 1`] =
 18 ContainerFeature @15/content {"name":"top container","disable":false,"rows":2,"columns":1,"well":true}
 20 HeaderFeature @18/r1c1 {"name":"container header","disable":false,"text":"Two New Locations","size":1,"align":"center","color":"accent","background":"none"}
 19 ContainerFeature @18/r2c1 {"name":"inner container","disable":false,"rows":1,"columns":2,"well":false}
-35 TextFeature @19/r1c2 {"name":"Weather Text","disable":false,"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
+35 TextFeature @19/r1c2 {"name":"Weather Text","disable":false,"text":"Temp {{query.results.channel.item.condition.temp}} degrees. {{query.results.channel.item.condition.text}}","data_resource":"34"}
 16 GoogleMapFeature @19/r1c2 {"name":"map","disable":false,"title":"Where it's Warm","address":"Palm Beach, FL"}
-2 TextFeature @19/r1c1 {"name":"Weather Text","disable":false,"text":"Temp {{DataResource.WeatherService.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherService.query.results.channel.item.condition.text}}"}
+2 TextFeature @19/r1c1 {"name":"Weather Text","disable":false,"text":"Temp {{query.results.channel.item.condition.temp}} degrees. {{query.results.channel.item.condition.text}}","data_resource":"21"}
 6 GoogleMapFeature @19/r1c1 {"name":"Home Map","disable":false,"title":"Too Cold Here","address":"131 Willow Rd. Guilford, CT"}
 10 TextWithParagraphFeature @15/content {"name":"Info","disable":false,"title":"Company Info","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
 11 ImageWithParagraphFeature @15/content {"name":"pet","disable":false,"title":"Our New Mascot","text":"La ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum olore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","alt":"","image_side":"left"}"
@@ -97,9 +97,9 @@ exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 2`] =
   "info dropped-input [28]: Dropped price "25.99", which the legacy app never showed",
   "info dropped-style [26]: Dropped legacy button styling (style "btn-warning"); it uses our own defaults and the theme",
   "info dropped-style [27]: Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme",
-  "warning data-binding [35]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
+  "info mapped-input [35]: The text's {{DataResource.WeatherServiceFL…}} values read data resource 34 now, as {{path}}",
   "info dropped-style [16]: Dropped legacy map styling (height "200", width "400"); it uses our own defaults and the theme",
-  "warning data-binding [2]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
+  "info mapped-input [2]: The text's {{DataResource.WeatherService…}} values read data resource 21 now, as {{path}}",
   "info dropped-style [6]: Dropped legacy map styling (height "200", width "400"); it uses our own defaults and the theme",
   "info dropped-style [10]: Dropped legacy panel styling (style "panel-warning"); it uses our own defaults and the theme",
   "info dropped-style [11]: Dropped legacy panel styling (style "panel-warning"); it uses our own defaults and the theme",
@@ -123,14 +123,14 @@ exports[`app_models/google_map_sample.json > generates the golden document 1`] =
       grid-cell #18.r2c1 <r2c1> {"row":2,"column":1}
         grid #19 [19] {"rows":1,"columns":2,"well":false}
           grid-cell #19.r1c1 <r1c1> {"row":1,"column":1}
-            text #2 [2] {"text":"Temp {{DataResource.WeatherService.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherService.query.results.channel.item.condition.text}}"}
+            text #2 [2] {"text":"Temp {{query.results.channel.item.condition.temp}} degrees. {{query.results.channel.item.condition.text}}","data":{"source":{"feature":"21","resource":"Weather Service","operation":"GET /v1/public/yql","endPoint":"https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%202415484&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys"},"parts":[{"text":"Temp "},{"path":"query.results.channel.item.condition.temp","binding":"{{query.results.channel.item.condition.temp}}"},{"text":" degrees. "},{"path":"query.results.channel.item.condition.text","binding":"{{query.results.channel.item.condition.text}}"}]}}
             card #6 [6]
               heading #6.title {"text":"Too Cold Here","level":4,"align":"left"}
               illustration #6.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
               paragraph #6.address {"text":"131 Willow Rd. Guilford, CT"}
               link #6.link {"text":"Open in Google Maps","href":"https://www.google.com/maps/search/?api=1&query=131%20Willow%20Rd.%20Guilford%2C%20CT","ariaLabel":"Open 131 Willow Rd. Guilford, CT in Google Maps"}
           grid-cell #19.r1c2 <r1c2> {"row":1,"column":2}
-            text #35 [35] {"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
+            text #35 [35] {"text":"Temp {{query.results.channel.item.condition.temp}} degrees. {{query.results.channel.item.condition.text}}","data":{"source":{"feature":"34","resource":"Weather Service FL","operation":"GET /v1/public/yql","endPoint":"https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%2091560673&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys"},"parts":[{"text":"Temp "},{"path":"query.results.channel.item.condition.temp","binding":"{{query.results.channel.item.condition.temp}}"},{"text":" degrees. "},{"path":"query.results.channel.item.condition.text","binding":"{{query.results.channel.item.condition.text}}"}]}}
             card #16 [16]
               heading #16.title {"text":"Where it's Warm","level":4,"align":"left"}
               illustration #16.map {"name":"banner/map","alt":"","width":"","align":"center","aspect":2}
@@ -182,9 +182,9 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 1`]
 7 ListFeature @12/r1c1 {"name":"Color list","disable":false,"items":["Red","Green","Blue","Yellow"],"align":"center"}
 20 HeaderFeature @18/r1c1 {"name":"container header","disable":false,"text":"Two New Locations","size":1,"align":"center","color":"accent","background":"none"}
 19 ContainerFeature @18/r2c1 {"name":"inner container","disable":false,"rows":1,"columns":2,"well":false}
-35 TextFeature @19/r1c2 {"name":"Weather Text","disable":false,"text":"Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}"}
+35 TextFeature @19/r1c2 {"name":"Weather Text","disable":false,"text":"Temp {{query.results.channel.item.condition.temp}} degrees. {{query.results.channel.item.condition.text}}","data_resource":"34"}
 16 GoogleMapFeature @19/r1c2 {"name":"map","disable":false,"title":"Where it's Warm","address":"Palm Beach, FL"}
-2 TextFeature @19/r1c1 {"name":"Weather Text","disable":false,"text":"Temp {{DataResource.WeatherService.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherService.query.results.channel.item.condition.text}}"}
+2 TextFeature @19/r1c1 {"name":"Weather Text","disable":false,"text":"Temp {{query.results.channel.item.condition.temp}} degrees. {{query.results.channel.item.condition.text}}","data_resource":"21"}
 6 GoogleMapFeature @19/r1c1 {"name":"Home Map","disable":false,"title":"Too Cold Here","address":"131 Willow Rd. Guilford, CT"}
 10 TextWithParagraphFeature @15/content {"name":"Info","disable":false,"title":"Company Info","text":"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
 11 ImageWithParagraphFeature @15/content {"name":"pet","disable":false,"title":"Our New Mascot","text":"La ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum olore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","src":"http://a-z-animals.com/media/animals/images/original/capybara3.jpg","alt":"","image_side":"left"}
@@ -199,9 +199,9 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 2`]
   "info dropped-style [27]: Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme",
   "info dropped-style [36]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
   "info dropped-style [39]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
-  "warning data-binding [35]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
+  "info mapped-input [35]: The text's {{DataResource.WeatherServiceFL…}} values read data resource 34 now, as {{path}}",
   "info dropped-style [16]: Dropped legacy map styling (height "200", width "400"); it uses our own defaults and the theme",
-  "warning data-binding [2]: Text contains a legacy {{...}} data binding; it renders as plain text until data bindings are supported",
+  "info mapped-input [2]: The text's {{DataResource.WeatherService…}} values read data resource 21 now, as {{path}}",
   "info dropped-style [6]: Dropped legacy map styling (height "200", width "400"); it uses our own defaults and the theme",
   "info dropped-style [10]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
   "info dropped-style [11]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
