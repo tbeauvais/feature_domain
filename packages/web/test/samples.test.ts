@@ -7,7 +7,7 @@ describe('sampleModels', () => {
   const samples = sampleModels()
 
   it('migrates every legacy sample in the repository', () => {
-    expect(samples.map((m) => m.name)).toEqual(['Getting Started', 'Buy Deal', 'Data Sample', 'Swagger Data Sample', 'Watson Sample'])
+    expect(samples.map((m) => m.name)).toEqual(['Getting Started', 'Buy Deal', 'Data Sample', 'Swagger Data Sample'])
     for (const m of samples) expect(m.version).toBe(2)
   })
 
@@ -28,7 +28,6 @@ describe('sampleModels', () => {
     // The maps (ported from Google Maps) are our street-map drawing.
     expect(kinds('Data Sample')).toEqual(['banner/blueprint', 'banner/map', 'banner/map', 'image', 'image'])
     expect(kinds('Buy Deal')).toEqual(['banner/shapes', 'banner/map', 'banner/map', 'image'])
-    expect(kinds('Watson Sample')).toEqual(['banner/data-dots'])
   })
 })
 

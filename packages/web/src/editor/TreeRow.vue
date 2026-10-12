@@ -34,7 +34,7 @@ const badge: Record<string, string> = {
   unknown: 'bg-slate-100 text-slate-600',
   suppressed: 'bg-slate-100 text-slate-500',
 }
-const badgeText: Record<string, string> = { skipped: 'skipped', unknown: 'not ported', suppressed: 'suppressed' }
+const badgeText: Record<string, string> = { skipped: 'skipped', unknown: 'unknown type', suppressed: 'suppressed' }
 const selected = computed(() => store.selectedId === props.item.id)
 </script>
 

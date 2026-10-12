@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DocNodeOf } from '@feature-domain/engine'
 
-// Editor-only: a feature that is on the page but produced nothing (not ported yet, or skipped by a problem).
+// Editor-only: a feature that is on the page but produced nothing (an unknown feature type, or skipped by a problem).
 defineProps<{ node: DocNodeOf<'placeholder'> }>()
 </script>
 

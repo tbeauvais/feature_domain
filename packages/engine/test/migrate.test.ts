@@ -413,7 +413,7 @@ describe('migrate: upgrading v2 models when features get ported', () => {
     expect(migrate(stored).model).toBe(stored)
   })
 
-  it.each(['sample.json', 'app_models/buy_deal_sample.json', 'app_models/google_map_sample.json', 'app_models/swagger_resource_sample.json', 'app_models/watson_sample.json'])(
+  it.each(['sample.json', 'app_models/buy_deal_sample.json', 'app_models/google_map_sample.json', 'app_models/swagger_resource_sample.json'])(
     'upgrading any feature migrated before it was ported gives the same model as migrating today (%s)',
     async (path) => {
       const { readFileSync } = await import('node:fs')
@@ -490,5 +490,47 @@ describe('migrate: text and image with paragraph, list group', () => {
       [[], 'Only one'],
       [[], ''],
     ])
+  })
+})
+
+describe('migrate: features dropped for good', () => {
+  const watson: Legacy = { feature: 'WatsonTextToSpeechFeature', id: '3', inputs: { name: 'Text 2 Speech', text: 'Hello', voice: 'VoiceEnUsLisa', ...loc('#page_container') } }
+  const script: Legacy = { feature: 'ScriptTestFeature', id: '4', inputs: { name: 'Script', script: 'alert(1)', ...loc('#page_container') } }
+  const text: Legacy = { feature: 'TextFeature', id: '5', inputs: { name: 'Text', text: 'Stays', ...loc('#page_container') } }
+
+  it('removes Watson Text to Speech and ScriptTest from legacy models, saying why', () => {
+    const r = run(legacyPage, watson, script, text)
+    expect(r.model.features.map((f) => f.id)).toEqual(['15', '5'])
+    expect(r.notes.filter((n) => n.code === 'dropped-feature').map((n) => [n.featureInstanceId, n.severity, n.message])).toEqual([
+      ['3', 'warning', "Removed WatsonTextToSpeechFeature: it spoke a fixed text through IBM's Watson Text to Speech service, which is gone; browsers and screen readers read pages aloud themselves"],
+      ['4', 'warning', 'Removed ScriptTestFeature: it ran a script built from its inputs, which pages never do'],
+    ])
+    expect(JSON.stringify(r.model)).not.toMatch(/alert|VoiceEnUs/)
+  })
+
+  it('notes them in model order, and lets a feature sharing a dropped one\'s id keep it', () => {
+    const header: Legacy = { feature: 'HeaderFeature', id: '6', inputs: { name: 'H', text: 'Hi', text_style: 'text-success', ...loc('#page_container') } }
+    const r = run(legacyPage, header, watson, { ...text, id: '3' })
+    expect(r.model.features.map((f) => [f.feature, f.id])).toEqual([['PageFeature', '15'], ['HeaderFeature', '6'], ['TextFeature', '3']])
+    expect(notes(r).filter((n) => /^(mapped-style|dropped-feature):/.test(n))).toEqual(['mapped-style:6', 'dropped-feature:3'])
+  })
+
+  it('removes them from v2 models that stored them while they were unported', () => {
+    // Before they were dropped, unported features were kept with their legacy instance in cache.
+    const stored: AppModel = {
+      version: 2,
+      name: 'Stored',
+      features: [
+        { feature: 'PageFeature', id: '15', inputs: { name: 'Page' }, placement: { parent: ROOT_ID, slot: 'content' } },
+        { feature: 'WatsonTextToSpeechFeature', id: '3', inputs: { name: 'Text 2 Speech', text: 'Hello' }, placement: { parent: '15', slot: 'content' }, cache: { legacy: watson } },
+      ],
+    }
+    const r = migrate(deepFreeze(stored))
+    expect(r.model.features.map((f) => f.id)).toEqual(['15'])
+    expect(notes(r)).toEqual(['dropped-feature:3'])
+    expect(migrate(r.model).model).toBe(r.model)
+    // Without the legacy instance in cache too (e.g. a model written by hand).
+    const bare: AppModel = { ...stored, features: [stored.features[0]!, { ...stored.features[1]!, cache: {} }] }
+    expect(migrate(bare).model.features.map((f) => f.id)).toEqual(['15'])
   })
 })

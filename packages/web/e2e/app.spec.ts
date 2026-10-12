@@ -38,7 +38,6 @@ test('lists the migrated sample models', async ({ page }) => {
     'Buy Deal',
     'Data Sample',
     'Swagger Data Sample',
-    'Watson Sample',
   ])
 })
 
@@ -200,10 +199,10 @@ test('draws built-in illustrations in the theme\'s colors, in the editor and the
 })
 
 test('opens the standalone preview in a new tab', async ({ page, context }) => {
-  const id = await openSample(page, 'Watson Sample')
+  const id = await openSample(page, 'Buy Deal')
   const [preview] = await Promise.all([context.waitForEvent('page'), page.getByTestId('open-preview').click()])
   await expect(preview).toHaveURL(`/preview.html?model=${encodeURIComponent(id)}`)
-  await expect(preview.getByRole('heading', { name: "Leverage IBM's Watson Services" })).toBeVisible()
+  await expect(preview.getByRole('heading', { name: 'Two New Locations' })).toBeVisible()
   await expect(preview.getByText('Feature Domain')).toHaveCount(0)
 })
 
@@ -273,7 +272,7 @@ const SAMPLES: { name: string; ready: (target: Page) => Promise<void> }[] = [
       await expect(target.locator('.fd-weather-temp')).toHaveCount(2)
     },
   },
-  // A table and a chart in card panels, one beside a placeholder (its unported Form) in the editor only.
+  // A table and a chart in card panels, and the Add Sale form.
   {
     name: 'Swagger Data Sample',
     ready: async (target) => {

@@ -52,7 +52,6 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 const LEGACY_HEADERS: Readonly<Record<string, IllustrationId>> = {
   'http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg': 'banner/blueprint',
   'https://www.nard.ma/images/english/web-application-header.jpg': 'banner/shapes',
-  'http://www.dotpod.com.ar/wp-content/uploads/ibm-silvergate-argentina-02-710x242.jpg': 'banner/data-dots',
 }
 
 /**

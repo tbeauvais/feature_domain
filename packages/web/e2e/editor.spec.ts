@@ -114,7 +114,7 @@ test('creates and deletes models', async ({ page }) => {
   await page.getByTestId('delete-model').click()
   await page.getByTestId('confirm-dialog').getByTestId('confirm-ok').click()
   await expect(page).toHaveURL('/')
-  await expect(page.getByTestId('model-list').getByRole('link')).toHaveCount(5)
+  await expect(page.getByTestId('model-list').getByRole('link')).toHaveCount(4)
 })
 
 test('typing into list and number fields keeps what you type', async ({ page }) => {
@@ -267,7 +267,7 @@ test('deleting a model with an unsaved edit goes straight back to the list', asy
   await page.getByTestId('confirm-dialog').getByTestId('confirm-ok').click()
   await expect(page).toHaveURL('/')
   await expect(page.getByTestId('confirm-dialog')).toHaveCount(0)
-  await expect(page.getByTestId('model-list').getByRole('link')).toHaveCount(5)
+  await expect(page.getByTestId('model-list').getByRole('link')).toHaveCount(4)
 })
 
 test('the editor and preview load nothing from other sites', async ({ page, context }) => {

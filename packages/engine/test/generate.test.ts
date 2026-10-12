@@ -437,7 +437,7 @@ describe('placeholders (editor mode)', () => {
       id: 'map',
       kind: 'placeholder',
       featureInstanceId: 'map',
-      props: { feature: 'MapFeature', name: 'MapFeature map', status: 'unknown', reason: 'MapFeature is not ported yet' },
+      props: { feature: 'MapFeature', name: 'MapFeature map', status: 'unknown', reason: 'MapFeature is not a known feature type' },
       children: [],
     })
     expect(children[1]!.props).toEqual({ feature: 'TableFeature', name: 'TableFeature tbl', status: 'skipped', reason: 'No Data Resource selected' })
@@ -475,7 +475,7 @@ describe('unknown features in metadata', () => {
       feature: 'MapFeature',
       name: 'MapFeature map',
       status: 'unknown',
-      reason: 'MapFeature is not ported yet',
+      reason: 'MapFeature is not a known feature type',
       placement: at('1', 'content'),
       page: '1',
       slots: [],

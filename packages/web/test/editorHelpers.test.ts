@@ -61,7 +61,7 @@ describe('buildFeatureTree', () => {
         '1',
         'generated',
         [
-          ['map', 'unknown', 'MapFeature is not ported yet'],
+          ['map', 'unknown', 'MapFeature is not a known feature type'],
           ['tbl', 'skipped', 'No Data Resource selected'],
           ['off', 'suppressed', 'Feature is suppressed'],
         ],

@@ -5,7 +5,7 @@ import { asBool, asString, resolveInputs, type Inputs } from './inputs.js'
 import { node, walkNodes } from './nodes.js'
 import { ROOT_ID, ROOT_SLOT, type AppModel, type Diagnostic, type DocNode, type FeatureInstance, type Placement } from './types.js'
 
-/** `unknown`: the feature type is not in the registry (e.g. not ported yet). */
+/** `unknown`: the feature type is not in the registry (e.g. from a newer version, or misspelled). */
 export type FeatureStatus = 'generated' | 'suppressed' | 'skipped' | 'unknown'
 
 export interface FeatureMetadata {
@@ -122,7 +122,7 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
     const def = registry.get(instance.feature)
     if (!def) {
       unknown.set(id, instance)
-      reasons.set(id, `${instance.feature} is not ported yet`)
+      reasons.set(id, `${instance.feature} is not a known feature type`)
       report({ code: 'unknown-feature', severity: 'warning', featureInstanceId: id, message: `Unknown feature type "${instance.feature}"` })
       return
     }

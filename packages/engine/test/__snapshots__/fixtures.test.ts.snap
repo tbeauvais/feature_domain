@@ -247,36 +247,6 @@ exports[`app_models/swagger_resource_sample.json > migrates to the golden v2 mod
 ]
 `;
 
-exports[`app_models/watson_sample.json > generates the golden document 1`] = `
-"root #$root <content>
-  page #15 <content> [15]
-    heading #29 [29] {"text":"Leverage IBM's Watson Services","level":1,"align":"center","color":"accent"}
-    image #25 [25] {"src":"http://www.dotpod.com.ar/wp-content/uploads/ibm-silvergate-argentina-02-710x242.jpg","alt":"some cool image","width":"100%","height":"250","responsive":false,"align":"left"}
-    separator #27 [27] {"style":"line","color":"","thickness":1,"width":100,"align":"center"}"
-`;
-
-exports[`app_models/watson_sample.json > generates the golden document 2`] = `
-[
-  "warning unknown-feature [28]: Unknown feature type "WatsonTextToSpeechFeature"",
-]
-`;
-
-exports[`app_models/watson_sample.json > migrates to the golden v2 model 1`] = `
-"15 PageFeature @$root/content {"name":"Page","background_image":""}
-29 HeaderFeature @15/content {"name":"header","disable":false,"text":"Leverage IBM's Watson Services","size":1,"align":"center","color":"accent","background":"none"}
-25 ImageFeature @15/content {"name":"header image","disable":false,"src":"http://www.dotpod.com.ar/wp-content/uploads/ibm-silvergate-argentina-02-710x242.jpg","alt":"some cool image","height":"250","width":"100%","responsive":false,"align":"left"}
-27 SeparatorFeature @15/content {"name":"Separator","disable":false,"align":"center"}
-28 WatsonTextToSpeechFeature @15/content {"name":"Text 2 Speech","disable":"","text":"The Text to Speech service uses IBM's speech synthesis capabilities to convert English or Spanish text to an audio signal. The audio is streamed back to the client with minimal delay. The service can be accessed via a REST interface.","voice":"VoiceEnUsLisa","align":"center-block"} cache=legacy"
-`;
-
-exports[`app_models/watson_sample.json > migrates to the golden v2 model 2`] = `
-[
-  "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
-  "info dropped-style [27]: Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme",
-  "info unported-feature [28]: WatsonTextToSpeechFeature is not ported yet; scalar inputs copied and the legacy instance kept in cache.legacy",
-]
-`;
-
 exports[`sample.json > generates the golden document 1`] = `
 "root #$root <content>
   page #15 <content> [15]
