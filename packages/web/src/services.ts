@@ -1,5 +1,5 @@
 import type { ModelStore } from '@feature-domain/engine'
-import { sampleModels, SAMPLES_VERSION, upgradeSample } from './data/samples'
+import { SAMPLE_SET, sampleModels, SAMPLES_VERSION, upgradeSample } from './data/samples'
 import { BrowserModelStore } from './stores/browserModelStore'
 
 let store: ModelStore | undefined
@@ -19,6 +19,8 @@ export async function initBrowserModelStore(): Promise<void> {
   const browser = new BrowserModelStore()
   // Bringing old samples up to date is a nicety: it must never stop the app from starting.
   await browser.upgradeSeeded(SAMPLES_VERSION, upgradeSample).catch((error: unknown) => console.warn('Could not upgrade the samples', error))
-  await browser.seedOnce(sampleModels(), SAMPLES_VERSION)
+  // Browsers seeded with the legacy samples get the samples written for this app too (their old ones stay).
+  await browser.addSampleSet(sampleModels(), SAMPLE_SET).catch((error: unknown) => console.warn('Could not add the new samples', error))
+  await browser.seedOnce(sampleModels(), SAMPLES_VERSION, SAMPLE_SET)
   setModelStore(browser)
 }

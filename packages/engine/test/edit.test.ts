@@ -64,6 +64,11 @@ describe('normalizeOrder', () => {
     expect(normalizeOrder(m)).toBe(m)
   })
 
+  it('leaves a model whose ids repeat alone, so the copy the page shows stays', () => {
+    const m = model(inst('TextFeature', '3', { text: 'A' }), page(), inst('TextFeature', '3', { text: 'B' }))
+    expect(normalizeOrder(m)).toBe(m)
+  })
+
   it('leaves features on a cycle at the end, in model order', () => {
     const m = model(inst('ContainerFeature', 'a', { columns: 1 }, at('b', 'r1c1')), page(), inst('ContainerFeature', 'b', { columns: 1 }, at('a', 'r1c1')))
     expect(ids(normalizeOrder(m))).toEqual(['1', 'a', 'b'])

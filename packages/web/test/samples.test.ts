@@ -1,33 +1,72 @@
-import { generate, walkNodes, type AppModel, type DocNode } from '@feature-domain/engine'
+import { deriveTokens, generate, migrate, themeParams, validateModel, walkNodes, type AppModel, type DocNode } from '@feature-domain/engine'
 import { describe, expect, it } from 'vitest'
-import { sampleModels, upgradeSample } from '../src/data/samples'
+import { SAMPLE_SET, sampleModels, upgradeSample } from '../src/data/samples'
 import { inst, model, page } from './helpers'
+
+// The legacy samples (set 1), as browsers seeded before set 2 were given them: migrated, then brought up to date.
+const legacyFiles = import.meta.glob<unknown>('../../../app_models/*.json', { eager: true, import: 'default' })
+const legacyGettingStarted = import.meta.glob<unknown>('../../../sample.json', { eager: true, import: 'default' })
+const legacySamples = (): AppModel[] =>
+  [...Object.values(legacyGettingStarted).map((legacy) => ({ ...migrate(legacy).model, name: 'Getting Started' })), ...Object.keys(legacyFiles).sort().map((path) => migrate(legacyFiles[path]).model)].map(upgradeSample)
 
 describe('sampleModels', () => {
   const samples = sampleModels()
+  const nodes = (m: AppModel) => {
+    const all: DocNode[] = []
+    walkNodes(generate(m).root, (n) => all.push(n))
+    return all
+  }
 
-  it('migrates every legacy sample in the repository', () => {
-    expect(samples.map((m) => m.name)).toEqual(['Getting Started', 'Buy Deal', 'Data Sample', 'Swagger Data Sample'])
-    for (const m of samples) expect(m.version).toBe(2)
+  it('are the samples written for this app (set 2), in the order the model list shows them', () => {
+    expect(SAMPLE_SET).toBe(2)
+    expect(samples.map((m) => m.name)).toEqual(['Start here', 'Harbor Coffee', 'Ledgerly pricing', 'Northwind sales', 'Tom Beauvais · projects', 'Shoreline JS meetup'])
   })
 
-  it('generates a page for every sample, with no errors', () => {
+  it('are valid, and generate a page with no problems at all, in themes that needed no readability fixes', () => {
     for (const m of samples) {
+      expect(validateModel(m), m.name).toEqual([])
       const { root, diagnostics } = generate(m)
-      expect(root.children[0]?.kind, m.name).toBe('page')
-      expect(diagnostics.filter((d) => d.severity === 'error').map((d) => `${m.name} #${d.featureInstanceId}: ${d.message}`)).toEqual([])
+      expect(root.children.map((n) => n.kind), m.name).toEqual(['page'])
+      expect(diagnostics.map((d) => `${m.name} #${d.featureInstanceId}: ${d.message}`)).toEqual([])
+      for (const theme of m.features.filter((f) => f.feature === 'ThemeFeature')) expect(deriveTokens(themeParams(theme.inputs)).adjustments, m.name).toEqual([])
     }
   })
 
-  it('shows built-in banners instead of the legacy stock header photos, and keeps the other pictures', () => {
-    const kinds = (name: string) => {
-      const nodes: DocNode[] = []
-      walkNodes(generate(samples.find((m) => m.name === name)!).root, (n) => nodes.push(n))
-      return nodes.filter((n) => n.kind === 'image' || n.kind === 'illustration').map((n) => (n.kind === 'illustration' ? n.props.name : n.kind))
+  it('number their features as the editor would, so features added later get the next id', () => {
+    for (const m of samples) expect(m.features.map((f) => f.id), m.name).toEqual(m.features.map((_, i) => String(i + 1)))
+  })
+
+  it('read like real pages: no placeholder text, and every link and button goes to an https address', () => {
+    for (const m of samples) {
+      const text = JSON.stringify(m.features.map((f) => f.inputs))
+      expect(text, m.name).not.toMatch(/lorem|ipsum|frog|untitled|Your headline goes here|Say what this part/i)
+      for (const n of nodes(m).filter((n) => n.kind === 'link' || n.kind === 'button')) {
+        const { href } = n.props as { href: string }
+        expect(href, m.name).toMatch(/^https:\/\//)
+        // Real sites only for real things (the code on GitHub, places on Google Maps, the weather's credit); the café, pricing and meetup
+        // are fictional, so their links go to example.com on purpose.
+        expect(['github.com', 'www.google.com', 'open-meteo.com', 'example.com'], `${m.name}: ${href}`).toContain(new URL(href).hostname)
+      }
     }
-    // The maps (ported from Google Maps) are our street-map drawing.
-    expect(kinds('Data Sample')).toEqual(['banner/blueprint', 'banner/map', 'banner/map', 'image', 'image'])
-    expect(kinds('Buy Deal')).toEqual(['banner/shapes', 'banner/map', 'banner/map', 'image'])
+  })
+
+  it('give each button on a page its own words, so screen readers can tell them apart', () => {
+    for (const m of samples) {
+      const words = nodes(m).filter((n) => n.kind === 'button').map((n) => (n.props as { text: string }).text)
+      expect(new Set(words).size, `${m.name}: ${words.join(', ')}`).toBe(words.length)
+    }
+  })
+
+  it('use our own banners and drawings, so they load no pictures from other sites', () => {
+    for (const m of samples) expect(nodes(m).filter((n) => n.kind === 'image'), m.name).toEqual([])
+    const banners = samples.flatMap((m) => nodes(m).filter((n) => n.kind === 'illustration' && n.props.name.startsWith('banner/') && n.props.name !== 'banner/map'))
+    for (const banner of banners) expect(banner.props).toMatchObject({ width: '', alt: '' })
+  })
+
+  it('come as fresh copies, so storing one never changes another', () => {
+    const [a, b] = [sampleModels(), sampleModels()]
+    a[0]!.features[0]!.inputs.name = 'Changed'
+    expect(b[0]!.features[0]!.inputs.name).not.toBe('Changed')
   })
 })
 
@@ -62,7 +101,7 @@ describe('upgradeSample', () => {
   })
 
   it('makes the Sales API answer with sample sales, since its server is gone, and its table lists them', () => {
-    const swagger = sampleModels().find((m) => m.name === 'Swagger Data Sample')!
+    const swagger = legacySamples().find((m) => m.name === 'Swagger Data Sample')!
     const sales = swagger.features.find((f) => f.feature === 'SwaggerDataResourceFeature')!
     expect(sales.inputs.source).toBe('sample')
     expect(JSON.parse(sales.inputs.sample_rows as string)).toHaveLength(5)
@@ -73,7 +112,7 @@ describe('upgradeSample', () => {
   })
 
   it('shows the Swagger sample\'s amounts as dollars, in its table and its chart', () => {
-    const swagger = sampleModels().find((m) => m.name === 'Swagger Data Sample')!
+    const swagger = legacySamples().find((m) => m.name === 'Swagger Data Sample')!
     expect(swagger.features.find((f) => f.feature === 'TableFeature')!.inputs.filters).toEqual(['', '', 'currency'])
     expect(swagger.features.find((f) => f.feature === 'GoogleChartFeature')!.inputs.value_format).toBe('currency')
     const nodes: DocNode[] = []
@@ -82,14 +121,14 @@ describe('upgradeSample', () => {
   })
 
   it('makes the Swagger sample\'s Add Sale form require a name and an amount', () => {
-    const swagger = sampleModels().find((m) => m.name === 'Swagger Data Sample')!
+    const swagger = legacySamples().find((m) => m.name === 'Swagger Data Sample')!
     expect(swagger.features.find((f) => f.feature === 'FormFeature')!.inputs.required_fields).toEqual(['name', 'amount'])
     const mine = model(page(), inst('FormFeature', 'f', { name: 'Add Sale', operation: 'POST /v1/sales', required_fields: [] }))
     expect(upgradeSample(mine)).toBe(mine)
   })
 
   it('titles the Swagger sample\'s sales chart and draws it as columns, leaving charts of the user\'s own alone', () => {
-    const swagger = sampleModels().find((m) => m.name === 'Swagger Data Sample')!
+    const swagger = legacySamples().find((m) => m.name === 'Swagger Data Sample')!
     expect(swagger.features.find((f) => f.feature === 'GoogleChartFeature')!.inputs).toMatchObject({ title: 'Sales by person', chart_type: 'column', value_field: 'amount' })
     const mine = model(page(), inst('GoogleChartFeature', 'c', { name: 'Sales Chart', chart_type: 'pie', value_field: 'amount', title: 'Mine' }))
     expect(upgradeSample(mine)).toBe(mine)
@@ -108,14 +147,18 @@ describe('upgradeSample', () => {
   })
 
   it('brings the seeded samples fully up to date, so a second pass changes nothing', () => {
-    for (const sample of sampleModels()) expect(upgradeSample(sample)).toBe(sample)
-    const texts = sampleModels().flatMap((m) => m.features.map((f) => JSON.stringify(f.inputs)))
+    for (const sample of legacySamples()) expect(upgradeSample(sample)).toBe(sample)
+    // Browsers seeded with set 1 store set 2 too, so later upgrades see it: it must already be current.
+    for (const sample of sampleModels()) expect(upgradeSample(sample), sample.name).toBe(sample)
+    // In dependency order: Getting Started listed a map before the container it is in.
+    for (const sample of legacySamples()) expect(generate(sample).diagnostics.filter((d) => d.code === 'out-of-order'), sample.name).toEqual([])
+    const texts = legacySamples().flatMap((m) => m.features.map((f) => JSON.stringify(f.inputs)))
     expect(texts.join(' ')).not.toMatch(/gfdgfd|Updated At/)
   })
 
   it('turns the samples\' Yahoo weather texts into Weather cards where they were, and removes the Yahoo resources', () => {
     for (const name of ['Data Sample', 'Buy Deal']) {
-      const sample = sampleModels().find((m) => m.name === name)!
+      const sample = legacySamples().find((m) => m.name === name)!
       const weather = sample.features.filter((f) => f.feature === 'WeatherFeature')
       expect(weather.map((f) => [f.id, f.inputs.place, f.placement]), name).toEqual([
         ['35', 'Palm Beach, Florida', { parent: '19', slot: 'r1c2' }],
@@ -149,7 +192,7 @@ describe('upgradeSample', () => {
   })
 
   it('gives Data Sample a line reading Tom\'s GitHub profile, just above his repo table', () => {
-    const sample = sampleModels().find((m) => m.name === 'Data Sample')!
+    const sample = legacySamples().find((m) => m.name === 'Data Sample')!
     const ids = sample.features.map((f) => f.id)
     const profile = sample.features.find((f) => f.inputs.resource === 'https://api.github.com/users/tbeauvais')!
     const line = sample.features.find((f) => f.inputs.name === 'Repo count')!
@@ -166,7 +209,7 @@ describe('upgradeSample', () => {
     walkNodes(root, (n) => nodes.push(n))
     expect(nodes.find((n) => n.featureInstanceId === line.id)!.props).toMatchObject({ data: { source: { endPoint: 'https://api.github.com/users/tbeauvais' } } })
     // Only that sample gets it.
-    expect(sampleModels().filter((m) => m.features.some((f) => f.inputs.name === 'Repo count')).map((m) => m.name)).toEqual(['Data Sample'])
+    expect(legacySamples().filter((m) => m.features.some((f) => f.inputs.name === 'Repo count')).map((m) => m.name)).toEqual(['Data Sample'])
   })
 
   it('adds the profile line once, and not to a model whose repo table isn\'t in a panel', () => {

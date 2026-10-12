@@ -1,8 +1,12 @@
-import { defaultRegistry, migrate, nextInstanceId, referencedIds, type AppModel, type FeatureInstance, type IllustrationId } from '@feature-domain/engine'
+import { defaultRegistry, migrate, nextInstanceId, normalizeOrder, referencedIds, type AppModel, type FeatureInstance, type IllustrationId } from '@feature-domain/engine'
+import { SAMPLE_MODELS } from './sampleModels'
 
-// The legacy sample models from the repository root, migrated to v2. Seeded into browser storage on first use.
-const legacyModels = import.meta.glob<unknown>('../../../../app_models/*.json', { eager: true, import: 'default' })
-const legacySample = import.meta.glob<unknown>('../../../../sample.json', { eager: true, import: 'default' })
+// The samples. Browsers are seeded with the ones written for this app (set 2). Browsers seeded earlier with the legacy
+// samples (migrated from app_models/ and sample.json, which stay as the engine's migration fixtures) keep them, brought
+// up to date by `upgradeSample`, and get set 2 added.
+
+/** The set of samples new browsers get (`BrowserModelStore.addSampleSet` adds it to browsers seeded with set 1). */
+export const SAMPLE_SET = 2
 
 /**
  * Bumped whenever `upgradeSample` changes, so browsers that seeded older samples get the change once
@@ -13,8 +17,10 @@ const legacySample = import.meta.glob<unknown>('../../../../sample.json', { eage
  * 8: its Add Sale form requires a name and an amount (the spec requires neither). 9: its amounts show as dollars.
  * 10: the weather texts reading Yahoo's dead service become Weather cards, and the Yahoo resources go.
  * 11: Data Sample says live how many public repos and followers Tom has, above his repo table.
+ * 12: every stored model, the user's own too, is put in dependency order (Getting Started listed a map before the
+ * container it is in); `normalizeOrder` leaves the page as it is, and a model whose ids repeat alone.
  */
-export const SAMPLES_VERSION = 11
+export const SAMPLES_VERSION = 12
 
 /** The samples' GitHub repo tables, exactly as migrated, and what they become. */
 const LEGACY_REPO_TABLE = { fields: ['name', 'description', 'language', 'updated_at'], filters: ['uppercase', 'dataLink :data.html_url', '', 'date'] }
@@ -112,6 +118,7 @@ const LEGACY_HEADERS: Readonly<Record<string, IllustrationId>> = {
  * - Text features still exactly the samples' Yahoo weather texts (as written, or as migrated to values) become Weather cards for the place beside them, in the
  *   same place on the page; data resources reading Yahoo's weather that nothing references are removed.
  * - A sample with Tom's repo table gets his GitHub profile and a text reading values from it, above the table.
+ * - Features listed before what they depend on are moved after it, without changing the page.
  */
 export function upgradeSample(stored: AppModel): AppModel {
   if (!Array.isArray(stored.features)) return stored
@@ -198,13 +205,11 @@ export function upgradeSample(stored: AppModel): AppModel {
   )
   const features = upgraded.filter((f) => !(typeof f?.inputs === 'object' && f.inputs !== null && isYahooWeather(f) && !referenced.has(f.id)))
   if (features.length !== upgraded.length) changed = true
-  return withProfileText(changed ? { ...model, features } : model)
+  // In dependency order, without changing the page (the same object when nothing moves).
+  return normalizeOrder(withProfileText(changed ? { ...model, features } : model))
 }
 
+/** The samples a browser is seeded with: written for this app (`sampleModels/`), copied so storage never shares them. */
 export function sampleModels(): AppModel[] {
-  const fromSample = Object.values(legacySample).map((legacy) => ({ ...migrate(legacy).model, name: 'Getting Started' }))
-  const fromModels = Object.keys(legacyModels)
-    .sort()
-    .map((path) => migrate(legacyModels[path]).model)
-  return [...fromSample, ...fromModels].map(upgradeSample)
+  return SAMPLE_MODELS.map((model) => structuredClone(model) as AppModel)
 }

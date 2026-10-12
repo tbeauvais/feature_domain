@@ -95,6 +95,9 @@
   max-width: 68ch;
   color: var(--fd-text);
 }
+/* A line of text or a link right before a card, table, chart, form or panel keeps its distance. The gap is the text's
+   own bottom margin (the blocks have no top margin), so it is the same whether margins collapse or not (a flex cell). */
+.fd-root :is(.fd-text, .fd-link):has(+ :is(.fd-card, .fd-table-block, .fd-chart-block, .fd-form, .fd-panel)) { margin-bottom: calc(var(--fd-space) * 2.5); }
 /* A value from data that isn't there: "—" on the page, its {{binding}} on the editor canvas. */
 .fd-text-missing { color: var(--fd-muted); text-decoration: underline dashed; text-underline-offset: 0.2em; }
 

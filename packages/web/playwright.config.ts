@@ -7,6 +7,9 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
+  // Screenshots: a pixel counts as changed when its color differs by more than 1% (Playwright's default, 20%, let a
+  // swap between two pale tints pass unnoticed). Runs in one Docker image, so text rendering doesn't vary.
+  expect: { toHaveScreenshot: { threshold: 0.01 } },
   use: { baseURL: 'http://localhost:4173', trace: 'retain-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {

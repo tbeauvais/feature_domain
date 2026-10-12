@@ -5,6 +5,8 @@ export const MODELS_KEY = 'feature-domain:models'
 const SEEDED_KEY = 'feature-domain:seeded'
 /** The samples version this storage was seeded with or last upgraded to; absent means 1 (seeded before versions). */
 const SAMPLES_VERSION_KEY = 'feature-domain:samples-version'
+/** The set of samples this storage holds: absent means 1 (the samples migrated from the legacy app). */
+const SAMPLE_SET_KEY = 'feature-domain:sample-set'
 
 interface Stored {
   order: string[]
@@ -56,11 +58,26 @@ export class BrowserModelStore implements ModelStore {
   /**
    * Adds `models` the first time this storage is used. Runs once: models the user deletes later do not come back.
    */
-  async seedOnce(models: AppModel[], version = 1): Promise<void> {
+  async seedOnce(models: AppModel[], version = 1, set = 1): Promise<void> {
     if (this.storage.getItem(SEEDED_KEY) !== null) return
-    for (const model of models) await this.create(model)
     this.storage.setItem(SEEDED_KEY, new Date().toISOString())
     this.storage.setItem(SAMPLES_VERSION_KEY, String(version))
+    this.storage.setItem(SAMPLE_SET_KEY, String(set))
+    this.addAll(models, 'last')
+  }
+
+  /**
+   * Storage seeded with an earlier set of samples gets this set added, once, at the top of the list (where a fresh
+   * browser has its samples, so the guide comes first). Its old samples stay (they may hold the user's edits); storage
+   * never seeded is left to `seedOnce`. The set is recorded before the models are written, in one write, so two tabs
+   * starting together or storage filling up never add it twice; an unreadable record counts as current.
+   */
+  async addSampleSet(models: AppModel[], set: number): Promise<void> {
+    if (this.storage.getItem(SEEDED_KEY) === null) return
+    const stored = Number(this.storage.getItem(SAMPLE_SET_KEY) ?? '1')
+    if (!Number.isFinite(stored) || stored >= set) return
+    this.storage.setItem(SAMPLE_SET_KEY, String(set))
+    this.addAll(models, 'first')
   }
 
   /**
@@ -85,6 +102,18 @@ export class BrowserModelStore implements ModelStore {
       }
     }
     this.storage.setItem(SAMPLES_VERSION_KEY, String(version))
+  }
+
+  /** Stores `models` under new ids in one write, before or after the models already there. */
+  private addAll(models: AppModel[], where: 'first' | 'last'): void {
+    const stored = this.read()
+    const ids = models.map((model) => {
+      const id = this.newId()
+      stored.models[id] = { ...model, id }
+      return id
+    })
+    stored.order = where === 'first' ? [...ids, ...stored.order] : [...stored.order, ...ids]
+    this.write(stored)
   }
 
   // Every call re-reads storage, so the editor and preview tabs always see each other's saves. Parsing also means
