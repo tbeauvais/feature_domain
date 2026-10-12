@@ -23,6 +23,7 @@ export type MigrationNoteCode =
   | 'dropped-input'
   | 'mapped-input'
   | 'dead-service'
+  | 'dropped-feature'
 
 export interface MigrationNote {
   code: MigrationNoteCode
@@ -145,7 +146,8 @@ export function migrate(input: unknown): MigrationResult {
     if (provided) operations.set(id, { name, operations: provided })
   }
 
-  const features = instances.map(({ id, feature, inputs, raw }): FeatureInstance => {
+  for (const { id, feature } of instances) if (isDropped(feature)) noteFor(id)('dropped-feature', 'warning', droppedNote(feature))
+  const features = instances.filter(({ feature }) => !isDropped(feature)).map(({ id, feature, inputs, raw }): FeatureInstance => {
     const note = noteFor(id)
     const cache = isNonEmptyObject(raw.cache) ? (raw.cache as Raw) : {}
     const ctx: Context = { note, resourceId: (name) => resources.get(name), resourceOperations: (rid) => operations.get(rid), cache }
@@ -245,6 +247,17 @@ function upgradeInputs(f: FeatureInstance, note: Context['note']): Record<string
   return Object.hasOwn(INPUT_UPGRADES, f.feature) ? INPUT_UPGRADES[f.feature]!(f.inputs as Raw, note) : undefined
 }
 
+/**
+ * Legacy feature types that are not ported and never will be, and why. Migration removes them (legacy models, and v2
+ * models that stored them while unported), with a note.
+ */
+const DROPPED_FEATURES: Readonly<Record<string, string>> = {
+  WatsonTextToSpeechFeature: "it spoke a fixed text through IBM's Watson Text to Speech service, which is gone; browsers and screen readers read pages aloud themselves",
+  ScriptTestFeature: 'it ran a script built from its inputs, which pages never do',
+}
+const isDropped = (feature: string) => Object.hasOwn(DROPPED_FEATURES, feature)
+const droppedNote = (feature: string) => `Removed ${feature}: ${DROPPED_FEATURES[feature]}`
+
 /** The legacy instance kept for a feature that was unported when migrated, if its type can be migrated now. */
 function pendingLegacy(f: FeatureInstance): Raw | undefined {
   const legacy = f.cache?.legacy
@@ -252,8 +265,9 @@ function pendingLegacy(f: FeatureInstance): Raw | undefined {
 }
 
 function upgrade(model: AppModel): MigrationResult {
-  if (!model.features.some((f) => pendingLegacy(f) || upgradeInputs(f, () => {}))) return { model, notes: [] }
+  if (!model.features.some((f) => isDropped(f.feature) || pendingLegacy(f) || upgradeInputs(f, () => {}))) return { model, notes: [] }
   const notes: MigrationNote[] = []
+  for (const f of model.features) if (isDropped(f.feature)) notes.push({ code: 'dropped-feature', severity: 'warning', message: droppedNote(f.feature), featureInstanceId: f.id })
   const legacyInputs = (f: FeatureInstance): Raw => {
     const raw = pendingLegacy(f)?.inputs
     return typeof raw === 'object' && raw !== null ? (raw as Raw) : (f.inputs as Raw)
@@ -270,7 +284,7 @@ function upgrade(model: AppModel): MigrationResult {
     if (provided) operations.set(f.id, { name, operations: provided })
   }
 
-  const features = model.features.map((f): FeatureInstance => {
+  const features = model.features.filter((f) => !isDropped(f.feature)).map((f): FeatureInstance => {
     const legacy = pendingLegacy(f)
     const note = (code: MigrationNoteCode, severity: MigrationNote['severity'], message: string) => notes.push({ code, severity, message, featureInstanceId: f.id })
     if (!legacy) {

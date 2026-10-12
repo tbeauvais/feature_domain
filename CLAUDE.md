@@ -69,7 +69,8 @@ cd packages/engine && npx vitest           # watch mode
     - Bootstrap values (`text-center`, `pull-left`, `panel-success`) map to plain values.
   - Every interpretation is recorded as a note, and text using HTML or `{{...}}` bindings is flagged.
   - **Legacy looks are not carried over.** We don't match the old Bootstrap styling: newly ported features migrate content and placement only, and styling inputs (colors, sizes, Bootstrap style classes) are dropped with a `dropped-style` note so the feature takes our own defaults and the theme (`dropLegacyLooks`).
-  - Unported feature types keep their scalar inputs and their legacy instance in `cache.legacy`.
+  - Unported feature types keep their scalar inputs and their legacy instance in `cache.legacy`. Every legacy type is now ported or dropped, so this is only for unknown types.
+  - **Dropped feature types** (`DROPPED_FEATURES`): Watson Text to Speech (its IBM service is gone, and browsers and screen readers read pages aloud) and ScriptTest (it ran a script built from its inputs) are removed, from legacy models and from v2 models that stored them while unported, with a `dropped-feature` note.
   - **v2 models are upgraded, not re-migrated:** any feature still carrying `cache.legacy` whose type now has an input migration is migrated from it, keeping its placement, with an `upgraded-feature` note. Features saved before one of their inputs changed shape are upgraded by `INPUT_UPGRADES` (each returns undefined when the instance is current): Pages drop legacy colors; Headers' Bootstrap `text_style` / tone `background` become Color and Background; Panels drop `style`; Headers saved as `colour` (before US spelling) are renamed to `color` in place. Otherwise the same object is returned. The editor applies this on load and saves the result; the preview upgrades in memory only. So porting a feature also fixes models stored before it was ported.
 - **`generate(model, registry?)`** (`src/generate.ts`) returns `{ root, metadata, graph, edgeKinds, referenceEdges, exports, order, diagnostics }` (`exports`: each generated feature's frozen exports, e.g. a resource's operations for the editor's pickers).
   - The graph has `placement` edges (parent -> child) and `reference` edges (referenced -> referencing).
@@ -194,7 +195,7 @@ Deployment targets were Heroku (`Procfile`: puma) and Cloud Foundry/Bluemix (`ma
 - Generated HTML is `$compile`d by Angular after generation, so features can emit Angular directives in their markup.
 
 ### Data
-- `sample.json`: seed feature list. `app_models/*.json`: example application models (Google Map, Swagger, Watson, "Buy Deal").
+- `sample.json`: seed feature list. `app_models/*.json`: example application models (Google Map, Swagger, "Buy Deal"; the Watson sample was removed when its feature was dropped).
 - Feature instance shape: `{feature: "TextFeature", id: "27", inputs: {..., page_location: {name, target}}, cache: {}}`. `page_location.target` is a CSS selector (`#content_section`, `#page_container`, or a container cell id), which is how nesting works.
 
 ## Gotchas

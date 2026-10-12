@@ -46,7 +46,7 @@ const FORECASTS: Record<string, [number, number, number[]]> = {
 }
 
 const WIDTHS = { desktop: { width: 1280, height: 800 }, phone: { width: 390, height: 844 } } as const
-const SAMPLES = ['Getting Started', 'Buy Deal', 'Data Sample', 'Swagger Data Sample', 'Watson Sample']
+const SAMPLES = ['Getting Started', 'Buy Deal', 'Data Sample', 'Swagger Data Sample']
 
 /** A model showing every Header color on every background, and every Panel emphasis, in the given scheme. */
 function optionsModel(id: string, scheme: 'light' | 'dark') {
