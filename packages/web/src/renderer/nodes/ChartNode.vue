@@ -147,13 +147,13 @@ onBeforeUnmount(() => {
   <figure ref="block" class="fd-chart-block" :aria-busy="state.status === 'loading' ? 'true' : undefined" :aria-labelledby="node.props.title ? titleId : undefined">
     <figcaption v-if="node.props.title" :id="titleId" class="fd-chart-title">{{ node.props.title }}</figcaption>
     <p v-if="!node.props.source" class="fd-chart-note">No data source</p>
-    <div v-else-if="state.status === 'error'" class="fd-chart-state" role="alert">
-      <p class="fd-chart-state-title">Couldn't load the data</p>
-      <p class="fd-chart-state-text">{{ host ? `${host}: ` : '' }}{{ state.message }}</p>
-      <button type="button" class="fd-chart-retry" @click="reload()">Try again</button>
+    <div v-else-if="state.status === 'error'" class="fd-state" role="alert">
+      <p class="fd-state-title">Couldn't load the data</p>
+      <p class="fd-state-text">{{ host ? `${host}: ` : '' }}{{ state.message }}</p>
+      <button type="button" class="fd-retry" @click="reload()">Try again</button>
     </div>
     <div v-else-if="state.status === 'loading'" class="fd-chart-skeleton" :style="{ height: `${node.props.height}px` }" aria-hidden="true" />
-    <p v-else-if="data.values.length === 0" class="fd-chart-state fd-chart-state-text">
+    <p v-else-if="data.values.length === 0" class="fd-state fd-state-text">
       {{ rows.length === 0 ? 'No rows to chart yet.' : `No numbers to chart${data.valueField ? ` in "${data.valueField}"` : ''}.` }}
     </p>
     <div v-show="state.status === 'loaded' && data.values.length > 0" class="fd-chart-canvas" :style="{ height: `${node.props.height}px` }">

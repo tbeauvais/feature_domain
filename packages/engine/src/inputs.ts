@@ -32,6 +32,11 @@ export interface InputDef {
   placeholder?: string
   /** For `operation-select` inputs: the HTTP methods whose operations fit (e.g. GET for what a table lists). */
   methods?: readonly string[]
+  /**
+   * The editor applies typed text when the field is left (or Enter is pressed), not on every keystroke: for inputs where
+   * each value costs a request (a Weather's coordinates would fetch a forecast for "4", "41", "41.2", …).
+   */
+  commitOnBlur?: boolean
   /** The inspector section the input sits in (inputs with the same group are shown together under it); none: the top. */
   group?: string
   /** For `reference` inputs: feature types the referenced instance may have. */

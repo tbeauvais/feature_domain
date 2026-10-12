@@ -197,7 +197,7 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
     <div v-else-if="state.status === 'error'" class="fd-table-state fd-table-problem" role="alert">
       <p class="fd-table-state-title">Couldn't load rows</p>
       <p class="fd-table-state-text">{{ host ? `${host}: ` : '' }}{{ state.message }}</p>
-      <button type="button" class="fd-table-retry" @click="reload()">Try again</button>
+      <button type="button" class="fd-retry fd-table-retry" @click="reload()">Try again</button>
     </div>
     <div v-else-if="state.status === 'loaded' && rows.length === 0" class="fd-table-state">
       <span class="fd-table-empty-picture"><SpotEmpty /></span>

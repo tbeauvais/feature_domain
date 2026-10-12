@@ -73,6 +73,11 @@ describe('WeatherFeature', () => {
     expect(inputs).toMatchObject({ place: 'Guilford, Connecticut', latitude: '41.2890', longitude: '-72.6818', units: 'fahrenheit', show: 'forecast' })
     expect(generate(model(page(), { ...createFeatureInstance(def, '9', { parent: '1', slot: 'content' }) })).diagnostics).toEqual([])
   })
+
+  it('has its coordinates applied when the field is left, since each value is a request', () => {
+    const def = defaultRegistry.get('WeatherFeature')!
+    expect(def.inputs.filter((i) => i.commitOnBlur).map((i) => i.name)).toEqual(['latitude', 'longitude'])
+  })
 })
 
 describe('the legacy Yahoo weather resources', () => {

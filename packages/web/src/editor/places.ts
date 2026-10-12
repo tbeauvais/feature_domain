@@ -35,7 +35,8 @@ export function readPlaces(response: unknown): Place[] {
     const region = text(result.admin1)
     const country = text(result.country)
     places.push({
-      name: [name, region !== name ? region || country : country].filter(Boolean).join(', '),
+      // Qualified by the region, else the country, unless that just repeats the name ("Singapore").
+      name: [name, [region, country].find((part) => part !== '' && part !== name)].filter(Boolean).join(', '),
       detail: [region, country].filter(Boolean).join(', '),
       latitude: latitude.toFixed(4),
       longitude: longitude.toFixed(4),

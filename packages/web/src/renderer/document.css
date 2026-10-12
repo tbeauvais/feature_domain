@@ -381,9 +381,10 @@ h6.fd-heading { font-size: var(--fd-h6); }
 .fd-table-empty-picture > svg { display: block; width: 100%; height: 100%; }
 .fd-table-problem { align-items: flex-start; text-align: left; }
 .fd-table-problem .fd-table-state-title { color: var(--fd-danger); }
-.fd-table-retry {
+/* Try again, for tables, charts and weather. */
+.fd-retry {
   min-height: 44px;
-  margin-top: calc(var(--fd-space) * 0.5);
+  margin-top: var(--fd-space);
   padding: 0 calc(var(--fd-space) * 2);
   border: 1px solid var(--fd-border);
   border-radius: 999px;
@@ -393,6 +394,8 @@ h6.fd-heading { font-size: var(--fd-h6); }
   font-weight: 500;
   cursor: pointer;
 }
+/* In a table's state the gap already spaces it. */
+.fd-table-state .fd-retry { margin-top: calc(var(--fd-space) * 0.5); }
 .fd-table-foot,
 .fd-table-note {
   margin: 0;
@@ -686,21 +689,10 @@ h6.fd-heading { font-size: var(--fd-h6); }
   opacity: 0.7;
 }
 .fd-chart-note { margin: 0; font-size: var(--fd-size-small); color: var(--fd-muted); }
-.fd-chart-state { display: block; margin: 0; padding: calc(var(--fd-space) * 3) 0; text-align: center; }
-.fd-chart-state-title { margin: 0; font-weight: 600; color: var(--fd-ink); }
-.fd-chart-state-text { margin: 0; font-size: var(--fd-size-small); color: var(--fd-muted); }
-.fd-chart-retry {
-  min-height: 44px;
-  margin-top: var(--fd-space);
-  padding: 0 calc(var(--fd-space) * 2);
-  border: 1px solid var(--fd-border);
-  border-radius: 999px;
-  background: var(--fd-surface);
-  color: var(--fd-ink);
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-}
+/* A chart's or weather card's loading problem or empty state, centered. */
+.fd-state { display: block; margin: 0; padding: calc(var(--fd-space) * 3) 0; text-align: center; }
+.fd-state-title { margin: 0; font-weight: 600; color: var(--fd-ink); }
+.fd-state-text { margin: 0; font-size: var(--fd-size-small); color: var(--fd-muted); }
 /* Weather: the temperature and conditions now, then the next days in a row. */
 .fd-weather { display: flex; flex-direction: column; gap: calc(var(--fd-space) * 2); }
 .fd-weather-now {
@@ -750,21 +742,7 @@ h6.fd-heading { font-size: var(--fd-h6); }
   background: var(--fd-sunken);
   opacity: 0.7;
 }
-.fd-weather-state { margin: 0; padding: calc(var(--fd-space) * 2) 0; text-align: center; }
-.fd-weather-state-title { margin: 0; font-weight: 600; color: var(--fd-ink); }
-.fd-weather-state-text { margin: 0; font-size: var(--fd-size-small); color: var(--fd-muted); }
-.fd-weather-retry {
-  min-height: 44px;
-  margin-top: var(--fd-space);
-  padding: 0 calc(var(--fd-space) * 2);
-  border: 1px solid var(--fd-border);
-  border-radius: 999px;
-  background: var(--fd-surface);
-  color: var(--fd-ink);
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-}
+.fd-weather > .fd-state { padding: calc(var(--fd-space) * 2) 0; }
 /* The credit the forecast's licence asks for, beside the place: small and quiet. */
 .fd-card > .fd-weather + .fd-link { margin-top: auto; font-size: var(--fd-size-small); }
 

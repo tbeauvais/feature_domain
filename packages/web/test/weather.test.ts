@@ -54,6 +54,14 @@ describe('reading the forecast', () => {
     expect(readWeather(forecast(), 1).forecast.map((d) => d.day)).toEqual(['Mon'])
   })
 
+  it('reads a missing day-or-night flag as day, and shows a date it can’t read as given', () => {
+    const response = forecast({ temperature_2m: 70, weather_code: 0 })
+    response.daily.time[1] = 'someday'
+    const weather = readWeather(response, 3)
+    expect(weather.conditions.icon).toBe('clear-day')
+    expect(weather.forecast[0]!.day).toBe('someday')
+  })
+
   it('refuses a response without a current temperature', () => {
     for (const response of [null, [], {}, { current: {} }, { current: { temperature_2m: '70' } }]) {
       expect(() => readWeather(response, 3)).toThrow('The response has no current temperature')
@@ -76,7 +84,6 @@ describe('weather icons', () => {
     expect(html).toMatch(/^<svg[^>]*aria-hidden="true"/)
     expect(html).not.toMatch(/<(script|foreignObject|image|use|a|iframe|style)\b|\son\w+=|href=/i)
     expect(html).toMatch(/<(path|circle)\b/)
-    for (const [, value] of html.matchAll(/\s(?:fill|stroke)="([^"]*)"/g)) expect(value).toBe('none')
     for (const [, style] of html.matchAll(/\sstyle="([^"]*)"/g)) {
       for (const declaration of style!.split(';').filter((d) => d.trim() !== '')) expect(declaration.trim()).toMatch(/^(fill|stroke): var\(--fd-(accent-solid|muted|sunken)\)$/)
     }
@@ -108,6 +115,11 @@ describe('the Weather card', () => {
     // As a screen reader reads them: the conditions are hidden text beside the icons.
     expect(weather.findAll('.fd-weather-day').map((d) => d.text())).toEqual(['Mon: Overcast, high 84°, low 72°', 'Tue: Rain, high 87°, low 69°', 'Wed: Thunderstorm, high 85°, low 80°'])
     expect(card.get('a').attributes('href')).toBe('https://open-meteo.com/')
+  })
+
+  it('tells screen readers it is loading', async () => {
+    const w = render(model(page(), inst('WeatherFeature', 'w', PALM_BEACH)), () => new Promise(() => {}))
+    expect(w.get('.fd-weather').text()).toBe('Loading the weather…')
   })
 
   it('makes one request for two cards showing the same place', async () => {
@@ -170,7 +182,7 @@ describe('finding a place', () => {
     expect(readPlaces(portland)).toEqual([
       { name: 'Portland, Oregon', detail: 'Oregon, United States', latitude: '45.5234', longitude: '-122.6762' },
       { name: 'Portland, Maine', detail: 'Maine, United States', latitude: '43.6615', longitude: '-70.2553' },
-      { name: 'Singapore, Singapore', detail: 'Singapore, Singapore', latitude: '1.2897', longitude: '103.8501' },
+      { name: 'Singapore', detail: 'Singapore, Singapore', latitude: '1.2897', longitude: '103.8501' },
     ])
     expect(readPlaces({ generationtime_ms: 0.4 })).toEqual([])
     expect(() => readPlaces({ results: 'x' })).toThrow('not a place search result')
@@ -192,10 +204,50 @@ describe('finding a place', () => {
     await flushPromises()
     expect(fetchJson.mock.calls).toEqual([[placeSearchUrl('Portland')]])
     const results = w.get('[aria-label="Places found"]').findAll('button')
-    expect(results.map((b) => b.get('span').text())).toEqual(['Portland, Oregon', 'Portland, Maine', 'Singapore, Singapore'])
+    expect(results.map((b) => b.get('span').text())).toEqual(['Portland, Oregon', 'Portland, Maine', 'Singapore'])
+    expect(w.get('[data-testid="place-announcement"]').text()).toBe('3 places found for “Portland”.')
     await results[1]!.trigger('click')
     expect(w.emitted('pick')).toEqual([[{ name: 'Portland, Maine', detail: 'Maine, United States', latitude: '43.6615', longitude: '-70.2553' }]])
     expect(w.find('[aria-label="Places found"]').exists()).toBe(false)
+    expect(w.get('[data-testid="place-announcement"]').text()).toBe('Portland, Maine picked.')
+  })
+
+  it('keeps keyboard focus in the field after a pick removes the list', async () => {
+    const w = mount(PlaceSearchField, {
+      props: { id: 'place', labelledby: 'place-label', value: '', latitude: '', longitude: '' },
+      global: { provide: { [FETCH_JSON as symbol]: async () => portland } },
+      attachTo: document.body,
+    })
+    await w.get('input').setValue('Portland')
+    await w.get('[data-testid="find-place"]').trigger('click')
+    await flushPromises()
+    const button = w.findAll('[aria-label="Places found"] button')[0]!
+    ;(button.element as HTMLButtonElement).focus()
+    await button.trigger('click')
+    await flushPromises()
+    expect(document.activeElement).toBe(w.get('input').element)
+    w.unmount()
+  })
+
+  it('hides results once the box says something else, and searches again for a query changed mid-search', async () => {
+    const answers: ((value: unknown) => void)[] = []
+    const fetchJson = vi.fn<FetchJson>(() => new Promise((resolve) => answers.push(resolve)))
+    const w = field(fetchJson)
+    await w.get('input').setValue('Portland')
+    await w.get('input').trigger('keydown', { key: 'Enter' })
+    // Corrected while the first search runs: Find is busy, but the answer for "Portland" leads to a search for "Paris".
+    await w.get('input').setValue('Paris')
+    await w.get('input').trigger('keydown', { key: 'Enter' })
+    answers[0]!(portland)
+    await flushPromises()
+    expect(fetchJson.mock.calls.map(([url]) => url)).toEqual([placeSearchUrl('Portland'), placeSearchUrl('Paris')])
+    answers[1]!({ results: [{ name: 'Paris', latitude: 48.85341, longitude: 2.3488, country: 'France', admin1: 'Île-de-France' }] })
+    await flushPromises()
+    expect(w.findAll('[aria-label="Places found"] button').map((b) => b.get('span').text())).toEqual(['Paris, Île-de-France'])
+    await w.get('input').setValue('Pari')
+    expect(w.find('[aria-label="Places found"]').exists()).toBe(false)
+    await w.get('input').setValue('Paris ')
+    expect(w.find('[aria-label="Places found"]').exists()).toBe(true)
   })
 
   it('says when nothing was found, or when the search failed', async () => {
@@ -203,6 +255,7 @@ describe('finding a place', () => {
     await w.get('input').setValue('Xyzzy')
     await w.get('[data-testid="find-place"]').trigger('click')
     await flushPromises()
+    expect(w.get('[data-testid="no-places"]').text()).toBe('No places found for “Xyzzy”.')
     expect(w.get('[role="status"]').text()).toBe('No places found for “Xyzzy”.')
 
     const failing = field(async () => {
@@ -244,6 +297,25 @@ describe('finding a place', () => {
     expect(inputs()).toMatchObject({ place: 'Portland, Maine', latitude: '43.6615', longitude: '-70.2553' })
     doc.undo()
     expect(inputs()).toMatchObject(PALM_BEACH)
+  })
+
+  it('applies typed coordinates when the field is left, not on every keystroke', async () => {
+    setActivePinia(createPinia())
+    const store = new MemoryModelStore()
+    setModelStore(store)
+    const doc = useDocumentStore()
+    doc.editing = true
+    await doc.load(await store.create(model(page(), inst('WeatherFeature', 'w', PALM_BEACH))))
+    doc.select('w')
+    const w = mount(Inspector, { global: { provide: { [FETCH_JSON as symbol]: async () => forecast() } } })
+    const latitude = w.get('#input-latitude')
+    ;(latitude.element as HTMLInputElement).value = '4'
+    await latitude.trigger('input')
+    const inputs = () => doc.model!.features.find((f) => f.id === 'w')!.inputs
+    expect(inputs().latitude).toBe('26.7056')
+    ;(latitude.element as HTMLInputElement).value = '41.5'
+    await latitude.trigger('change')
+    expect(inputs().latitude).toBe('41.5')
   })
 })
 

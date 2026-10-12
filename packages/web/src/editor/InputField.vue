@@ -187,6 +187,17 @@ function settle() {
       @input="emit('change', ($event.target as HTMLTextAreaElement).value)"
     />
 
+    <!-- Committed on leaving the field (the change event) when each value would cost a request. -->
+    <input
+      v-else-if="def.commitOnBlur"
+      :id="id"
+      type="text"
+      :class="field"
+      :placeholder="def.placeholder"
+      :value="text"
+      @change="emit('change', ($event.target as HTMLInputElement).value)"
+    />
+
     <input
       v-else
       :id="id"

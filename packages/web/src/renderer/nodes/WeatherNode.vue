@@ -35,13 +35,16 @@ const label = computed(() => (props.node.props.place ? `Weather in ${props.node.
 
 <template>
   <section class="fd-weather" :aria-label="label" :aria-busy="state.status === 'loading' ? 'true' : undefined">
-    <p v-if="!node.props.url" class="fd-weather-state fd-weather-state-text">No location chosen yet.</p>
-    <div v-else-if="problem !== undefined" class="fd-weather-state" role="alert">
-      <p class="fd-weather-state-title">Couldn't load the weather</p>
-      <p class="fd-weather-state-text">{{ host ? `${host}: ` : '' }}{{ problem }}</p>
-      <button type="button" class="fd-weather-retry" @click="store.refetch(node.props.url)">Try again</button>
+    <p v-if="!node.props.url" class="fd-state fd-state-text">No location chosen yet.</p>
+    <div v-else-if="problem !== undefined" class="fd-state" role="alert">
+      <p class="fd-state-title">Couldn't load the weather</p>
+      <p class="fd-state-text">{{ host ? `${host}: ` : '' }}{{ problem }}</p>
+      <button type="button" class="fd-retry" @click="store.refetch(node.props.url)">Try again</button>
     </div>
-    <div v-else-if="!weather" class="fd-weather-skeleton" aria-hidden="true" />
+    <template v-else-if="!weather">
+      <div class="fd-weather-skeleton" aria-hidden="true" />
+      <span class="fd-visually-hidden">Loading the weather…</span>
+    </template>
     <template v-else>
       <div class="fd-weather-now">
         <WeatherIcon :name="weather.conditions.icon" />
