@@ -109,6 +109,11 @@ export function migrate(input: unknown): MigrationResult {
       return
     }
     const id = String(raw.id)
+    // Dropped types don't claim their id, so a feature sharing it is kept; they are noted below, in model order.
+    if (isDropped(raw.feature)) {
+      instances.push({ id, feature: raw.feature, inputs: {}, raw })
+      return
+    }
     if (seen.has(id)) {
       noteFor(id)('duplicate-id', 'warning', `Instance id "${id}" is used more than once; later instance skipped`)
       return
@@ -146,9 +151,12 @@ export function migrate(input: unknown): MigrationResult {
     if (provided) operations.set(id, { name, operations: provided })
   }
 
-  for (const { id, feature } of instances) if (isDropped(feature)) noteFor(id)('dropped-feature', 'warning', droppedNote(feature))
-  const features = instances.filter(({ feature }) => !isDropped(feature)).map(({ id, feature, inputs, raw }): FeatureInstance => {
+  const features = instances.flatMap(({ id, feature, inputs, raw }): FeatureInstance[] => {
     const note = noteFor(id)
+    if (isDropped(feature)) {
+      note('dropped-feature', 'warning', droppedNote(feature))
+      return []
+    }
     const cache = isNonEmptyObject(raw.cache) ? (raw.cache as Raw) : {}
     const ctx: Context = { note, resourceId: (name) => resources.get(name), resourceOperations: (rid) => operations.get(rid), cache }
     const migrateInputs = Object.hasOwn(INPUTS, feature) ? INPUTS[feature] : undefined
@@ -170,7 +178,7 @@ export function migrate(input: unknown): MigrationResult {
       else if (target) note('unresolved-target', 'warning', `Legacy target "#${target}" does not exist; feature left unplaced`)
       else note('unresolved-target', 'warning', 'No legacy page_location; feature left unplaced')
     }
-    return out
+    return [out]
   })
 
   const model: AppModel = { version: 2, name: str(legacy.name) || 'Untitled', features }
@@ -248,8 +256,9 @@ function upgradeInputs(f: FeatureInstance, note: Context['note']): Record<string
 }
 
 /**
- * Legacy feature types that are not ported and never will be, and why. Migration removes them (legacy models, and v2
- * models that stored them while unported), with a note.
+ * Legacy feature types that are not ported and never will be, and why. Migration removes them from legacy models and
+ * from any v2 model holding them (e.g. stored while they were unported), with a note. The editor doesn't show migration
+ * notes, so the removal is silent there.
  */
 const DROPPED_FEATURES: Readonly<Record<string, string>> = {
   WatsonTextToSpeechFeature: "it spoke a fixed text through IBM's Watson Text to Speech service, which is gone; browsers and screen readers read pages aloud themselves",
@@ -267,7 +276,6 @@ function pendingLegacy(f: FeatureInstance): Raw | undefined {
 function upgrade(model: AppModel): MigrationResult {
   if (!model.features.some((f) => isDropped(f.feature) || pendingLegacy(f) || upgradeInputs(f, () => {}))) return { model, notes: [] }
   const notes: MigrationNote[] = []
-  for (const f of model.features) if (isDropped(f.feature)) notes.push({ code: 'dropped-feature', severity: 'warning', message: droppedNote(f.feature), featureInstanceId: f.id })
   const legacyInputs = (f: FeatureInstance): Raw => {
     const raw = pendingLegacy(f)?.inputs
     return typeof raw === 'object' && raw !== null ? (raw as Raw) : (f.inputs as Raw)
@@ -284,12 +292,16 @@ function upgrade(model: AppModel): MigrationResult {
     if (provided) operations.set(f.id, { name, operations: provided })
   }
 
-  const features = model.features.filter((f) => !isDropped(f.feature)).map((f): FeatureInstance => {
+  const features = model.features.flatMap((f): FeatureInstance[] => {
     const legacy = pendingLegacy(f)
     const note = (code: MigrationNoteCode, severity: MigrationNote['severity'], message: string) => notes.push({ code, severity, message, featureInstanceId: f.id })
+    if (isDropped(f.feature)) {
+      note('dropped-feature', 'warning', droppedNote(f.feature))
+      return []
+    }
     if (!legacy) {
       const inputs = upgradeInputs(f, note)
-      return inputs ? { ...f, inputs } : f
+      return inputs ? [{ ...f, inputs }] : [f]
     }
     const cache = isNonEmptyObject(legacy.cache) ? (legacy.cache as Raw) : {}
     const ctx: Context = { note, resourceId: (name) => resources.get(name), resourceOperations: (rid) => operations.get(rid), cache }
@@ -299,7 +311,7 @@ function upgrade(model: AppModel): MigrationResult {
     const kept = keptCache(f.feature, legacy.cache)
     if (kept) out.cache = kept
     note('upgraded-feature', 'info', `${f.feature} is ported now; migrated from the legacy settings kept in cache.legacy`)
-    return out
+    return [out]
   })
   return { model: { ...model, features }, notes }
 }

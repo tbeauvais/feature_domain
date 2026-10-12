@@ -6,17 +6,17 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 export function summarize(result: GenerateResult) {
   const problems = result.diagnostics.filter((d) => d.severity !== 'info').length
   const features = result.metadata.features
-  const notPorted = features.filter((f) => f.status === 'unknown').length
+  const unknown = features.filter((f) => f.status === 'unknown').length
   // Data resources of every kind (addresses, sample data, API specs).
   const resources = features.filter((f) => DATA_RESOURCE_TYPES.includes(f.feature)).length
   const themes = features.filter((f) => f.feature === 'ThemeFeature').length
   const placed = features.length - resources - themes
 
-  const problemsLabel = [problems === 0 ? 'No problems' : plural(problems, 'problem'), notPorted > 0 ? `${plural(notPorted, 'feature')} not ported yet` : '']
+  const problemsLabel = [problems === 0 ? 'No problems' : plural(problems, 'problem'), unknown > 0 ? `${plural(unknown, 'unknown feature')}` : '']
     .filter(Boolean)
     .join(' · ')
   const countsLabel = [plural(placed, 'feature'), plural(resources, 'data resource'), plural(themes, 'theme')].join(' · ')
-  return { problems, notPorted, resources, themes, placed, problemsLabel, countsLabel }
+  return { problems, unknown, resources, themes, placed, problemsLabel, countsLabel }
 }
 
 /** The name a new Theme gets, which is also the default theme's look (Warm Editorial). */

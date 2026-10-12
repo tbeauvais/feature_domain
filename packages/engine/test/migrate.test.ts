@@ -508,6 +508,13 @@ describe('migrate: features dropped for good', () => {
     expect(JSON.stringify(r.model)).not.toMatch(/alert|VoiceEnUs/)
   })
 
+  it('notes them in model order, and lets a feature sharing a dropped one\'s id keep it', () => {
+    const header: Legacy = { feature: 'HeaderFeature', id: '6', inputs: { name: 'H', text: 'Hi', text_style: 'text-success', ...loc('#page_container') } }
+    const r = run(legacyPage, header, watson, { ...text, id: '3' })
+    expect(r.model.features.map((f) => [f.feature, f.id])).toEqual([['PageFeature', '15'], ['HeaderFeature', '6'], ['TextFeature', '3']])
+    expect(notes(r).filter((n) => /^(mapped-style|dropped-feature):/.test(n))).toEqual(['mapped-style:6', 'dropped-feature:3'])
+  })
+
   it('removes them from v2 models that stored them while they were unported', () => {
     // Before they were dropped, unported features were kept with their legacy instance in cache.
     const stored: AppModel = {
@@ -522,5 +529,8 @@ describe('migrate: features dropped for good', () => {
     expect(r.model.features.map((f) => f.id)).toEqual(['15'])
     expect(notes(r)).toEqual(['dropped-feature:3'])
     expect(migrate(r.model).model).toBe(r.model)
+    // Without the legacy instance in cache too (e.g. a model written by hand).
+    const bare: AppModel = { ...stored, features: [stored.features[0]!, { ...stored.features[1]!, cache: {} }] }
+    expect(migrate(bare).model.features.map((f) => f.id)).toEqual(['15'])
   })
 })

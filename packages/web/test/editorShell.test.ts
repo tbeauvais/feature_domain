@@ -63,7 +63,7 @@ describe('tree helpers', () => {
 describe('summarize', () => {
   it('counts problems (not info), unported features, resources and themes', () => {
     const s = summarize(generate(shellModel()))
-    expect(s.problemsLabel).toBe('1 problem · 1 feature not ported yet')
+    expect(s.problemsLabel).toBe('1 problem · 1 unknown feature')
     expect(s.countsLabel).toBe('6 features · 1 data resource · 1 theme')
     expect(summarize(generate(model(page()))).problemsLabel).toBe('No problems')
     // API specs are data resources too.

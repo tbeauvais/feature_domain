@@ -64,7 +64,7 @@ const users = computed(() => {
     const name = typeof feature?.inputs.name === 'string' && feature.inputs.name.trim() ? feature.inputs.name : type
     // Disabled or skipped ones still reference it, but don't show it: say so.
     const status = result.metadata.features.find((f) => f.id === id)?.status
-    const note = status === 'suppressed' ? 'disabled' : status === 'skipped' ? 'not generated' : status === 'unknown' ? 'not ported' : ''
+    const note = status === 'suppressed' ? 'disabled' : status === 'skipped' ? 'not generated' : status === 'unknown' ? 'unknown type' : ''
     return { id, name, type, note }
   })
 })
@@ -190,7 +190,7 @@ async function remove() {
       <DiagnosticsList v-if="diagnostics.length > 0" :diagnostics="diagnostics" />
 
       <p v-if="!def" class="text-sm text-slate-600">
-        {{ instance.feature }} is not ported yet. Its legacy settings are kept, so it can be migrated once it is.
+        {{ instance.feature }} is not a known feature type. Its settings are kept as they are.
       </p>
       <template v-else>
         <div v-if="def.placement === 'required'" class="space-y-1">

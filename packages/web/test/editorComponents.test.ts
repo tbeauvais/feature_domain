@@ -273,7 +273,7 @@ describe('Inspector', () => {
 
   it('explains unported features and still allows deleting them', async () => {
     const { w } = await inspect([page(), inst('MapFeature', 'm')], 'm')
-    expect(w.text()).toContain('MapFeature is not ported yet')
+    expect(w.text()).toContain('MapFeature is not a known feature type')
     expect(w.find('[data-testid="delete-feature"]').exists()).toBe(true)
   })
 })
@@ -286,7 +286,7 @@ describe('List and placeholder nodes', () => {
     expect(w.findAll('[data-feature-id="l"] li').map((li) => li.text())).toEqual(['Red', '<b>Green</b>'])
     const placeholder = w.get('[data-feature-id="m"]')
     expect(placeholder.classes()).toEqual(['fd-placeholder', 'fd-placeholder-unknown'])
-    expect(placeholder.text()).toBe('MapFeature mMapFeature is not ported yet')
+    expect(placeholder.text()).toBe('MapFeature mMapFeature is not a known feature type')
   })
 })
 

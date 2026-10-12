@@ -272,7 +272,7 @@ const SAMPLES: { name: string; ready: (target: Page) => Promise<void> }[] = [
       await expect(target.locator('.fd-weather-temp')).toHaveCount(2)
     },
   },
-  // A table and a chart in card panels, one beside a placeholder (its unported Form) in the editor only.
+  // A table and a chart in card panels, and the Add Sale form.
   {
     name: 'Swagger Data Sample',
     ready: async (target) => {
