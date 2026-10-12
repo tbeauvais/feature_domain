@@ -11,6 +11,10 @@ export interface InlineEditState {
 /** The inline edit in progress, shared with drag and drop (which is off for that feature) and the selection outline. */
 export const inlineEdit = shallowRef<InlineEditState | null>(null)
 
+/** How soon after an input method's composition ends an Enter still belongs to it (Safari). */
+const COMPOSITION_GRACE_MS = 50
+const eventTime = () => performance.now()
+
 /** What a new list entry or paragraph says when Enter adds one; it is selected, so typing replaces it. */
 export const NEW_TEXT = { item: 'New item', paragraph: 'New paragraph' } as const
 
@@ -25,6 +29,8 @@ interface Session {
   undraggable: HTMLElement[]
   /** For an entry Enter just added: the edit before it and the model it made, so Escape can take the entry back out. */
   added?: { previous: TextLocation; text: string; model: unknown }
+  /** The document the element was rendered from: any regeneration ends the edit (see the watch below). */
+  result: unknown
   stop: () => void
 }
 
@@ -79,10 +85,21 @@ export function useInlineEdit(canvas: Ref<HTMLElement | null>) {
     return mark && markLocation(feature, mark, item === null ? undefined : Number(item))
   }
 
-  /** Starts editing an element's text. Keeps a selection already inside it (a double-clicked word), else selects all. */
+  /**
+   * Starts editing an element's text. Keeps a selection already inside it (a double-clicked word), else selects all.
+   * Finishing another edit, or leaving a field that saves on blur, may change the model; then the page re-renders
+   * first and editing starts after, so what the element shows is what was rendered.
+   */
   function begin(element: HTMLElement, added?: Session['added']): boolean {
     if (session?.element === element) return true
+    const before = store.result
     finish()
+    const active = document.activeElement
+    if (active instanceof HTMLElement && active !== element) active.blur()
+    if (store.result !== before) {
+      void nextTick(() => element.isConnected && begin(element, added))
+      return true
+    }
     const location = locationOf(element)
     if (!location) return false
     store.select(location.feature)
@@ -99,12 +116,17 @@ export function useInlineEdit(canvas: Ref<HTMLElement | null>) {
     }
     // Plain text only, so pasted HTML can't get in (browsers without plaintext-only get the paste handler below).
     element.setAttribute('contenteditable', 'plaintext-only')
-    if (element.contentEditable !== 'plaintext-only') element.setAttribute('contenteditable', 'true')
+    const plaintextOnly = element.contentEditable === 'plaintext-only'
+    if (!plaintextOnly) element.setAttribute('contenteditable', 'true')
     element.setAttribute('data-fd-editing', '')
     element.setAttribute('spellcheck', 'true')
 
+    // Enter confirming an input method's candidate (Japanese, Chinese, …) isn't a commit. Safari ends the composition
+    // before that keydown, so it is recognized by its key code or by following the composition's end at once.
+    let composedAt = -Infinity
+    const onCompositionEnd = () => (composedAt = eventTime())
     const onKeydown = (event: KeyboardEvent) => {
-      if (event.isComposing) return
+      if (event.isComposing || event.keyCode === 229 || eventTime() - composedAt < COMPOSITION_GRACE_MS) return
       if (event.key === 'Escape') {
         event.preventDefault()
         event.stopPropagation()
@@ -116,6 +138,7 @@ export function useInlineEdit(canvas: Ref<HTMLElement | null>) {
       }
     }
     const onBlur = () => commit(false)
+    // Only without plaintext-only: with it, the browser pastes plain text itself (and keeps the paste undoable).
     const onPaste = (event: ClipboardEvent) => {
       event.preventDefault()
       const text = event.clipboardData?.getData('text/plain') ?? ''
@@ -133,17 +156,19 @@ export function useInlineEdit(canvas: Ref<HTMLElement | null>) {
     // Dropped text or files would land in the page as they are; the feature's text only changes by typing.
     const onDrop = (event: DragEvent) => event.preventDefault()
     element.addEventListener('keydown', onKeydown)
+    element.addEventListener('compositionend', onCompositionEnd)
     element.addEventListener('blur', onBlur)
-    element.addEventListener('paste', onPaste)
+    if (!plaintextOnly) element.addEventListener('paste', onPaste)
     element.addEventListener('drop', onDrop)
     const stop = () => {
       element.removeEventListener('keydown', onKeydown)
+      element.removeEventListener('compositionend', onCompositionEnd)
       element.removeEventListener('blur', onBlur)
       element.removeEventListener('paste', onPaste)
       element.removeEventListener('drop', onDrop)
     }
 
-    session = { element, location, original: element.textContent ?? '', children, values: children.map((c) => c.nodeValue), undraggable, added, stop }
+    session = { element, location, original: element.textContent ?? '', children, values: children.map((c) => c.nodeValue), undraggable, added, result: store.result, stop }
     inlineEdit.value = { feature: location.feature, element }
     element.focus()
     const selection = window.getSelection()
@@ -184,8 +209,9 @@ export function useInlineEdit(canvas: Ref<HTMLElement | null>) {
       const added = store.editText(location, text, adding ? NEW_TEXT[location.kind as 'item' | 'paragraph'] : undefined)
       if (added) void nextTick(() => beginAt(added, { previous: location, text, model: store.model }))
     } catch (error) {
-      // The text was removed meanwhile (e.g. by another tab): nothing to write it into.
-      if (!(error instanceof EditError)) throw error
+      // EditError: the text was removed meanwhile, so there is nothing to write it into. Anything else is a bug, logged
+      // rather than thrown out of a blur handler.
+      if (!(error instanceof EditError)) console.error('Inline text edit failed', error)
     }
   }
 
@@ -228,13 +254,14 @@ export function useInlineEdit(canvas: Ref<HTMLElement | null>) {
     if (target && canvas.value?.contains(target)) begin(target)
   }
 
-  // A regeneration that removed the element (another tab's change) ends the edit without writing anything.
+  // Any other change to the document (e.g. another tab's) ends the edit without writing anything. This runs before the
+  // page re-renders, so the element is put back as rendered and then updated as usual. (A commit ends the edit first.)
   watch(
     () => store.result,
-    () => {
-      if (session && !session.element.isConnected) end()
+    (result) => {
+      if (session && session.result !== result) end()
     },
-    { flush: 'post' },
+    { flush: 'pre' },
   )
 
   onMounted(() => {

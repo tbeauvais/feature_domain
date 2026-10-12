@@ -145,7 +145,7 @@
  * and filled in where it sits. Not while it is being edited: then the caret shows where typing goes.
  */
 .fd-editor-canvas .fd-root [data-edit]:empty:not([data-fd-editing])::before {
-  content: 'Empty: double-click to write';
+  content: 'Empty: double-click or press Enter to write';
   color: var(--fd-muted);
   font-style: italic;
   font-weight: normal;

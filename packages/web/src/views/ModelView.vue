@@ -45,10 +45,16 @@ function isTextEntry(target: EventTarget | null): boolean {
 
 const shortcuts = ref<InstanceType<typeof ShortcutsDialog> | null>(null)
 
-/** Where Enter edits the selected feature's text: nothing else focused, or the page on the canvas (not its fields). */
+/**
+ * Where Enter edits the selected feature's text: nothing else focused, the page on the canvas (not its fields), or the
+ * selected feature's row in the tree (so it works from the keyboard). Not while the problems panel is open.
+ */
 function editsOnEnter(target: EventTarget | null): boolean {
+  if (problemsOpen.value) return false
   if (target === document.body) return true
-  return target instanceof Element && !!canvas.value?.contains(target) && !target.closest('input, textarea, select, button')
+  if (!(target instanceof Element)) return false
+  if (target.closest('[data-tree-id]')?.getAttribute('data-tree-id') === selectedId.value) return true
+  return !!canvas.value?.contains(target) && !target.closest('input, textarea, select, button')
 }
 
 /**

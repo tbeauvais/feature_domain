@@ -628,3 +628,28 @@ test('the preview has no inline editing', async ({ page }) => {
   await heading.dblclick()
   await expect(page.locator('[data-edit], [contenteditable]')).toHaveCount(0)
 })
+
+test('Enter edits the selected feature’s text from its tree row, but not from inspector fields', async ({ page }) => {
+  await newModel(page)
+  await page.getByTestId('palette-HeaderFeature').click()
+  const heading = canvas(page).locator('[data-feature-id="2"]')
+
+  // In an inspector field, Enter is the field's own.
+  await inspector(page).getByLabel('Text', { exact: true }).press('Enter')
+  await expect(page.locator('[contenteditable]')).toHaveCount(0)
+
+  // From the selected feature's row in the tree, Enter edits its text on the page.
+  await tree(page).locator('[data-tree-id="2"]').focus()
+  await page.keyboard.press('Enter')
+  await expect(heading).toHaveAttribute('contenteditable', 'plaintext-only')
+  await expect(heading).toBeFocused()
+  await page.keyboard.type('From the keyboard')
+  await page.keyboard.press('Enter')
+  await expect(heading).toHaveText('From the keyboard')
+
+  // A row that isn't selected just selects its feature.
+  await tree(page).locator('[data-tree-id="1"]').focus()
+  await page.keyboard.press('Enter')
+  await expect(inspector(page)).toContainText('Page #1')
+  await expect(page.locator('[contenteditable]')).toHaveCount(0)
+})

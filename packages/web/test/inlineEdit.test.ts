@@ -68,6 +68,7 @@ describe('inline text editing', () => {
       inst('TextWithParagraphFeature', 'tp', { title: 'Title', text: 'One\n\nTwo' }),
       inst('PanelFeature', 'p', { heading: 'Panel' }),
       inst('HeaderFeature', 'in', { text: 'Inside' }, at('p', 'body')),
+      inst('TextFeature', 't', { text: 'Plain words' }),
     )
 
   it('marks editable text on the canvas, and starts editing it on a double-click', async () => {
@@ -164,6 +165,39 @@ describe('inline text editing', () => {
     expect(editing()).toBeNull()
   })
 
+  it('adds after an item that was empty and still is, rather than removing it', async () => {
+    await open(model(page(), inst('ListFeature', 'l', { items: ['Red', '', 'Blue'] })))
+    await dblclick('[data-edit-node="l"][data-edit-item="1"]')
+    await key('Enter')
+    expect(inputs('l').items).toEqual(['Red', '', NEW_TEXT.item, 'Blue'])
+    expect(editing()).toBe(el('[data-edit-node="l"][data-edit-item="2"]'))
+  })
+
+  it('edits a Text, whose element holds its text in several nodes', async () => {
+    await open(sample())
+    await dblclick('[data-feature-id="t"]')
+    type('New words')
+    await key('Enter')
+    expect(inputs('t').text).toBe('New words')
+    expect(el('[data-feature-id="t"]').textContent).toBe('New words')
+    store.undo()
+    await nextTick()
+    expect(el('[data-feature-id="t"]').textContent).toBe('Plain words')
+  })
+
+  it('ignores the Enter that confirms an input method’s candidate', async () => {
+    await open(sample())
+    await dblclick('[data-feature-id="h"]')
+    type('こんにちは')
+    await key('Enter', { isComposing: true })
+    await key('Enter', { keyCode: 229 } as KeyboardEventInit)
+    // Safari ends the composition just before that Enter.
+    editing()!.dispatchEvent(new CompositionEvent('compositionend'))
+    await key('Enter')
+    expect(editing()).not.toBeNull()
+    expect(inputs('h').text).toBe('Hello')
+  })
+
   it('starts a paragraph on Enter in a text of paragraphs', async () => {
     await open(sample())
     await dblclick('[data-node-id="tp.p1"]')
@@ -197,6 +231,34 @@ describe('inline text editing', () => {
     await nextTick()
     expect(inlineEdit.value).toBeNull()
     expect(store.model!.features.some((f) => f.id === 'h')).toBe(false)
+  })
+
+  it('ends the edit, writing nothing, when the document changes meanwhile, and shows the change', async () => {
+    await open(sample())
+    await dblclick('[data-feature-id="h"]')
+    type('Typed')
+    store.setInputs('h', { text: 'From elsewhere' })
+    await nextTick()
+    await nextTick()
+    expect(inlineEdit.value).toBeNull()
+    expect(el('[data-feature-id="h"]').textContent).toBe('From elsewhere')
+    expect(el('[data-feature-id="h"]').hasAttribute('contenteditable')).toBe(false)
+  })
+
+  it('starts after a change that finishing another edit makes, so it edits what is rendered', async () => {
+    await open(model(page(), inst('ListFeature', 'l', { items: ['Red', 'Green', 'Blue'] })))
+    await dblclick('[data-edit-node="l"][data-edit-item="0"]')
+    type('')
+    // Finishing the first edit removes Red, so the second item now shows Blue.
+    const second = el('[data-edit-node="l"][data-edit-item="1"]')
+    expect((w.vm as unknown as { begin: (el: HTMLElement) => boolean }).begin(second)).toBe(true)
+    expect(inputs('l').items).toEqual(['Green', 'Blue'])
+    await nextTick()
+    await nextTick()
+    expect(editing()).toBe(second)
+    expect(window.getSelection()?.toString()).toBe('Blue')
+    await key('Escape')
+    expect(root().querySelectorAll('li')[1]!.textContent).toBe('Blue')
   })
 
   it('pastes plain text only', async () => {

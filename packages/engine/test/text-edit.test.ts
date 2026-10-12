@@ -30,6 +30,13 @@ describe('editedValue', () => {
     expect(editedValue('Old', whole, '', 'string')).toBe('')
   })
 
+  it('types non-breaking spaces (which browsers put in for repeated and trailing spaces) as plain spaces', () => {
+    expect(editedValue('Old', whole, 'Hello\u00a0 world\u00a0', 'string')).toBe('Hello  world')
+    expect(editedValue(['a'], item(0), '\u00a0b\u00a0c', 'list')).toEqual(['b c'])
+    expect(editedValue('A', paragraph(0), 'x\u00a0y', 'text')).toBe('x y')
+    expect(editedValue('Same', whole, 'Same\u00a0', 'string')).toBe('Same')
+  })
+
   it('changes nothing when the text is what the page shows', () => {
     expect(editedValue('  Same\n', whole, 'Same', 'string')).toBe('  Same\n')
     expect(editedValue(['a', ' b '], item(1), 'b', 'list')).toEqual(['a', ' b '])
@@ -46,8 +53,8 @@ describe('editedValue', () => {
     const text = 'First\n\n\n  \nSecond\nstill second\n\nThird'
     expect(editedValue(text, paragraph(1), 'Two', 'text')).toBe('First\n\n\n  \nTwo\n\nThird')
     expect(editedValue(text, paragraph(2), 'Three', 'text')).toBe('First\n\n\n  \nSecond\nstill second\n\nThree')
-    // Blank lines typed into a paragraph start new ones, as in the inspector.
-    expect(editedValue('A\n\nB', paragraph(0), 'A1\n\nA2', 'text')).toBe('A1\n\nA2\n\nB')
+    // A paragraph stays one paragraph: pasted blank lines become line breaks, so the paragraphs after it keep their place.
+    expect(editedValue('A\n\nB', paragraph(0), 'A1\n\n \nA2', 'text')).toBe('A1\nA2\n\nB')
     expect(() => editedValue('A', paragraph(1), 'x', 'text')).toThrow(EditError)
   })
 
@@ -71,6 +78,7 @@ describe('insertedValue', () => {
 
   it('adds a paragraph after the given one', () => {
     expect(insertedValue('A\n\nB', paragraph(0), 'New')).toEqual({ value: 'A\n\nNew\n\nB', at: 1 })
+    expect(insertedValue('A', paragraph(0), 'x\n\ny')).toEqual({ value: 'A\n\nx\ny', at: 1 })
     expect(insertedValue('A\n\nB', paragraph(1), 'New')).toEqual({ value: 'A\n\nB\n\nNew', at: 2 })
   })
 
@@ -216,14 +224,16 @@ describe('edit marks', () => {
       stub('WrongType', { text: { input: 'items', kind: 'text' } }),
       stub('NotText', { emphasis: { input: 'text', kind: 'text' } }),
       stub('Entries', { text: { input: 'items', kind: 'item', entries: [0] } }),
+      stub('Paragraph', { text: { input: 'items', kind: 'paragraph', index: 0 } }),
       stub('Fine', { text: { input: 'text', kind: 'text' } }),
     ])
-    const r = generate(model(page(), inst('Undeclared', 'a'), inst('WrongType', 'b'), inst('NotText', 'c'), inst('Entries', 'd'), inst('Fine', 'e')), registry)
+    const r = generate(model(page(), inst('Undeclared', 'a'), inst('WrongType', 'b'), inst('NotText', 'c'), inst('Entries', 'd'), inst('Paragraph', 'f'), inst('Fine', 'e')), registry)
     expect(r.diagnostics.map((d) => `${d.code}:${d.featureInstanceId}: ${d.message}`)).toEqual([
       'invalid-edit-mark:a: Node "a" marks its text as input "title", which the feature doesn\'t declare',
       'invalid-edit-mark:b: Node "b" marks its text as text of input "items", a list input',
       'invalid-edit-mark:c: Node "c" marks its emphasis as text of input "text", but its emphasis doesn\'t match',
       'invalid-edit-mark:d: Node "d" marks its text as item of input "items", but its text doesn\'t match',
+      'invalid-edit-mark:f: Node "f" marks its text as paragraph of input "items", a list input',
     ])
     expect(r.metadata.features.find((f) => f.id === 'e')?.status).toBe('generated')
   })

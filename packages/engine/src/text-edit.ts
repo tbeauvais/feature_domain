@@ -89,6 +89,12 @@ export function findEditable(root: DocNode, location: TextLocation): EditableTex
 /** Text typed into a single-line value: line breaks become spaces. */
 const oneLine = (text: string) => text.replace(/\s*\n\s*/g, ' ')
 
+/**
+ * Text as typed on the page, trimmed. Browsers type non-breaking spaces for trailing and repeated spaces, which would
+ * stop the page wrapping there, so they become plain spaces.
+ */
+const typedText = (text: string) => text.replace(/\u00a0/g, ' ').trim()
+
 /** The non-empty paragraphs of a text with their positions in `text.split(PARAGRAPH_BREAK)`. */
 function paragraphSegments(text: string): { segments: string[]; positions: number[] } {
   const segments = text.split(PARAGRAPH_BREAK)
@@ -110,11 +116,11 @@ function withoutSegment(segments: string[], i: number): string {
 
 /**
  * The input's value with the text at `location` replaced by `text` (trimmed). Emptying a list entry or a paragraph
- * removes it; text that is what the page already shows changes nothing. Throws `EditError` when the location doesn't
- * exist.
+ * removes it; text that is what the page already shows changes nothing. A paragraph stays one paragraph: blank lines
+ * typed or pasted into it become line breaks. Throws `EditError` when the location doesn't exist.
  */
 export function editedValue(value: InputValue | undefined, location: TextLocation, text: string, type: InputDef['type']): InputValue {
-  const typed = text.trim()
+  const typed = typedText(text)
   if (location.kind === 'text') return typed === asString(value).trim() ? (value ?? '') : type === 'string' ? oneLine(typed) : typed
   if (location.kind === 'item') {
     const items = asList(value)
@@ -126,9 +132,10 @@ export function editedValue(value: InputValue | undefined, location: TextLocatio
   const { segments, positions } = paragraphSegments(asString(value))
   const position = positions[location.at]
   if (position === undefined) throw new EditError(`Input "${location.input}" has no paragraph ${location.at}`)
-  if (typed === segments[position]!.trim()) return asString(value)
-  if (typed === '') return withoutSegment(segments, position)
-  return segments.map((s, i) => (i === position ? typed : s)).join('')
+  const paragraph = typed.replace(/\n\s*\n/g, '\n')
+  if (paragraph === segments[position]!.trim()) return asString(value)
+  if (paragraph === '') return withoutSegment(segments, position)
+  return segments.map((s, i) => (i === position ? paragraph : s)).join('')
 }
 
 /** The input's value with `text` added as a new entry or paragraph after `location`, and where it went. */
@@ -137,13 +144,13 @@ export function insertedValue(value: InputValue | undefined, location: TextLocat
   if (location.kind === 'item') {
     const items = asList(value)
     if (location.at < 0 || location.at >= items.length) throw new EditError(`Input "${location.input}" has no entry ${location.at}`)
-    return { value: [...items.slice(0, location.at + 1), oneLine(text.trim()), ...items.slice(location.at + 1)], at: location.at + 1 }
+    return { value: [...items.slice(0, location.at + 1), oneLine(typedText(text)), ...items.slice(location.at + 1)], at: location.at + 1 }
   }
   const { segments, positions } = paragraphSegments(asString(value))
   const position = positions[location.at]
   if (position === undefined) throw new EditError(`Input "${location.input}" has no paragraph ${location.at}`)
   const out = [...segments]
-  out.splice(position + 1, 0, BREAK, text.trim())
+  out.splice(position + 1, 0, BREAK, typedText(text).replace(/\n\s*\n/g, '\n'))
   return { value: out.join(''), at: location.at + 1 }
 }
 

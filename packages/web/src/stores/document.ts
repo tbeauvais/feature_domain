@@ -253,13 +253,14 @@ export const useDocumentStore = defineStore('document', () => {
 
   /**
    * Writes text edited on the page back into the input it came from, as one undo step. With `add`, also adds a list
-   * entry or paragraph holding that text after it (Enter while editing one) and returns where the new one is; text
-   * emptied by the edit is removed instead, and nothing is added.
+   * entry or paragraph holding that text after it (Enter while editing one) and returns where the new one is. Text
+   * emptied by the edit is removed instead, and nothing is added; an entry that was empty and still is stays, with the
+   * new one after it.
    */
   function editText(location: TextLocation, text: string, add?: string): TextLocation | undefined {
     let next = editTextIn(current(), location, text)
     let added: TextLocation | undefined
-    if (add !== undefined && location.kind !== 'text' && text.trim() !== '') {
+    if (add !== undefined && location.kind !== 'text' && (text.trim() !== '' || next === current())) {
       const inserted = insertTextAfter(next, location, add)
       next = inserted.model
       added = inserted.location
