@@ -17,7 +17,7 @@ export const TextWithParagraphFeature: FeatureDefinition = {
   ],
 
   generate(inputs, ctx) {
-    const children = [...title(ctx, 'title', asString(inputs.title)), ...paragraphs(ctx, 'p', asString(inputs.text))]
+    const children = [...title(ctx, 'title', asString(inputs.title), 'title'), ...paragraphs(ctx, 'p', asString(inputs.text), 'text')]
     return { node: node('stack', ctx.nodeId(), {}, { children }) }
   },
 }

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-// Outlines the selected feature. It lives outside the generated page (.fd-root), because the page is a hard CSS
-// boundary where editor (Tailwind) styles have no effect; it is positioned from the element's bounding box.
-const props = defineProps<{ container: HTMLElement | null; selectedId: string | null; version: unknown }>()
+// Outlines the selected feature, or the text being edited in place (`editing`). It lives outside the generated page
+// (.fd-root), because the page is a hard CSS boundary where editor (Tailwind) styles have no effect; it is positioned
+// from the element's bounding box.
+const props = defineProps<{ container: HTMLElement | null; selectedId: string | null; editing?: HTMLElement | null; version: unknown }>()
 
 const box = ref<{ top: number; left: number; width: number; height: number } | null>(null)
 
@@ -12,7 +13,7 @@ let observed: Element | null = null
 
 function measure() {
   const container = props.container
-  const el = container && props.selectedId !== null ? container.querySelector(`[data-feature-id="${CSS.escape(props.selectedId)}"]`) : null
+  const el = !container ? null : props.editing ? props.editing : props.selectedId !== null ? container.querySelector(`[data-feature-id="${CSS.escape(props.selectedId)}"]`) : null
   // Also watch the selected element itself: its size changes when content arrives later (table rows, images).
   if (el !== observed) {
     if (observed) observer?.unobserve(observed)
@@ -34,7 +35,7 @@ function measure() {
   }
 }
 
-watch(() => [props.container, props.selectedId, props.version], () => void nextTick(measure), { immediate: true })
+watch(() => [props.container, props.selectedId, props.editing, props.version], () => void nextTick(measure), { immediate: true })
 
 // Images finishing loading inside the page (load events don't bubble, so listen while capturing).
 const onLoad = () => measure()
@@ -70,8 +71,10 @@ onBeforeUnmount(() => {
 <template>
   <div
     v-if="box"
-    class="pointer-events-none absolute rounded-sm ring-2 ring-sky-500 ring-offset-1"
+    class="pointer-events-none absolute rounded-sm ring-2 ring-offset-1"
+    :class="editing ? 'ring-amber-500 ring-offset-2' : 'ring-sky-500'"
     data-testid="selection-overlay"
+    :data-editing="editing ? '' : undefined"
     :style="{ top: `${box.top}px`, left: `${box.left}px`, width: `${box.width}px`, height: `${box.height}px` }"
   />
 </template>

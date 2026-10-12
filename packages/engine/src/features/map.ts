@@ -39,12 +39,12 @@ export const MapFeature: FeatureDefinition = {
     const address = asString(inputs.address).trim()
     const height = asOneOf(inputs.height, HEIGHTS, 'medium')
     const children: DocNode[] = [
-      ...title(ctx, 'title', asString(inputs.title)),
+      ...title(ctx, 'title', asString(inputs.title), 'title'),
       // Decorative: the same drawing for every address, so the address below says where.
       node('illustration', ctx.nodeId('map'), { name: 'banner/map', alt: '', width: '', align: 'center', aspect: MAP_HEIGHTS[height] }),
     ]
     if (address) {
-      children.push(node('paragraph', ctx.nodeId('address'), { text: address }))
+      children.push(node('paragraph', ctx.nodeId('address'), { text: address }, { edit: { text: { input: 'address', kind: 'text' } } }))
       // Named with the address, so a page with several maps doesn't have several links all called the same.
       children.push(node('link', ctx.nodeId('link'), { text: 'Open in Google Maps', href: googleMapsUrl(address), ariaLabel: `Open ${address} in Google Maps` }))
     } else ctx.report('warning', 'No address: the map has nothing to show or link to')

@@ -96,7 +96,8 @@ export const WeatherFeature: FeatureDefinition = {
     else props.url = openMeteoUrl(latitude, longitude, units, days)
 
     const children: DocNode[] = [
-      ...title(ctx, 'title', asString(inputs.title).trim() || place),
+      // The place's name stands in for an empty title; only a title of its own is edited in place.
+      ...(asString(inputs.title).trim() ? title(ctx, 'title', asString(inputs.title), 'title') : title(ctx, 'title', place)),
       node('weather', ctx.nodeId('weather'), props),
       node('link', ctx.nodeId('credit'), { ...OPEN_METEO_CREDIT }),
     ]

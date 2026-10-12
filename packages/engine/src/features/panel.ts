@@ -22,6 +22,6 @@ export const PanelFeature: FeatureDefinition = {
     const props: NodeKinds['panel'] = { heading: asString(inputs.heading) }
     const emphasis = asOneOf(inputs.emphasis, PANEL_EMPHASES, 'normal')
     if (emphasis !== 'normal') props.emphasis = emphasis
-    return { node: node('panel', ctx.nodeId(), props, { children: [body] }) }
+    return { node: node('panel', ctx.nodeId(), props, { children: [body], edit: { heading: { input: 'heading', kind: 'text' } } }) }
   },
 }

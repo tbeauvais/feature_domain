@@ -183,6 +183,26 @@ describe('editing with useDocumentStore', () => {
   })
 
   describe('undo and redo', () => {
+    it('retracts the last edit with no redo step, and edits text on the page as one step each', async () => {
+      const doc = await open(model(page(), inst('ListFeature', 'l', { items: ['Red', 'Green'] })))
+      const loc = { feature: 'l', input: 'items', kind: 'item', at: 0 } as const
+      expect(doc.editText(loc, 'Crimson', 'New item')).toEqual({ ...loc, at: 1 })
+      expect(doc.model?.features[1]?.inputs.items).toEqual(['Crimson', 'New item', 'Green'])
+      doc.retract()
+      expect(doc.model?.features[1]?.inputs.items).toEqual(['Red', 'Green'])
+      expect(doc.canUndo).toBe(false)
+      expect(doc.canRedo).toBe(false)
+      // Emptied text is removed, and nothing is added after it.
+      expect(doc.editText(loc, ' ', 'New item')).toBeUndefined()
+      expect(doc.model?.features[1]?.inputs.items).toEqual(['Green'])
+      // Text that doesn't change makes no undo step.
+      doc.undo()
+      const before = doc.model
+      expect(doc.editText(loc, 'Red')).toBeUndefined()
+      expect(doc.model).toBe(before)
+      expect(doc.canUndo).toBe(false)
+    })
+
     it('undoes and redoes edits, restoring the selection, and saves the result', async () => {
       const doc = await open(model(page()))
       expect(doc.canUndo).toBe(false)

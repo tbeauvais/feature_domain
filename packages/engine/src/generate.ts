@@ -3,6 +3,7 @@ import { defaultRegistry } from './features/index.js'
 import { buildGraph, topoSort, type Graph } from './graph.js'
 import { asBool, asString, resolveInputs, type Inputs } from './inputs.js'
 import { node, walkNodes } from './nodes.js'
+import { editMarkProblem } from './text-edit.js'
 import { ROOT_ID, ROOT_SLOT, type AppModel, type Diagnostic, type DocNode, type FeatureInstance, type Placement } from './types.js'
 
 /** `unknown`: the feature type is not in the registry (e.g. from a newer version, or misspelled). */
@@ -305,6 +306,14 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
       const clash = ownIds.find((nodeId, i) => nodeIds.has(nodeId) || ownIds.indexOf(nodeId) !== i)
       if (clash !== undefined) {
         fail(id, { code: 'duplicate-node-id', severity: 'error', message: `Generated node id "${clash}" is already in use` })
+        continue
+      }
+      let markProblem: string | undefined
+      walkNodes(featureNode, (n) => {
+        markProblem ??= editMarkProblem(n, e.def.inputs)
+      })
+      if (markProblem !== undefined) {
+        fail(id, { code: 'invalid-edit-mark', severity: 'error', message: markProblem })
         continue
       }
       for (const nodeId of ownIds) nodeIds.add(nodeId)

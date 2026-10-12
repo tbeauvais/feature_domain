@@ -140,3 +140,18 @@
 .fd-editor-canvas .fd-root .fd-page:empty {
   min-height: 18rem;
 }
+/*
+ * Text that can be edited in place but is empty (a header or link with no text yet) shows a hint, so it can be found
+ * and filled in where it sits. Not while it is being edited: then the caret shows where typing goes.
+ */
+.fd-editor-canvas .fd-root [data-edit]:empty:not([data-fd-editing])::before {
+  content: 'Empty: double-click or press Enter to write';
+  color: var(--fd-muted);
+  font-style: italic;
+  font-weight: normal;
+}
+/* Text being edited has room for the caret even when emptied. */
+.fd-editor-canvas .fd-root [data-fd-editing] {
+  min-width: 1ch;
+  outline: none;
+}

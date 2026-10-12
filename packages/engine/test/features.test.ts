@@ -32,6 +32,11 @@ import {
   type FeatureContext,
   type FeatureDefinition,
   type ResolvedFeature,
+  type TextLocation,
+  type InputValue,
+  editMarkProblem,
+  editedValue,
+  markLocation,
 } from '../src'
 
 function context(resolve: (id: string) => ResolvedFeature | undefined = () => undefined) {
@@ -53,6 +58,25 @@ const names = (def: FeatureDefinition) => def.inputs.map((i) => i.name)
 function runStored(def: FeatureDefinition, stored: Record<string, unknown>) {
   const { ctx, report } = context()
   return { out: def.generate(deepFreeze(resolveInputs(def.inputs, stored as never)) as never, ctx), report }
+}
+
+/** Values that give every feature's marked texts something to show (a Weather title, several paragraphs, list entries). */
+const EDITABLE_INPUTS = { title: 'A title', text: 'First paragraph.\n\nSecond paragraph.', items: ['One', '', 'Three'] }
+
+/** A feature's marked texts for these inputs, with the location each points at and the text it shows. */
+function editableTexts(def: FeatureDefinition, raw: Record<string, unknown>) {
+  const { ctx } = context()
+  const out = def.generate(deepFreeze(resolveInputs(def.inputs, raw as never)) as never, ctx)
+  const texts: { node: DocNode; location: TextLocation; text: string }[] = []
+  if (!out.node) return texts
+  walkNodes(out.node, (n) => {
+    for (const [prop, mark] of Object.entries(n.edit ?? {})) {
+      const value = (n.props as Record<string, unknown>)[prop]
+      if (mark.kind === 'item') (value as string[]).forEach((text, i) => texts.push({ node: n, location: markLocation('7', mark, i)!, text }))
+      else texts.push({ node: n, location: markLocation('7', mark)!, text: value as string })
+    }
+  })
+  return texts
 }
 
 const allNodes = (root: DocNode) => {
@@ -97,6 +121,23 @@ describe.each(coreFeatures.map((f) => [f.type, f] as const))('%s contract', (_, 
       const generatedSlots = nodes.flatMap((n) => (n.slot === undefined ? [] : [n.slot]))
       expect(generatedSlots).toEqual(slots)
     })
+
+    it('marks only text that is a plain copy of an input it declares, and edits round-trip', () => {
+      const inputs: Record<string, InputValue> = { ...initialInputs(def.inputs), ...EDITABLE_INPUTS }
+      const marked = editableTexts(def, inputs)
+      for (const { node: n } of marked) expect(editMarkProblem(n, def.inputs), n.id).toBeUndefined()
+      for (const { location, text } of marked) {
+        // The marked text shows the input's value as it is.
+        const input = def.inputs.find((i) => i.name === location.input)!
+        expect(editedValue(inputs[location.input], location, text, input.type), JSON.stringify(location)).toEqual(inputs[location.input])
+        // Editing it changes exactly that text.
+        const edited = { ...inputs, [location.input]: editedValue(inputs[location.input], location, 'Edited words', input.type) }
+        const after = editableTexts(def, edited)
+        const found = after.find((t) => JSON.stringify(t.location) === JSON.stringify(location))
+        expect(found?.text, JSON.stringify(location)).toBe('Edited words')
+        expect(after.map((t) => (t === found ? 'edited' : t.text))).toEqual(marked.map((t) => (t.location === location ? 'edited' : t.text)))
+      }
+    })
   } else {
     it('generates exports and no node', () => {
       const { out } = run(def)
@@ -127,6 +168,7 @@ describe('TextFeature', () => {
       id: '7',
       kind: 'text',
       props: { text: 'Say what this part of the page is about in a sentence or two.' },
+      edit: { text: { input: 'text', kind: 'text' } },
       children: [],
     })
   })
@@ -244,6 +286,7 @@ describe('PanelFeature', () => {
       id: '7',
       kind: 'panel',
       props: { heading: 'Repos', emphasis: 'highlight' },
+      edit: { heading: { input: 'heading', kind: 'text' } },
       children: [{ id: '7.body', kind: 'panel-body', props: {}, slot: 'body', children: [] }],
     })
   })

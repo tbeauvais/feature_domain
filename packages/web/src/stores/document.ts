@@ -1,6 +1,8 @@
 import {
   addFeature,
   defaultRegistry,
+  editText as editTextIn,
+  insertTextAfter,
   generate,
   migrate,
   moveFeature,
@@ -16,6 +18,7 @@ import {
   type InputValue,
   type PlacementTarget,
   type RemoveResult,
+  type TextLocation,
 } from '@feature-domain/engine'
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
@@ -205,6 +208,14 @@ export const useDocumentStore = defineStore('document', () => {
     restore(entry)
   }
 
+  /** Takes back the last edit as if it never happened (no redo), e.g. an entry added in place and then cancelled. */
+  function retract(): void {
+    const entry = past.value.at(-1)
+    if (!entry || !model.value) return
+    past.value = past.value.slice(0, -1)
+    restore(entry)
+  }
+
   // --- Edits (all pure engine operations; the store only keeps the result) ------------------------------------------
 
   function current(): AppModel {
@@ -238,6 +249,24 @@ export const useDocumentStore = defineStore('document', () => {
 
   function setInputs(id: string, changes: Record<string, InputValue | undefined>): void {
     apply(updateInputs(current(), id, changes), `inputs:${id}:${Object.keys(changes).sort().join(',')}`)
+  }
+
+  /**
+   * Writes text edited on the page back into the input it came from, as one undo step. With `add`, also adds a list
+   * entry or paragraph holding that text after it (Enter while editing one) and returns where the new one is. Text
+   * emptied by the edit is removed instead, and nothing is added; an entry that was empty and still is stays, with the
+   * new one after it.
+   */
+  function editText(location: TextLocation, text: string, add?: string): TextLocation | undefined {
+    let next = editTextIn(current(), location, text)
+    let added: TextLocation | undefined
+    if (add !== undefined && location.kind !== 'text' && (text.trim() !== '' || next === current())) {
+      const inserted = insertTextAfter(next, location, add)
+      next = inserted.model
+      added = inserted.location
+    }
+    apply(next)
+    return added
   }
 
   function moveTo(id: string, target: PlacementTarget): void {
@@ -295,6 +324,7 @@ export const useDocumentStore = defineStore('document', () => {
     add,
     addAt,
     setInputs,
+    editText,
     moveTo,
     remove,
     applyThemePreset,
@@ -304,5 +334,6 @@ export const useDocumentStore = defineStore('document', () => {
     canRedo,
     undo,
     redo,
+    retract,
   }
 })

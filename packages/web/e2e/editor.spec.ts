@@ -560,3 +560,96 @@ test('a Weather card shows the forecast for its place, and Find moves it somewhe
   await preview.goto(`/preview.html?model=${encodeURIComponent(id)}`)
   await expect(preview.locator('.fd-weather-temp')).toHaveText('72°C')
 })
+
+test('edits text in place on the canvas: a header, a list item and a paragraph', async ({ page }) => {
+  await newModel(page)
+  await page.getByTestId('palette-HeaderFeature').click()
+  const heading = canvas(page).locator('[data-feature-id="2"]')
+
+  // Double-click, type over the selected text, Enter keeps it; the inspector follows.
+  await heading.dblclick()
+  await expect(heading).toHaveAttribute('contenteditable', 'plaintext-only')
+  await page.keyboard.press('ControlOrMeta+a')
+  await page.keyboard.type('Built from features')
+  await page.keyboard.press('Enter')
+  await expect(heading).toHaveText('Built from features')
+  await expect(heading).not.toHaveAttribute('contenteditable')
+  await expect(inspector(page).getByLabel('Text', { exact: true })).toHaveValue('Built from features')
+  // One undo step puts it back.
+  await page.getByTestId('undo').click()
+  await expect(heading).toHaveText('Your headline goes here')
+  await page.getByTestId('redo').click()
+
+  // Enter on a selected feature edits it too; Escape puts the text back.
+  await heading.click()
+  await page.keyboard.press('Enter')
+  await expect(heading).toHaveAttribute('contenteditable', 'plaintext-only')
+  await page.keyboard.type('Discarded')
+  await page.keyboard.press('Escape')
+  await expect(heading).toHaveText('Built from features')
+
+  // A list: Enter adds the next item and edits it.
+  await page.getByTestId('palette-ListFeature').click()
+  const items = canvas(page).locator('[data-feature-id="3"] li')
+  await items.nth(1).dblclick()
+  await page.keyboard.press('ControlOrMeta+a')
+  await page.keyboard.type('Teal')
+  await page.keyboard.press('Enter')
+  await expect(items.nth(2)).toHaveAttribute('contenteditable', 'plaintext-only')
+  await page.keyboard.type('Violet')
+  await page.getByTestId('model-name').click()
+  await expect(items).toHaveText(['Red', 'Teal', 'Violet', 'Blue'])
+  await expect(inspector(page).getByLabel('List Items')).toHaveValue('Red\nTeal\nViolet\nBlue')
+
+  // A paragraph of Text with title, left by clicking elsewhere; the change is saved.
+  await canvas(page).locator('[data-feature-id="2"]').click()
+  await page.getByTestId('palette-TextWithParagraphFeature').click()
+  const paragraph = canvas(page).locator('[data-node-id="4.p1"]')
+  await paragraph.dblclick()
+  await page.keyboard.press('ControlOrMeta+a')
+  await page.keyboard.type('Written on the page.')
+  await page.getByTestId('model-name').click()
+  await expect(paragraph).toHaveText('Written on the page.')
+  await expect(page.getByTestId('save-state')).toHaveText('Saved')
+  await page.reload()
+  await expect(canvas(page).locator('[data-node-id="4.p1"]')).toHaveText('Written on the page.')
+  await expect(canvas(page).locator('[data-feature-id="3"] li')).toHaveText(['Red', 'Teal', 'Violet', 'Blue'])
+})
+
+test('the preview has no inline editing', async ({ page }) => {
+  await newModel(page)
+  await page.getByTestId('palette-HeaderFeature').click()
+  await expect(canvas(page).locator('[data-edit]')).toHaveCount(1)
+  const id = new URL(page.url()).pathname.split('/').pop()!
+  await expect(page.getByTestId('save-state')).toHaveText('Saved')
+  await page.goto(`/preview.html?model=${id}`)
+  const heading = page.locator('h1')
+  await expect(heading).toHaveText('Your headline goes here')
+  await heading.dblclick()
+  await expect(page.locator('[data-edit], [contenteditable]')).toHaveCount(0)
+})
+
+test('Enter edits the selected feature’s text from its tree row, but not from inspector fields', async ({ page }) => {
+  await newModel(page)
+  await page.getByTestId('palette-HeaderFeature').click()
+  const heading = canvas(page).locator('[data-feature-id="2"]')
+
+  // In an inspector field, Enter is the field's own.
+  await inspector(page).getByLabel('Text', { exact: true }).press('Enter')
+  await expect(page.locator('[contenteditable]')).toHaveCount(0)
+
+  // From the selected feature's row in the tree, Enter edits its text on the page.
+  await tree(page).locator('[data-tree-id="2"]').focus()
+  await page.keyboard.press('Enter')
+  await expect(heading).toHaveAttribute('contenteditable', 'plaintext-only')
+  await expect(heading).toBeFocused()
+  await page.keyboard.type('From the keyboard')
+  await page.keyboard.press('Enter')
+  await expect(heading).toHaveText('From the keyboard')
+
+  // A row that isn't selected just selects its feature.
+  await tree(page).locator('[data-tree-id="1"]').focus()
+  await page.keyboard.press('Enter')
+  await expect(inspector(page)).toContainText('Page #1')
+  await expect(page.locator('[contenteditable]')).toHaveCount(0)
+})

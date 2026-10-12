@@ -15,6 +15,7 @@ import { REDO_KEYS, UNDO_KEYS } from '../editor/keys'
 import { themeSummary } from '../editor/status'
 import { CANVAS_WIDTHS, loadCanvasWidth, saveCanvasWidth, type CanvasWidth } from '../editor/canvasWidth'
 import { useEditorDnd } from '../editor/useEditorDnd'
+import { inlineEdit, useInlineEdit } from '../editor/useInlineEdit'
 import { forgetSampleRows } from '../renderer/data'
 import DocumentView from '../renderer/DocumentView.vue'
 import { modelStore } from '../services'
@@ -30,6 +31,7 @@ const canvas = ref<HTMLElement | null>(null)
 const tree = ref<HTMLElement | null>(null)
 const palette = ref<HTMLElement | null>(null)
 useEditorDnd({ canvas, tree, palette })
+const textEditing = useInlineEdit(canvas)
 
 
 const TEXT_INPUT_TYPES = ['text', 'search', 'url', 'tel', 'email', 'password', 'number']
@@ -43,9 +45,28 @@ function isTextEntry(target: EventTarget | null): boolean {
 
 const shortcuts = ref<InstanceType<typeof ShortcutsDialog> | null>(null)
 
-/** Undo/redo shortcuts and `?` for the shortcuts list, except in text fields and while a confirmation dialog is open. */
+/**
+ * Where Enter edits the selected feature's text: nothing else focused, the page on the canvas (not its fields), or the
+ * selected feature's row in the tree (so it works from the keyboard). Not while the problems panel is open.
+ */
+function editsOnEnter(target: EventTarget | null): boolean {
+  if (problemsOpen.value) return false
+  if (target === document.body) return true
+  if (!(target instanceof Element)) return false
+  if (target.closest('[data-tree-id]')?.getAttribute('data-tree-id') === selectedId.value) return true
+  return !!canvas.value?.contains(target) && !target.closest('input, textarea, select, button')
+}
+
+/**
+ * Undo/redo shortcuts, `?` for the shortcuts list and Enter to edit the selected feature's text in place, except in
+ * text fields and while a confirmation dialog is open.
+ */
 function onKeydown(event: KeyboardEvent) {
   if (pendingConfirm.value !== null || shortcuts.value?.isOpen() || isTextEntry(event.target)) return
+  if (event.key === 'Enter' && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && editsOnEnter(event.target)) {
+    if (textEditing.editSelected()) event.preventDefault()
+    return
+  }
   if (event.key === '?' && !event.metaKey && !event.ctrlKey && !event.altKey) {
     shortcuts.value?.open()
     event.preventDefault()
@@ -225,7 +246,7 @@ async function deleteModel() {
               @auxclick="onCanvasAuxClick"
             >
               <DocumentView :key="id" :root="result.root" :model-id="id" editing />
-              <SelectionOverlay :container="canvas" :selected-id="selectedId" :version="result" />
+              <SelectionOverlay :container="canvas" :selected-id="selectedId" :editing="inlineEdit?.element ?? null" :version="result" />
               <DropIndicator :container="canvas" />
               <EmptyPageHint :container="canvas" :root="result.root" />
             </div>

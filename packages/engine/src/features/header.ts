@@ -24,6 +24,6 @@ export const HeaderFeature: FeatureDefinition = {
     const props: NodeKinds['heading'] = { text: asString(inputs.text), level: clamp(asInt(inputs.size, 1), 1, 6), align: asAlign(inputs.align, 'center') }
     if (color !== 'ink') props.color = color
     if (background !== 'none') props.background = background
-    return { node: node('heading', ctx.nodeId(), props) }
+    return { node: node('heading', ctx.nodeId(), props, { edit: { text: { input: 'text', kind: 'text' } } }) }
   },
 }

@@ -15,6 +15,8 @@ export const ListFeature: FeatureDefinition = {
   ],
 
   generate(inputs, ctx) {
-    return { node: node('list', ctx.nodeId(), { items: asList(inputs.items), align: asAlign(inputs.align, 'center') }) }
+    const items = asList(inputs.items)
+    const edit = { items: { input: 'items', kind: 'item' as const, entries: items.map((_, i) => i) } }
+    return { node: node('list', ctx.nodeId(), { items, align: asAlign(inputs.align, 'center') }, { edit }) }
   },
 }
