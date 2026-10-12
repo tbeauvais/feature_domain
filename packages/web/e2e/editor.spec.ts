@@ -114,7 +114,7 @@ test('creates and deletes models', async ({ page }) => {
   await page.getByTestId('delete-model').click()
   await page.getByTestId('confirm-dialog').getByTestId('confirm-ok').click()
   await expect(page).toHaveURL('/')
-  await expect(page.getByTestId('model-list').getByRole('link')).toHaveCount(4)
+  await expect(page.getByTestId('model-list').getByRole('link')).toHaveCount(6)
 })
 
 test('typing into list and number fields keeps what you type', async ({ page }) => {
@@ -216,45 +216,59 @@ test('leaving after a failed save asks before losing the changes', async ({ page
   await expect(page.getByTestId('model-name')).toHaveValue('Will not save')
 })
 
-test('a sample stored before List was ported is upgraded when opened', async ({ page }) => {
+/** Puts a model into the app's browser storage (after the home page has loaded, so the samples are seeded first). */
+async function store(page: Page, model: { id: string }) {
   await page.goto('/')
   await expect(page.getByTestId('model-list')).toBeVisible()
-  // Rewrite Data Sample's List the way it was stored before List was ported: scalar inputs, legacy instance in cache.
-  await page.evaluate(() => {
+  await page.evaluate((m) => {
     const stored = JSON.parse(localStorage.getItem('feature-domain:models')!)
-    for (const model of Object.values(stored.models) as { name: string; features: { id: string; feature: string; inputs: object; cache?: object }[] }[]) {
-      if (model.name !== 'Data Sample') continue
-      const list = model.features.find((f) => f.id === '7')!
-      const legacy = { feature: 'ListFeature', id: '7', inputs: { name: 'Color list', list: 'Red,Green,Blue,Yellow', align: 'center-block' } }
-      list.inputs = { name: 'Color list', list: 'Red,Green,Blue,Yellow', align: 'center-block' }
-      list.cache = { legacy }
-    }
+    stored.models[m.id] = m
+    stored.order.push(m.id)
     localStorage.setItem('feature-domain:models', JSON.stringify(stored))
-  })
-  await page.getByRole('link', { name: 'Data Sample', exact: true }).click()
-  await expect(canvas(page).locator('[data-feature-id="7"] li')).toHaveText(['Red', 'Green', 'Blue', 'Yellow'])
+  }, model)
+}
+
+test('a model stored before List was ported is upgraded when opened', async ({ page }) => {
+  // A List the way it was stored before List was ported: scalar inputs, its legacy instance in cache.
+  const legacy = { feature: 'ListFeature', id: '2', inputs: { name: 'Color list', list: 'Red,Green,Blue,Yellow', align: 'center-block' } }
+  await store(page, {
+    id: 'stored-list',
+    version: 2,
+    name: 'Stored list',
+    features: [
+      { feature: 'PageFeature', id: '1', inputs: { name: 'Page' }, placement: { parent: '$root', slot: 'content' } },
+      { feature: 'ListFeature', id: '2', inputs: { ...legacy.inputs }, placement: { parent: '1', slot: 'content' }, cache: { legacy } },
+    ],
+  } as { id: string })
+  await page.goto('/models/stored-list')
+  await expect(canvas(page).locator('[data-feature-id="2"] li')).toHaveText(['Red', 'Green', 'Blue', 'Yellow'])
   await expect(page.getByTestId('save-state')).toHaveText('Saved')
-  const saved = await page.evaluate(() => {
-    const stored = JSON.parse(localStorage.getItem('feature-domain:models')!)
-    const model = (Object.values(stored.models) as { name: string; features: { id: string }[] }[]).find((m) => m.name === 'Data Sample')!
-    return model.features.find((f) => f.id === '7')
-  })
-  expect(saved).toEqual({ feature: 'ListFeature', id: '7', inputs: { name: 'Color list', disable: false, items: ['Red', 'Green', 'Blue', 'Yellow'], align: 'center' }, placement: { parent: '12', slot: 'r1c1' } })
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('feature-domain:models')!).models['stored-list'].features[1])
+  expect(saved).toEqual({ feature: 'ListFeature', id: '2', inputs: { name: 'Color list', disable: false, items: ['Red', 'Green', 'Blue', 'Yellow'], align: 'center' }, placement: { parent: '1', slot: 'content' } })
 })
 
 test('responsive images keep their aspect ratio in a narrow cell', async ({ page }) => {
-  // The frog image in Data Sample is responsive, 300 x 300; serve it as a 2:1 picture.
-  await page.context().route('http://assets.kompas.com/**', (route) =>
+  // A responsive 300 x 300 image, served as a 2:1 picture.
+  await page.context().route('https://images.test/**', (route) =>
     route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="green"/></svg>' }),
   )
-  await page.goto('/')
-  await page.getByRole('link', { name: 'Data Sample', exact: true }).click()
-  await tree(page).locator('[data-tree-id="12"]').click()
+  await store(page, {
+    id: 'picture',
+    version: 2,
+    name: 'Picture',
+    features: [
+      { feature: 'PageFeature', id: '1', inputs: { name: 'Page' }, placement: { parent: '$root', slot: 'content' } },
+      { feature: 'ContainerFeature', id: '2', inputs: { rows: 1, columns: 2 }, placement: { parent: '1', slot: 'content' } },
+      { feature: 'ImageFeature', id: '3', inputs: { source: 'link', src: 'https://images.test/picture.svg', alt: 'A green field', responsive: true, width: '300', height: '300' }, placement: { parent: '2', slot: 'r1c2' } },
+    ],
+  } as { id: string })
+  await page.goto('/models/picture')
+  await tree(page).locator('[data-tree-id="2"]').click()
   await inspector(page).getByLabel('Columns').fill('4')
-  const frog = canvas(page).locator('[data-feature-id="13"]')
-  await expect(frog).toHaveJSProperty('complete', true)
-  const box = (await frog.boundingBox())!
-  const cell = (await canvas(page).locator('[data-node-id="12.r1c2"]').boundingBox())!
+  const image = canvas(page).locator('[data-feature-id="3"]')
+  await expect(image).toHaveJSProperty('complete', true)
+  const box = (await image.boundingBox())!
+  const cell = (await canvas(page).locator('[data-node-id="2.r1c2"]').boundingBox())!
   expect(box.width).toBeLessThanOrEqual(cell.width)
   expect(box.width).toBeLessThan(300)
   expect(box.height).toBeCloseTo(box.width / 2, 0)
@@ -267,7 +281,7 @@ test('deleting a model with an unsaved edit goes straight back to the list', asy
   await page.getByTestId('confirm-dialog').getByTestId('confirm-ok').click()
   await expect(page).toHaveURL('/')
   await expect(page.getByTestId('confirm-dialog')).toHaveCount(0)
-  await expect(page.getByTestId('model-list').getByRole('link')).toHaveCount(4)
+  await expect(page.getByTestId('model-list').getByRole('link')).toHaveCount(6)
 })
 
 test('the editor and preview load nothing from other sites', async ({ page, context }) => {

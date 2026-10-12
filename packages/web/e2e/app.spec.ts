@@ -15,8 +15,8 @@ isolateNetwork((route, url) => {
   }
   if (url.hostname !== 'api.github.com') return undefined
   const user = url.pathname.split('/')[2]
-  // A user's profile (Data Sample's line above the repo table reads it); anything else is their repos.
-  if (/^\/users\/[^/]+$/.test(url.pathname)) return route.fulfill({ json: { login: user, public_repos: 30, followers: 12 } })
+  // A user's profile (the portfolio's line of values reads it); anything else is their repos.
+  if (/^\/users\/[^/]+$/.test(url.pathname)) return route.fulfill({ json: { login: user, public_repos: 30, followers: 12, created_at: '2011-03-07T10:00:00Z' } })
   return route.fulfill({
     json: [
       { name: `${user}-engine`, description: 'Parametric engine', language: 'TypeScript', updated_at: '2015-03-07T10:00:00Z', html_url: `https://github.com/${user}/engine` },
@@ -32,27 +32,31 @@ async function openSample(page: Page, name: string): Promise<string> {
   return decodeURIComponent(new URL(page.url()).pathname.split('/').pop()!)
 }
 
+/** Puts a model into the app's browser storage (the home page must have loaded, so the samples are seeded first). */
+async function store(page: Page, model: { id: string }) {
+  await page.evaluate((m) => {
+    const stored = JSON.parse(localStorage.getItem('feature-domain:models')!)
+    stored.models[m.id] = m
+    stored.order.push(m.id)
+    localStorage.setItem('feature-domain:models', JSON.stringify(stored))
+  }, model)
+}
 
-test('lists the migrated sample models', async ({ page }) => {
+test('lists the sample models', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByTestId('model-list').getByRole('link')).toHaveText([
-    'Getting Started',
-    'Buy Deal',
-    'Data Sample',
-    'Swagger Data Sample',
-  ])
+  await expect(page.getByTestId('model-list').getByRole('link')).toHaveText(['Start here', 'Harbor Coffee', 'Ledgerly pricing', 'Northwind sales', 'Tom Beauvais · projects', 'Shoreline JS meetup'])
 })
 
 test('a table that really scrolls is a named, focusable region, until phone width shows every row', async ({ page }) => {
   await page.context().route('https://api.github.com/**', (route) =>
     route.fulfill({ json: Array.from({ length: 30 }, (_, i) => ({ name: `repo-${i}`, description: '', language: 'Vue', updated_at: '2015-03-07T10:00:00Z', html_url: 'https://github.com/x/r' })) }),
   )
-  await openSample(page, 'Data Sample')
-  const wrap = page.getByTestId('canvas').locator('[data-feature-id="24"] .fd-table-wrap')
+  await openSample(page, 'Tom Beauvais · projects')
+  const wrap = page.getByTestId('canvas').locator('[data-feature-id="9"] .fd-table-wrap')
   await expect(wrap.locator('tbody tr')).toHaveCount(30)
   await expect(wrap).toHaveAttribute('tabindex', '0')
   await expect(wrap).toHaveAttribute('role', 'region')
-  await expect(wrap).toHaveAccessibleName(/table$/)
+  await expect(wrap).toHaveAccessibleName('Recently updated')
   // The header stays in view while the rows scroll.
   await wrap.evaluate((el) => (el.scrollTop = 200))
   const offset = await wrap.evaluate((el) => el.querySelector('th')!.getBoundingClientRect().top - el.getBoundingClientRect().top)
@@ -64,28 +68,40 @@ test('a table that really scrolls is a named, focusable region, until phone widt
 })
 
 test('neighboring texts and links sit on their own lines, and empty containers and panels leave no gaps or empty cards', async ({ page }) => {
-  await openSample(page, 'Getting Started')
+  await openSample(page, 'Tom Beauvais · projects')
   const canvas = page.getByTestId('canvas')
-  // Two Text features and a Link in a row: each starts on its own line, instead of "textThis is from Feature #1GitHub".
-  const tops = await Promise.all(['5', '2', '4'].map(async (id) => (await canvas.locator(`[data-feature-id="${id}"]`).boundingBox())!.y))
+  // A Text and a Link one after the other: each starts on its own line, not run together as in the legacy app.
+  const tops = await Promise.all(['7', '8'].map(async (id) => (await canvas.locator(`[data-feature-id="${id}"]`).boundingBox())!.y))
   expect(tops[1]!).toBeGreaterThan(tops[0]! + 10)
-  expect(tops[2]!).toBeGreaterThan(tops[1]! + 10)
 
-  // In the preview, a container holding nothing (here its two maps, disabled) adds no margin, and panels holding only
-  // tables, charts and forms (which are cards themselves) draw no card of their own.
-  const id = await openSample(page, 'Getting Started')
+  // In the preview, a container holding nothing (here its map and weather, disabled) adds no margin.
+  const id = await openSample(page, 'Harbor Coffee')
   // Away from the editor first, so its autosave can't write over the change.
   await page.goto(`/preview.html?model=${encodeURIComponent(id)}`)
   await page.evaluate((modelId) => {
     const stored = JSON.parse(localStorage.getItem('feature-domain:models')!)
-    for (const f of stored.models[modelId].features) if (f.feature === 'GoogleMapFeature') f.inputs.disable = true
+    for (const f of stored.models[modelId].features) if (f.feature === 'GoogleMapFeature' || f.feature === 'WeatherFeature') f.inputs.disable = true
     localStorage.setItem('feature-domain:models', JSON.stringify(stored))
   }, id)
   await page.reload()
-  await expect(page.locator('[data-feature-id="16"]')).toHaveCount(0)
-  await expect(page.locator('[data-feature-id="19"]')).toHaveCSS('margin-bottom', '0px')
-  const swagger = await openSample(page, 'Swagger Data Sample')
-  await page.goto(`/preview.html?model=${encodeURIComponent(swagger)}`)
+  await expect(page.locator('[data-feature-id="14"]')).toHaveCount(0)
+  await expect(page.locator('[data-feature-id="13"]')).toHaveCSS('margin-bottom', '0px')
+
+  // Panels holding only tables, charts and forms (which are cards themselves) draw no card of their own.
+  await store(page, {
+    id: 'panels',
+    version: 2,
+    name: 'Panels',
+    features: [
+      { feature: 'DataResourceFeature', id: '1', inputs: { name: 'Orders', source: 'sample', sample_rows: '[{"item": "Tea", "qty": 2}]' } },
+      { feature: 'PageFeature', id: '2', inputs: { name: 'Page' }, placement: { parent: '$root', slot: 'content' } },
+      { feature: 'PanelFeature', id: '3', inputs: { heading: 'Orders' }, placement: { parent: '2', slot: 'content' } },
+      { feature: 'TableFeature', id: '4', inputs: { data_resource: '1' }, placement: { parent: '3', slot: 'body' } },
+      { feature: 'PanelFeature', id: '5', inputs: { heading: 'New order' }, placement: { parent: '2', slot: 'content' } },
+      { feature: 'FormFeature', id: '6', inputs: { data_resource: '1' }, placement: { parent: '5', slot: 'body' } },
+    ],
+  } as { id: string })
+  await page.goto('/preview.html?model=panels')
   const bodies = page.locator('.fd-panel-body')
   await expect(bodies).toHaveCount(2)
   for (const body of await bodies.all()) {
@@ -94,45 +110,33 @@ test('neighboring texts and links sit on their own lines, and empty containers a
   }
 })
 
-test('renders a sample with containers, panels, live tables and diagnostics', async ({ page }) => {
-  await openSample(page, 'Data Sample')
+test('renders the samples\' live tables and values, maps and weather, with no problems', async ({ page }) => {
+  await openSample(page, 'Tom Beauvais · projects')
   const canvas = page.getByTestId('canvas')
+  await expect(canvas.getByRole('heading', { name: 'Tom Beauvais', level: 1 })).toBeVisible()
+  // A text reads values from the GitHub profile, live.
+  await expect(canvas.locator('[data-feature-id="7"]')).toHaveText('30 public repositories · 12 followers · on GitHub since Mar 7, 2011')
 
-  await expect(canvas.getByRole('heading', { name: 'Two New Locations', level: 1 })).toBeVisible()
-  await expect(canvas.locator('.fd-panel-heading', { hasText: 'My GitHub Repos' })).toBeVisible()
-  // Panel headings are plain text: no decorative dot before them.
-  const marker = await canvas.locator('.fd-panel-heading h4', { hasText: 'My GitHub Repos' }).evaluate((h) => getComputedStyle(h, '::before').content)
-  expect(marker).toBe('none')
-
-  // Repo Table: fields name/description/language/updated_at with filters none / dataLink / badge / date (samples v4).
-  const table = canvas.locator('[data-feature-id="24"]')
-  await expect(table.locator('th')).toHaveText(['Name', 'Description', 'Language', 'Updated'])
+  // The repo table: fields name/description/language/updated_at, filtered as a link, plain, badge and date.
+  const table = canvas.locator('[data-feature-id="9"]')
+  await expect(table.locator('th')).toHaveText(['Repository', 'Description', 'Language', 'Updated'])
   await expect(table.locator('tbody tr').first().locator('td')).toHaveText(['tbeauvais-engine', 'Parametric engine', 'TypeScript', 'Mar 7, 2015'])
-  await expect(table.getByRole('link', { name: 'Parametric engine' })).toHaveAttribute('href', 'https://github.com/tbeauvais/engine')
+  await expect(table.getByRole('link', { name: 'tbeauvais-engine' })).toHaveAttribute('href', 'https://github.com/tbeauvais/engine')
   await expect(table.locator('.fd-badge')).toHaveText(['TypeScript', 'Vue'])
-  await expect(table.locator('.fd-table-foot')).toHaveText('2 rows')
+  await expect(table).toContainText('2 rows')
   // Two rows don't fill a table that scrolls after 10: no tab stop with nothing to scroll.
   await expect(table.locator('.fd-table-wrap')).not.toHaveAttribute('tabindex')
-  await expect(canvas.locator('[data-feature-id="38"] tbody tr')).toHaveCount(2)
   const look = await table.evaluate((block) => {
-    const body = block.closest('.fd-panel-body')!
     const th = block.querySelector('th')!
     const date = block.querySelector('tbody td:last-child')!
     return {
-      // The panel holding only this table draws no card of its own: the table is the card.
-      panelBody: [getComputedStyle(body).paddingTop, getComputedStyle(body).borderTopStyle, getComputedStyle(body).boxShadow],
       tableBorder: getComputedStyle(block).borderTopStyle,
       // Labels in the body font, not spaced capitals; the header row stays in view while rows scroll.
       label: [getComputedStyle(th).textTransform, getComputedStyle(th).letterSpacing, getComputedStyle(th).position],
       date: [getComputedStyle(date).textAlign, getComputedStyle(date).fontVariantNumeric],
     }
   })
-  expect(look).toEqual({
-    panelBody: ['0px', 'none', 'none'],
-    tableBorder: 'solid',
-    label: ['none', 'normal', 'sticky'],
-    date: ['right', 'tabular-nums'],
-  })
+  expect(look).toEqual({ tableBorder: 'solid', label: ['none', 'normal', 'sticky'], date: ['right', 'tabular-nums'] })
 
   // At phone width each row is a small card: no header row, and labeled values.
   await page.getByTestId('canvas-width-phone').click()
@@ -145,41 +149,37 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
   expect((await badge.boundingBox())!.width).toBeLessThan(120)
   await expect(table.locator('.fd-table-wrap')).toHaveCSS('max-height', 'none')
   await page.getByTestId('canvas-width-desktop').click()
+  await expect(page.getByTestId('problems-toggle')).toContainText('No problems')
 
-  // A text reads values from Tom's GitHub profile, live.
-  await expect(canvas.locator('.fd-text', { hasText: 'Tom has' })).toHaveText('Tom has 30 public repos and 12 followers on GitHub.')
-
-  // The weather texts that read Yahoo's dead service are Weather cards now, beside the maps; nothing overflows its cell.
-  await expect(canvas.locator('[data-feature-id="2"] .fd-heading')).toHaveText('Guilford, Connecticut')
-  await expect(canvas.locator('[data-feature-id="2"] .fd-weather-temp')).toHaveText('54°F')
-  await expect(canvas.locator('[data-feature-id="35"] .fd-weather-temp')).toHaveText('81°F')
-  const overflowing = await canvas.locator('.fd-cell').evaluateAll((cells) => cells.filter((c) => c.scrollWidth > c.clientWidth + 1).map((c) => c.getAttribute('data-node-id')))
-  expect(overflowing).toEqual([])
-
-  // List and Map are ported now: the maps are cards with our drawing and a link to Google Maps.
-  await expect(canvas.locator('[data-feature-id="7"] li')).toHaveText(['Red', 'Green', 'Blue', 'Yellow'])
-  const map = canvas.locator('[data-feature-id="16"]')
-  await expect(map.locator('.fd-heading')).toHaveText('Where it\'s Warm')
-  await expect(map.getByRole('link', { name: 'Open Palm Beach, FL in Google Maps' })).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL')
+  await openSample(page, 'Harbor Coffee')
+  // Panel headings are plain text: no decorative dot before them.
+  const marker = await canvas.locator('.fd-panel-heading h4', { hasText: 'Hours' }).evaluate((h) => getComputedStyle(h, '::before').content)
+  expect(marker).toBe('none')
+  const weather = canvas.locator('[data-feature-id="15"]')
+  await expect(weather.locator('.fd-heading')).toHaveText('Weather on the green')
+  await expect(weather.locator('.fd-weather-temp')).toHaveText('54°F')
+  // The map is a card with our drawing and a link to Google Maps, named with the address.
+  const map = canvas.locator('[data-feature-id="14"]')
+  await expect(map.locator('.fd-heading')).toHaveText('Visit us')
+  await expect(map.getByRole('link', { name: 'Open 37 Whitfield St, Guilford, CT in Google Maps' })).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=37%20Whitfield%20St%2C%20Guilford%2C%20CT')
   // The drawing fills the card's width (auto margins would shrink it to its minimum in the card's flex column).
   const fill = await map.evaluate((card) => [card.querySelector('.fd-illustration')!.getBoundingClientRect().width, card.querySelector('.fd-paragraph')!.getBoundingClientRect().width])
   expect(fill[0]).toBeCloseTo(fill[1]!, 0)
+  const overflowing = await canvas.locator('.fd-cell').evaluateAll((cells) => cells.filter((c) => c.scrollWidth > c.clientWidth + 1).map((c) => c.getAttribute('data-node-id')))
+  expect(overflowing).toEqual([])
   await expect(canvas.locator('.fd-placeholder')).toHaveCount(0)
-
-  // Problems open from the status bar.
-  await page.getByTestId('problems-toggle').click()
-  const diagnostics = page.getByTestId('diagnostics')
-  await expect(diagnostics.locator('[data-code="out-of-order"]')).toHaveCount(3)
-  await expect(diagnostics).toContainText('Listed before feature 36 ("repo panel"), which it is placed in')
+  await expect(page.getByTestId('problems-toggle')).toContainText('No problems')
 })
 
 test('draws built-in illustrations in the theme\'s colors, in the editor and the preview', async ({ page, context }) => {
-  const id = await openSample(page, 'Data Sample')
+  const id = await openSample(page, 'Start here')
   const preview = await context.newPage()
   await preview.goto(`/preview.html?model=${encodeURIComponent(id)}`)
   for (const p of [page, preview]) {
-    const banner = p.getByRole('img', { name: 'A drafted part with dimensions on a blueprint grid' })
+    // The banner is decorative: hidden from screen readers, so found by its feature.
+    const banner = p.locator('.fd-illustration[data-feature-id="2"]')
     await expect(banner).toBeVisible()
+    await expect(banner).toHaveAttribute('aria-hidden', 'true')
     // Inside .fd-root everything is reset (`all: revert`); SVG geometry and paint are CSS properties, so a reset that
     // reached into the drawing would leave zero-sized circles and default black fills.
     const drawn = await banner.evaluate((frame) => {
@@ -204,10 +204,10 @@ test('draws built-in illustrations in the theme\'s colors, in the editor and the
 })
 
 test('opens the standalone preview in a new tab', async ({ page, context }) => {
-  const id = await openSample(page, 'Buy Deal')
+  const id = await openSample(page, 'Harbor Coffee')
   const [preview] = await Promise.all([context.waitForEvent('page'), page.getByTestId('open-preview').click()])
   await expect(preview).toHaveURL(`/preview.html?model=${encodeURIComponent(id)}`)
-  await expect(preview.getByRole('heading', { name: 'Two New Locations' })).toBeVisible()
+  await expect(preview.getByRole('heading', { name: 'Harbor Coffee' })).toBeVisible()
   await expect(preview.getByText('Feature Domain')).toHaveCount(0)
 })
 
@@ -268,23 +268,29 @@ const hasTailwindReset = (target: Page) =>
 
 /** Waits until a sample's generated page has settled (data loaded, cards rendered). */
 const SAMPLES: { name: string; ready: (target: Page) => Promise<void> }[] = [
-  { name: 'Data Sample', ready: (target) => expect(target.locator('[data-feature-id="24"] tbody tr')).toHaveCount(2) },
-  // Cards (three list cards, two maps and two weather cards, loaded), check lists, buttons and an image beside text.
+  { name: 'Start here', ready: (target) => expect(target.locator('.fd-text')).toHaveCount(5) },
+  // A map and a weather card (loaded), a quiet panel, buttons.
+  { name: 'Harbor Coffee', ready: (target) => expect(target.locator('.fd-weather-temp')).toHaveCount(1) },
+  // Three list cards in a well, with buttons under them.
+  { name: 'Ledgerly pricing', ready: (target) => expect(target.locator('.fd-card')).toHaveCount(3) },
+  // A table, a chart and a form on an API spec's sample data, and a count read from it.
   {
-    name: 'Buy Deal',
+    name: 'Northwind sales',
     ready: async (target) => {
-      await expect(target.locator('.fd-card')).toHaveCount(7)
-      await expect(target.locator('.fd-weather-temp')).toHaveCount(2)
-    },
-  },
-  // A table and a chart in card panels, and the Add Sale form.
-  {
-    name: 'Swagger Data Sample',
-    ready: async (target) => {
-      await expect(target.locator('.fd-table-block tbody tr')).toHaveCount(5)
+      await expect(target.locator('.fd-table-block tbody tr')).toHaveCount(6)
       await expect(target.locator('.fd-chart-canvas canvas')).toBeVisible()
     },
   },
+  // A live table and a line of live values.
+  {
+    name: 'Tom Beauvais · projects',
+    ready: async (target) => {
+      await expect(target.locator('.fd-table-block tbody tr')).toHaveCount(2)
+      await expect(target.locator('.fd-text[aria-busy]')).toHaveCount(0)
+    },
+  },
+  // A table, a form and a panel with a count and a map.
+  { name: 'Shoreline JS meetup', ready: (target) => expect(target.locator('.fd-table-block tbody tr')).toHaveCount(5) },
 ]
 
 for (const sample of SAMPLES) {
@@ -306,7 +312,7 @@ for (const sample of SAMPLES) {
     expect(await hasTailwindReset(page)).toBe(false)
     const inPreview = await measureDocument(page)
 
-    expect(inPreview.length).toBeGreaterThan(40)
+    expect(inPreview.length).toBeGreaterThan(30)
     expect(Object.keys(inPreview[0]!.values).length).toBeGreaterThan(200)
     const inEditor = await measureDocument(editor)
     // The exclusions stay narrow: only the editor's drag behavior (no empty slots in these samples).
@@ -346,16 +352,16 @@ test('shows a message for a missing model', async ({ page }) => {
 })
 
 test('cards and the buttons under them stay inside their container, and cards side by side line up', async ({ page }) => {
-  await openSample(page, 'Buy Deal')
+  await openSample(page, 'Ledgerly pricing')
   const canvas = page.getByTestId('canvas')
-  // The three list cards, in a well of their own (the maps are cards too, in another).
-  const well = canvas.locator('.fd-well:has([data-feature-id="28"])')
+  // The three plan cards, in a well of their own.
+  const well = canvas.locator('.fd-well:has([data-feature-id="6"])')
   const cards = well.locator('.fd-card')
   await expect(cards).toHaveCount(3)
   // Make one card much longer than the others, so equal heights mean the layout stretched them.
-  await canvas.locator('[data-feature-id="28"] h4').click()
+  await canvas.locator('[data-feature-id="6"] h4').click()
   await page.getByTestId('inspector').getByLabel('Description').fill('A much longer description. '.repeat(12))
-  await expect(canvas.locator('[data-feature-id="28"] .fd-paragraph-muted')).toContainText('much longer')
+  await expect(canvas.locator('[data-feature-id="6"] .fd-paragraph-muted')).toContainText('much longer')
   const wellBox = (await well.boundingBox())!
   const boxes = await Promise.all((await well.locator('.fd-card, .fd-button').all()).map((el) => el.boundingBox()))
   expect(boxes.length).toBe(6)
@@ -368,51 +374,54 @@ test('cards and the buttons under them stay inside their container, and cards si
 
   // A Text feature in a card's cell (a paragraph of its own) doesn't stop that cell lining up with its neighbors.
   await page.getByTestId('palette-TextFeature').click()
-  const cell = canvas.locator('.fd-cell:has([data-feature-id="28"])')
+  const cell = canvas.locator('.fd-cell:has([data-feature-id="6"])')
   await expect(cell.locator('.fd-text')).toHaveCount(1)
   await expect(cell).toHaveCSS('display', 'flex')
 })
 
-test('the Swagger sample\'s form adds a sale that its table and chart show at once, and the sale can be deleted', async ({ page }) => {
-  const id = await openSample(page, 'Swagger Data Sample')
+test('the sales dashboard\'s form logs a deal that its table, chart and count show at once, and the deal can be deleted', async ({ page }) => {
+  const id = await openSample(page, 'Northwind sales')
   await page.goto(`/preview.html?model=${encodeURIComponent(id)}`)
   const table = page.locator('.fd-table-block')
-  await expect(table.locator('tbody tr')).toHaveCount(5)
-  const chartRows = page.locator('.fd-chart-block .fd-visually-hidden tbody tr')
-  await expect(chartRows).toHaveCount(5)
-
-  // Both are required: an amount alone is refused.
-  await page.getByLabel(/^Amount/).fill('15000')
-  await page.getByRole('button', { name: 'Submit' }).click()
-  await expect(page.getByRole('alert')).toHaveText('Name is required.')
-  await expect(table.locator('tbody tr')).toHaveCount(5)
-  await page.getByLabel(/^Name/).fill('Casey Morgan')
-  await page.getByRole('button', { name: 'Submit' }).click()
-  await expect(page.getByRole('status')).toHaveText('Thanks, that was sent.')
   await expect(table.locator('tbody tr')).toHaveCount(6)
-  // Numbered after the sample's own sales, as a server would.
-  await expect(table.locator('tbody tr').last().locator('td').first()).toHaveText('6')
-  await expect(table.locator('tbody tr').last()).toContainText('Casey Morgan')
-  await expect(chartRows.last()).toHaveText('Casey Morgan$15,000.00')
+  const chartRows = page.locator('.fd-chart-block .fd-visually-hidden tbody tr')
+  await expect(chartRows).toHaveCount(6)
+  const count = page.locator('[data-feature-id="5"]')
+  await expect(count).toContainText('6 deals closed this quarter.')
 
-  // Only the added sale can be deleted, after confirming.
+  // The spec requires a rep, a region and an amount: an amount alone is refused.
+  await page.getByLabel(/^Amount/).fill('15000')
+  await page.getByRole('button', { name: 'Log deal' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Sales rep is required.')
+  await expect(table.locator('tbody tr')).toHaveCount(6)
+  await page.getByLabel(/^Sales rep/).fill('Taylor Brooks')
+  await page.getByLabel(/^Region/).fill('South')
+  await page.getByRole('button', { name: 'Log deal' }).click()
+  await expect(page.getByRole('status')).toHaveText('Deal logged.')
+  await expect(table.locator('tbody tr')).toHaveCount(7)
+  await expect(table.locator('tbody tr').last()).toContainText('Taylor Brooks')
+  await expect(chartRows.last()).toHaveText('Taylor Brooks$15,000.00')
+  await expect(count).toContainText('7 deals closed this quarter.')
+
+  // Only the logged deal can be deleted, after confirming.
   await expect(table.getByRole('button', { name: /^Delete row/ })).toHaveCount(1)
-  await table.getByRole('button', { name: 'Delete row 6' }).click()
+  await table.getByRole('button', { name: 'Delete row 7' }).click()
   await expect(table.getByText('Delete this row?')).toBeVisible()
   await table.getByRole('button', { name: 'Delete', exact: true }).click()
-  await expect(table.locator('tbody tr')).toHaveCount(5)
-  await expect(chartRows).toHaveCount(5)
+  await expect(table.locator('tbody tr')).toHaveCount(6)
+  await expect(chartRows).toHaveCount(6)
+  await expect(count).toContainText('6 deals closed this quarter.')
 })
 
 test('on the editor canvas, text in a form field can be selected with the mouse without dragging the form', async ({ page }) => {
-  await openSample(page, 'Swagger Data Sample')
-  const input = page.locator('.fd-editor-canvas .fd-form input[name="name"]')
-  await input.fill('Casey Morgan')
+  await openSample(page, 'Northwind sales')
+  const input = page.locator('.fd-editor-canvas .fd-form input[name="rep"]')
+  await input.fill('Taylor Brooks')
   const box = (await input.boundingBox())!
   await page.mouse.move(box.x + 4, box.y + box.height / 2)
   await page.mouse.down()
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 5 })
   await page.mouse.move(box.x + box.width - 4, box.y + box.height / 2, { steps: 5 })
   await page.mouse.up()
-  expect(await input.evaluate((el: HTMLInputElement) => [el.selectionStart, el.selectionEnd])).toEqual([0, 12])
+  expect(await input.evaluate((el: HTMLInputElement) => [el.selectionStart, el.selectionEnd])).toEqual([0, 13])
 })

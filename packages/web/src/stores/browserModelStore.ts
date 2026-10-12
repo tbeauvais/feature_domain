@@ -5,6 +5,8 @@ export const MODELS_KEY = 'feature-domain:models'
 const SEEDED_KEY = 'feature-domain:seeded'
 /** The samples version this storage was seeded with or last upgraded to; absent means 1 (seeded before versions). */
 const SAMPLES_VERSION_KEY = 'feature-domain:samples-version'
+/** The set of samples this storage holds: absent means 1 (the samples migrated from the legacy app). */
+const SAMPLE_SET_KEY = 'feature-domain:sample-set'
 
 interface Stored {
   order: string[]
@@ -56,11 +58,23 @@ export class BrowserModelStore implements ModelStore {
   /**
    * Adds `models` the first time this storage is used. Runs once: models the user deletes later do not come back.
    */
-  async seedOnce(models: AppModel[], version = 1): Promise<void> {
+  async seedOnce(models: AppModel[], version = 1, set = 1): Promise<void> {
     if (this.storage.getItem(SEEDED_KEY) !== null) return
     for (const model of models) await this.create(model)
     this.storage.setItem(SEEDED_KEY, new Date().toISOString())
     this.storage.setItem(SAMPLES_VERSION_KEY, String(version))
+    this.storage.setItem(SAMPLE_SET_KEY, String(set))
+  }
+
+  /**
+   * Storage seeded with an earlier set of samples gets this set added, once. Its old samples stay (they may hold the
+   * user's edits); storage never seeded is left to `seedOnce`.
+   */
+  async addSampleSet(models: AppModel[], set: number): Promise<void> {
+    if (this.storage.getItem(SEEDED_KEY) === null) return
+    if (Number(this.storage.getItem(SAMPLE_SET_KEY) ?? '1') >= set) return
+    for (const model of models) await this.create(model)
+    this.storage.setItem(SAMPLE_SET_KEY, String(set))
   }
 
   /**

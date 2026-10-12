@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { isolateNetwork } from './network'
 
-// Screenshots of every sample (and one in the Night Garden theme), of every Header and Panel option, every chart type and Weather card, at desktop and phone width, so the look can't
+// Screenshots of every sample (and Start here in the Night Garden theme), of every Header and Panel option, every chart type and Weather card, at desktop and phone width, so the look can't
 // regress unnoticed. Text rendering differs between operating systems, so baselines are Linux only: they are made and
 // compared in the Playwright Docker image (`npm run e2e:docker`), which CI runs in too.
 test.skip(process.platform !== 'linux', 'Screenshots are compared on Linux only; run `npm run e2e:docker` from packages/web')
@@ -14,7 +14,7 @@ const PHOTO = readFileSync(new URL('./fixtures/photo.png', import.meta.url))
 isolateNetwork((route, url) => {
   if (url.hostname === 'api.github.com') {
     const user = url.pathname.split('/')[2]
-    if (/^\/users\/[^/]+$/.test(url.pathname)) return route.fulfill({ json: { login: user, public_repos: 30, followers: 12 } })
+    if (/^\/users\/[^/]+$/.test(url.pathname)) return route.fulfill({ json: { login: user, public_repos: 30, followers: 12, created_at: '2011-03-07T10:00:00Z' } })
     return route.fulfill({
       json: [
         { name: `${user}-engine`, description: 'Parametric engine', language: 'TypeScript', updated_at: '2015-03-07T10:00:00Z', html_url: `https://github.com/${user}/engine` },
@@ -47,7 +47,7 @@ const FORECASTS: Record<string, [number, number, number[]]> = {
 }
 
 const WIDTHS = { desktop: { width: 1280, height: 800 }, phone: { width: 390, height: 844 } } as const
-const SAMPLES = ['Getting Started', 'Buy Deal', 'Data Sample', 'Swagger Data Sample']
+const SAMPLES = ['Start here', 'Harbor Coffee', 'Ledgerly pricing', 'Northwind sales', 'Tom Beauvais · projects', 'Shoreline JS meetup']
 
 /** A model showing every Header color on every background, and every Panel emphasis, in the given scheme. */
 function optionsModel(id: string, scheme: 'light' | 'dark') {
@@ -121,6 +121,9 @@ async function store(page: Page, model: { id: string }) {
   }, model)
 }
 
+/** A sample's name as a file name: "Tom Beauvais · projects" -> "tom-beauvais-projects". */
+const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
 /** The id of a model listed on the home page (which also seeds the samples on first use). */
 async function modelId(page: Page, name: string): Promise<string> {
   await page.goto('/')
@@ -143,19 +146,19 @@ for (const [size, viewport] of Object.entries(WIDTHS)) {
 
     for (const sample of SAMPLES) {
       test(`${sample} looks as it should`, async ({ page }) => {
-        await snapshot(page, await modelId(page, sample), `${sample.toLowerCase().replaceAll(' ', '-')}-${size}`)
+        await snapshot(page, await modelId(page, sample), `${slug(sample)}-${size}`)
       })
     }
 
-    test('Data Sample in the Night Garden theme looks as it should', async ({ page }) => {
+    test('Start here in the Night Garden theme looks as it should', async ({ page }) => {
       // Applied as a user would: add a Theme (it themes the page), then start it from Night Garden.
-      const id = await modelId(page, 'Data Sample')
+      const id = await modelId(page, 'Start here')
       await page.goto(`/models/${encodeURIComponent(id)}`)
       await page.getByTestId('palette-ThemeFeature').click()
       await page.getByTestId('inspector').locator('[data-preset="night-garden"]').click()
       await expect(page.getByTestId('theme-summary')).toContainText('Night Garden')
       await expect(page.getByText('Saved')).toBeVisible()
-      await snapshot(page, id, `data-sample-night-garden-${size}`)
+      await snapshot(page, id, `start-here-night-garden-${size}`)
     })
 
     for (const scheme of ['light', 'dark'] as const) {

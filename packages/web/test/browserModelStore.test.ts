@@ -74,6 +74,28 @@ describe('BrowserModelStore', () => {
     expect(upgrade).not.toHaveBeenCalled()
   })
 
+  it('adds a new set of samples once to storage seeded with an older set, keeping the old samples', async () => {
+    const storage = new MemoryStorage()
+    const store = new BrowserModelStore(storage, counterIds())
+    const names = async () => (await store.list()).map((m) => m.name)
+    await store.seedOnce([{ ...model(page()), name: 'Old' }])
+    await store.addSampleSet([{ ...model(page()), name: 'New' }], 2)
+    expect(await names()).toEqual(['Old', 'New'])
+    // Once: deleting a new sample doesn't bring it back.
+    await store.delete((await store.list()).find((m) => m.name === 'New')!.id)
+    await store.addSampleSet([{ ...model(page()), name: 'New' }], 2)
+    expect(await names()).toEqual(['Old'])
+  })
+
+  it('gives fresh storage the current set only, and never adds a set to storage not yet seeded', async () => {
+    const store = new BrowserModelStore(new MemoryStorage(), counterIds())
+    await store.addSampleSet([{ ...model(page()), name: 'New' }], 2)
+    expect(await store.list()).toEqual([])
+    await store.seedOnce([{ ...model(page()), name: 'New' }], 1, 2)
+    await store.addSampleSet([{ ...model(page()), name: 'New' }], 2)
+    expect((await store.list()).map((m) => m.name)).toEqual(['New'])
+  })
+
   it('treats unreadable storage as empty instead of failing', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const storage = new MemoryStorage()

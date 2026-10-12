@@ -95,6 +95,8 @@
   max-width: 68ch;
   color: var(--fd-text);
 }
+/* A card, table, chart, form or panel right after a line of text or a link keeps its distance (they have no top margin). */
+:is(.fd-text, .fd-link) + :is(.fd-card, .fd-table-block, .fd-chart-block, .fd-form, .fd-panel) { margin-top: calc(var(--fd-space) * 2.5); }
 /* A value from data that isn't there: "—" on the page, its {{binding}} on the editor canvas. */
 .fd-text-missing { color: var(--fd-muted); text-decoration: underline dashed; text-underline-offset: 0.2em; }
 
