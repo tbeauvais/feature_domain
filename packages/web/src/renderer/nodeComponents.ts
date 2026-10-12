@@ -21,6 +21,7 @@ import SeparatorNode from './nodes/SeparatorNode.vue'
 import StackNode from './nodes/StackNode.vue'
 import TableNode from './nodes/TableNode.vue'
 import TextNode from './nodes/TextNode.vue'
+import WeatherNode from './nodes/WeatherNode.vue'
 
 /** One component per node kind. Typed as a full record, so adding a kind to NodeKinds fails the typecheck here. */
 export const nodeComponents: Record<NodeKind, Component> = {
@@ -46,5 +47,6 @@ export const nodeComponents: Record<NodeKind, Component> = {
   stack: StackNode,
   media: MediaNode,
   card: CardNode,
+  weather: WeatherNode,
   placeholder: PlaceholderNode,
 }

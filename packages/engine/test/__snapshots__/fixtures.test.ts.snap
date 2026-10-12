@@ -85,6 +85,8 @@ exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 1`] =
 exports[`app_models/buy_deal_sample.json > migrates to the golden v2 model 2`] = `
 [
   "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
+  "warning dead-service [21]: Yahoo's weather service shut down in 2019, so this resource loads nothing; use a Weather feature to show the weather",
+  "warning dead-service [34]: Yahoo's weather service shut down in 2019, so this resource loads nothing; use a Weather feature to show the weather",
   "info dropped-style [30]: Dropped legacy list group styling (style "panel-success", align "center-block"); it uses our own defaults and the theme",
   "info dropped-input [30]: Dropped price "25.99", which the legacy app never showed",
   "info dropped-style [31]: Dropped legacy button styling (style "btn-success"); it uses our own defaults and the theme",
@@ -192,6 +194,8 @@ exports[`app_models/google_map_sample.json > migrates to the golden v2 model 1`]
 exports[`app_models/google_map_sample.json > migrates to the golden v2 model 2`] = `
 [
   "info dropped-style [15]: Dropped legacy page border_color "#00a3ff" and background_color "#e6fcfc"; pages are styled by their theme",
+  "warning dead-service [21]: Yahoo's weather service shut down in 2019, so this resource loads nothing; use a Weather feature to show the weather",
+  "warning dead-service [34]: Yahoo's weather service shut down in 2019, so this resource loads nothing; use a Weather feature to show the weather",
   "info dropped-style [27]: Dropped legacy separator styling (color "#2fa7eb", height "5", width "80"); it uses our own defaults and the theme",
   "info dropped-style [36]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",
   "info dropped-style [39]: Dropped legacy panel styling (style "panel-success"); it uses our own defaults and the theme",

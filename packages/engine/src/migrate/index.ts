@@ -22,6 +22,7 @@ export type MigrationNoteCode =
   | 'mapped-style'
   | 'dropped-input'
   | 'mapped-input'
+  | 'dead-service'
 
 export interface MigrationNote {
   code: MigrationNoteCode
@@ -400,7 +401,13 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     return { name: str(i.name), disable: disable(i.disable, ctx), heading: text(i.heading, ctx) }
   },
 
-  DataResourceFeature: (i) => ({ name: str(i.name), resource: str(i.resource), operation: httpMethod(str(i.operation)) }),
+  DataResourceFeature: (i, ctx) => {
+    // The legacy samples' weather came from Yahoo's query service, shut down in 2019.
+    if (/^https?:\/\/query\.yahooapis\.com\//i.test(str(i.resource).trim())) {
+      ctx.note('dead-service', 'warning', "Yahoo's weather service shut down in 2019, so this resource loads nothing; use a Weather feature to show the weather")
+    }
+    return { name: str(i.name), resource: str(i.resource), operation: httpMethod(str(i.operation)) }
+  },
 
   // The legacy app fetched the spec when the page first ran and kept it in the instance's cache: converted from Swagger
   // 1.2 to OpenAPI 3 (the only version the feature reads), it becomes the stored spec. Its server is long gone.

@@ -3,6 +3,7 @@ import type { InputDef, InputValue } from '@feature-domain/engine'
 import { computed, ref, watch } from 'vue'
 import ApiSpecField from './ApiSpecField.vue'
 import IllustrationGallery from './IllustrationGallery.vue'
+import PlaceSearchField from './PlaceSearchField.vue'
 
 // One editor control for one feature input, chosen from the input's schema. Emits the new value, or undefined to
 // clear the input (it then falls back to its default).
@@ -15,7 +16,8 @@ const props = defineProps<{
   /** Theme custom properties for previews (the illustration gallery). */
   themeVars?: Record<string, string>
 }>()
-const emit = defineEmits<{ change: [value: InputValue | undefined] }>()
+// `changeInputs`: controls that set several inputs at once (the Weather's Location sets its coordinates too).
+const emit = defineEmits<{ change: [value: InputValue | undefined]; changeInputs: [values: Record<string, InputValue>] }>()
 
 const id = computed(() => `input-${props.def.name}`)
 const current = computed(() => props.value ?? props.def.default)
@@ -30,7 +32,7 @@ const swatch = computed(() => {
 
 /** Controls made of several buttons are labeled as a group rather than through `for`. */
 const grouped = computed(
-  () => ((props.def.control === 'segmented' || props.def.control === 'illustration-gallery') && props.def.options !== undefined) || props.def.control === 'api-spec',
+  () => ((props.def.control === 'segmented' || props.def.control === 'illustration-gallery') && props.def.options !== undefined) || props.def.control === 'api-spec' || props.def.control === 'place-search',
 )
 
 const field = 'w-full rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-sky-500 focus:outline-none'
@@ -155,6 +157,16 @@ function settle() {
       @change="emit('change', $event)"
     />
 
+    <PlaceSearchField
+      v-else-if="def.control === 'place-search'"
+      :id="id"
+      :labelledby="`${id}-label`"
+      :value="text"
+      :latitude="typeof inputs?.latitude === 'string' ? inputs.latitude : ''"
+      :longitude="typeof inputs?.longitude === 'string' ? inputs.longitude : ''"
+      @pick="emit('changeInputs', { [def.name]: $event.name, latitude: $event.latitude, longitude: $event.longitude })"
+    />
+
     <!-- JSON (e.g. sample rows): taller, monospace, and no spell-checking. -->
     <textarea
       v-else-if="def.control === 'json-area'"
@@ -173,6 +185,17 @@ function settle() {
       :class="field"
       :value="text"
       @input="emit('change', ($event.target as HTMLTextAreaElement).value)"
+    />
+
+    <!-- Committed on leaving the field (the change event) when each value would cost a request. -->
+    <input
+      v-else-if="def.commitOnBlur"
+      :id="id"
+      type="text"
+      :class="field"
+      :placeholder="def.placeholder"
+      :value="text"
+      @change="emit('change', ($event.target as HTMLInputElement).value)"
     />
 
     <input

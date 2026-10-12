@@ -98,15 +98,15 @@ describe('ChartNode', () => {
     const w = await render(model(remote, page(), inst('GoogleChartFeature', 'c', { data_resource: 'r' })), fetchJson)
     expect(w.get('[role="alert"]').text()).toContain('api.test: offline')
     fail = false
-    await w.get('.fd-chart-retry').trigger('click')
+    await w.get('.fd-retry').trigger('click')
     await flushPromises()
     // Rows without numbers: nothing to draw, said in words.
-    expect(w.get('.fd-chart-state').text()).toBe('No numbers to chart.')
+    expect(w.get('.fd-state').text()).toBe('No numbers to chart.')
     expect(w.find('.fd-visually-hidden').exists()).toBe(false)
 
     const empty = await render(model(inst('DataResourceFeature', 'r', { source: 'sample', sample_rows: '[]' }, null), page(), inst('GoogleChartFeature', 'c', { data_resource: 'r' })))
     await flushPromises()
-    expect(empty.get('.fd-chart-state').text()).toBe('No rows to chart yet.')
+    expect(empty.get('.fd-state').text()).toBe('No rows to chart yet.')
     // A resource with nothing a chart can list (no GET): no source, said so.
     const postOnly = inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify({ openapi: '3.0.0', servers: [{ url: 'https://x.test' }], paths: { '/a': { post: {} } } }) }, null)
     const none = await render(model(postOnly, page(), inst('GoogleChartFeature', 'c', { data_resource: 's' })))

@@ -139,6 +139,47 @@ describe('DataStore', () => {
   })
 })
 
+describe('DataStore.json', () => {
+  const fetched = (store: DataStore) => (store as unknown as { fetched: Map<string, unknown> }).fetched
+
+  it('shares one fetch of a whole response between readers, rows readers included, and drops it once none is left', async () => {
+    const fetchJson = vi.fn<FetchJson>(async (url) => [{ url }])
+    const store = new DataStore(fetchJson)
+    const scopes = [effectScope(), effectScope(), effectScope()]
+    const url = 'https://x.test/forecast'
+    const [a, b] = [scopes[0]!.run(() => store.json(ref<string | undefined>(url)))!, scopes[1]!.run(() => store.json(ref<string | undefined>(url)))!]
+    const rows = scopes[2]!.run(() => store.rows(ref(address(url))))!
+    expect(a.value).toEqual({ status: 'loading' })
+    await flushPromises()
+    expect(fetchJson).toHaveBeenCalledTimes(1)
+    expect(a.value).toEqual({ status: 'loaded', response: [{ url }] })
+    expect(b.value).toEqual(a.value)
+    expect(rows.value).toEqual({ status: 'loaded', rows: [{ url }] })
+    for (const scope of scopes) scope.stop()
+    expect(fetched(store).size).toBe(0)
+  })
+
+  it('reads nothing without an address, follows a changed one, and refetch discards an older answer', async () => {
+    const pending: ((value: unknown) => void)[] = []
+    const store = new DataStore(() => new Promise((resolve) => pending.push(resolve)))
+    const url = ref<string | undefined>(undefined)
+    const state = effectScope().run(() => store.json(url))!
+    expect(state.value).toEqual({ status: 'idle' })
+    expect(pending).toHaveLength(0)
+    url.value = 'https://x.test/a'
+    await flushPromises()
+    void store.refetch(url.value)
+    pending[1]!({ answer: 'new' })
+    pending[0]!({ answer: 'old' })
+    await flushPromises()
+    expect(state.value).toEqual({ status: 'loaded', response: { answer: 'new' } })
+    url.value = 'https://x.test/b'
+    await flushPromises()
+    expect(fetched(store).has('https://x.test/a')).toBe(false)
+    expect(pending).toHaveLength(3)
+  })
+})
+
 describe('Tables on shared data', () => {
   const render = (m: AppModel, fetchJson: FetchJson) =>
     mount(DocumentView, { props: { root: generate(m).root }, global: { provide: { [FETCH_JSON as symbol]: fetchJson } } })
