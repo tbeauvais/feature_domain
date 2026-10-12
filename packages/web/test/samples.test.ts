@@ -114,6 +114,41 @@ describe('upgradeSample', () => {
     expect(texts.join(' ')).not.toMatch(/gfdgfd|Updated At/)
   })
 
+  it('turns the samples\' Yahoo weather texts into Weather cards where they were, and removes the Yahoo resources', () => {
+    for (const name of ['Data Sample', 'Buy Deal']) {
+      const sample = sampleModels().find((m) => m.name === name)!
+      const weather = sample.features.filter((f) => f.feature === 'WeatherFeature')
+      expect(weather.map((f) => [f.id, f.inputs.place, f.placement]), name).toEqual([
+        ['35', 'Palm Beach, Florida', { parent: '19', slot: 'r1c2' }],
+        ['2', 'Guilford, Connecticut', { parent: '19', slot: 'r1c1' }],
+      ])
+      // Each sits where its text was: before the map in the same cell.
+      const order = sample.features.map((f) => f.id)
+      expect(order.indexOf('2')).toBeLessThan(order.indexOf('6'))
+      expect(order.indexOf('35')).toBeLessThan(order.indexOf('16'))
+      expect(sample.features.some((f) => f.id === '21' || f.id === '34'), name).toBe(false)
+      expect(JSON.stringify(sample)).not.toMatch(/yahooapis|\{\{DataResource\.WeatherService/)
+      expect(generate(sample).diagnostics.filter((d) => ['2', '35'].includes(d.featureInstanceId ?? ''))).toEqual([])
+    }
+  })
+
+  it('leaves weather texts and Yahoo resources of the user\'s own alone', () => {
+    const yahoo = 'https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%201'
+    const edited = model(page(), inst('TextFeature', 't', { text: 'Temp {{DataResource.WeatherService.query.results.channel.item.condition.temp}} degrees.' }))
+    expect(upgradeSample(edited)).toBe(edited)
+    // A Yahoo resource a table still points at stays (the table would lose its resource).
+    const used = model(page(), inst('DataResourceFeature', 'r', { resource: yahoo }, null), inst('TableFeature', 't', { data_resource: 'r' }))
+    expect(upgradeSample(used)).toBe(used)
+    const unused = model(page(), inst('DataResourceFeature', 'r', { resource: yahoo }, null))
+    expect(upgradeSample(unused).features.map((f) => f.id)).toEqual(['1'])
+  })
+
+  it('keeps a disabled weather text disabled as a Weather card', () => {
+    const text = 'Temp {{DataResource.WeatherServiceFL.query.results.channel.item.condition.temp}} degrees. {{DataResource.WeatherServiceFL.query.results.channel.item.condition.text}}'
+    const upgraded = upgradeSample(model(page(), inst('TextFeature', 't', { text, disable: true })))
+    expect(upgraded.features[1]).toMatchObject({ feature: 'WeatherFeature', id: 't', inputs: { disable: true, place: 'Palm Beach, Florida' }, placement: { parent: '1', slot: 'content' } })
+  })
+
   const header = 'http://www.baybridgecompanies.com/clipart/pageHeaders/blue_header.jpg'
 
   it('turns a legacy header photo into its banner, keeping the address for switching back', () => {

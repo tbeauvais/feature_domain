@@ -1,8 +1,18 @@
 import { expect, test, type Page } from '@playwright/test'
 import { isolateNetwork } from './network'
 
-// Every request leaves localhost only to the GitHub API, which is mocked, so runs are deterministic and offline-safe.
+// Every request leaves localhost only to the GitHub and Open-Meteo APIs, which are mocked, so runs are deterministic and
+// offline-safe.
 isolateNetwork((route, url) => {
+  if (url.hostname === 'api.open-meteo.com') {
+    return route.fulfill({
+      json: {
+        current_units: { temperature_2m: '°F' },
+        current: { temperature_2m: url.searchParams.get('latitude') === '26.7056' ? 81 : 54, weather_code: 3, is_day: 1 },
+        daily: { time: ['2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14'], weather_code: [3, 0, 61, 3], temperature_2m_max: [60, 62, 58, 55], temperature_2m_min: [45, 47, 44, 40] },
+      },
+    })
+  }
   if (url.hostname !== 'api.github.com') return undefined
   const user = url.pathname.split('/')[2]
   return route.fulfill({
@@ -135,8 +145,10 @@ test('renders a sample with containers, panels, live tables and diagnostics', as
   await expect(table.locator('.fd-table-wrap')).toHaveCSS('max-height', 'none')
   await page.getByTestId('canvas-width-desktop').click()
 
-  // Legacy {{...}} bindings are shown literally, never evaluated, and their long tokens wrap inside the cell.
-  await expect(canvas.locator('[data-feature-id="2"]')).toContainText('Temp {{DataResource.WeatherService')
+  // The weather texts that read Yahoo's dead service are Weather cards now, beside the maps; nothing overflows its cell.
+  await expect(canvas.locator('[data-feature-id="2"] .fd-heading')).toHaveText('Guilford, Connecticut')
+  await expect(canvas.locator('[data-feature-id="2"] .fd-weather-temp')).toHaveText('54°F')
+  await expect(canvas.locator('[data-feature-id="35"] .fd-weather-temp')).toHaveText('81°F')
   const overflowing = await canvas.locator('.fd-cell').evaluateAll((cells) => cells.filter((c) => c.scrollWidth > c.clientWidth + 1).map((c) => c.getAttribute('data-node-id')))
   expect(overflowing).toEqual([])
 
@@ -253,8 +265,14 @@ const hasTailwindReset = (target: Page) =>
 /** Waits until a sample's generated page has settled (data loaded, cards rendered). */
 const SAMPLES: { name: string; ready: (target: Page) => Promise<void> }[] = [
   { name: 'Data Sample', ready: (target) => expect(target.locator('[data-feature-id="24"] tbody tr')).toHaveCount(2) },
-  // Cards (three list cards and two maps), check lists, buttons and an image beside text.
-  { name: 'Buy Deal', ready: (target) => expect(target.locator('.fd-card')).toHaveCount(5) },
+  // Cards (three list cards, two maps and two weather cards, loaded), check lists, buttons and an image beside text.
+  {
+    name: 'Buy Deal',
+    ready: async (target) => {
+      await expect(target.locator('.fd-card')).toHaveCount(7)
+      await expect(target.locator('.fd-weather-temp')).toHaveCount(2)
+    },
+  },
   // A table and a chart in card panels, one beside a placeholder (its unported Form) in the editor only.
   {
     name: 'Swagger Data Sample',
