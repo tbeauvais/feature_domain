@@ -8,7 +8,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "db:migrate": "wrangler d1 migrations apply DB --local",
+    "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx --conditions=@feature-domain/source scripts/seed.ts",
     "db:setup": "npm run db:migrate && npm run db:seed",
     "db:reset": "rm -rf .wrangler/state && npm run db:setup"

@@ -83,14 +83,49 @@ describe('/api/v1/models', () => {
     expect(await (await request('/api/v1/models')).json()).toEqual([])
   })
 
-  it('stores the largest accepted model', async () => {
-    const name = 'x'.repeat(MAX_MODEL_BYTES - JSON.stringify(model).length + model.name.length)
-    const response = await request('/api/v1/models', json({ ...model, name }))
+  it('refuses a large declared Content-Length before reading the body', async () => {
+    const init = json(model)
+    const response = await request('/api/v1/models', { ...init, headers: { ...init.headers, 'Content-Length': String(MAX_MODEL_BYTES + 1) } })
+    expect(response.status).toBe(413)
+  })
+
+  // Local D1 doesn't enforce Cloudflare's 2,000,000-byte rows, so these check the stored row's size themselves.
+  const rowBytes = (id: string) =>
+    d1.env.DB.prepare('SELECT length(CAST(model AS BLOB)) + length(CAST(name AS BLOB)) AS n FROM models WHERE id = ?').bind(id).first<number>('n')
+
+  /** `model` with a Text whose input pads its stored JSON to exactly `size` bytes. */
+  function padded(size: number, name = model.name): AppModel {
+    const base: AppModel = { ...model, name, features: [...model.features, { feature: 'TextFeature', id: '2', inputs: { text: '' }, placement: { parent: '1', slot: 'content' } }] }
+    const text = 'x'.repeat(size - JSON.stringify(base).length)
+    return { ...base, features: [model.features[0]!, { ...base.features[1]!, inputs: { text } }] }
+  }
+
+  it('stores the largest accepted model, within a D1 row', async () => {
+    const largest = padded(MAX_MODEL_BYTES - model.name.length)
+    const response = await request('/api/v1/models', json(largest))
     expect(response.status).toBe(201)
+    const { id } = (await response.json()) as { id: string }
+    expect(await rowBytes(id)).toBe(MAX_MODEL_BYTES)
+  })
+
+  it('counts the name, which is stored twice, against the limit', async () => {
+    const name = 'n'.repeat(500_000)
+    const response = await request('/api/v1/models', json(padded(MAX_MODEL_BYTES - 400_000, name)))
+    expect(response.status).toBe(413)
+    expect(await (await request('/api/v1/models')).json()).toEqual([])
   })
 })
 
 describe('the API', () => {
+  it('answers methods a model path does not support with a 405', async () => {
+    for (const [path, allow] of [['/api/v1/models', 'GET, POST'], ['/api/v1/models/1', 'GET, PUT, DELETE']] as const) {
+      const response = await request(path, { method: 'PATCH' })
+      expect(response.status, path).toBe(405)
+      expect(response.headers.get('Allow')).toBe(allow)
+      expect(await response.json()).toEqual({ error: 'Method not allowed' })
+    }
+  })
+
   it('answers unknown endpoints with JSON 404s', async () => {
     for (const path of ['/api/v1/nope', '/api/app_features', '/api/v2/models']) {
       const response = await request(path)

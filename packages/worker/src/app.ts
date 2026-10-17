@@ -1,12 +1,13 @@
 import { ModelNotFoundError, validateModel, type AppModel, type ModelStore } from '@feature-domain/engine'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
-import { D1ModelStore } from './d1ModelStore'
+import { D1ModelStore, toJson } from './d1ModelStore'
 import type { Env } from './env'
 
 /**
- * The largest model the API accepts, in bytes of JSON. D1 rows hold at most 2,000,000 bytes, and a model can carry an
- * API spec of up to 1 MB (the engine's MAX_SPEC_CHARS) plus sample rows.
+ * The largest model the API accepts: bytes of the request body, and of the row D1ModelStore stores (the JSON plus the
+ * name, which has a column of its own). D1 rows hold at most 2,000,000 bytes on Cloudflare (local D1 doesn't check),
+ * and a model can carry an API spec of up to 1 MB (the engine's MAX_SPEC_CHARS) plus sample rows.
  */
 export const MAX_MODEL_BYTES = 1_900_000
 
@@ -56,6 +57,9 @@ export function createApp(store?: (env: Env) => ModelStore) {
     return c.body(null, 204)
   })
 
+  api.all('/models', () => error(405, 'Method not allowed', undefined, 'GET, POST'))
+  api.all('/models/:id', () => error(405, 'Method not allowed', undefined, 'GET, PUT, DELETE'))
+
   app.route('/api/v1', api)
   app.all('/api/*', () => error(404, 'No such API endpoint'))
   app.onError((err) => {
@@ -65,7 +69,9 @@ export function createApp(store?: (env: Env) => ModelStore) {
   return app
 }
 
-const limit = bodyLimit({ maxSize: MAX_MODEL_BYTES, onError: () => error(413, `Models are limited to ${MAX_MODEL_BYTES} bytes`) })
+const tooLarge = () => error(413, `Models are limited to ${MAX_MODEL_BYTES} bytes`)
+const limit = bodyLimit({ maxSize: MAX_MODEL_BYTES, onError: tooLarge })
+const bytes = (value: string) => new TextEncoder().encode(value).length
 
 /** The request's model, or the error response to send instead. */
 async function readModel(request: Request): Promise<AppModel | Response> {
@@ -79,11 +85,13 @@ async function readModel(request: Request): Promise<AppModel | Response> {
     return error(400, 'The body is not valid JSON')
   }
   const problems = validateModel(body)
-  return problems.length > 0 ? error(400, 'The model is not valid', problems) : (body as AppModel)
+  if (problems.length > 0) return error(400, 'The model is not valid', problems)
+  const model = body as AppModel
+  return bytes(toJson(model)) + bytes(model.name) > MAX_MODEL_BYTES ? tooLarge() : model
 }
 
 const notFound = () => error(404, 'No model with this id')
 
-function error(status: number, message: string, problems?: string[]): Response {
-  return Response.json(problems ? { error: message, problems } : { error: message }, { status })
+function error(status: number, message: string, problems?: string[], allow?: string): Response {
+  return Response.json(problems ? { error: message, problems } : { error: message }, { status, headers: allow ? { Allow: allow } : {} })
 }
