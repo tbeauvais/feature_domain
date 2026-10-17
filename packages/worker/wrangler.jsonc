@@ -1,0 +1,26 @@
+// The Worker serves the built web app (static assets) and the model API. `vite dev` and `vite preview` in
+// packages/web run it in workerd, the runtime Cloudflare uses, through the Cloudflare Vite plugin; `vite build` there
+// emits the deployable Worker. Local D1 data lives in .wrangler/state (delete it, or run `npm run db:reset`, to reset).
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "feature-domain",
+  "main": "./src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    // Editor routes (/models/:id) are client-side, so unknown paths get index.html. API paths always reach the Worker.
+    "not_found_handling": "single-page-application",
+    // Files are served at their own paths: the editor links to /preview.html?model=…, as `vite dev` serves it, so no
+    // redirect to /preview.
+    "html_handling": "none",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "feature-domain",
+      // Local development and tests need no real id; deploying (phase 3, PR 3) sets the id `wrangler d1 create` gives.
+      "database_id": "local",
+      "migrations_dir": "./migrations"
+    }
+  ]
+}
