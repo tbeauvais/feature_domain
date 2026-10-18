@@ -9,7 +9,9 @@ const worker = (path: string) => fileURLToPath(new URL(`../worker/${path}`, impo
 
 export default defineConfig({
   plugins: [
-    vue(),
+    // No static hoisting: it turns large static templates into HTML strings, and the Content Security Policy
+    // (public/_headers) refuses the style attributes in them (the illustrations' `style="fill: var(…)"`).
+    vue({ template: { compilerOptions: { hoistStatic: false } } }),
     tailwindcss(),
     // The Worker (packages/worker): `vite dev` and `vite preview` run it in workerd with its local D1, as Cloudflare
     // runs it, and `vite build` emits it beside the app. Its data is the worker package's, so wrangler commands run

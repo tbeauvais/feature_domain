@@ -1,6 +1,6 @@
 import { MemoryModelStore, type AppModel } from '@feature-domain/engine'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { createApp, MAX_MODEL_BYTES } from '../src/app'
+import { API_HEADERS, createApp, MAX_MODEL_BYTES } from '../src/app'
 import { localD1, type LocalD1 } from './localD1'
 
 const model: AppModel = {
@@ -243,5 +243,22 @@ describe('the API', () => {
     const response = await createApp(() => failing).request('/api/v1/models', undefined, d1.env)
     expect(response.status).toBe(500)
     expect(await response.text()).not.toContain('secret')
+  })
+
+  it('sends security headers on every answer, errors included', async () => {
+    const failing = new MemoryModelStore()
+    failing.list = () => Promise.reject(new Error('failed'))
+    const responses = [
+      await request('/api/v1/models'),
+      await request('/api/v1/models', json(model)),
+      await request('/api/v1/models/missing'),
+      await request('/api/v1/models', { method: 'PATCH' }),
+      await request('/api/nope'),
+      await createApp(() => failing).request('/api/v1/models', undefined, d1.env),
+    ]
+    expect(responses.map((r) => r.status)).toEqual([200, 201, 404, 405, 404, 500])
+    for (const response of responses) {
+      for (const [name, value] of Object.entries(API_HEADERS)) expect(response.headers.get(name), name).toBe(value)
+    }
   })
 })

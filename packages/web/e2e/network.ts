@@ -7,12 +7,20 @@ const APP_ASSETS = new Set(['stylesheet', 'font', 'script'])
 /**
  * Keeps every request on localhost: `handle` may fulfill some (e.g. mock the GitHub API); the rest are aborted. Aborting
  * alone would hide a regression (a CDN font just falls back), so an aborted stylesheet, font or script fails the test.
- * The model API is the test's own (`serveModels`), unless `realModels` sends it to the Worker and its D1 database.
+ * The model API is the test's own (`serveModels`), unless `realModels` sends it to the Worker and its D1 database. Any
+ * Content Security Policy violation fails the test too.
  */
 export function isolateNetwork(handle?: (route: Route, url: URL) => Promise<void> | undefined, { realModels = false } = {}) {
   let blockedAssets: string[] = []
+  let violations: string[] = []
   test.beforeEach(async ({ page }: { page: Page }) => {
     blockedAssets = []
+    violations = []
+    // The pages' Content Security Policy (public/_headers) must never stop anything the app does. Chrome reports each
+    // refusal as a console error, in every tab of the context.
+    page.context().on('console', (message) => {
+      if (message.type() === 'error' && message.text().includes('Content Security Policy')) violations.push(message.text())
+    })
     await page.context().route('**/*', async (route) => {
       const url = new URL(route.request().url())
       if (url.hostname === 'localhost') return route.continue()
@@ -26,5 +34,6 @@ export function isolateNetwork(handle?: (route: Route, url: URL) => Promise<void
   })
   test.afterEach(() => {
     expect(blockedAssets, 'the app loaded assets from other sites').toEqual([])
+    expect(violations, 'the Content Security Policy refused something').toEqual([])
   })
 }

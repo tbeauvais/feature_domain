@@ -61,3 +61,31 @@ test('answers unknown API paths with JSON, and editor paths with the editor', as
   expect(editor.status()).toBe(200)
   expect(await editor.text()).toContain('<div id="app">')
 })
+
+test('serves pages and assets with a Content Security Policy, and keeps _headers itself private', async ({ request }) => {
+  const index = await request.get('/')
+  const script = /src="(\/assets\/[^"]+\.js)"/.exec(await index.text())?.[1]
+  expect(script).toBeDefined()
+  for (const path of ['/', '/preview.html', '/models/some-id', script!]) {
+    const headers = (await request.get(path)).headers()
+    expect(headers['content-security-policy'], path).toContain("script-src 'self';")
+    expect(headers['content-security-policy'], path).toContain("frame-ancestors 'none'")
+    expect(headers['x-content-type-options'], path).toBe('nosniff')
+    expect(headers['referrer-policy'], path).toBe('no-referrer')
+  }
+  expect(await (await request.get('/_headers')).text()).not.toContain('Content-Security-Policy')
+
+  const api = (await request.get('/api/v1/models')).headers()
+  expect(api['content-security-policy']).toBe("default-src 'none'; frame-ancestors 'none'")
+})
+
+test('refuses scripts that are not the app’s own', async ({ page }) => {
+  await page.goto('/preview.html')
+  const ran = await page.evaluate(() => {
+    const script = document.createElement('script')
+    script.textContent = 'window.injected = true'
+    document.head.append(script)
+    return (window as { injected?: boolean }).injected === true
+  })
+  expect(ran).toBe(false)
+})

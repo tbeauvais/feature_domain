@@ -1,0 +1,12 @@
+# Security headers for the editor, the preview and every built asset. Cloudflare's static assets apply this file, and
+# so does `vite preview` (the e2e tests fail on any policy violation); `vite dev` doesn't, so hot reloading still works.
+# /api answers come from the Worker, which sets its own (packages/worker/src/app.ts).
+#
+# style-src has no 'unsafe-inline': Vue sets style bindings through the DOM, which the policy allows, but it would turn
+# large static templates (the illustrations' `style="fill: var(…)"`) into HTML strings, whose style attributes it
+# refuses. vite.config.ts turns that off (hoistStatic). img-src takes any https image, since model images can be anywhere;
+# connect-src any https address, since data resources fetch from the browser.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer

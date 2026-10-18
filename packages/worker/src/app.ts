@@ -11,6 +11,13 @@ import type { Env } from './env'
  */
 export const MAX_MODEL_BYTES = 1_900_000
 
+/** Security headers on every /api response, errors included. */
+export const API_HEADERS = {
+  'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+}
+
 type AppEnv = { Bindings: Env; Variables: { store: ModelStore } }
 
 /**
@@ -24,6 +31,13 @@ type AppEnv = { Bindings: Env; Variables: { store: ModelStore } }
 export function createApp(store?: (env: Env) => ModelStore) {
   const app = new Hono<AppEnv>()
   const api = new Hono<AppEnv>()
+
+  // API answers are data, never pages: nothing in them may run, load or be framed. (The app's pages get their policy
+  // from packages/web/public/_headers.)
+  app.use('/api/*', async (c, next) => {
+    await next()
+    for (const [name, value] of Object.entries(API_HEADERS)) c.res.headers.set(name, value)
+  })
 
   api.use(async (c, next) => {
     c.set('store', store ? store(c.env) : new D1ModelStore(c.env.DB))
