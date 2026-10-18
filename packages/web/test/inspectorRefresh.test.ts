@@ -27,7 +27,6 @@ async function load(m: AppModel, selected: string | null = null) {
 }
 
 const theme = (id: string, inputs: Record<string, string | number> = {}) => inst('ThemeFeature', id, { name: 'Warm Editorial', ...inputs }, null)
-const button = (w: ReturnType<typeof mount>, text: string) => w.findAll('button').find((b) => b.text() === text)!
 
 describe('Theme inspector', () => {
   it('groups the settings into sections, with short choices as buttons', async () => {

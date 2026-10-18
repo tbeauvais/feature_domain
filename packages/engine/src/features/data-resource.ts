@@ -61,6 +61,8 @@ const SINGLE_DOT = ['.', '%2e']
 
 /** Percent-encodes what the WHATWG URL parser encodes in a path segment (lone surrogates become U+FFFD). */
 function encodeSegment(segment: string): string {
+  // Control characters are exactly what this encodes.
+  // eslint-disable-next-line no-control-regex
   return segment.replace(/[\u0000-\u0020"#<>?`{}^\u007f]|[^\u0000-\u007f]/gu, (c) => {
     try {
       return encodeURIComponent(c)
