@@ -16,7 +16,10 @@ const pets = {
   components: { schemas: { Pet: { type: 'object', properties: { name: { type: 'string' } } } } },
   paths: {
     '/pets': {
-      get: { summary: 'List pets', responses: { '200': { content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Pet' } } } } } } },
+      get: {
+        summary: 'List pets',
+        responses: { '200': { content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Pet' } } } } } },
+      },
       post: { responses: { '201': {} } },
     },
     '/pets/{id}': { delete: { responses: { '200': {} } } },
@@ -24,13 +27,22 @@ const pets = {
 }
 
 const field = (props: { value?: string; specUrl?: string }, fetchJson: FetchJson = async () => pets) =>
-  mount(ApiSpecField, { props: { id: 'spec', labelledby: 'spec-label', value: props.value ?? '', specUrl: props.specUrl ?? '' }, global: { provide: { [FETCH_JSON as symbol]: fetchJson } } })
+  mount(ApiSpecField, {
+    props: { id: 'spec', labelledby: 'spec-label', value: props.value ?? '', specUrl: props.specUrl ?? '' },
+    global: { provide: { [FETCH_JSON as symbol]: fetchJson } },
+  })
 
 describe('ApiSpecField', () => {
   it('summarizes the stored spec, or says none is loaded', () => {
     expect(field({}).get('[data-testid="api-spec-summary"]').text()).toBe('No spec loaded yet.')
-    expect(field({ value: JSON.stringify(pets) }).get('[data-testid="api-spec-summary"]').text()).toBe('OpenAPI 3.1.0 · Pets · 3 operations')
-    expect(field({ value: '{"swagger": "2.0"}' }).get('[data-testid="api-spec-summary"]').text()).toBe('Only OpenAPI 3 specs are read; convert this Swagger spec to OpenAPI 3 first.')
+    expect(
+      field({ value: JSON.stringify(pets) })
+        .get('[data-testid="api-spec-summary"]')
+        .text(),
+    ).toBe('OpenAPI 3.1.0 · Pets · 3 operations')
+    expect(field({ value: '{"swagger": "2.0"}' }).get('[data-testid="api-spec-summary"]').text()).toBe(
+      'Only OpenAPI 3 specs are read; convert this Swagger spec to OpenAPI 3 first.',
+    )
   })
 
   it('loads the spec from its URL into the stored spec, and explains a failure', async () => {
@@ -110,8 +122,19 @@ describe('Operation pickers in the inspector', () => {
   })
 
   it("offers a table the referenced resource's operations, only those with fitting methods", async () => {
-    const { doc, w } = await inspect(model(inst('SwaggerDataResourceFeature', 's', { name: 'Pets', spec: JSON.stringify(pets) }, null), page(), inst('TableFeature', 't', { data_resource: 's' })), 't')
-    const options = (name: string) => w.get(`#input-${name}`).findAll('option').map((o) => o.text())
+    const { doc, w } = await inspect(
+      model(
+        inst('SwaggerDataResourceFeature', 's', { name: 'Pets', spec: JSON.stringify(pets) }, null),
+        page(),
+        inst('TableFeature', 't', { data_resource: 's' }),
+      ),
+      't',
+    )
+    const options = (name: string) =>
+      w
+        .get(`#input-${name}`)
+        .findAll('option')
+        .map((o) => o.text())
     expect(options('operation')).toEqual(['First (GET /pets)', 'GET /pets · List pets'])
     expect(options('delete_operation')).toEqual(['None', 'DELETE /pets/{id}'])
     await w.get('#input-operation').setValue('GET /pets')
@@ -120,12 +143,29 @@ describe('Operation pickers in the inspector', () => {
 
   it('names the operation a form uses when none is chosen: the first POST, even after a PUT', async () => {
     const putFirst = { ...pets, paths: { '/pets/{id}': { put: { responses: { '200': {} } } }, '/pets': pets.paths['/pets'] } }
-    const { w } = await inspect(model(inst('SwaggerDataResourceFeature', 's', { name: 'Pets', spec: JSON.stringify(putFirst) }, null), page(), inst('FormFeature', 'f', { data_resource: 's' })), 'f')
-    expect(w.get('#input-operation').findAll('option').map((o) => o.text())[0]).toBe('First (POST /pets)')
+    const { w } = await inspect(
+      model(
+        inst('SwaggerDataResourceFeature', 's', { name: 'Pets', spec: JSON.stringify(putFirst) }, null),
+        page(),
+        inst('FormFeature', 'f', { data_resource: 's' }),
+      ),
+      'f',
+    )
+    expect(
+      w
+        .get('#input-operation')
+        .findAll('option')
+        .map((o) => o.text())[0],
+    ).toBe('First (POST /pets)')
   })
 
   it('keeps a stored operation the resource no longer has visible, and offers nothing without a resource', async () => {
     const { w } = await inspect(model(page(), inst('TableFeature', 't', { operation: 'GET /gone' })), 't')
-    expect(w.get('#input-operation').findAll('option').map((o) => o.text())).toEqual(['Unknown: GET /gone', 'None available'])
+    expect(
+      w
+        .get('#input-operation')
+        .findAll('option')
+        .map((o) => o.text()),
+    ).toEqual(['Unknown: GET /gone', 'None available'])
   })
 })

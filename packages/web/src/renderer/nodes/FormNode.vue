@@ -64,7 +64,13 @@ async function submit() {
 </script>
 
 <template>
-  <form class="fd-form" :aria-labelledby="node.props.title ? titleId : undefined" :aria-busy="status === 'sending' ? 'true' : undefined" novalidate @submit.prevent="submit">
+  <form
+    class="fd-form"
+    :aria-labelledby="node.props.title ? titleId : undefined"
+    :aria-busy="status === 'sending' ? 'true' : undefined"
+    novalidate
+    @submit.prevent="submit"
+  >
     <p v-if="node.props.title" :id="titleId" class="fd-form-title">{{ node.props.title }}</p>
     <div v-for="field in fields" :key="field.name" class="fd-form-field">
       <label :for="fieldId(field.name)" class="fd-form-label">

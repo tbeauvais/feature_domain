@@ -38,7 +38,9 @@ defineExpose({
       <h2 id="shortcuts-heading" class="text-base font-semibold">Keyboard shortcuts</h2>
       <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
         <template v-for="s in shortcuts" :key="s.keys">
-          <dt><kbd class="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-xs">{{ s.keys }}</kbd></dt>
+          <dt>
+            <kbd class="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-xs">{{ s.keys }}</kbd>
+          </dt>
           <dd>{{ s.does }}</dd>
         </template>
       </dl>

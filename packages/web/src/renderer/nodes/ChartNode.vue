@@ -23,7 +23,20 @@ import { useTableRows } from '../rows'
 import { useTheme } from '../theme'
 
 // Chart.js is bundled with the app (generated pages load nothing from other sites); only what charts use is registered.
-Chart.register(PieController, DoughnutController, BarController, LineController, ArcElement, BarElement, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend)
+Chart.register(
+  PieController,
+  DoughnutController,
+  BarController,
+  LineController,
+  ArcElement,
+  BarElement,
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend,
+)
 
 const props = defineProps<{ node: DocNodeOf<'chart'> }>()
 
@@ -72,7 +85,15 @@ function config(el: HTMLElement): ChartConfiguration {
   // Axis ticks are round numbers: drop a ".00" ($20,000 rather than $20,000.00). Without a format, Chart.js's own.
   const tick = (v: number | string) => (typeof v === 'number' ? (Number.isInteger(v) ? format(v).replace(/\.0+(?=\D*$)/, '') : format(v)) : v)
   const valueAxis = { ...axis, beginAtZero: true, ticks: props.node.props.valueFormat ? { ...axis.ticks, callback: tick } : axis.ticks }
-  const tooltip = props.node.props.valueFormat ? { enabled: true, callbacks: { label: (item: { label: string; raw: unknown }) => `${round ? `${item.label}: ` : ''}${typeof item.raw === 'number' ? format(item.raw) : String(item.raw)}` } } : { enabled: true }
+  const tooltip = props.node.props.valueFormat
+    ? {
+        enabled: true,
+        callbacks: {
+          label: (item: { label: string; raw: unknown }) =>
+            `${round ? `${item.label}: ` : ''}${typeof item.raw === 'number' ? format(item.raw) : String(item.raw)}`,
+        },
+      }
+    : { enabled: true }
   return {
     type: type === 'donut' ? 'doughnut' : round ? 'pie' : type === 'line' ? 'line' : 'bar',
     data: { labels: data.value.labels, datasets: [dataset] },
@@ -95,7 +116,9 @@ function config(el: HTMLElement): ChartConfiguration {
  * objects on every edit anywhere on the page; comparing this instead means a chart redraws only when it would look
  * different. `look` is the part that needs a new chart; when only the points change, the chart is updated in place.
  */
-const look = computed(() => JSON.stringify([props.node.props.type, props.node.props.height, props.node.props.valueFormat ?? '', theme.value.scheme, theme.value.vars]))
+const look = computed(() =>
+  JSON.stringify([props.node.props.type, props.node.props.height, props.node.props.valueFormat ?? '', theme.value.scheme, theme.value.vars]),
+)
 const signature = computed(() => JSON.stringify([look.value, data.value.labels, data.value.values, data.value.labelField, data.value.valueField]))
 
 let drawing = 0
@@ -144,7 +167,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <figure ref="block" class="fd-chart-block" :aria-busy="state.status === 'loading' ? 'true' : undefined" :aria-labelledby="node.props.title ? titleId : undefined">
+  <figure
+    ref="block"
+    class="fd-chart-block"
+    :aria-busy="state.status === 'loading' ? 'true' : undefined"
+    :aria-labelledby="node.props.title ? titleId : undefined"
+  >
     <figcaption v-if="node.props.title" :id="titleId" class="fd-chart-title">{{ node.props.title }}</figcaption>
     <p v-if="!node.props.source" class="fd-chart-note">No data source</p>
     <div v-else-if="state.status === 'error'" class="fd-state" role="alert">
@@ -160,12 +188,18 @@ onBeforeUnmount(() => {
       <canvas ref="canvas" role="img" :aria-label="label" />
     </div>
     <p v-if="state.status === 'loaded' && data.values.length > 0 && data.skipped > 0" class="fd-chart-note fd-chart-skipped">
-      {{ data.skipped === 1 ? '1 row' : `${data.skipped} rows` }} left out ({{ data.values.length >= MAX_CHART_POINTS ? `at most ${MAX_CHART_POINTS} points are drawn, or no number` : 'no number' }}{{ data.valueField ? ` in "${data.valueField}"` : '' }})
+      {{ data.skipped === 1 ? '1 row' : `${data.skipped} rows` }} left out ({{
+        data.values.length >= MAX_CHART_POINTS ? `at most ${MAX_CHART_POINTS} points are drawn, or no number` : 'no number'
+      }}{{ data.valueField ? ` in "${data.valueField}"` : '' }})
     </p>
     <!-- The numbers for screen readers. A div does the hiding: overflow does not clip a table box itself. -->
     <div v-if="data.values.length > 0" class="fd-visually-hidden">
       <table class="fd-chart-data">
-        <caption>{{ label }}</caption>
+        <caption>
+          {{
+            label
+          }}
+        </caption>
         <thead>
           <tr>
             <th scope="col">{{ data.labelField ?? 'Item' }}</th>

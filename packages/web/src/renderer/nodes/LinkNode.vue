@@ -11,6 +11,8 @@ const editAttrs = useEditAttrs()
 
 <template>
   <!-- Only http(s) addresses become links; anything else shows the text alone (the engine warns about it). -->
-  <a v-if="href" class="fd-link" :href="href" :aria-label="node.props.ariaLabel" target="_blank" rel="noopener noreferrer" v-bind="editAttrs(node, 'text')">{{ node.props.text }}</a>
+  <a v-if="href" class="fd-link" :href="href" :aria-label="node.props.ariaLabel" target="_blank" rel="noopener noreferrer" v-bind="editAttrs(node, 'text')">{{
+    node.props.text
+  }}</a>
   <span v-else class="fd-link" v-bind="editAttrs(node, 'text')">{{ node.props.text }}</span>
 </template>

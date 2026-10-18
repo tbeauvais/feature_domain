@@ -34,7 +34,6 @@ const palette = ref<HTMLElement | null>(null)
 useEditorDnd({ canvas, tree, palette })
 const textEditing = useInlineEdit(canvas)
 
-
 const TEXT_INPUT_TYPES = ['text', 'search', 'url', 'tel', 'email', 'password', 'number']
 
 /** Text-entry fields have the browser's own undo for the text being typed; other controls (selects, checkboxes) don't. */
@@ -94,7 +93,11 @@ const saveLabel = {
 } as const
 
 store.editing = true
-watch(() => props.id, (id) => store.load(id), { immediate: true })
+watch(
+  () => props.id,
+  (id) => store.load(id),
+  { immediate: true },
+)
 
 // Save anything pending before the page goes away: small saves are sent with keepalive, so they arrive after it closes.
 const flush = () => void store.flush()
@@ -106,7 +109,10 @@ const onBeforeUnload = (event: BeforeUnloadEvent) => {
 }
 
 // Show saves made in other tabs and on other devices while there are no edits here to save, nor text being typed.
-useModelUpdates(() => store.modelId, () => store.refresh(() => inlineEdit.value === null))
+useModelUpdates(
+  () => store.modelId,
+  () => store.refresh(() => inlineEdit.value === null),
+)
 
 const copyError = ref('')
 /** The model was deleted elsewhere: keep what is here as a new model, and open it. */
@@ -207,22 +213,89 @@ async function deleteModel() {
           :value="model.name"
           @input="store.rename(($event.target as HTMLInputElement).value)"
         />
-        <span class="inline-flex items-center gap-1.5 text-[13px]" :class="saveState === 'error' || saveState === 'conflict' || saveState === 'deleted' ? 'text-red-700' : 'text-slate-600'" :title="saveError">
-          <svg v-if="saveState === 'saved'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="text-green-600">
+        <span
+          class="inline-flex items-center gap-1.5 text-[13px]"
+          :class="saveState === 'error' || saveState === 'conflict' || saveState === 'deleted' ? 'text-red-700' : 'text-slate-600'"
+          :title="saveError"
+        >
+          <svg
+            v-if="saveState === 'saved'"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            class="text-green-600"
+          >
             <path d="M20 6 9 17l-5-5" />
           </svg>
           <span data-testid="save-state">{{ saveLabel[saveState] }}</span>
         </span>
         <span class="flex-1" />
         <div class="flex gap-1">
-          <button type="button" class="grid size-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40" data-testid="undo" aria-label="Undo" :title="`Undo (${UNDO_KEYS})`" :disabled="!canUndo" @click="store.undo()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>
+          <button
+            type="button"
+            class="grid size-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            data-testid="undo"
+            aria-label="Undo"
+            :title="`Undo (${UNDO_KEYS})`"
+            :disabled="!canUndo"
+            @click="store.undo()"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M9 14 4 9l5-5" />
+              <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+            </svg>
           </button>
-          <button type="button" class="grid size-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40" data-testid="redo" aria-label="Redo" :title="`Redo (${REDO_KEYS})`" :disabled="!canRedo" @click="store.redo()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" /></svg>
+          <button
+            type="button"
+            class="grid size-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            data-testid="redo"
+            aria-label="Redo"
+            :title="`Redo (${REDO_KEYS})`"
+            :disabled="!canRedo"
+            @click="store.redo()"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m15 14 5-5-5-5" />
+              <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+            </svg>
           </button>
         </div>
-        <button type="button" class="h-9 rounded-lg border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" data-testid="shortcuts" @click="shortcuts?.open()">?</button>
+        <button
+          type="button"
+          class="h-9 rounded-lg border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50"
+          aria-label="Keyboard shortcuts"
+          title="Keyboard shortcuts (?)"
+          data-testid="shortcuts"
+          @click="shortcuts?.open()"
+        >
+          ?
+        </button>
         <a
           :href="previewUrl(id)"
           target="_blank"
@@ -230,11 +303,43 @@ async function deleteModel() {
           class="inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-3.5 text-sm font-medium text-white hover:bg-slate-700"
           data-testid="open-preview"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
           Preview
         </a>
-        <button type="button" class="grid size-9 place-items-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-700" aria-label="Delete model" title="Delete model" data-testid="delete-model" @click="deleteModel">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+        <button
+          type="button"
+          class="grid size-9 place-items-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-700"
+          aria-label="Delete model"
+          title="Delete model"
+          data-testid="delete-model"
+          @click="deleteModel"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+          </svg>
         </button>
       </template>
     </header>
@@ -246,25 +351,65 @@ async function deleteModel() {
     >
       <template v-if="saveState === 'conflict'">
         <p class="flex-1">Someone else saved this model since you opened it, in another tab or on another device. Your latest changes are not saved.</p>
-        <button type="button" class="rounded-md border border-amber-300 bg-white px-3 py-1 font-medium hover:bg-amber-100" data-testid="load-theirs" @click="store.loadTheirs()">Load their version</button>
-        <button type="button" class="rounded-md bg-slate-900 px-3 py-1 font-medium text-white hover:bg-slate-700" data-testid="keep-mine" @click="store.keepMine()">Keep mine</button>
+        <button
+          type="button"
+          class="rounded-md border border-amber-300 bg-white px-3 py-1 font-medium hover:bg-amber-100"
+          data-testid="load-theirs"
+          @click="store.loadTheirs()"
+        >
+          Load their version
+        </button>
+        <button
+          type="button"
+          class="rounded-md bg-slate-900 px-3 py-1 font-medium text-white hover:bg-slate-700"
+          data-testid="keep-mine"
+          @click="store.keepMine()"
+        >
+          Keep mine
+        </button>
       </template>
       <template v-else-if="saveState === 'deleted'">
         <p class="flex-1">
           This model was deleted in another tab or on another device. Your latest changes are not saved.
           <span v-if="copyError" data-testid="copy-error">Saving them as a new model failed: {{ copyError }}.</span>
         </p>
-        <button type="button" class="rounded-md bg-slate-900 px-3 py-1 font-medium text-white hover:bg-slate-700" data-testid="save-copy" @click="saveCopy()">Save as a new model</button>
+        <button type="button" class="rounded-md bg-slate-900 px-3 py-1 font-medium text-white hover:bg-slate-700" data-testid="save-copy" @click="saveCopy()">
+          Save as a new model
+        </button>
       </template>
       <template v-else-if="signedOut">
         <!-- Reloading would sign in again but lose the edits; signing in in another tab renews the session for this one. -->
-        <p class="flex-1">Your sign-in has expired, so your latest changes are not saved. Sign in again in a new tab, then come back and choose Try again. Reloading this page would lose them.</p>
-        <a href="/" target="_blank" rel="noopener" class="rounded-md border border-amber-300 bg-white px-3 py-1 font-medium hover:bg-amber-100" data-testid="sign-in-again">Sign in again</a>
-        <button type="button" class="rounded-md bg-slate-900 px-3 py-1 font-medium text-white hover:bg-slate-700" data-testid="retry-save" @click="store.retry()">Try again</button>
+        <p class="flex-1">
+          Your sign-in has expired, so your latest changes are not saved. Sign in again in a new tab, then come back and choose Try again. Reloading this page
+          would lose them.
+        </p>
+        <a
+          href="/"
+          target="_blank"
+          rel="noopener"
+          class="rounded-md border border-amber-300 bg-white px-3 py-1 font-medium hover:bg-amber-100"
+          data-testid="sign-in-again"
+          >Sign in again</a
+        >
+        <button
+          type="button"
+          class="rounded-md bg-slate-900 px-3 py-1 font-medium text-white hover:bg-slate-700"
+          data-testid="retry-save"
+          @click="store.retry()"
+        >
+          Try again
+        </button>
       </template>
       <template v-else>
         <p class="flex-1">Your latest changes could not be saved: {{ saveError }}.</p>
-        <button type="button" class="rounded-md bg-slate-900 px-3 py-1 font-medium text-white hover:bg-slate-700" data-testid="retry-save" @click="store.retry()">Try again</button>
+        <button
+          type="button"
+          class="rounded-md bg-slate-900 px-3 py-1 font-medium text-white hover:bg-slate-700"
+          data-testid="retry-save"
+          @click="store.retry()"
+        >
+          Try again
+        </button>
       </template>
     </div>
 

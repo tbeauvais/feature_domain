@@ -16,7 +16,7 @@
     // Files are served at their own paths: the editor links to /preview.html?model=…, as `vite dev` serves it, so no
     // redirect to /preview.
     "html_handling": "none",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*"],
   },
   "d1_databases": [
     {
@@ -25,7 +25,7 @@
       // The database Terraform created (`terraform output d1_database_id` in infrastructure/). Local development and
       // tests use a local copy named after this id, so changing it starts local data afresh.
       "database_id": "9de3d514-43a1-40e8-a04a-ed6035020242",
-      "migrations_dir": "./migrations"
-    }
-  ]
+      "migrations_dir": "./migrations",
+    },
+  ],
 }

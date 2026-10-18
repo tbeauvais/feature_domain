@@ -156,7 +156,8 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
   for (const [id, e] of entries) {
     const p = e.instance.placement
     if (e.def.placement === 'none') {
-      if (p) report({ code: 'placement-ignored', severity: 'warning', featureInstanceId: id, message: `${e.def.name} features are not placed; placement ignored` })
+      if (p)
+        report({ code: 'placement-ignored', severity: 'warning', featureInstanceId: id, message: `${e.def.name} features are not placed; placement ignored` })
     } else if (!p) {
       fail(id, { code: 'missing-placement', severity: 'error', message: 'Feature has no placement' })
     } else if (p.parent === ROOT_ID) {
@@ -185,7 +186,12 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
         const def = e.def.inputs.find((i) => i.name === r.input)
         return { ...r, accepts: def?.accepts, soft: def?.soft === true }
       }),
-      ...attempt(id, 'dependencies()', () => e.def.dependencies?.(e.inputs) ?? [], []).map((refId) => ({ input: 'dependencies', id: refId, accepts: undefined, soft: false })),
+      ...attempt(id, 'dependencies()', () => e.def.dependencies?.(e.inputs) ?? [], []).map((refId) => ({
+        input: 'dependencies',
+        id: refId,
+        accepts: undefined,
+        soft: false,
+      })),
     ]
     for (const ref of refs) {
       e.referenced.add(ref.id)
@@ -213,7 +219,12 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
   // closes through a soft reference, that reference is ordered after its referrer, which then generates without it.
   let { order, cyclic, blocked } = topoSort(graph)
   if (cyclic.length > 0 && softEdges.size > 0) {
-    ;({ order, cyclic, blocked } = topoSort(buildGraph([...entries.keys()], edges.filter(([from, to]) => !softEdges.has(edgeKey(from, to))))))
+    ;({ order, cyclic, blocked } = topoSort(
+      buildGraph(
+        [...entries.keys()],
+        edges.filter(([from, to]) => !softEdges.has(edgeKey(from, to))),
+      ),
+    ))
   }
   for (const id of cyclic) fail(id, { code: 'cycle', severity: 'error', message: 'Feature depends on itself (dependency cycle)' })
   for (const id of blocked) fail(id, { code: 'dependency-skipped', severity: 'warning', message: 'Feature depends on a feature in a dependency cycle' })
@@ -272,18 +283,23 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
     let out: FeatureOutput
     try {
       out = e.def.generate(e.inputs, {
-      instanceId: id,
-      nodeId: (part) => (part === undefined ? id : `${id}.${part}`),
-      resolve: (refId) => {
-        if (e.declared.has(refId)) return resolved.get(refId)
-        if (unresolvedSoft.has(edgeKey(refId, id))) return undefined
-        if (!undeclared.has(refId)) {
-          undeclared.add(refId)
-          report({ code: 'undeclared-dependency', severity: 'error', featureInstanceId: id, message: `Tried to read feature ${refId} without declaring it as a dependency` })
-        }
-        return undefined
-      },
-      report: (severity, message) => report({ code: 'feature', severity, featureInstanceId: id, message }),
+        instanceId: id,
+        nodeId: (part) => (part === undefined ? id : `${id}.${part}`),
+        resolve: (refId) => {
+          if (e.declared.has(refId)) return resolved.get(refId)
+          if (unresolvedSoft.has(edgeKey(refId, id))) return undefined
+          if (!undeclared.has(refId)) {
+            undeclared.add(refId)
+            report({
+              code: 'undeclared-dependency',
+              severity: 'error',
+              featureInstanceId: id,
+              message: `Tried to read feature ${refId} without declaring it as a dependency`,
+            })
+          }
+          return undefined
+        },
+        report: (severity, message) => report({ code: 'feature', severity, featureInstanceId: id, message }),
       })
     } catch (error) {
       fail(id, { code: 'feature-error', severity: 'error', message: `Feature threw during generation: ${errorMessage(error)}` })
@@ -409,7 +425,15 @@ function buildMetadata(
     const e = entries.get(id)
     if (!e) {
       const instance = unknown.get(id)!
-      const f: FeatureMetadata = { id, feature: instance.feature, name: asString(instance.inputs.name), status: 'unknown', reason: reasons.get(id)!, slots: [], references: [] }
+      const f: FeatureMetadata = {
+        id,
+        feature: instance.feature,
+        name: asString(instance.inputs.name),
+        status: 'unknown',
+        reason: reasons.get(id)!,
+        slots: [],
+        references: [],
+      }
       if (instance.placement) f.placement = instance.placement
       const page = pageOf(id)
       if (page !== undefined) f.page = page

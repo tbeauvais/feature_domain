@@ -92,14 +92,22 @@ describe.each(coreFeatures.map((f) => [f.type, f] as const))('%s contract', (_, 
     expect(names).not.toContain('page_location')
     for (const input of def.inputs) {
       for (const value of [input.default, input.initial]) {
-        if (input.options && value !== undefined) expect(input.options.map((o) => o.value), input.name).toContain(value)
+        if (input.options && value !== undefined)
+          expect(
+            input.options.map((o) => o.value),
+            input.name,
+          ).toContain(value)
       }
     }
   })
 
   it('conditions inputs only on other inputs it declares', () => {
     for (const input of def.inputs) {
-      for (const condition of showConditions(input)) expect(names(def).filter((n) => n !== input.name), input.name).toContain(condition.input)
+      for (const condition of showConditions(input))
+        expect(
+          names(def).filter((n) => n !== input.name),
+          input.name,
+        ).toContain(condition.input)
     }
   })
 
@@ -195,7 +203,11 @@ describe('HeaderFeature', () => {
 describe('ImageFeature', () => {
   it('starts new images as the Blueprint banner, full width, described by its alt text', () => {
     const { out, report } = run(ImageFeature)
-    expect(out.node).toMatchObject({ kind: 'illustration', id: '7', props: { name: 'banner/blueprint', alt: 'A drafted part with dimensions on a blueprint grid', width: '', align: 'center' } })
+    expect(out.node).toMatchObject({
+      kind: 'illustration',
+      id: '7',
+      props: { name: 'banner/blueprint', alt: 'A drafted part with dimensions on a blueprint grid', width: '', align: 'center' },
+    })
     expect(report).not.toHaveBeenCalled()
   })
 
@@ -204,13 +216,18 @@ describe('ImageFeature', () => {
     expect(out.node).toMatchObject({ kind: 'image', props: { src: 'x.jpg', alt: 'x', responsive: true } })
   })
 
-  it('prefers the user\'s alt text, and drops it for a decorative illustration', () => {
+  it("prefers the user's alt text, and drops it for a decorative illustration", () => {
     expect(run(ImageFeature, { illustration: 'spot/map', alt: ' Our office ' }).out.node?.props).toMatchObject({ name: 'spot/map', alt: 'Our office' })
     expect(run(ImageFeature, { alt: 'Our office', decorative: true }).out.node?.props).toMatchObject({ alt: '' })
   })
 
   it('gives a non-responsive illustration the width input; the height follows its shape', () => {
-    expect(run(ImageFeature, { responsive: false, width: '320', illustration: 'spot/map' }).out.node?.props).toEqual({ name: 'spot/map', alt: expect.any(String), width: '320', align: 'center' })
+    expect(run(ImageFeature, { responsive: false, width: '320', illustration: 'spot/map' }).out.node?.props).toEqual({
+      name: 'spot/map',
+      alt: expect.any(String),
+      width: '320',
+      align: 'center',
+    })
   })
 
   it('makes banners short, medium (the default, also for unknown values) or tall', () => {
@@ -300,7 +317,12 @@ describe('PanelFeature', () => {
 
 describe('DataResourceFeature', () => {
   it('exports one operation named after its method and path', () => {
-    const { out } = run(DataResourceFeature, { name: 'Repos', source: 'address', resource: 'https://api.github.com/users/x/repos?per_page=5', operation: 'GET' })
+    const { out } = run(DataResourceFeature, {
+      name: 'Repos',
+      source: 'address',
+      resource: 'https://api.github.com/users/x/repos?per_page=5',
+      operation: 'GET',
+    })
     expect(out.exports).toEqual({
       resource: 'Repos',
       operations: [{ name: 'GET /users/x/repos', method: 'GET', endPoint: 'https://api.github.com/users/x/repos?per_page=5' }],
@@ -310,10 +332,27 @@ describe('DataResourceFeature', () => {
 
   it('names operations by URL path exactly like the WHATWG URL parser the legacy app used', () => {
     const urls = [
-      'https://h/a/b?x=1#f', 'https://h', 'https://h?q', 'HTTP://h/A', 'https://user:pw@h:80/p?x#f',
-      'https://h/a b', 'https://h/a\\b', 'https://h\\a\\b', 'https://h/./x/../y', 'https://h/x/..', 'https://h/x/.',
-      'https://h/%2e%2E/y', 'https://h/a/%2e/b', 'https://h/a//b', 'https://h/\u00fc', 'https://h/\u{1F600}',
-      'https://h/a%20b', 'https://h/a^b|c', 'https://h/a"b<c>`{}', 'https://h/a\tb\n', '  https://h/trim  ',
+      'https://h/a/b?x=1#f',
+      'https://h',
+      'https://h?q',
+      'HTTP://h/A',
+      'https://user:pw@h:80/p?x#f',
+      'https://h/a b',
+      'https://h/a\\b',
+      'https://h\\a\\b',
+      'https://h/./x/../y',
+      'https://h/x/..',
+      'https://h/x/.',
+      'https://h/%2e%2E/y',
+      'https://h/a/%2e/b',
+      'https://h/a//b',
+      'https://h/\u00fc',
+      'https://h/\u{1F600}',
+      'https://h/a%20b',
+      'https://h/a^b|c',
+      'https://h/a"b<c>`{}',
+      'https://h/a\tb\n',
+      '  https://h/trim  ',
       'https://api.github.com/users/tbeauvais/repos?per_page=5',
     ]
     for (const url of urls) expect(pathname(url), url).toBe(new URL(url).pathname)
@@ -326,7 +365,9 @@ describe('DataResourceFeature', () => {
   })
 
   it('fetches its address when stored without a Source, and starts new resources on example sample rows', () => {
-    expect(runStored(DataResourceFeature, { name: 'Old', resource: 'https://x.test/rows' }).out.exports).toMatchObject({ operations: [{ endPoint: 'https://x.test/rows' }] })
+    expect(runStored(DataResourceFeature, { name: 'Old', resource: 'https://x.test/rows' }).out.exports).toMatchObject({
+      operations: [{ endPoint: 'https://x.test/rows' }],
+    })
     const fresh = run(DataResourceFeature).out.exports as unknown as DataResourceExports
     expect(fresh.operations.map((o) => [o.name, o.method, o.sample])).toEqual([
       ['GET rows', 'GET', true],
@@ -371,10 +412,14 @@ describe('TableFeature', () => {
     schemas: {},
     ...overrides,
   })
-  const resolveTo = (exports: unknown) => (id: string) => (id === 'r' ? { id, feature: 'DataResourceFeature', name: 'Repos', exports: exports as Record<string, unknown> } : undefined)
+  const resolveTo = (exports: unknown) => (id: string) =>
+    id === 'r' ? { id, feature: 'DataResourceFeature', name: 'Repos', exports: exports as Record<string, unknown> } : undefined
 
   it('shows sample rows with a column per key when it has no fields, and the chosen fields otherwise', () => {
-    const rows = [{ name: 'Ada', joined_on: '2015' }, { name: 'Grace', city: 'NYC' }]
+    const rows = [
+      { name: 'Ada', joined_on: '2015' },
+      { name: 'Grace', city: 'NYC' },
+    ]
     const sample = exportsOf({ operations: SAMPLE_OPERATIONS.map((o) => ({ ...o })), sampleRows: rows })
     const { out, report } = run(TableFeature, { data_resource: 'r' }, resolveTo(sample))
     expect(report).not.toHaveBeenCalled()
@@ -386,7 +431,9 @@ describe('TableFeature', () => {
         { field: 'city', label: 'City' },
       ],
     })
-    expect(run(TableFeature, { data_resource: 'r', fields: ['city'] }, resolveTo(sample)).out.node?.props).toMatchObject({ columns: [{ field: 'city', label: 'city' }] })
+    expect(run(TableFeature, { data_resource: 'r', fields: ['city'] }, resolveTo(sample)).out.node?.props).toMatchObject({
+      columns: [{ field: 'city', label: 'city' }],
+    })
   })
 
   it('labels derived columns as words, skipping empty keys', () => {
@@ -411,7 +458,6 @@ describe('TableFeature', () => {
     expect(del.report).not.toHaveBeenCalled()
   })
 
-
   it('reads its source operation from the referenced resource', () => {
     const { out, report } = run(
       TableFeature,
@@ -430,7 +476,10 @@ describe('TableFeature', () => {
   })
 
   it('shows a title, and scrolls after 10 rows when new; stored tables without the input show every row', () => {
-    expect(run(TableFeature, { data_resource: 'r', title: ' Repos ' }, resolveTo(exportsOf())).out.node?.props).toMatchObject({ title: 'Repos', scrollRows: 10 })
+    expect(run(TableFeature, { data_resource: 'r', title: ' Repos ' }, resolveTo(exportsOf())).out.node?.props).toMatchObject({
+      title: 'Repos',
+      scrollRows: 10,
+    })
     const stored = runStored(TableFeature, { data_resource: 'r' })
     expect(stored.out.node?.props).not.toHaveProperty('scrollRows')
     expect(stored.out.node?.props).not.toHaveProperty('title')
@@ -466,7 +515,12 @@ describe('TableFeature', () => {
   })
 
   it('has no source when the operation has no http(s) URL', () => {
-    const exports = exportsOf({ operations: [{ name: 'GET /', method: 'GET', endPoint: '' }, { name: 'GET /js', method: 'GET', endPoint: 'javascript:alert(1)' }] })
+    const exports = exportsOf({
+      operations: [
+        { name: 'GET /', method: 'GET', endPoint: '' },
+        { name: 'GET /js', method: 'GET', endPoint: 'javascript:alert(1)' },
+      ],
+    })
     for (const operation of ['GET /', 'GET /js']) {
       const { out, report } = run(TableFeature, { data_resource: 'r', operation }, resolveTo(exports))
       expect(out.node?.props).not.toHaveProperty('source')
@@ -555,7 +609,10 @@ describe('TextWithParagraphFeature and ImageWithParagraphFeature', () => {
     })
     expect(run(TextWithParagraphFeature, { title: '', text: '' }).out.node?.children).toEqual([])
     // Windows line endings split the same way.
-    expect(run(TextWithParagraphFeature, { title: '', text: 'One\r\n\r\nTwo\r\nmore' }).out.node?.children.map((c) => c.props)).toEqual([{ text: 'One' }, { text: 'Two\r\nmore' }])
+    expect(run(TextWithParagraphFeature, { title: '', text: 'One\r\n\r\nTwo\r\nmore' }).out.node?.children.map((c) => c.props)).toEqual([
+      { text: 'One' },
+      { text: 'Two\r\nmore' },
+    ])
   })
 
   it('put the image beside a body stack, on the chosen side', () => {

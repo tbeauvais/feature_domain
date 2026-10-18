@@ -13,11 +13,7 @@ provideTheme(computed(() => own.value ?? outer.value))
 </script>
 
 <template>
-  <div
-    class="fd-page"
-    :style="own ? { ...own.vars, ...node.style } : node.style"
-    :data-fd-scheme="own?.scheme"
-  >
+  <div class="fd-page" :style="own ? { ...own.vars, ...node.style } : node.style" :data-fd-scheme="own?.scheme">
     <slot />
   </div>
 </template>

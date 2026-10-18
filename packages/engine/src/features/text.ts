@@ -50,7 +50,16 @@ export const TextFeature: FeatureDefinition = {
       control: 'text-input',
     },
     // Soft: a text whose resource goes away still shows, with its values as written.
-    { name: 'data_resource', label: 'Data Resource', type: 'reference', accepts: DATA_RESOURCE_TYPES, soft: true, default: '', control: 'resource-select', group: 'Values from data' },
+    {
+      name: 'data_resource',
+      label: 'Data Resource',
+      type: 'reference',
+      accepts: DATA_RESOURCE_TYPES,
+      soft: true,
+      default: '',
+      control: 'resource-select',
+      group: 'Values from data',
+    },
     { name: 'operation', label: 'Operation', type: 'string', default: '', control: 'operation-select', methods: ['GET'], group: 'Values from data' },
   ],
 
@@ -77,7 +86,8 @@ export const TextFeature: FeatureDefinition = {
     for (const part of parts) {
       if (!('filter' in part) || part.filter === undefined) continue
       const name = /^([A-Za-z]\w*)/.exec(part.filter)?.[1]
-      if (!name || !(VALUE_FILTERS as readonly string[]).includes(name)) ctx.report('warning', `${part.binding} names an unknown filter "${part.filter}"; the value shows unfiltered`)
+      if (!name || !(VALUE_FILTERS as readonly string[]).includes(name))
+        ctx.report('warning', `${part.binding} names an unknown filter "${part.filter}"; the value shows unfiltered`)
     }
     const { source } = listSource(resolved.id, resolved.exports, asString(inputs.operation), ctx, 'a text', 'values')
     if (source) {

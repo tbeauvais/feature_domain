@@ -15,7 +15,10 @@ const attendees = [
   { name: 'Ben Carter', email: 'ben@example.com', company: 'Harbor Robotics' },
 ]
 const speakers = [
-  { name: 'Priya Raman', text: 'Front-end lead at a New Haven fintech. Has rewritten the same dashboard in four frameworks and has opinions about all of them.' },
+  {
+    name: 'Priya Raman',
+    text: 'Front-end lead at a New Haven fintech. Has rewritten the same dashboard in four frameworks and has opinions about all of them.',
+  },
   { name: 'Marcus Ortiz', text: 'QA engineer turned developer. Runs the end-to-end test suite for a hospital scheduling app.' },
   { name: 'Dana Whitfield', text: 'Organizer of the meetup since 2019, and the person to ask about speaking next month.' },
 ]
@@ -37,7 +40,18 @@ export const meetup = sample('Shoreline JS meetup', (add) => {
   const page = add('PageFeature', { name: 'Page', theme }, root())
   add('HeaderFeature', { name: 'Title', text: 'Shoreline JavaScript Meetup', size: 1, align: 'left', color: 'accent' }, inPage(page))
   add('TextFeature', { name: 'When', text: 'Thursday, November 19 · 6:00 – 8:30 pm · Elm City Workspace, New Haven. Free, with pizza.' }, inPage(page))
-  add('TableFeature', { name: 'Schedule', title: 'Schedule', data_resource: sessions, fields: ['time', 'session', 'speaker'], labels: ['Time', 'Session', 'Speaker'], scroll_rows: 0 }, inPage(page))
+  add(
+    'TableFeature',
+    {
+      name: 'Schedule',
+      title: 'Schedule',
+      data_resource: sessions,
+      fields: ['time', 'session', 'speaker'],
+      labels: ['Time', 'Session', 'Speaker'],
+      scroll_rows: 0,
+    },
+    inPage(page),
+  )
   add('HeaderFeature', { name: 'Speakers', text: 'Speakers', size: 2, align: 'left' }, inPage(page))
   const grid = add('ContainerFeature', { name: 'Speakers', rows: 1, columns: 3, well: false }, inPage(page))
   speakers.forEach((speaker, i) => add('TextWithParagraphFeature', { name: speaker.name, title: speaker.name, text: speaker.text }, inCell(grid, 1, i + 1)))

@@ -32,7 +32,10 @@ const swatch = computed(() => {
 
 /** Controls made of several buttons are labeled as a group rather than through `for`. */
 const grouped = computed(
-  () => ((props.def.control === 'segmented' || props.def.control === 'illustration-gallery') && props.def.options !== undefined) || props.def.control === 'api-spec' || props.def.control === 'place-search',
+  () =>
+    ((props.def.control === 'segmented' || props.def.control === 'illustration-gallery') && props.def.options !== undefined) ||
+    props.def.control === 'api-spec' ||
+    props.def.control === 'place-search',
 )
 
 const field = 'w-full rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-sky-500 focus:outline-none'
@@ -44,7 +47,11 @@ const parseNumber = (raw: string): number | undefined => {
   const n = Number(raw)
   return raw.trim() === '' || !Number.isFinite(n) ? undefined : n
 }
-const parseList = (raw: string): string[] => raw.split('\n').map((line) => line.trim()).filter((line) => line !== '')
+const parseList = (raw: string): string[] =>
+  raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
 const parse = (raw: string): InputValue | undefined => (props.def.type === 'list' ? parseList(raw) : parseNumber(raw))
 const same = (a: InputValue | undefined, b: InputValue | undefined) => JSON.stringify(a) === JSON.stringify(b)
 
@@ -74,7 +81,12 @@ function settle() {
     <p v-if="grouped && def.control === 'segmented' && !def.options!.some((o) => o.value === text)" class="text-xs text-amber-700">
       Missing: {{ text || '(none)' }}. Pick one below.
     </p>
-    <div v-if="grouped && def.control === 'segmented'" role="group" :aria-labelledby="`${id}-label`" class="flex overflow-hidden rounded-md border border-slate-300">
+    <div
+      v-if="grouped && def.control === 'segmented'"
+      role="group"
+      :aria-labelledby="`${id}-label`"
+      class="flex overflow-hidden rounded-md border border-slate-300"
+    >
       <button
         v-for="option in def.options"
         :key="option.value"

@@ -47,7 +47,11 @@ export function useEditorDnd(roots: { canvas: Ref<HTMLElement | null>; tree: Ref
           input,
           element: el,
           axis: 'vertical',
-          operations: { 'reorder-before': placed ? 'available' : 'not-available', 'reorder-after': placed ? 'available' : 'not-available', combine: hasSlot ? 'available' : 'not-available' },
+          operations: {
+            'reorder-before': placed ? 'available' : 'not-available',
+            'reorder-after': placed ? 'available' : 'not-available',
+            combine: hasSlot ? 'available' : 'not-available',
+          },
         })
       },
     })
@@ -66,7 +70,13 @@ export function useEditorDnd(roots: { canvas: Ref<HTMLElement | null>; tree: Ref
     if (canvas) {
       for (const el of canvas.querySelectorAll<HTMLElement>('[data-feature-id]')) {
         const id = el.getAttribute('data-feature-id')!
-        parts.push(draggable({ element: el, canDrag: (args) => notEditing(id) && notFromAField(args), getInitialData: () => ({ [OURS]: true, source: { kind: 'feature', id } }) satisfies SourceData }))
+        parts.push(
+          draggable({
+            element: el,
+            canDrag: (args) => notEditing(id) && notFromAField(args),
+            getInitialData: () => ({ [OURS]: true, source: { kind: 'feature', id } }) satisfies SourceData,
+          }),
+        )
         parts.push(featureTarget(el, id))
       }
       // Links and images inside a feature are natively draggable, so a drag starting on one would be a plain
@@ -74,12 +84,21 @@ export function useEditorDnd(roots: { canvas: Ref<HTMLElement | null>; tree: Ref
       for (const el of canvas.querySelectorAll<HTMLElement>('a[href], img')) {
         if (el.hasAttribute('data-feature-id')) continue
         const id = el.closest('[data-feature-id]')?.getAttribute('data-feature-id')
-        if (id) parts.push(draggable({ element: el, canDrag: () => notEditing(id), getInitialData: () => ({ [OURS]: true, source: { kind: 'feature', id } }) satisfies SourceData }))
+        if (id)
+          parts.push(
+            draggable({
+              element: el,
+              canDrag: () => notEditing(id),
+              getInitialData: () => ({ [OURS]: true, source: { kind: 'feature', id } }) satisfies SourceData,
+            }),
+          )
       }
       // Slots that are not themselves features (container cells, panel bodies, the document root): append.
       for (const el of canvas.querySelectorAll<HTMLElement>('[data-slot]:not([data-feature-id])')) {
         const zone: DropZone = { kind: 'slot', parent: el.getAttribute('data-slot-parent')!, slot: el.getAttribute('data-slot')! }
-        parts.push(dropTargetForElements({ element: el, canDrop: ({ source }) => isSource(source.data), getData: () => ({ [OURS]: true, zone }) satisfies TargetData }))
+        parts.push(
+          dropTargetForElements({ element: el, canDrop: ({ source }) => isSource(source.data), getData: () => ({ [OURS]: true, zone }) satisfies TargetData }),
+        )
       }
     }
     for (const el of roots.tree.value?.querySelectorAll<HTMLElement>('[data-tree-id]') ?? []) {

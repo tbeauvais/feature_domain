@@ -13,7 +13,13 @@ let observed: Element | null = null
 
 function measure() {
   const container = props.container
-  const el = !container ? null : props.editing ? props.editing : props.selectedId !== null ? container.querySelector(`[data-feature-id="${CSS.escape(props.selectedId)}"]`) : null
+  const el = !container
+    ? null
+    : props.editing
+      ? props.editing
+      : props.selectedId !== null
+        ? container.querySelector(`[data-feature-id="${CSS.escape(props.selectedId)}"]`)
+        : null
   // Also watch the selected element itself: its size changes when content arrives later (table rows, images).
   if (el !== observed) {
     if (observed) observer?.unobserve(observed)
@@ -35,7 +41,11 @@ function measure() {
   }
 }
 
-watch(() => [props.container, props.selectedId, props.editing, props.version], () => void nextTick(measure), { immediate: true })
+watch(
+  () => [props.container, props.selectedId, props.editing, props.version],
+  () => void nextTick(measure),
+  { immediate: true },
+)
 
 // Images finishing loading inside the page (load events don't bubble, so listen while capturing).
 const onLoad = () => measure()

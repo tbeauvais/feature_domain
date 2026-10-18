@@ -95,7 +95,11 @@ describe('/api/v1/models', () => {
 
   /** `model` with a Text whose input pads its stored JSON to exactly `size` bytes. */
   function padded(size: number, name = model.name): AppModel {
-    const base: AppModel = { ...model, name, features: [...model.features, { feature: 'TextFeature', id: '2', inputs: { text: '' }, placement: { parent: '1', slot: 'content' } }] }
+    const base: AppModel = {
+      ...model,
+      name,
+      features: [...model.features, { feature: 'TextFeature', id: '2', inputs: { text: '' }, placement: { parent: '1', slot: 'content' } }],
+    }
     const text = 'x'.repeat(size - JSON.stringify(base).length)
     return { ...base, features: [model.features[0]!, { ...base.features[1]!, inputs: { text } }] }
   }
@@ -214,7 +218,10 @@ describe('model revisions', () => {
 
 describe('the API', () => {
   it('answers methods a model path does not support with a 405', async () => {
-    for (const [path, allow] of [['/api/v1/models', 'GET, POST'], ['/api/v1/models/1', 'GET, PUT, DELETE']] as const) {
+    for (const [path, allow] of [
+      ['/api/v1/models', 'GET, POST'],
+      ['/api/v1/models/1', 'GET, PUT, DELETE'],
+    ] as const) {
       const response = await request(path, { method: 'PATCH' })
       expect(response.status, path).toBe(405)
       expect(response.headers.get('Allow')).toBe(allow)

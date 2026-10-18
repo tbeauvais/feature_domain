@@ -35,7 +35,15 @@ describe('getPath', () => {
 })
 
 describe('cellContent', () => {
-  const row = { name: 'Repo', html_url: 'https://github.com/x/repo', bad: 'javascript:alert(1)', updated_at: '2015-03-07T10:00:00Z', n: 3, nil: null, obj: { a: 1 } }
+  const row = {
+    name: 'Repo',
+    html_url: 'https://github.com/x/repo',
+    bad: 'javascript:alert(1)',
+    updated_at: '2015-03-07T10:00:00Z',
+    n: 3,
+    nil: null,
+    obj: { a: 1 },
+  }
 
   it('shows raw values, with null as empty and objects as JSON', () => {
     expect(cellContent(row, 'n')).toEqual({ text: '3' })

@@ -18,10 +18,24 @@ const spec = {
   openapi: '3.0.3',
   info: { title: 'Northwind Sales API', version: '1.0.0' },
   servers: [{ url: 'https://api.northwind.example' }],
-  components: { schemas: { Sale: sale, NewSale: { ...sale, required: ['rep', 'region', 'amount'], properties: { rep: sale.properties.rep, region: sale.properties.region, amount: sale.properties.amount, closed: sale.properties.closed } } } },
+  components: {
+    schemas: {
+      Sale: sale,
+      NewSale: {
+        ...sale,
+        required: ['rep', 'region', 'amount'],
+        properties: { rep: sale.properties.rep, region: sale.properties.region, amount: sale.properties.amount, closed: sale.properties.closed },
+      },
+    },
+  },
   paths: {
     '/v1/sales': {
-      get: { summary: 'List closed deals', responses: { '200': { description: 'Deals', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Sale' } } } } } } },
+      get: {
+        summary: 'List closed deals',
+        responses: {
+          '200': { description: 'Deals', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Sale' } } } } },
+        },
+      },
       post: {
         summary: 'Log a closed deal',
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/NewSale' } } } },
@@ -29,7 +43,11 @@ const spec = {
       },
     },
     '/v1/sales/{id}': {
-      delete: { summary: 'Remove a deal', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { '204': { description: 'Removed' } } },
+      delete: {
+        summary: 'Remove a deal',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '204': { description: 'Removed' } },
+      },
     },
   },
 }
@@ -45,14 +63,34 @@ const deals = [
 
 export const sales = sample('Northwind sales', (add) => {
   const theme = add('ThemeFeature', { ...themeInputs(NIGHT_GARDEN), name: 'Night Garden' })
-  const api = add('SwaggerDataResourceFeature', { name: 'Northwind Sales API', spec_url: 'https://api.northwind.example/openapi.json', spec: JSON.stringify(spec), source: 'sample', sample_rows: JSON.stringify(deals, null, 2) })
+  const api = add('SwaggerDataResourceFeature', {
+    name: 'Northwind Sales API',
+    spec_url: 'https://api.northwind.example/openapi.json',
+    spec: JSON.stringify(spec),
+    source: 'sample',
+    sample_rows: JSON.stringify(deals, null, 2),
+  })
   const page = add('PageFeature', { name: 'Page', theme }, root())
   add('HeaderFeature', { name: 'Title', text: 'Q3 sales', size: 1, align: 'left' }, inPage(page))
-  add('TextFeature', { name: 'Count', text: '{{length}} deals closed this quarter. Log a new one below and the table and chart update at once.', data_resource: api }, inPage(page))
+  add(
+    'TextFeature',
+    { name: 'Count', text: '{{length}} deals closed this quarter. Log a new one below and the table and chart update at once.', data_resource: api },
+    inPage(page),
+  )
   const top = add('ContainerFeature', { name: 'Overview', rows: 1, columns: 2, well: false }, inPage(page))
   add(
     'GoogleChartFeature',
-    { name: 'Revenue', title: 'Revenue by rep', data_resource: api, chart_type: 'bar', label_field: 'rep', value_field: 'amount', value_format: 'currency', height: 'medium', description: 'Revenue from closed deals by sales rep' },
+    {
+      name: 'Revenue',
+      title: 'Revenue by rep',
+      data_resource: api,
+      chart_type: 'bar',
+      label_field: 'rep',
+      value_field: 'amount',
+      value_format: 'currency',
+      height: 'medium',
+      description: 'Revenue from closed deals by sales rep',
+    },
     inCell(top, 1, 1),
   )
   add(

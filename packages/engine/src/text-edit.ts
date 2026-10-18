@@ -13,17 +13,13 @@ import type { AppModel, DocNode, InputValue } from './types.js'
  * (lists that leave out empty entries skip their indexes).
  */
 export type EditMark =
-  | { input: string; kind: 'text' }
-  | { input: string; kind: 'paragraph'; index: number }
-  | { input: string; kind: 'item'; entries: number[] }
+  { input: string; kind: 'text' } | { input: string; kind: 'paragraph'; index: number } | { input: string; kind: 'item'; entries: number[] }
 
 /** A node's edit marks, keyed by the prop holding the text (`text`, `heading`, `items`). */
 export type EditMarks = Readonly<Record<string, EditMark>>
 
 /** One editable piece of text in the model: a feature's input and, for lists and paragraphs, which entry. */
-export type TextLocation =
-  | { feature: string; input: string; kind: 'text' }
-  | { feature: string; input: string; kind: 'paragraph' | 'item'; at: number }
+export type TextLocation = { feature: string; input: string; kind: 'text' } | { feature: string; input: string; kind: 'paragraph' | 'item'; at: number }
 
 /** An editable text on the page: the node, the prop it shows, and for list nodes the item's position. */
 export interface EditableText {
@@ -48,7 +44,8 @@ export function editMarkProblem(n: DocNode, inputs: readonly InputDef[]): string
     const value = (n.props as Record<string, unknown>)[prop]
     const def = inputs.find((i) => i.name === mark.input)
     if (!def) return `Node "${n.id}" marks its ${prop} as input "${mark.input}", which the feature doesn't declare`
-    if (!KIND_INPUT_TYPES[mark.kind]?.includes(def.type)) return `Node "${n.id}" marks its ${prop} as ${mark.kind} of input "${mark.input}", a ${def.type} input`
+    if (!KIND_INPUT_TYPES[mark.kind]?.includes(def.type))
+      return `Node "${n.id}" marks its ${prop} as ${mark.kind} of input "${mark.input}", a ${def.type} input`
     const fits = mark.kind === 'item' ? Array.isArray(value) && value.length === mark.entries.length : typeof value === 'string'
     if (!fits) return `Node "${n.id}" marks its ${prop} as ${mark.kind} of input "${mark.input}", but its ${prop} doesn't match`
   }

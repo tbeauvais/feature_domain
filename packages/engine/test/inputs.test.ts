@@ -31,7 +31,10 @@ describe('defaultInputs', () => {
 })
 
 describe('initialInputs', () => {
-  const withInitial: InputDef[] = [...defs, { name: 'source', label: 'Source', type: 'string', default: 'link', initial: 'illustration', control: 'text-input' }]
+  const withInitial: InputDef[] = [
+    ...defs,
+    { name: 'source', label: 'Source', type: 'string', default: 'link', initial: 'illustration', control: 'text-input' },
+  ]
 
   it('gives new instances the initial value, while absent stored inputs still read as the default', () => {
     expect(initialInputs(withInitial)).toEqual({ text: 'hello', flag: false, source: 'illustration' })
@@ -53,10 +56,16 @@ describe('isInputShown', () => {
   })
 
   it('needs every condition to hold, and any of several listed values matches', () => {
-    const both: InputDef = { name: 'h', label: 'H', type: 'string', control: 'text-input', showWhen: [
-      { input: 'source', equals: 'illustration' },
-      { input: 'kind', equals: ['a', 'b'] },
-    ] }
+    const both: InputDef = {
+      name: 'h',
+      label: 'H',
+      type: 'string',
+      control: 'text-input',
+      showWhen: [
+        { input: 'source', equals: 'illustration' },
+        { input: 'kind', equals: ['a', 'b'] },
+      ],
+    }
     const all = [...shown, { name: 'kind', label: 'Kind', type: 'string', control: 'text-input' } as InputDef, both]
     expect(isInputShown(both, all, { source: 'illustration', kind: 'b' })).toBe(true)
     expect(isInputShown(both, all, { source: 'illustration', kind: 'c' })).toBe(false)

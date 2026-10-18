@@ -46,7 +46,9 @@ export const MapFeature: FeatureDefinition = {
     if (address) {
       children.push(node('paragraph', ctx.nodeId('address'), { text: address }, { edit: { text: { input: 'address', kind: 'text' } } }))
       // Named with the address, so a page with several maps doesn't have several links all called the same.
-      children.push(node('link', ctx.nodeId('link'), { text: 'Open in Google Maps', href: googleMapsUrl(address), ariaLabel: `Open ${address} in Google Maps` }))
+      children.push(
+        node('link', ctx.nodeId('link'), { text: 'Open in Google Maps', href: googleMapsUrl(address), ariaLabel: `Open ${address} in Google Maps` }),
+      )
     } else ctx.report('warning', 'No address: the map has nothing to show or link to')
     return { node: node('card', ctx.nodeId(), {}, { children }) }
   },

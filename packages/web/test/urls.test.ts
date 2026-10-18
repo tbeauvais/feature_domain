@@ -5,7 +5,14 @@ import { isHttpUrl, safeHref, safeImageSrc } from '../src/renderer/urls'
 describe('URL policies', () => {
   it('allows only http(s) links', () => {
     expect(['https://a.b/c', 'HTTP://a', ' https://x ', '', '/rel', 'javascript:alert(1)', 'data:text/html,x', 'mailto:a@b'].map(isHttpUrl)).toEqual([
-      true, true, true, false, false, false, false, false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
     ])
     expect(safeHref(' https://x ')).toBe('https://x')
     expect(safeHref('javascript:alert(1)')).toBeUndefined()
@@ -34,7 +41,10 @@ describe('browserFetchJson', () => {
   })
 
   it('returns JSON from http(s) URLs and reports HTTP errors', async () => {
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url.endsWith('ok') ? new Response('[1]') : new Response('', { status: 503, statusText: 'Unavailable' }))))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => (url.endsWith('ok') ? new Response('[1]') : new Response('', { status: 503, statusText: 'Unavailable' }))),
+    )
     expect(await browserFetchJson('https://api/ok')).toEqual([1])
     await expect(browserFetchJson('https://api/down')).rejects.toThrow('503 Unavailable')
   })

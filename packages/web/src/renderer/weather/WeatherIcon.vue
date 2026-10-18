@@ -25,7 +25,13 @@ const MOON = 'M30 8 A16 16 0 1 0 40 30 A12.5 12.5 0 0 1 30 8 Z'
         <path style="stroke: var(--fd-muted)" d="M10 18 H38 M6 25 H34 M12 32 H40 M8 39 H30" stroke-width="3" stroke-linecap="round" />
       </template>
       <template v-else>
-        <path style="fill: var(--fd-sunken); stroke: var(--fd-muted)" :d="CLOUD" :transform="name === 'cloud' || name.startsWith('partly') ? undefined : 'translate(0 -6)'" stroke-width="2" stroke-linejoin="round" />
+        <path
+          style="fill: var(--fd-sunken); stroke: var(--fd-muted)"
+          :d="CLOUD"
+          :transform="name === 'cloud' || name.startsWith('partly') ? undefined : 'translate(0 -6)'"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
         <path v-if="name === 'rain'" style="stroke: var(--fd-muted)" d="M18 35 L16 41 M25 35 L23 41 M32 35 L30 41" stroke-width="2.5" stroke-linecap="round" />
         <g v-else-if="name === 'snow'" style="fill: var(--fd-muted)">
           <circle cx="17" cy="38" r="2" />

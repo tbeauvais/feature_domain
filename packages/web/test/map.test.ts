@@ -6,7 +6,9 @@ import { inst, model, page } from './helpers'
 
 describe('Map', () => {
   it('shows a card with our street-map drawing (decorative, shaped by its Height), the address and a Google Maps link', () => {
-    const w = mount(DocumentView, { props: { root: generate(model(page(), inst('GoogleMapFeature', 'm', { title: 'Find us', address: 'Palm Beach, FL', height: 'tall' }))).root } })
+    const w = mount(DocumentView, {
+      props: { root: generate(model(page(), inst('GoogleMapFeature', 'm', { title: 'Find us', address: 'Palm Beach, FL', height: 'tall' }))).root },
+    })
     const card = w.get('[data-feature-id="m"]')
     expect(card.classes()).toContain('fd-card')
     expect(card.get('.fd-heading').text()).toBe('Find us')

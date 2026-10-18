@@ -37,7 +37,16 @@ describe('buildFeatureTree', () => {
 
   it('nests features by placement in model order, showing cell slots', () => {
     const tree = buildFeatureTree(result)
-    expect(shape(tree.roots)).toEqual([['1', 'generated', [['c', 'generated', [['t', 'generated', 'r1c2']]], ['u', 'generated']]]])
+    expect(shape(tree.roots)).toEqual([
+      [
+        '1',
+        'generated',
+        [
+          ['c', 'generated', [['t', 'generated', 'r1c2']]],
+          ['u', 'generated'],
+        ],
+      ],
+    ])
     expect(tree.roots[0]!.children[0]!.label).toBe('Grid')
     expect(tree.resources).toEqual([])
     expect(tree.unplaced).toEqual([])
@@ -98,7 +107,7 @@ describe('themeForFeature', () => {
     expect(accent('b')).toBe('#7a1f55')
   })
 
-  it('falls back to the document theme (the first page\'s) on an unthemed page, with nothing selected, or for unknown ids', () => {
+  it("falls back to the document theme (the first page's) on an unthemed page, with nothing selected, or for unknown ids", () => {
     for (const id of ['c', null, 'nope']) expect(accent(id)).toBe('#2f6b3a')
   })
 

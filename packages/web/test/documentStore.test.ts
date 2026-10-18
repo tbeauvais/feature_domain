@@ -28,7 +28,11 @@ describe('useDocumentStore', () => {
     expect(doc.status).toBe('missing')
     expect(doc.result).toBeNull()
 
-    setModelStore({ get: async () => { throw new Error('quota exceeded') } } as unknown as ModelStore)
+    setModelStore({
+      get: async () => {
+        throw new Error('quota exceeded')
+      },
+    } as unknown as ModelStore)
     await doc.load('x')
     expect(doc.status).toBe('error')
     expect(doc.error).toBe('quota exceeded')

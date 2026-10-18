@@ -51,7 +51,12 @@ describe('placement', () => {
 
   it('keeps sibling order from the model, not from dependency order', () => {
     const r = generate(
-      model(page(), inst('ContainerFeature', 'o', { columns: 1 }), inst('TextFeature', 'a', {}, at('o', 'r1c1')), inst('TextFeature', 'b', {}, at('o', 'r1c1'))),
+      model(
+        page(),
+        inst('ContainerFeature', 'o', { columns: 1 }),
+        inst('TextFeature', 'a', {}, at('o', 'r1c1')),
+        inst('TextFeature', 'b', {}, at('o', 'r1c1')),
+      ),
     )
     expect(pageNode(r).children[0]!.children[0]!.children.map((n) => n.featureInstanceId)).toEqual(['a', 'b'])
   })
@@ -227,7 +232,13 @@ describe('references', () => {
 
   it('skips features whose reference is missing, of the wrong type, or empty when required', () => {
     const r = generate(
-      model(page(), inst('TextFeature', 'txt'), table('missing', { data_resource: 'nope' }), table('wrong', { data_resource: 'txt' }), table('empty', { data_resource: '' })),
+      model(
+        page(),
+        inst('TextFeature', 'txt'),
+        table('missing', { data_resource: 'nope' }),
+        table('wrong', { data_resource: 'txt' }),
+        table('empty', { data_resource: '' }),
+      ),
     )
     expect(r.diagnostics.map((d) => `${d.code}:${d.featureInstanceId}: ${d.message}`)).toEqual([
       'unresolved-reference:missing: Input "data_resource" references feature nope, which does not exist',
@@ -256,7 +267,9 @@ describe('references', () => {
 
   it('passes feature-reported problems through as diagnostics', () => {
     const r = generate(model(page(), resource('r'), table('t', { operation: 'POST /nope' })))
-    expect(r.diagnostics).toEqual([{ code: 'feature', severity: 'warning', featureInstanceId: 't', message: 'Operation "POST /nope" is not provided by Repos' }])
+    expect(r.diagnostics).toEqual([
+      { code: 'feature', severity: 'warning', featureInstanceId: 't', message: 'Operation "POST /nope" is not provided by Repos' },
+    ])
   })
 })
 
@@ -297,7 +310,9 @@ describe('metadata', () => {
 
 describe('purity', () => {
   it('does not mutate the model and is deterministic', () => {
-    const m = deepFreeze(model(page({ border_color: 'red' }), resource('r'), inst('ContainerFeature', 'c'), inst('TableFeature', 't', { data_resource: 'r' }, at('c', 'r1c1'))))
+    const m = deepFreeze(
+      model(page({ border_color: 'red' }), resource('r'), inst('ContainerFeature', 'c'), inst('TableFeature', 't', { data_resource: 'r' }, at('c', 'r1c1'))),
+    )
     expect(generate(m)).toEqual(generate(m))
   })
 })
@@ -337,14 +352,39 @@ describe('custom features', () => {
   })
 
   it('skips a feature whose own node ids repeat', () => {
-    const twins = stub({ type: 'Twins', generate: (_, ctx) => ({ node: node('text', ctx.nodeId(), { text: '' }, { children: [node('text', ctx.nodeId('a'), { text: '' }), node('text', ctx.nodeId('a'), { text: '' })] }) }) })
+    const twins = stub({
+      type: 'Twins',
+      generate: (_, ctx) => ({
+        node: node(
+          'text',
+          ctx.nodeId(),
+          { text: '' },
+          { children: [node('text', ctx.nodeId('a'), { text: '' }), node('text', ctx.nodeId('a'), { text: '' })] },
+        ),
+      }),
+    })
     expect(codes(generate(model(page(), inst('Twins', 'w')), registry(twins)))).toEqual(['duplicate-node-id:w'])
   })
 
   it('turns exceptions in slots() and dependencies() into diagnostics', () => {
-    const badSlots = stub({ type: 'BadSlots', slots: () => { throw new Error('slots boom') }, generate: (_, ctx) => ({ node: node('text', ctx.nodeId(), { text: '' }) }) })
-    const badDeps = stub({ type: 'BadDeps', dependencies: () => { throw new Error('deps boom') }, generate: (_, ctx) => ({ node: node('text', ctx.nodeId(), { text: '' }) }) })
-    const r = generate(model(page(), inst('BadSlots', 's'), inst('TextFeature', 'in', {}, at('s', 'x')), inst('BadDeps', 'd'), inst('TextFeature', 'ok')), registry(badSlots, badDeps))
+    const badSlots = stub({
+      type: 'BadSlots',
+      slots: () => {
+        throw new Error('slots boom')
+      },
+      generate: (_, ctx) => ({ node: node('text', ctx.nodeId(), { text: '' }) }),
+    })
+    const badDeps = stub({
+      type: 'BadDeps',
+      dependencies: () => {
+        throw new Error('deps boom')
+      },
+      generate: (_, ctx) => ({ node: node('text', ctx.nodeId(), { text: '' }) }),
+    })
+    const r = generate(
+      model(page(), inst('BadSlots', 's'), inst('TextFeature', 'in', {}, at('s', 'x')), inst('BadDeps', 'd'), inst('TextFeature', 'ok')),
+      registry(badSlots, badDeps),
+    )
     expect(r.diagnostics.map((d) => `${d.code}:${d.featureInstanceId}: ${d.message}`)).toEqual([
       'feature-error:s: Feature threw in slots(): slots boom',
       'unresolved-placement:in: Parent feature s ("BadSlots s") has no slot "x"',
@@ -383,7 +423,10 @@ describe('custom features', () => {
         return { node: node('text', ctx.nodeId(), { text: '' }) }
       },
     })
-    const r = generate(model(page(), resource('r'), inst('Pusher', 'p'), inst('TableFeature', 't', { data_resource: 'r', operation: 'POST /evil' })), registry(pusher))
+    const r = generate(
+      model(page(), resource('r'), inst('Pusher', 'p'), inst('TableFeature', 't', { data_resource: 'r', operation: 'POST /evil' })),
+      registry(pusher),
+    )
     expect(codes(r)).toEqual(['feature-error:p', 'feature:t'])
     expect(r.diagnostics[1]!.message).toBe('Operation "POST /evil" is not provided by Repos')
   })
@@ -404,7 +447,12 @@ describe('custom features', () => {
   })
 
   it('turns an exception in a feature into a diagnostic and keeps generating the rest', () => {
-    const bomb = stub({ type: 'Bomb', generate: () => { throw new Error('boom') } })
+    const bomb = stub({
+      type: 'Bomb',
+      generate: () => {
+        throw new Error('boom')
+      },
+    })
     const r = generate(model(page(), inst('Bomb', 'b'), inst('TextFeature', 't')), registry(bomb))
     expect(r.diagnostics).toEqual([{ code: 'feature-error', severity: 'error', featureInstanceId: 'b', message: 'Feature threw during generation: boom' }])
     expect(statusOf(r, 't')).toBe('generated')
@@ -454,7 +502,14 @@ describe('placeholders (editor mode)', () => {
 describe('skip reasons in metadata', () => {
   it('record the first problem, not later effects such as out-of-order', () => {
     // t is listed before its container c, and c itself cannot be placed.
-    const r = generate(model(page(), inst('TextFeature', 't', {}, at('c', 'r1c1')), inst('ContainerFeature', 'c', { columns: 1 }, at('nowhere', 'x')), inst('TextFeature', 'off', { disable: true })))
+    const r = generate(
+      model(
+        page(),
+        inst('TextFeature', 't', {}, at('c', 'r1c1')),
+        inst('ContainerFeature', 'c', { columns: 1 }, at('nowhere', 'x')),
+        inst('TextFeature', 'off', { disable: true }),
+      ),
+    )
     expect(r.diagnostics.filter((d) => d.featureInstanceId === 't').map((d) => d.code)).toEqual(['out-of-order', 'parent-skipped'])
     const reasons = Object.fromEntries(r.metadata.features.map((f) => [f.id, f.reason]))
     expect(reasons).toEqual({

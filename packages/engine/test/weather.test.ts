@@ -16,7 +16,11 @@ describe('WeatherFeature', () => {
     expect(c!.kind).toBe('card')
     expect(c!.children.map((n) => [n.kind, n.id, n.props])).toEqual([
       ['heading', 'w.title', { text: 'Palm Beach, Florida', level: 4, align: 'left' }],
-      ['weather', 'w.weather', { place: 'Palm Beach, Florida', units: 'fahrenheit', days: FORECAST_DAYS, url: openMeteoUrl(26.7056, -80.0364, 'fahrenheit', FORECAST_DAYS) }],
+      [
+        'weather',
+        'w.weather',
+        { place: 'Palm Beach, Florida', units: 'fahrenheit', days: FORECAST_DAYS, url: openMeteoUrl(26.7056, -80.0364, 'fahrenheit', FORECAST_DAYS) },
+      ],
       ['link', 'w.credit', OPEN_METEO_CREDIT],
     ])
   })
@@ -59,7 +63,8 @@ describe('WeatherFeature', () => {
     expect(readCoordinate(' -72.6818 ', 180)).toBe(-72.6818)
     expect(readCoordinate('+90', 90)).toBe(90)
     expect(readCoordinate('.5', 90)).toBe(0.5)
-    for (const bad of ['', '1e2', '0x10', 'NaN', 'Infinity', '12,5', '-90.01', undefined, null, true]) expect(readCoordinate(bad, 90), String(bad)).toBeUndefined()
+    for (const bad of ['', '1e2', '0x10', 'NaN', 'Infinity', '12,5', '-90.01', undefined, null, true])
+      expect(readCoordinate(bad, 90), String(bad)).toBeUndefined()
     expect(readCoordinate(41.289, 90)).toBe(41.289)
   })
 
@@ -85,7 +90,9 @@ describe('the legacy Yahoo weather resources', () => {
     migrate({ features: [{ feature: 'DataResourceFeature', id: '21', inputs: { name: 'Weather Service', resource, operation: 'get' } }] }).notes
 
   it('are noted as a dead service, pointing at the Weather feature', () => {
-    expect(legacy('https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast').map((n) => [n.code, n.severity, n.message])).toEqual([
+    expect(
+      legacy('https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast').map((n) => [n.code, n.severity, n.message]),
+    ).toEqual([
       ['dead-service', 'warning', "Yahoo's weather service shut down in 2019, so this resource loads nothing; use a Weather feature to show the weather"],
     ])
   })

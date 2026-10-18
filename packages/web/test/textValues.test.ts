@@ -21,7 +21,10 @@ const spoken = without('[aria-hidden="true"]')
 describe('Text values from data', () => {
   it('fills in its values from the answer once it loads, through table filters, as plain text', async () => {
     const fetchJson = vi.fn<FetchJson>(async () => ({ public_repos: 35, followers: 1234, created_at: '2011-03-07T10:00:00Z', bio: '<b>hi</b>' }))
-    const w = render(model(page(), profile, text('Tom has {{public_repos}} repos, {{followers | number}} followers, since {{created_at | date}}. {{bio}}')), fetchJson)
+    const w = render(
+      model(page(), profile, text('Tom has {{public_repos}} repos, {{followers | number}} followers, since {{created_at | date}}. {{bio}}')),
+      fetchJson,
+    )
     const el = () => w.get('[data-feature-id="t"]')
     expect(shown(el())).toBe('Tom has … repos, … followers, since …. …')
     expect(spoken(el())).toBe('Tom has loading repos, loading followers, since loading. loading')
@@ -73,7 +76,12 @@ describe('Text values from data', () => {
   })
 
   it('reads sample data as its rows, including rows a form added', async () => {
-    const people = inst('DataResourceFeature', 'r', { name: 'People', source: 'sample', sample_rows: JSON.stringify([{ name: 'Ada' }, { name: 'Grace' }]) }, null)
+    const people = inst(
+      'DataResourceFeature',
+      'r',
+      { name: 'People', source: 'sample', sample_rows: JSON.stringify([{ name: 'Ada' }, { name: 'Grace' }]) },
+      null,
+    )
     const fetchJson = vi.fn<FetchJson>()
     const w = render(model(page(), people, text('{{length}} people, first {{0.name}}')), fetchJson)
     await flushPromises()

@@ -64,7 +64,11 @@ describe('illustration drawings', () => {
 
   it('gives pattern ids that are unique when a banner appears twice on a page', () => {
     const Twice = defineComponent(() => () => h('div', [h(illustrationComponents['banner/blueprint']), h(illustrationComponents['banner/blueprint'])]))
-    const ids = [...mount(Twice).html().matchAll(/<pattern id="([^"]+)"/g)].map((m) => m[1])
+    const ids = [
+      ...mount(Twice)
+        .html()
+        .matchAll(/<pattern id="([^"]+)"/g),
+    ].map((m) => m[1])
     expect(ids).toHaveLength(4)
     expect(new Set(ids).size).toBe(4)
   })

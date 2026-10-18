@@ -10,17 +10,29 @@ isolateNetwork((route, url) => {
       json: {
         current_units: { temperature_2m: '°F' },
         current: { temperature_2m: url.searchParams.get('latitude') === '26.7056' ? 81 : 54, weather_code: 3, is_day: 1 },
-        daily: { time: ['2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14'], weather_code: [3, 0, 61, 3], temperature_2m_max: [60, 62, 58, 55], temperature_2m_min: [45, 47, 44, 40] },
+        daily: {
+          time: ['2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14'],
+          weather_code: [3, 0, 61, 3],
+          temperature_2m_max: [60, 62, 58, 55],
+          temperature_2m_min: [45, 47, 44, 40],
+        },
       },
     })
   }
   if (url.hostname !== 'api.github.com') return undefined
   const user = url.pathname.split('/')[2]
   // A user's profile (the portfolio's line of values reads it); anything else is their repos.
-  if (/^\/users\/[^/]+$/.test(url.pathname)) return route.fulfill({ json: { login: user, public_repos: 30, followers: 12, created_at: '2011-03-07T10:00:00Z' } })
+  if (/^\/users\/[^/]+$/.test(url.pathname))
+    return route.fulfill({ json: { login: user, public_repos: 30, followers: 12, created_at: '2011-03-07T10:00:00Z' } })
   return route.fulfill({
     json: [
-      { name: `${user}-engine`, description: 'Parametric engine', language: 'TypeScript', updated_at: '2015-03-07T10:00:00Z', html_url: `https://github.com/${user}/engine` },
+      {
+        name: `${user}-engine`,
+        description: 'Parametric engine',
+        language: 'TypeScript',
+        updated_at: '2015-03-07T10:00:00Z',
+        html_url: `https://github.com/${user}/engine`,
+      },
       { name: `${user}-web`, description: null, language: 'Vue', updated_at: '2016-12-17T08:48:05Z', html_url: `https://github.com/${user}/web` },
     ],
   })
@@ -35,12 +47,27 @@ async function openSample(page: Page, name: string): Promise<string> {
 
 test('lists the sample models', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByTestId('model-list').getByRole('link')).toHaveText(['Start here', 'Harbor Coffee', 'Ledgerly pricing', 'Northwind sales', 'Tom Beauvais · projects', 'Shoreline JS meetup'])
+  await expect(page.getByTestId('model-list').getByRole('link')).toHaveText([
+    'Start here',
+    'Harbor Coffee',
+    'Ledgerly pricing',
+    'Northwind sales',
+    'Tom Beauvais · projects',
+    'Shoreline JS meetup',
+  ])
 })
 
 test('a table that really scrolls is a named, focusable region, until phone width shows every row', async ({ page }) => {
   await page.context().route('https://api.github.com/**', (route) =>
-    route.fulfill({ json: Array.from({ length: 30 }, (_, i) => ({ name: `repo-${i}`, description: '', language: 'Vue', updated_at: '2015-03-07T10:00:00Z', html_url: 'https://github.com/x/r' })) }),
+    route.fulfill({
+      json: Array.from({ length: 30 }, (_, i) => ({
+        name: `repo-${i}`,
+        description: '',
+        language: 'Vue',
+        updated_at: '2015-03-07T10:00:00Z',
+        html_url: 'https://github.com/x/r',
+      })),
+    }),
   )
   const id = await openSample(page, 'Tom Beauvais · projects')
   const wrap = page.getByTestId('canvas').locator(`[data-feature-id="${await featureId(page, id, 'Repositories')}"] .fd-table-wrap`)
@@ -104,7 +131,12 @@ test('neighboring texts and links sit on their own lines, and empty containers a
 test('a card after a line of text or a link keeps the same distance, in the page and in a container cell', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByTestId('model-list')).toBeVisible()
-  const card = (id: string, parent: string, slot: string) => ({ feature: 'ListGroupFeature', id, inputs: { heading: 'Plan', items: ['One'] }, placement: { parent, slot } })
+  const card = (id: string, parent: string, slot: string) => ({
+    feature: 'ListGroupFeature',
+    id,
+    inputs: { heading: 'Plan', items: ['One'] },
+    placement: { parent, slot },
+  })
   await store(page, {
     id: 'gaps',
     version: 2,
@@ -132,7 +164,7 @@ test('a card after a line of text or a link keeps the same distance, in the page
   for (const g of gaps) expect(g).toBeCloseTo(gaps[0]!, 0)
 })
 
-test('renders the samples\' live tables and values, maps and weather, with no problems', async ({ page }) => {
+test("renders the samples' live tables and values, maps and weather, with no problems", async ({ page }) => {
   const portfolio = await openSample(page, 'Tom Beauvais · projects')
   const canvas = page.getByTestId('canvas')
   const feature = async (modelId: string, name: string) => canvas.locator(`[data-feature-id="${await featureId(page, modelId, name)}"]`)
@@ -165,7 +197,10 @@ test('renders the samples\' live tables and values, maps and weather, with no pr
   await page.getByTestId('canvas-width-phone').click()
   await expect(table.locator('thead')).toHaveCSS('position', 'absolute')
   await expect(table.locator('tbody tr').first()).toHaveCSS('display', 'block')
-  const label = await table.locator('tbody td').nth(2).evaluate((td) => getComputedStyle(td, '::before').content)
+  const label = await table
+    .locator('tbody td')
+    .nth(2)
+    .evaluate((td) => getComputedStyle(td, '::before').content)
   expect(label).toBe('"Language"')
   // Badges keep their own width, and a scrolling table shows every row (the page scrolls instead).
   const badge = table.locator('.fd-badge').first()
@@ -184,17 +219,25 @@ test('renders the samples\' live tables and values, maps and weather, with no pr
   // The map is a card with our drawing and a link to Google Maps, named with the address.
   const map = await feature(cafe, 'Map')
   await expect(map.locator('.fd-heading')).toHaveText('Visit us')
-  await expect(map.getByRole('link', { name: 'Open 37 Whitfield St, Guilford, CT in Google Maps' })).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=37%20Whitfield%20St%2C%20Guilford%2C%20CT')
+  await expect(map.getByRole('link', { name: 'Open 37 Whitfield St, Guilford, CT in Google Maps' })).toHaveAttribute(
+    'href',
+    'https://www.google.com/maps/search/?api=1&query=37%20Whitfield%20St%2C%20Guilford%2C%20CT',
+  )
   // The drawing fills the card's width (auto margins would shrink it to its minimum in the card's flex column).
-  const fill = await map.evaluate((card) => [card.querySelector('.fd-illustration')!.getBoundingClientRect().width, card.querySelector('.fd-paragraph')!.getBoundingClientRect().width])
+  const fill = await map.evaluate((card) => [
+    card.querySelector('.fd-illustration')!.getBoundingClientRect().width,
+    card.querySelector('.fd-paragraph')!.getBoundingClientRect().width,
+  ])
   expect(fill[0]).toBeCloseTo(fill[1]!, 0)
-  const overflowing = await canvas.locator('.fd-cell').evaluateAll((cells) => cells.filter((c) => c.scrollWidth > c.clientWidth + 1).map((c) => c.getAttribute('data-node-id')))
+  const overflowing = await canvas
+    .locator('.fd-cell')
+    .evaluateAll((cells) => cells.filter((c) => c.scrollWidth > c.clientWidth + 1).map((c) => c.getAttribute('data-node-id')))
   expect(overflowing).toEqual([])
   await expect(canvas.locator('.fd-placeholder')).toHaveCount(0)
   await expect(page.getByTestId('problems-toggle')).toContainText('No problems')
 })
 
-test('draws built-in illustrations in the theme\'s colors, in the editor and the preview', async ({ page, context }) => {
+test("draws built-in illustrations in the theme's colors, in the editor and the preview", async ({ page, context }) => {
   const id = await openSample(page, 'Start here')
   const preview = await context.newPage()
   await preview.goto(`/preview.html?model=${encodeURIComponent(id)}`)
@@ -237,7 +280,8 @@ test('opens the standalone preview in a new tab', async ({ page, context }) => {
 // Computed styles that legitimately differ between the editor canvas and the full-width preview page: sizes and
 // positions that depend on the surrounding layout. Custom properties (--*) are excluded too: the editor defines
 // Tailwind's, generated pages only read their own --fd-* ones.
-const LAYOUT_DEPENDENT = /^(width|height|inline-size|block-size|top|right|bottom|left|inset-.*|transform-origin|perspective-origin|grid-template-columns|grid-template-rows)$/
+const LAYOUT_DEPENDENT =
+  /^(width|height|inline-size|block-size|top|right|bottom|left|inset-.*|transform-origin|perspective-origin|grid-template-columns|grid-template-rows)$/
 
 // Every computed property of every element in the generated document, in document order, plus which properties
 // the editor changes on purpose for that element.
@@ -285,9 +329,7 @@ function comparable(preview: Measured, editor: Measured) {
 }
 
 const hasTailwindReset = (target: Page) =>
-  target.evaluate(() =>
-    [...document.styleSheets].some((sheet) => [...sheet.cssRules].some((rule) => rule.cssText.includes('::file-selector-button'))),
-  )
+  target.evaluate(() => [...document.styleSheets].some((sheet) => [...sheet.cssRules].some((rule) => rule.cssText.includes('::file-selector-button'))))
 
 /** Waits until a sample's generated page has settled (data loaded, cards rendered). */
 const SAMPLES: { name: string; ready: (target: Page) => Promise<void> }[] = [
@@ -346,7 +388,19 @@ for (const sample of SAMPLES) {
     // Utility classes on the editor's canvas wrapper must not leak into the generated page either.
     await editor
       .getByTestId('canvas')
-      .evaluate((el) => el.classList.add('uppercase', 'italic', 'tracking-widest', 'whitespace-nowrap', 'select-none', 'cursor-pointer', 'text-red-500', 'leading-loose', 'text-right'))
+      .evaluate((el) =>
+        el.classList.add(
+          'uppercase',
+          'italic',
+          'tracking-widest',
+          'whitespace-nowrap',
+          'select-none',
+          'cursor-pointer',
+          'text-red-500',
+          'leading-loose',
+          'text-right',
+        ),
+      )
     const second = comparable(inPreview, await measureDocument(editor))
     expect(second.editor).toEqual(second.preview)
   })
@@ -397,7 +451,7 @@ test('cards and the buttons under them stay inside their container, and cards si
   await expect(cell).toHaveCSS('display', 'flex')
 })
 
-test('the sales dashboard\'s form logs a deal that its table, chart and count show at once, and the deal can be deleted', async ({ page }) => {
+test("the sales dashboard's form logs a deal that its table, chart and count show at once, and the deal can be deleted", async ({ page }) => {
   const id = await openSample(page, 'Northwind sales')
   await page.goto(`/preview.html?model=${encodeURIComponent(id)}`)
   const table = page.locator('.fd-table-block')

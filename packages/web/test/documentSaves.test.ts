@@ -355,7 +355,7 @@ describe('saving with revisions', () => {
     await doc.flush()
   })
 
-  it('tells this browser\'s other tabs about each save, saying which tab saved', async () => {
+  it("tells this browser's other tabs about each save, saying which tab saved", async () => {
     const heard: unknown[] = []
     const channel = new BroadcastChannel('feature-domain:models')
     channel.onmessage = (event) => heard.push(event.data)

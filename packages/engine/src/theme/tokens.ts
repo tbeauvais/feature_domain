@@ -166,9 +166,7 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
   const border = hex(dark ? at(0.31, nc * 1.5) : at(0.9, nc * 2))
   const borderSubtle = hex(dark ? at(0.25, nc * 1.5) : at(0.945, nc * 1.5))
   const accentSoft = hex(dark ? at(0.3, accent.c * 0.35) : at(0.93, accent.c * 0.3))
-  const toneSoft = Object.fromEntries(
-    Object.entries(TONE_HUES).map(([tone, [h, c]]) => [tone, hex(dark ? at(0.3, c * 0.35, h) : at(0.94, c * 0.3, h))]),
-  )
+  const toneSoft = Object.fromEntries(Object.entries(TONE_HUES).map(([tone, [h, c]]) => [tone, hex(dark ? at(0.3, c * 0.35, h) : at(0.94, c * 0.3, h))]))
   // Text of any color can sit on the page, a card, a well or a tinted heading background.
   const surfaces = [bg, surface, sunken, accentSoft, ...Object.values(toneSoft)]
 

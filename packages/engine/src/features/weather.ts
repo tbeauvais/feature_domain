@@ -57,7 +57,16 @@ export const WeatherFeature: FeatureDefinition = {
     // New features start somewhere, so they show weather at once; Find changes all three together.
     { name: 'place', label: 'Place', type: 'string', default: '', initial: 'Guilford, Connecticut', control: 'place-search' },
     { name: 'latitude', label: 'Latitude', type: 'string', default: '', initial: '41.2890', control: 'text-input', group: 'Coordinates', commitOnBlur: true },
-    { name: 'longitude', label: 'Longitude', type: 'string', default: '', initial: '-72.6818', control: 'text-input', group: 'Coordinates', commitOnBlur: true },
+    {
+      name: 'longitude',
+      label: 'Longitude',
+      type: 'string',
+      default: '',
+      initial: '-72.6818',
+      control: 'text-input',
+      group: 'Coordinates',
+      commitOnBlur: true,
+    },
     {
       name: 'units',
       label: 'Units',

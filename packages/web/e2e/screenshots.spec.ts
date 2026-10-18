@@ -15,12 +15,25 @@ const PHOTO = readFileSync(new URL('./fixtures/photo.png', import.meta.url))
 isolateNetwork((route, url) => {
   if (url.hostname === 'api.github.com') {
     const user = url.pathname.split('/')[2]
-    if (/^\/users\/[^/]+$/.test(url.pathname)) return route.fulfill({ json: { login: user, public_repos: 30, followers: 12, created_at: '2011-03-07T10:00:00Z' } })
+    if (/^\/users\/[^/]+$/.test(url.pathname))
+      return route.fulfill({ json: { login: user, public_repos: 30, followers: 12, created_at: '2011-03-07T10:00:00Z' } })
     return route.fulfill({
       json: [
-        { name: `${user}-engine`, description: 'Parametric engine', language: 'TypeScript', updated_at: '2015-03-07T10:00:00Z', html_url: `https://github.com/${user}/engine` },
+        {
+          name: `${user}-engine`,
+          description: 'Parametric engine',
+          language: 'TypeScript',
+          updated_at: '2015-03-07T10:00:00Z',
+          html_url: `https://github.com/${user}/engine`,
+        },
         { name: `${user}-web`, description: null, language: 'Vue', updated_at: '2016-12-17T08:48:05Z', html_url: `https://github.com/${user}/web` },
-        { name: `${user}-docs`, description: 'Notes and guides', language: 'Ruby', updated_at: '2014-01-07T12:00:00Z', html_url: `https://github.com/${user}/docs` },
+        {
+          name: `${user}-docs`,
+          description: 'Notes and guides',
+          language: 'Ruby',
+          updated_at: '2014-01-07T12:00:00Z',
+          html_url: `https://github.com/${user}/docs`,
+        },
       ],
     })
   }
@@ -32,7 +45,12 @@ isolateNetwork((route, url) => {
       json: {
         current_units: { temperature_2m: url.searchParams.get('temperature_unit') === 'celsius' ? '°C' : '°F' },
         current: { temperature_2m: 71.6, weather_code: code, is_day: isDay },
-        daily: { time: ['2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14'], weather_code: [0, ...days], temperature_2m_max: [75, 78, 74, 69], temperature_2m_min: [60, 63, 61, 55] },
+        daily: {
+          time: ['2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14'],
+          weather_code: [0, ...days],
+          temperature_2m_max: [75, 78, 74, 69],
+          temperature_2m_min: [60, 63, 61, 55],
+        },
       },
     })
   }
@@ -59,10 +77,20 @@ function optionsModel(id: string, scheme: 'light' | 'dark') {
   ]
   for (const background of ['none', 'tint', 'band'])
     for (const color of ['ink', 'accent', 'muted'])
-      features.push({ feature: 'HeaderFeature', id: `h-${background}-${color}`, inputs: { text: `${color} on ${background}`, color, background, size: 3 }, placement: at })
+      features.push({
+        feature: 'HeaderFeature',
+        id: `h-${background}-${color}`,
+        inputs: { text: `${color} on ${background}`, color, background, size: 3 },
+        placement: at,
+      })
   for (const emphasis of ['normal', 'highlight', 'quiet']) {
     features.push({ feature: 'PanelFeature', id: `p-${emphasis}`, inputs: { heading: `Panel, ${emphasis}`, emphasis }, placement: at })
-    features.push({ feature: 'TextFeature', id: `t-${emphasis}`, inputs: { text: 'Open weekdays 9 to 6. Free parking behind the building.' }, placement: { parent: `p-${emphasis}`, slot: 'body' } })
+    features.push({
+      feature: 'TextFeature',
+      id: `t-${emphasis}`,
+      inputs: { text: 'Open weekdays 9 to 6. Free parking behind the building.' },
+      placement: { parent: `p-${emphasis}`, slot: 'body' },
+    })
   }
   return { version: 2, id, name: `Options (${scheme})`, features }
 }
@@ -84,11 +112,26 @@ function chartsModel(id: string, scheme: 'light' | 'dark') {
     { feature: 'PageFeature', id: '1', inputs: { name: 'Page', theme: 't' }, placement: { parent: '$root', slot: 'content' } },
   ]
   for (const chart_type of ['pie', 'donut', 'column', 'bar', 'line'])
-    features.push({ feature: 'GoogleChartFeature', id: `c-${chart_type}`, inputs: { title: `Sales by region (${chart_type})`, data_resource: 'r', chart_type, height: 'short' }, placement: at })
+    features.push({
+      feature: 'GoogleChartFeature',
+      id: `c-${chart_type}`,
+      inputs: { title: `Sales by region (${chart_type})`, data_resource: 'r', chart_type, height: 'short' },
+      placement: at,
+    })
   // On a band well, charts use the band's own colors.
   features.push({ feature: 'ContainerFeature', id: 'well', inputs: { rows: 1, columns: 2, well: true }, placement: at })
-  features.push({ feature: 'GoogleChartFeature', id: 'c-band-col', inputs: { title: 'On a band', data_resource: 'r', chart_type: 'column', height: 'short' }, placement: { parent: 'well', slot: 'r1c1' } })
-  features.push({ feature: 'GoogleChartFeature', id: 'c-band-pie', inputs: { title: 'On a band', data_resource: 'r', chart_type: 'donut', height: 'short' }, placement: { parent: 'well', slot: 'r1c2' } })
+  features.push({
+    feature: 'GoogleChartFeature',
+    id: 'c-band-col',
+    inputs: { title: 'On a band', data_resource: 'r', chart_type: 'column', height: 'short' },
+    placement: { parent: 'well', slot: 'r1c1' },
+  })
+  features.push({
+    feature: 'GoogleChartFeature',
+    id: 'c-band-pie',
+    inputs: { title: 'On a band', data_resource: 'r', chart_type: 'donut', height: 'short' },
+    placement: { parent: 'well', slot: 'r1c2' },
+  })
   return { version: 2, id, name: `Charts (${scheme})`, features }
 }
 
@@ -103,16 +146,30 @@ function weatherModel(id: string, scheme: 'light' | 'dark') {
     { feature: 'PageFeature', id: '1', inputs: { name: 'Page', theme: 't' }, placement: { parent: '$root', slot: 'content' } },
     { feature: 'HeaderFeature', id: 'h', inputs: { text: 'Two New Locations', size: 2, align: 'center' }, placement: { parent: '1', slot: 'content' } },
     { feature: 'ContainerFeature', id: 'well', inputs: { rows: 2, columns: 2, well: true }, placement: { parent: '1', slot: 'content' } },
-    { feature: 'WeatherFeature', id: 'w1', inputs: { title: 'Where it’s Warm', place: 'Palm Beach, Florida', latitude: '26.7056', longitude: '-80.0364' }, placement: cell('r1c1') },
+    {
+      feature: 'WeatherFeature',
+      id: 'w1',
+      inputs: { title: 'Where it’s Warm', place: 'Palm Beach, Florida', latitude: '26.7056', longitude: '-80.0364' },
+      placement: cell('r1c1'),
+    },
     { feature: 'WeatherFeature', id: 'w2', inputs: { place: 'Guilford, Connecticut', latitude: '41.2890', longitude: '-72.6818' }, placement: cell('r1c2') },
-    { feature: 'WeatherFeature', id: 'w3', inputs: { place: 'Reykjavík, Iceland', latitude: '64.1466', longitude: '-21.9426', units: 'celsius', show: 'current' }, placement: cell('r2c1') },
+    {
+      feature: 'WeatherFeature',
+      id: 'w3',
+      inputs: { place: 'Reykjavík, Iceland', latitude: '64.1466', longitude: '-21.9426', units: 'celsius', show: 'current' },
+      placement: cell('r2c1'),
+    },
     { feature: 'WeatherFeature', id: 'w4', inputs: { place: 'Somewhere offline', latitude: '10', longitude: '10' }, placement: cell('r2c2') },
   ]
   return { version: 2, id, name: `Weather (${scheme})`, features }
 }
 
 /** A sample's name as a file name: "Tom Beauvais · projects" -> "tom-beauvais-projects". */
-const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+const slug = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
 
 /** The id of a model listed on the home page. */
 async function modelId(page: Page, name: string): Promise<string> {

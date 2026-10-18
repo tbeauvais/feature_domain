@@ -18,7 +18,16 @@ describe('chartData', () => {
   })
 
   it('passes over id-like fields and long text when guessing, but uses them when nothing else fits', () => {
-    const repos = [{ id: 7, node_id: 'MDEwOlJlcG9z', ownerId: 3, description: 'A very long description of the repository, far past forty characters', name: 'engine', stars: 12 }]
+    const repos = [
+      {
+        id: 7,
+        node_id: 'MDEwOlJlcG9z',
+        ownerId: 3,
+        description: 'A very long description of the repository, far past forty characters',
+        name: 'engine',
+        stars: 12,
+      },
+    ]
     expect(chartData(repos)).toMatchObject({ labelField: 'name', valueField: 'stars' })
     expect(chartData([{ id: 1, node_id: 'abc' }])).toMatchObject({ labelField: 'node_id', valueField: 'id' })
   })
@@ -38,7 +47,19 @@ describe('chartData', () => {
 })
 
 describe('ChartNode', () => {
-  const sales = inst('DataResourceFeature', 'r', { name: 'Sales', source: 'sample', sample_rows: JSON.stringify([{ region: 'North', sales: 5 }, { region: 'South', sales: 3 }]) }, null)
+  const sales = inst(
+    'DataResourceFeature',
+    'r',
+    {
+      name: 'Sales',
+      source: 'sample',
+      sample_rows: JSON.stringify([
+        { region: 'North', sales: 5 },
+        { region: 'South', sales: 3 },
+      ]),
+    },
+    null,
+  )
   // The chart component is loaded lazily (Chart.js is large): wait for it to arrive before looking.
   const render = async (m: AppModel, fetchJson: FetchJson = async () => []) => {
     const w = mount(DocumentView, { props: { root: generate(m).root }, global: { provide: { [FETCH_JSON as symbol]: fetchJson } } })
@@ -48,7 +69,9 @@ describe('ChartNode', () => {
   }
 
   it('draws on a labeled canvas and gives screen readers the numbers in a table', async () => {
-    const w = await render(model(sales, page(), inst('GoogleChartFeature', 'c', { data_resource: 'r', title: 'Sales by region', chart_type: 'pie', height: 'short' })))
+    const w = await render(
+      model(sales, page(), inst('GoogleChartFeature', 'c', { data_resource: 'r', title: 'Sales by region', chart_type: 'pie', height: 'short' })),
+    )
     await flushPromises()
     const figure = w.get('figure.fd-chart-block')
     expect(figure.get('figcaption').text()).toBe('Sales by region')
@@ -61,7 +84,19 @@ describe('ChartNode', () => {
   })
 
   it('says how many rows were left out of the drawing, and why', async () => {
-    const mixed = inst('DataResourceFeature', 'r', { source: 'sample', sample_rows: JSON.stringify([{ region: 'North', sales: 5 }, { region: 'South', sales: 'n/a' }, { region: 'East', sales: 2 }]) }, null)
+    const mixed = inst(
+      'DataResourceFeature',
+      'r',
+      {
+        source: 'sample',
+        sample_rows: JSON.stringify([
+          { region: 'North', sales: 5 },
+          { region: 'South', sales: 'n/a' },
+          { region: 'East', sales: 2 },
+        ]),
+      },
+      null,
+    )
     const w = await render(model(mixed, page(), inst('GoogleChartFeature', 'c', { data_resource: 'r', value_field: 'sales' })))
     expect(w.get('.fd-chart-skipped').text()).toBe('1 row left out (no number in "sales")')
   })
@@ -104,11 +139,18 @@ describe('ChartNode', () => {
     expect(w.get('.fd-state').text()).toBe('No numbers to chart.')
     expect(w.find('.fd-visually-hidden').exists()).toBe(false)
 
-    const empty = await render(model(inst('DataResourceFeature', 'r', { source: 'sample', sample_rows: '[]' }, null), page(), inst('GoogleChartFeature', 'c', { data_resource: 'r' })))
+    const empty = await render(
+      model(inst('DataResourceFeature', 'r', { source: 'sample', sample_rows: '[]' }, null), page(), inst('GoogleChartFeature', 'c', { data_resource: 'r' })),
+    )
     await flushPromises()
     expect(empty.get('.fd-state').text()).toBe('No rows to chart yet.')
     // A resource with nothing a chart can list (no GET): no source, said so.
-    const postOnly = inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify({ openapi: '3.0.0', servers: [{ url: 'https://x.test' }], paths: { '/a': { post: {} } } }) }, null)
+    const postOnly = inst(
+      'SwaggerDataResourceFeature',
+      's',
+      { spec: JSON.stringify({ openapi: '3.0.0', servers: [{ url: 'https://x.test' }], paths: { '/a': { post: {} } } }) },
+      null,
+    )
     const none = await render(model(postOnly, page(), inst('GoogleChartFeature', 'c', { data_resource: 's' })))
     expect(none.get('.fd-chart-note').text()).toBe('No data source')
   })

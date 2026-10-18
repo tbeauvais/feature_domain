@@ -41,8 +41,20 @@ describe('migrate: model shape', () => {
   })
 
   it('drops AngularJS and legacy editor fields, stringifies ids, and skips malformed or duplicate entries', () => {
-    const r = migrate({ features: [legacyPage, { feature: 'TextFeature', id: 2, template: 'x', $$hashKey: 'object:1', inputs: loc('#page_container') }, { nope: 1 }, { ...legacyPage }] })
-    expect(feature(r, '2')).toEqual({ feature: 'TextFeature', id: '2', inputs: { name: '', disable: false, text: '' }, placement: { parent: '15', slot: 'content' } })
+    const r = migrate({
+      features: [
+        legacyPage,
+        { feature: 'TextFeature', id: 2, template: 'x', $$hashKey: 'object:1', inputs: loc('#page_container') },
+        { nope: 1 },
+        { ...legacyPage },
+      ],
+    })
+    expect(feature(r, '2')).toEqual({
+      feature: 'TextFeature',
+      id: '2',
+      inputs: { name: '', disable: false, text: '' },
+      placement: { parent: '15', slot: 'content' },
+    })
     expect(notes(r)).toEqual(['skipped-entry:', 'duplicate-id:15'])
   })
 })
@@ -76,7 +88,13 @@ describe('migrate: placement', () => {
   })
 
   it('resolves targets of containers with empty or missing names, as the legacy app named them', () => {
-    const r = run(legacyPage, container('5', ''), container('6', undefined), text('a', '#container__5_row_1_col_1'), text('b', '#container_undefined_6_row_1_col_2'))
+    const r = run(
+      legacyPage,
+      container('5', ''),
+      container('6', undefined),
+      text('a', '#container__5_row_1_col_1'),
+      text('b', '#container_undefined_6_row_1_col_2'),
+    )
     expect(feature(r, 'a').placement).toEqual({ parent: '5', slot: 'r1c1' })
     expect(feature(r, 'b').placement).toEqual({ parent: '6', slot: 'r1c2' })
   })
@@ -97,7 +115,11 @@ describe('migrate: placement', () => {
   })
 
   it('never places data resources', () => {
-    const r = run(legacyPage, { feature: 'DataResourceFeature', id: '34', inputs: { name: 'R', resource: 'https://x', operation: 'get', ...loc('#page_container') } })
+    const r = run(legacyPage, {
+      feature: 'DataResourceFeature',
+      id: '34',
+      inputs: { name: 'R', resource: 'https://x', operation: 'get', ...loc('#page_container') },
+    })
     expect(feature(r, '34')).toEqual({ feature: 'DataResourceFeature', id: '34', inputs: { name: 'R', resource: 'https://x', operation: 'GET' } })
     expect(r.notes).toEqual([])
   })
@@ -155,7 +177,9 @@ describe('migrate: values reproduce legacy rendering', () => {
   })
 
   it('maps Bootstrap values and absent styles on headers', () => {
-    expect(feature(one('HeaderFeature', { text: 'Hi', size: '3', align: 'text-right', text_style: 'text-success', background: 'bg-info' }), 'x').inputs).toEqual({
+    expect(
+      feature(one('HeaderFeature', { text: 'Hi', size: '3', align: 'text-right', text_style: 'text-success', background: 'bg-info' }), 'x').inputs,
+    ).toEqual({
       name: '',
       disable: false,
       text: 'Hi',
@@ -169,7 +193,7 @@ describe('migrate: values reproduce legacy rendering', () => {
     expect(notes(absent)).toEqual(['invalid-value:x'])
   })
 
-  it("maps header tones to our own colors, noting status colors that became the accent", () => {
+  it('maps header tones to our own colors, noting status colors that became the accent', () => {
     const looks = (text_style: string, background = '') => feature(one('HeaderFeature', { text: 'Hi', size: '1', text_style, background }), 'x').inputs
     expect(looks('text-primary')).toMatchObject({ color: 'accent', background: 'none' })
     expect(looks('text-info', 'bg-primary')).toMatchObject({ color: 'accent', background: 'tint' })
@@ -183,7 +207,12 @@ describe('migrate: values reproduce legacy rendering', () => {
   })
 
   it('maps image and panel styles', () => {
-    expect(feature(one('ImageFeature', { src: 's', align: 'pull-right', responsive: true }), 'x').inputs).toMatchObject({ align: 'right', responsive: true, width: '', height: '' })
+    expect(feature(one('ImageFeature', { src: 's', align: 'pull-right', responsive: true }), 'x').inputs).toMatchObject({
+      align: 'right',
+      responsive: true,
+      width: '',
+      height: '',
+    })
     expect(feature(one('ImageFeature', { src: 's' }), 'x').inputs).toMatchObject({ align: 'left' })
     const panel = one('PanelFeature', { style: 'panel-warning', heading: 'H' })
     expect(feature(panel, 'x').inputs).toEqual({ name: '', disable: false, heading: 'H' })
@@ -198,15 +227,29 @@ describe('migrate: values reproduce legacy rendering', () => {
 })
 
 describe('migrate: references and unported features', () => {
-  const resource = (id: string, name: string): Legacy => ({ feature: 'DataResourceFeature', id, inputs: { name, resource: `https://api/${id}`, operation: 'GET' } })
-  const table = (id: string, inputs: Record<string, unknown>): Legacy => ({ feature: 'TableFeature', id, inputs: { name: 'T', ...inputs, ...loc('#page_container') } })
+  const resource = (id: string, name: string): Legacy => ({
+    feature: 'DataResourceFeature',
+    id,
+    inputs: { name, resource: `https://api/${id}`, operation: 'GET' },
+  })
+  const table = (id: string, inputs: Record<string, unknown>): Legacy => ({
+    feature: 'TableFeature',
+    id,
+    inputs: { name: 'T', ...inputs, ...loc('#page_container') },
+  })
 
   it('turns name-based data resource references into instance ids (first by name wins)', () => {
     const r = run(
       legacyPage,
       resource('21', 'Repos'),
       resource('22', 'Repos'),
-      table('24', { resource: 'Repos', fields: 'name,description', labels: 'Name, Description', filters: 'uppercase,,date', data_resource: { name: 'Repos', operation: 'GET /repos' } }),
+      table('24', {
+        resource: 'Repos',
+        fields: 'name,description',
+        labels: 'Name, Description',
+        filters: 'uppercase,,date',
+        data_resource: { name: 'Repos', operation: 'GET /repos' },
+      }),
     )
     expect(feature(r, '24').inputs).toEqual({
       name: 'T',
@@ -274,21 +317,34 @@ describe('legacy helpers', () => {
   it('map Bootstrap classes to plain values', () => {
     expect(['pull-left', 'text-center', 'center-block', 'pull-right'].map((v) => normalizeAlign(v, 'left'))).toEqual(['left', 'center', 'center', 'right'])
     expect(normalizeAlign('bogus', 'center')).toBe('center')
-    expect(['text-info', 'bg-danger', 'panel-success', 'warning', '', 'text-bogus'].map(normalizeTone)).toEqual(['info', 'danger', 'success', 'warning', undefined, undefined])
+    expect(['text-info', 'bg-danger', 'panel-success', 'warning', '', 'text-bogus'].map(normalizeTone)).toEqual([
+      'info',
+      'danger',
+      'success',
+      'warning',
+      undefined,
+      undefined,
+    ])
   })
 })
 
 describe('migrate: upgrading v2 models when features get ported', () => {
   // What migrate() produced for a feature whose type was not ported yet: scalar inputs, legacy instance in cache.
   function asIfUnported(legacy: Legacy, migrated: FeatureInstance): FeatureInstance {
-    const scalar = Object.fromEntries(Object.entries(legacy.inputs ?? {}).filter(([, v]) => ['string', 'number', 'boolean'].includes(typeof v))) as FeatureInstance['inputs']
+    const scalar = Object.fromEntries(
+      Object.entries(legacy.inputs ?? {}).filter(([, v]) => ['string', 'number', 'boolean'].includes(typeof v)),
+    ) as FeatureInstance['inputs']
     const unported: FeatureInstance = { feature: migrated.feature, id: migrated.id, inputs: scalar, cache: { legacy } }
     if (migrated.placement) unported.placement = migrated.placement
     return unported
   }
 
   it('re-migrates a feature from cache.legacy once its type is ported (e.g. List)', () => {
-    const legacyList: Legacy = { feature: 'ListFeature', id: '7', inputs: { name: 'Color list', list: 'Red,Green,Blue,Yellow', align: 'center-block', ...loc('#page_container') } }
+    const legacyList: Legacy = {
+      feature: 'ListFeature',
+      id: '7',
+      inputs: { name: 'Color list', list: 'Red,Green,Blue,Yellow', align: 'center-block', ...loc('#page_container') },
+    }
     const fresh = run(legacyPage, legacyList).model
     const stored = { ...fresh, features: [fresh.features[0]!, asIfUnported(legacyList, fresh.features[1]!)] }
     const upgraded = migrate(stored)
@@ -299,7 +355,12 @@ describe('migrate: upgrading v2 models when features get ported', () => {
       placement: { parent: '15', slot: 'content' },
     })
     expect(upgraded.notes).toEqual([
-      { code: 'upgraded-feature', severity: 'info', featureInstanceId: '7', message: 'ListFeature is ported now; migrated from the legacy settings kept in cache.legacy' },
+      {
+        code: 'upgraded-feature',
+        severity: 'info',
+        featureInstanceId: '7',
+        message: 'ListFeature is ported now; migrated from the legacy settings kept in cache.legacy',
+      },
     ])
     expect(migrate(upgraded.model).model).toBe(upgraded.model)
   })
@@ -309,14 +370,24 @@ describe('migrate: upgrading v2 models when features get ported', () => {
       version: 2,
       name: 'Old',
       features: [
-        { feature: 'PageFeature', id: '15', inputs: { name: 'Page', border_color: '#00a3ff', background_color: '', background_image: 'bg.png' }, placement: { parent: '$root', slot: 'content' } },
+        {
+          feature: 'PageFeature',
+          id: '15',
+          inputs: { name: 'Page', border_color: '#00a3ff', background_color: '', background_image: 'bg.png' },
+          placement: { parent: '$root', slot: 'content' },
+        },
       ],
     }
     const upgraded = migrate(stored)
     expect(upgraded.model.features[0]!.inputs).toEqual({ name: 'Page', background_image: 'bg.png' })
     expect(upgraded.model.features[0]!.placement).toEqual({ parent: '$root', slot: 'content' })
     expect(upgraded.notes).toEqual([
-      { code: 'dropped-style', severity: 'info', featureInstanceId: '15', message: 'Dropped legacy page border_color "#00a3ff"; pages are styled by their theme' },
+      {
+        code: 'dropped-style',
+        severity: 'info',
+        featureInstanceId: '15',
+        message: 'Dropped legacy page border_color "#00a3ff"; pages are styled by their theme',
+      },
     ])
     expect(stored.features[0]!.inputs).toHaveProperty('border_color')
     expect(migrate(upgraded.model).model).toBe(upgraded.model)
@@ -366,15 +437,25 @@ describe('migrate: upgrading v2 models when features get ported', () => {
       ],
     })
     const upgraded = (inputs: Record<string, string>) => migrate(header(inputs))
-    expect(upgraded({ text_style: 'info', color: 'muted', background: 'band' }).model.features[1]!.inputs).toEqual({ name: 'h', text: 'Hi', color: 'muted', background: 'band' })
+    expect(upgraded({ text_style: 'info', color: 'muted', background: 'band' }).model.features[1]!.inputs).toEqual({
+      name: 'h',
+      text: 'Hi',
+      color: 'muted',
+      background: 'band',
+    })
     // Only the part still in the old shape is converted, and only that part is noted.
     const mixed = upgraded({ text_style: 'danger', color: 'muted', background: 'warning' })
     expect(mixed.model.features[1]!.inputs).toEqual({ name: 'h', text: 'Hi', color: 'muted', background: 'tint' })
     expect(mixed.notes.map((n) => n.message)).toEqual(['Header background "warning" is now the accent tint; status colors are kept for status'])
-    expect(upgraded({ text_style: 'danger', background: 'band' }).model.features[1]!.inputs).toEqual({ name: 'h', text: 'Hi', color: 'accent', background: 'band' })
+    expect(upgraded({ text_style: 'danger', background: 'band' }).model.features[1]!.inputs).toEqual({
+      name: 'h',
+      text: 'Hi',
+      color: 'accent',
+      background: 'band',
+    })
   })
 
-  it('renames a Header\'s Color saved as `colour` (before US spelling), in place, and leaves current Headers alone', () => {
+  it("renames a Header's Color saved as `colour` (before US spelling), in place, and leaves current Headers alone", () => {
     const header = (inputs: Record<string, string>): AppModel => ({
       version: 2,
       name: 'Spelling',
@@ -384,10 +465,20 @@ describe('migrate: upgrading v2 models when features get ported', () => {
       ],
     })
     const r = migrate(header({ colour: 'muted', background: 'tint' }))
-    expect(Object.entries(r.model.features[1]!.inputs)).toEqual([['name', 'h'], ['text', 'Hi'], ['color', 'muted'], ['background', 'tint']])
+    expect(Object.entries(r.model.features[1]!.inputs)).toEqual([
+      ['name', 'h'],
+      ['text', 'Hi'],
+      ['color', 'muted'],
+      ['background', 'tint'],
+    ])
     expect(r.notes).toEqual([])
     // Old tones too: the renamed Color is kept, the tone background converted.
-    expect(migrate(header({ colour: 'muted', text_style: 'info', background: 'danger' })).model.features[1]!.inputs).toEqual({ name: 'h', text: 'Hi', color: 'muted', background: 'tint' })
+    expect(migrate(header({ colour: 'muted', text_style: 'info', background: 'danger' })).model.features[1]!.inputs).toEqual({
+      name: 'h',
+      text: 'Hi',
+      color: 'muted',
+      background: 'tint',
+    })
     // A Color saved under both names (a newer save of an older model): the new name wins.
     expect(migrate(header({ colour: 'muted', color: 'accent' })).model.features[1]!.inputs).toEqual({ name: 'h', text: 'Hi', color: 'accent' })
     const current = header({ color: 'muted' })
@@ -398,7 +489,9 @@ describe('migrate: upgrading v2 models when features get ported', () => {
     const stored: AppModel = {
       version: 2,
       name: 'Odd',
-      features: [{ feature: 'constructor', id: '1', inputs: { name: 'x' }, cache: { legacy: { inputs: { name: 'x', page_location: { target: '#page_container' } } } } }],
+      features: [
+        { feature: 'constructor', id: '1', inputs: { name: 'x' }, cache: { legacy: { inputs: { name: 'x', page_location: { target: '#page_container' } } } } },
+      ],
     }
     expect(migrate(stored).model).toBe(stored)
     const legacy = migrate({ features: [{ feature: 'constructor', id: '1', inputs: { name: 'x', nested: { a: 1 } } }] })
@@ -436,8 +529,25 @@ describe('migrate: Separator, Link and Button', () => {
   it('carries over content and placement, not the legacy look', () => {
     const r = run(
       legacyPage,
-      { feature: 'SeparatorFeature', id: '27', inputs: { name: 'Separator', disable: false, align: 'left', color: '#2fa7eb', width: '80', height: '5', ...loc('#page_container') } },
-      { feature: 'ButtonFeature', id: '33', inputs: { name: 'B', disable: '', text: 'Buy', href: 'http://x.test', align: 'text-right', style: 'btn-danger', size: 'btn-lg', ...loc('#page_container') } },
+      {
+        feature: 'SeparatorFeature',
+        id: '27',
+        inputs: { name: 'Separator', disable: false, align: 'left', color: '#2fa7eb', width: '80', height: '5', ...loc('#page_container') },
+      },
+      {
+        feature: 'ButtonFeature',
+        id: '33',
+        inputs: {
+          name: 'B',
+          disable: '',
+          text: 'Buy',
+          href: 'http://x.test',
+          align: 'text-right',
+          style: 'btn-danger',
+          size: 'btn-lg',
+          ...loc('#page_container'),
+        },
+      },
     )
     expect(feature(r, '27').inputs).toEqual({ name: 'Separator', disable: false, align: 'left' })
     expect(feature(r, '33').inputs).toEqual({ name: 'B', disable: false, text: 'Buy', href: 'http://x.test', align: 'right' })
@@ -452,7 +562,11 @@ describe('migrate: Separator, Link and Button', () => {
   })
 
   it('migrates links, flagging markup in their text', () => {
-    const r = run(legacyPage, { feature: 'LinkFeature', id: '4', inputs: { name: 'Github link', href: 'https://github.com', text: '<b>GitHub</b>', ...loc('#page_container') } })
+    const r = run(legacyPage, {
+      feature: 'LinkFeature',
+      id: '4',
+      inputs: { name: 'Github link', href: 'https://github.com', text: '<b>GitHub</b>', ...loc('#page_container') },
+    })
     expect(feature(r, '4').inputs).toEqual({ name: 'Github link', disable: false, text: '<b>GitHub</b>', href: 'https://github.com' })
     expect(notes(r)).toContain('markup-in-text:4')
   })
@@ -462,8 +576,16 @@ describe('migrate: text and image with paragraph, list group', () => {
   it('keeps titles, text and images, dropping the panel styling', () => {
     const r = run(
       legacyPage,
-      { feature: 'TextWithParagraphFeature', id: '10', inputs: { name: 'Info', title: ' Company Info ', text: 'Hello', style: 'panel-success', ...loc('#page_container') } },
-      { feature: 'ImageWithParagraphFeature', id: '11', inputs: { name: 'pet', title: 'Pet', src: 'http://x.test/p.jpg', text: 'Hi', ...loc('#page_container') } },
+      {
+        feature: 'TextWithParagraphFeature',
+        id: '10',
+        inputs: { name: 'Info', title: ' Company Info ', text: 'Hello', style: 'panel-success', ...loc('#page_container') },
+      },
+      {
+        feature: 'ImageWithParagraphFeature',
+        id: '11',
+        inputs: { name: 'pet', title: 'Pet', src: 'http://x.test/p.jpg', text: 'Hi', ...loc('#page_container') },
+      },
     )
     expect(feature(r, '10').inputs).toEqual({ name: 'Info', disable: false, title: 'Company Info', text: 'Hello' })
     expect(feature(r, '11').inputs).toEqual({ name: 'pet', disable: false, title: 'Pet', text: 'Hi', src: 'http://x.test/p.jpg', alt: '', image_side: 'left' })
@@ -483,7 +605,11 @@ describe('migrate: text and image with paragraph, list group', () => {
   })
 
   it('splits the comma list, taking the last item as the highlight (as the legacy app showed it large)', () => {
-    const group = (id: string, list: string) => ({ feature: 'ListGroupFeature', id, inputs: { name: 'g', heading: 'Gold', description: 'Best', list, ...loc('#page_container') } })
+    const group = (id: string, list: string) => ({
+      feature: 'ListGroupFeature',
+      id,
+      inputs: { name: 'g', heading: 'Gold', description: 'Best', list, ...loc('#page_container') },
+    })
     const r = run(legacyPage, group('1', 'A, B,\n  \n $9/Month\n'), group('2', 'Only one'), group('3', ''))
     expect(['1', '2', '3'].map((id) => [feature(r, id).inputs.items, feature(r, id).inputs.highlight])).toEqual([
       [['A', 'B'], '$9/Month'],
@@ -494,7 +620,11 @@ describe('migrate: text and image with paragraph, list group', () => {
 })
 
 describe('migrate: features dropped for good', () => {
-  const watson: Legacy = { feature: 'WatsonTextToSpeechFeature', id: '3', inputs: { name: 'Text 2 Speech', text: 'Hello', voice: 'VoiceEnUsLisa', ...loc('#page_container') } }
+  const watson: Legacy = {
+    feature: 'WatsonTextToSpeechFeature',
+    id: '3',
+    inputs: { name: 'Text 2 Speech', text: 'Hello', voice: 'VoiceEnUsLisa', ...loc('#page_container') },
+  }
   const script: Legacy = { feature: 'ScriptTestFeature', id: '4', inputs: { name: 'Script', script: 'alert(1)', ...loc('#page_container') } }
   const text: Legacy = { feature: 'TextFeature', id: '5', inputs: { name: 'Text', text: 'Stays', ...loc('#page_container') } }
 
@@ -502,16 +632,24 @@ describe('migrate: features dropped for good', () => {
     const r = run(legacyPage, watson, script, text)
     expect(r.model.features.map((f) => f.id)).toEqual(['15', '5'])
     expect(r.notes.filter((n) => n.code === 'dropped-feature').map((n) => [n.featureInstanceId, n.severity, n.message])).toEqual([
-      ['3', 'warning', "Removed WatsonTextToSpeechFeature: it spoke a fixed text through IBM's Watson Text to Speech service, which is gone; browsers and screen readers read pages aloud themselves"],
+      [
+        '3',
+        'warning',
+        "Removed WatsonTextToSpeechFeature: it spoke a fixed text through IBM's Watson Text to Speech service, which is gone; browsers and screen readers read pages aloud themselves",
+      ],
       ['4', 'warning', 'Removed ScriptTestFeature: it ran a script built from its inputs, which pages never do'],
     ])
     expect(JSON.stringify(r.model)).not.toMatch(/alert|VoiceEnUs/)
   })
 
-  it('notes them in model order, and lets a feature sharing a dropped one\'s id keep it', () => {
+  it("notes them in model order, and lets a feature sharing a dropped one's id keep it", () => {
     const header: Legacy = { feature: 'HeaderFeature', id: '6', inputs: { name: 'H', text: 'Hi', text_style: 'text-success', ...loc('#page_container') } }
     const r = run(legacyPage, header, watson, { ...text, id: '3' })
-    expect(r.model.features.map((f) => [f.feature, f.id])).toEqual([['PageFeature', '15'], ['HeaderFeature', '6'], ['TextFeature', '3']])
+    expect(r.model.features.map((f) => [f.feature, f.id])).toEqual([
+      ['PageFeature', '15'],
+      ['HeaderFeature', '6'],
+      ['TextFeature', '3'],
+    ])
     expect(notes(r).filter((n) => /^(mapped-style|dropped-feature):/.test(n))).toEqual(['mapped-style:6', 'dropped-feature:3'])
   })
 
@@ -522,7 +660,13 @@ describe('migrate: features dropped for good', () => {
       name: 'Stored',
       features: [
         { feature: 'PageFeature', id: '15', inputs: { name: 'Page' }, placement: { parent: ROOT_ID, slot: 'content' } },
-        { feature: 'WatsonTextToSpeechFeature', id: '3', inputs: { name: 'Text 2 Speech', text: 'Hello' }, placement: { parent: '15', slot: 'content' }, cache: { legacy: watson } },
+        {
+          feature: 'WatsonTextToSpeechFeature',
+          id: '3',
+          inputs: { name: 'Text 2 Speech', text: 'Hello' },
+          placement: { parent: '15', slot: 'content' },
+          cache: { legacy: watson },
+        },
       ],
     }
     const r = migrate(deepFreeze(stored))

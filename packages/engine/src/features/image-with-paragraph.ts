@@ -13,7 +13,13 @@ export const ImageWithParagraphFeature: FeatureDefinition = {
     nameInput('Image with text'),
     disableInput,
     { name: 'title', label: 'Title', type: 'string', default: 'A short title', control: 'text-input' },
-    { name: 'text', label: 'Text', type: 'text', default: 'A few sentences about the picture. Leave a blank line to start a new paragraph.', control: 'text-area' },
+    {
+      name: 'text',
+      label: 'Text',
+      type: 'text',
+      default: 'A few sentences about the picture. Leave a blank line to start a new paragraph.',
+      control: 'text-area',
+    },
     { name: 'src', label: 'Image URL', type: 'string', default: '', placeholder: 'https://', control: 'text-input' },
     { name: 'alt', label: 'Alt text', type: 'string', default: '', control: 'text-input' },
     {
@@ -32,8 +38,20 @@ export const ImageWithParagraphFeature: FeatureDefinition = {
   generate(inputs, ctx) {
     const side = inputs.image_side === 'right' ? 'right' : 'left'
     // An empty or unusable image URL renders as a quiet frame (the image node's own behavior).
-    const image = node('image', ctx.nodeId('image'), { src: asString(inputs.src).trim(), alt: asString(inputs.alt), width: '', height: '', responsive: true, align: 'left' })
-    const body = node('stack', ctx.nodeId('body'), {}, { children: [...title(ctx, 'title', asString(inputs.title), 'title'), ...paragraphs(ctx, 'p', asString(inputs.text), 'text')] })
+    const image = node('image', ctx.nodeId('image'), {
+      src: asString(inputs.src).trim(),
+      alt: asString(inputs.alt),
+      width: '',
+      height: '',
+      responsive: true,
+      align: 'left',
+    })
+    const body = node(
+      'stack',
+      ctx.nodeId('body'),
+      {},
+      { children: [...title(ctx, 'title', asString(inputs.title), 'title'), ...paragraphs(ctx, 'p', asString(inputs.text), 'text')] },
+    )
     return { node: node('media', ctx.nodeId(), { side }, { children: [image, body] }) }
   },
 }

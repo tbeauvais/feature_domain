@@ -5,12 +5,9 @@ export type DragSource = { kind: 'feature'; id: string } | { kind: 'palette'; fe
 
 /** Where the pointer is: an empty area of a slot, or a feature (before it, after it, or into it). */
 export type DropZone =
-  | { kind: 'slot'; parent: string; slot: string }
-  | { kind: 'feature'; id: string; operation: 'reorder-before' | 'reorder-after' | 'combine' }
+  { kind: 'slot'; parent: string; slot: string } | { kind: 'feature'; id: string; operation: 'reorder-before' | 'reorder-after' | 'combine' }
 
-export type DropEvaluation =
-  | { allowed: true; target: PlacementTarget; noop: boolean }
-  | { allowed: false; target: PlacementTarget | null; reason: string }
+export type DropEvaluation = { allowed: true; target: PlacementTarget; noop: boolean } | { allowed: false; target: PlacementTarget | null; reason: string }
 
 const sameSlot = (a: { parent: string; slot: string } | undefined, b: { parent: string; slot: string }) => a?.parent === b.parent && a.slot === b.slot
 
@@ -50,7 +47,9 @@ function isNoop(model: AppModel, id: string, target: PlacementTarget): boolean {
 export function evaluateDrop(model: AppModel, result: GenerateResult, source: DragSource, zone: DropZone): DropEvaluation {
   if (source.kind === 'feature' && zone.kind === 'feature' && zone.id === source.id) {
     const placement = model.features.find((f) => f.id === source.id)?.placement
-    return placement ? { allowed: true, target: { parent: placement.parent, slot: placement.slot, before: source.id }, noop: true } : { allowed: false, target: null, reason: 'Not placed' }
+    return placement
+      ? { allowed: true, target: { parent: placement.parent, slot: placement.slot, before: source.id }, noop: true }
+      : { allowed: false, target: null, reason: 'Not placed' }
   }
   const target = zoneTarget(model, result, zone)
   if (!target) return { allowed: false, target: null, reason: 'Features cannot be placed inside this feature' }

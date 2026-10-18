@@ -26,11 +26,36 @@ export const ListGroupFeature: FeatureDefinition = {
     const highlight = asString(inputs.highlight).trim()
     const children = [
       ...title(ctx, 'heading', asString(inputs.heading), 'heading'),
-      ...(description ? [node('paragraph', ctx.nodeId('description'), { text: description, emphasis: 'muted' as const }, { edit: { text: { input: 'description', kind: 'text' } } })] : []),
-      ...(items.length > 0
-        ? [node('list', ctx.nodeId('items'), { items, align: 'left' as const, marker: 'check' as const }, { edit: { items: { input: 'items', kind: 'item', entries: entries.map((e) => e.entry) } } })]
+      ...(description
+        ? [
+            node(
+              'paragraph',
+              ctx.nodeId('description'),
+              { text: description, emphasis: 'muted' as const },
+              { edit: { text: { input: 'description', kind: 'text' } } },
+            ),
+          ]
         : []),
-      ...(highlight ? [node('paragraph', ctx.nodeId('highlight'), { text: highlight, emphasis: 'highlight' as const }, { edit: { text: { input: 'highlight', kind: 'text' } } })] : []),
+      ...(items.length > 0
+        ? [
+            node(
+              'list',
+              ctx.nodeId('items'),
+              { items, align: 'left' as const, marker: 'check' as const },
+              { edit: { items: { input: 'items', kind: 'item', entries: entries.map((e) => e.entry) } } },
+            ),
+          ]
+        : []),
+      ...(highlight
+        ? [
+            node(
+              'paragraph',
+              ctx.nodeId('highlight'),
+              { text: highlight, emphasis: 'highlight' as const },
+              { edit: { text: { input: 'highlight', kind: 'text' } } },
+            ),
+          ]
+        : []),
     ]
     return { node: node('card', ctx.nodeId(), {}, { children }) }
   },
