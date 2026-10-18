@@ -27,7 +27,9 @@ export function themeSummary(result: GenerateResult): string {
   const features = result.metadata.features
   const pages = features.filter((f) => f.feature === 'PageFeature')
   const themes = features.filter((f) => f.feature === 'ThemeFeature')
-  const usage = themes.map((t) => ({ name: t.name || 'Untitled theme', pages: pages.filter((p) => p.references.includes(t.id)).length })).filter((u) => u.pages > 0)
+  const usage = themes
+    .map((t) => ({ name: t.name || 'Untitled theme', pages: pages.filter((p) => p.references.includes(t.id)).length }))
+    .filter((u) => u.pages > 0)
   const themed = usage.reduce((n, u) => n + u.pages, 0)
   if (themed === 0) return `Default theme (${DEFAULT_THEME_NAME})`
   if (usage.length === 1 && themed === pages.length) return `Theme: ${usage[0]!.name}`

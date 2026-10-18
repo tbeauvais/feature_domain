@@ -4,7 +4,11 @@ import { at, inst, model, page } from './helpers'
 
 describe('validateModel', () => {
   it('accepts valid models, including every migrated sample', () => {
-    expect(validateModel(model(page(), inst('TextFeature', 't', { text: 'x', size: 3, on: true, list: ['a'] }), { ...inst('ContainerFeature', 'c'), cache: { a: 1 } }))).toEqual([])
+    expect(
+      validateModel(
+        model(page(), inst('TextFeature', 't', { text: 'x', size: 3, on: true, list: ['a'] }), { ...inst('ContainerFeature', 'c'), cache: { a: 1 } }),
+      ),
+    ).toEqual([])
     expect(isAppModel(migrate([{ feature: 'PageFeature', id: 1, inputs: { page_location: { target: '#content_section' } } }]).model)).toBe(true)
   })
 

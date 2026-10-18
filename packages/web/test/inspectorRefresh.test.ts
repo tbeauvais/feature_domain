@@ -42,7 +42,11 @@ describe('Theme inspector', () => {
   it('starts from a built-in theme in one undo step, marking the one every setting matches', async () => {
     const doc = await load(model(theme('th'), page({ theme: 'th' })), 'th')
     const w = mount(Inspector)
-    const pressed = () => w.findAll('[data-preset]').filter((b) => b.attributes('aria-pressed') === 'true').map((b) => b.attributes('data-preset'))
+    const pressed = () =>
+      w
+        .findAll('[data-preset]')
+        .filter((b) => b.attributes('aria-pressed') === 'true')
+        .map((b) => b.attributes('data-preset'))
     expect(pressed()).toEqual(['warm-editorial'])
 
     await w.get('[data-preset="night-garden"]').trigger('click')
@@ -71,7 +75,10 @@ describe('Theme inspector', () => {
 
 describe('Used by', () => {
   it('lists the pages on a theme, and selecting one selects that page', async () => {
-    const doc = await load(model(theme('th'), page({ theme: 'th', name: 'Home' }), inst('PageFeature', '2', { theme: 'th', name: 'Pricing' }, at('$root', 'content'))), 'th')
+    const doc = await load(
+      model(theme('th'), page({ theme: 'th', name: 'Home' }), inst('PageFeature', '2', { theme: 'th', name: 'Pricing' }, at('$root', 'content'))),
+      'th',
+    )
     const w = mount(Inspector)
     expect(w.get('[data-testid="used-by-summary"]').text()).toBe('used by 2 pages')
     expect(w.findAll('[data-used-by]').map((b) => b.text())).toEqual(['HomePage #1', 'PricingPage #2'])
@@ -80,7 +87,14 @@ describe('Used by', () => {
   })
 
   it('lists the tables reading a data resource, and nothing for features nothing uses', async () => {
-    await load(model(inst('DataResourceFeature', 'r', { resource: 'https://api.github.com/users/x/repos', operation: 'GET' }, null), page(), inst('TableFeature', 't', { data_resource: 'r', name: 'Repos' })), 'r')
+    await load(
+      model(
+        inst('DataResourceFeature', 'r', { resource: 'https://api.github.com/users/x/repos', operation: 'GET' }, null),
+        page(),
+        inst('TableFeature', 't', { data_resource: 'r', name: 'Repos' }),
+      ),
+      'r',
+    )
     const w = mount(Inspector)
     expect(w.get('[data-testid="used-by-summary"]').text()).toBe('used by 1 table')
     expect(w.findAll('[data-used-by]').map((b) => b.attributes('data-used-by'))).toEqual(['t'])
@@ -106,7 +120,7 @@ describe('Used by', () => {
     doc.setInputs('1', { theme: 'th2' })
     await flushPromises()
     expect(w.find('[data-testid="use-theme"]').exists()).toBe(false)
-    expect(w.get('[data-testid="used-by"]').text()).toContain("Every page uses another theme")
+    expect(w.get('[data-testid="used-by"]').text()).toContain('Every page uses another theme')
   })
 })
 
@@ -157,13 +171,23 @@ describe('Empty states', () => {
     await flushPromises()
     expect(tree.find('[data-testid="tree-empty"]').exists()).toBe(false)
 
-    expect(mount(DiagnosticsList, { props: { diagnostics: [] } }).get('[data-testid="no-problems"]').text()).toContain('No problems')
+    expect(
+      mount(DiagnosticsList, { props: { diagnostics: [] } })
+        .get('[data-testid="no-problems"]')
+        .text(),
+    ).toContain('No problems')
     expect(generate(model(page())).diagnostics).toEqual([])
   })
 
   it('explains models and offers to start one when there are none', async () => {
     setModelStore(new MemoryModelStore())
-    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: ModelListView }, { path: '/models/:id', name: 'model', component: ModelListView }] })
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: ModelListView },
+        { path: '/models/:id', name: 'model', component: ModelListView },
+      ],
+    })
     const w = mount(ModelListView, { global: { plugins: [router] } })
     await flushPromises()
     const empty = w.get('[data-testid="no-models"]')
@@ -190,7 +214,9 @@ describe('review fixes', () => {
   })
 
   it('treats a page holding only disabled features as not empty, and counts only what is on a page', async () => {
-    const doc = await load(model(page(), inst('TextFeature', 't', { text: 'x', disable: true }), inst('TextFeature', 'lost', { text: 'y' }, at('nowhere', 'content'))))
+    const doc = await load(
+      model(page(), inst('TextFeature', 't', { text: 'x', disable: true }), inst('TextFeature', 'lost', { text: 'y' }, at('nowhere', 'content'))),
+    )
     const container = document.createElement('div')
     container.innerHTML = '<div data-node-id="1"></div>'
     document.body.append(container)
@@ -218,9 +244,21 @@ describe('inspectorSections', () => {
   const input = (name: string, group?: string) => ({ name, label: name, type: 'string' as const, control: 'text-input', group })
   it('keeps the declared section order whichever inputs are shown, and drops empty sections', () => {
     const all = [input('name'), input('a1', 'A'), input('b1', 'B'), input('a2', 'A'), input('c1', 'C')]
-    const groups = (shown: string[]) => inspectorSections(all, all.filter((i) => shown.includes(i.name))).map((s) => [s.group, s.inputs.map((i) => i.name)])
-    expect(groups(['name', 'a1', 'b1', 'a2', 'c1'])).toEqual([[undefined, ['name']], ['A', ['a1', 'a2']], ['B', ['b1']], ['C', ['c1']]])
+    const groups = (shown: string[]) =>
+      inspectorSections(
+        all,
+        all.filter((i) => shown.includes(i.name)),
+      ).map((s) => [s.group, s.inputs.map((i) => i.name)])
+    expect(groups(['name', 'a1', 'b1', 'a2', 'c1'])).toEqual([
+      [undefined, ['name']],
+      ['A', ['a1', 'a2']],
+      ['B', ['b1']],
+      ['C', ['c1']],
+    ])
     // A's first input hidden: A still comes before B.
-    expect(groups(['b1', 'a2'])).toEqual([['A', ['a2']], ['B', ['b1']]])
+    expect(groups(['b1', 'a2'])).toEqual([
+      ['A', ['a2']],
+      ['B', ['b1']],
+    ])
   })
 })

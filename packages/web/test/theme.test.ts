@@ -1,6 +1,17 @@
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { BADGE_COUNT, BUTTON_SIZES, BUTTON_VARIANTS, deriveTokens, generate, HEADING_BACKGROUNDS, HEADING_COLORS, PANEL_EMPHASES, THEME_OPTIONS, THEME_STYLE_KEYS } from '@feature-domain/engine'
+import {
+  BADGE_COUNT,
+  BUTTON_SIZES,
+  BUTTON_VARIANTS,
+  deriveTokens,
+  generate,
+  HEADING_BACKGROUNDS,
+  HEADING_COLORS,
+  PANEL_EMPHASES,
+  THEME_OPTIONS,
+  THEME_STYLE_KEYS,
+} from '@feature-domain/engine'
 import { mount } from '@vue/test-utils'
 import { computed, defineComponent, h } from 'vue'
 import { describe, expect, it } from 'vitest'
@@ -28,7 +39,9 @@ describe('document.css and the theme tokens', () => {
   })
 
   it('has a rule for every badge tint the theme provides', () => {
-    for (let i = 0; i < BADGE_COUNT; i++) expect(css).toContain(`.fd-badge-${i} { background: var(--fd-badge-${i}-bg); color: var(--fd-badge-${i}); }`)
+    // Whitespace aside, so the formatter may lay the rules out as it likes.
+    const flat = css.replace(/\s+/g, ' ')
+    for (let i = 0; i < BADGE_COUNT; i++) expect(flat).toContain(`.fd-badge-${i} { background: var(--fd-badge-${i}-bg); color: var(--fd-badge-${i}); }`)
   })
 
   it('has rules for every button style and size', () => {
@@ -116,7 +129,7 @@ describe('theme in the renderer', () => {
     expect(inner.get('.fd-table-block').attributes('data-fd-table')).toBe('striped')
   })
 
-  it('a page with a Theme applies its tokens and components inside use its styles; the root adopts the first page\'s theme', () => {
+  it("a page with a Theme applies its tokens and components inside use its styles; the root adopts the first page's theme", () => {
     const m = model(
       inst('ThemeFeature', 'th', { scheme: 'dark', accent: '#2563eb', panel: 'bare' }, null),
       page({ theme: 'th' }),
@@ -149,12 +162,8 @@ describe('theme in the renderer', () => {
     expect(w.get('[data-feature-id="q"]').attributes('data-fd-panel')).toBe('bare')
   })
 
-  it('a band well inside a themed page uses that theme\'s band colors', () => {
-    const m = model(
-      inst('ThemeFeature', 'th', { band: '#123456', well: 'band' }, null),
-      page({ theme: 'th' }),
-      inst('ContainerFeature', 'c', { well: true }),
-    )
+  it("a band well inside a themed page uses that theme's band colors", () => {
+    const m = model(inst('ThemeFeature', 'th', { band: '#123456', well: 'band' }, null), page({ theme: 'th' }), inst('ContainerFeature', 'c', { well: true }))
     const w = mount(DocumentView, { props: { root: generate(m).root }, global })
     const themed = deriveTokens({ band: '#123456', well: 'band' })
     expect(w.get('[data-feature-id="c"]').attributes('data-fd-well')).toBe('band')

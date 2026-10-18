@@ -27,7 +27,7 @@ describe('ApiModelStore', () => {
     await expect(api.update(id, model(page()), 1)).rejects.toEqual(new ModelConflictError(id, 2))
   })
 
-  it('reads weak ETags, which Cloudflare\'s edge makes of the API\'s when it compresses a response', () => {
+  it("reads weak ETags, which Cloudflare's edge makes of the API's when it compresses a response", () => {
     expect(revisionOf('"3"')).toBe(3)
     expect(revisionOf('W/"12"')).toBe(12)
     for (const tag of [null, '', '3', '"0"', '"x"', 'W/3', '"1234567890123456"']) expect(revisionOf(tag), String(tag)).toBeUndefined()
@@ -49,20 +49,25 @@ describe('ApiModelStore', () => {
       return Object.defineProperty(new Response(null, { status: 200 }), 'type', { value: 'opaqueredirect' })
     }) as unknown as typeof globalThis.fetch
     await expect(new ApiModelStore(redirected).list()).rejects.toBeInstanceOf(SignedOutError)
-    await expect(new ApiModelStore(answer(null, { status: 302, headers: { Location: 'https://x.cloudflareaccess.com' } })).get('a')).rejects.toBeInstanceOf(SignedOutError)
+    await expect(new ApiModelStore(answer(null, { status: 302, headers: { Location: 'https://x.cloudflareaccess.com' } })).get('a')).rejects.toBeInstanceOf(
+      SignedOutError,
+    )
     // A sign-in page served in place of the API.
     await expect(new ApiModelStore(answer('<html>', { status: 200, headers: { 'Content-Type': 'text/html' } })).list()).rejects.toBeInstanceOf(SignedOutError)
   })
 
-  it('reports the API\'s own error message, or the status when there is none', async () => {
+  it("reports the API's own error message, or the status when there is none", async () => {
     const { api } = await worker()
     await expect(api.create({ version: 1 } as never)).rejects.toMatchObject({ name: 'ApiError', status: 400, message: 'The model is not valid' })
     await expect(new ApiModelStore(answer('oops', { status: 502 })).list()).rejects.toEqual(new ApiError(502, 'the server answered 502'))
-    await expect(new ApiModelStore(answer('{}', { status: 500, headers: { 'Content-Type': 'application/json' } })).delete('a')).rejects.toEqual(new ApiError(500, 'the server answered 500'))
+    await expect(new ApiModelStore(answer('{}', { status: 500, headers: { 'Content-Type': 'application/json' } })).delete('a')).rejects.toEqual(
+      new ApiError(500, 'the server answered 500'),
+    )
   })
 
   it('refuses answers that are not what the API sends', async () => {
-    const json = (body: unknown, headers: Record<string, string> = {}) => new ApiModelStore(answer(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json', ...headers } }))
+    const json = (body: unknown, headers: Record<string, string> = {}) =>
+      new ApiModelStore(answer(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json', ...headers } }))
     const odd = { name: 'ApiError', message: 'the server sent an answer the editor does not understand' }
     await expect(json([{ id: 1, name: 'x' }]).list()).rejects.toMatchObject(odd)
     await expect(json({ not: 'a list' }).list()).rejects.toMatchObject(odd)

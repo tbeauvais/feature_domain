@@ -55,9 +55,24 @@ export const ImageFeature: FeatureDefinition = {
         { input: 'illustration', equals: BANNERS },
       ],
     },
-    { name: 'src', label: 'Image URL', type: 'string', default: '', placeholder: 'https://', control: 'text-input', showWhen: { input: 'source', notEquals: 'illustration' } },
+    {
+      name: 'src',
+      label: 'Image URL',
+      type: 'string',
+      default: '',
+      placeholder: 'https://',
+      control: 'text-input',
+      showWhen: { input: 'source', notEquals: 'illustration' },
+    },
     { name: 'alt', label: 'Alt Text', type: 'string', default: '', control: 'text-input' },
-    { name: 'decorative', label: 'Decorative (screen readers skip it)', type: 'boolean', default: false, control: 'checkbox-input', showWhen: { input: 'source', equals: 'illustration' } },
+    {
+      name: 'decorative',
+      label: 'Decorative (screen readers skip it)',
+      type: 'boolean',
+      default: false,
+      control: 'checkbox-input',
+      showWhen: { input: 'source', equals: 'illustration' },
+    },
     { name: 'responsive', label: 'Responsive', type: 'boolean', default: false, initial: true, control: 'checkbox-input' },
     { name: 'height', label: 'Height', type: 'string', default: '200', control: 'text-input', showWhen: { input: 'source', notEquals: 'illustration' } },
     { name: 'width', label: 'Width', type: 'string', default: '300', control: 'text-input' },
@@ -74,7 +89,12 @@ export const ImageFeature: FeatureDefinition = {
       // Alt text describes the picture unless the user wrote their own; a decorative one has none.
       const alt = asBool(inputs.decorative) ? '' : asString(inputs.alt).trim() || (info?.alt ?? '')
       // Responsive illustrations fill the width; otherwise the width input sets it and the height follows the shape.
-      const props: { name: string; alt: string; width: string; align: typeof align; aspect?: number } = { name, alt, width: responsive ? '' : asString(inputs.width), align }
+      const props: { name: string; alt: string; width: string; align: typeof align; aspect?: number } = {
+        name,
+        alt,
+        width: responsive ? '' : asString(inputs.width),
+        align,
+      }
       // Banners can be short, medium or tall; the height follows the width, so it suits every screen size.
       if (info?.kind === 'banner') {
         const height = inputs.banner_height

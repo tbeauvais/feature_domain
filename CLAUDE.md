@@ -39,7 +39,7 @@ The purpose of the project is to **showcase parametric, feature-based modeling**
 
 ## New stack (in progress)
 
-An npm workspace (`package.json` at the root, packages under `packages/`). Node LTS. CI (`.github/workflows/ci.yml`) runs typecheck, lint and tests on every push and PR. **Everything new must be covered by tests.**
+An npm workspace (`package.json` at the root, packages under `packages/`). Node LTS. CI (`.github/workflows/ci.yml`) runs typecheck, lint, a format check and tests on every push and PR. **Everything new must be covered by tests.**
 
 ```bash
 npm install
@@ -49,6 +49,11 @@ npm run lint                # ESLint (eslint.config.js): the recommended JS, Typ
                             # no-floating-promises, no-misused-promises, await-thenable and vue/no-v-html; no formatting
                             # rules; any warning fails. Type-aware: a new .ts file must be in its package's tsconfig
                             # `include`, or ESLint can't parse it. `npx eslint --fix <file>` fixes some
+npm run format              # Prettier (.prettierrc.json: no semicolons, single quotes, 160 columns) rewrites the code;
+                            # `npm run format:check` is CI's check (if it still fails right after formatting, format again:
+                            # a few chained calls settle on the second pass). .prettierignore skips Markdown, vendored
+                            # (shadcn-vue's components and shadcn.css) and legacy files.
+                            # The one-time reformat is in .git-blame-ignore-revs (`git config blame.ignoreRevsFile .git-blame-ignore-revs`)
 npm run build               # emit packages/engine/dist (JS + .d.ts)
 npm run smoke               # build, then import the engine by package name from plain Node
 npm run e2e                 # Playwright end-to-end tests (packages/web; first run: npx playwright install chromium); screenshot tests are skipped off Linux

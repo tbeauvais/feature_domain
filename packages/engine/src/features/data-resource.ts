@@ -180,7 +180,15 @@ export const DataResourceFeature: FeatureDefinition = {
         { value: 'sample', text: 'Sample data' },
       ],
     },
-    { name: 'resource', label: 'Resource URL', type: 'string', default: '', placeholder: 'https://', control: 'text-input', showWhen: { input: 'source', notEquals: 'sample' } },
+    {
+      name: 'resource',
+      label: 'Resource URL',
+      type: 'string',
+      default: '',
+      placeholder: 'https://',
+      control: 'text-input',
+      showWhen: { input: 'source', notEquals: 'sample' },
+    },
     {
       name: 'operation',
       label: 'Operation',

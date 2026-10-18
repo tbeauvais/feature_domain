@@ -76,7 +76,9 @@ describe('editing with useDocumentStore', () => {
   })
 
   it('moves and removes features, clearing a selection that was removed', async () => {
-    const doc = await open(model(page(), inst('ContainerFeature', 'c', { columns: 1 }), inst('TextFeature', 't', {}, at('c', 'r1c1')), inst('TextFeature', 'u')))
+    const doc = await open(
+      model(page(), inst('ContainerFeature', 'c', { columns: 1 }), inst('TextFeature', 't', {}, at('c', 'r1c1')), inst('TextFeature', 'u')),
+    )
     doc.moveTo('u', at('c', 'r1c1'))
     expect(doc.model?.features.find((f) => f.id === 'u')?.placement).toEqual(at('c', 'r1c1'))
     doc.select('t')
@@ -94,7 +96,13 @@ describe('editing with useDocumentStore', () => {
 
   it('upgrades features stored before their type was ported, and saves the upgrade', async () => {
     const legacyList = { feature: 'ListFeature', id: '7', inputs: { name: 'Color list', list: 'Red,Yellow' } }
-    const stored = { ...model(page()), features: [page(), { feature: 'ListFeature', id: '7', inputs: { name: 'Color list', list: 'Red,Yellow' }, placement: at('1', 'content'), cache: { legacy: legacyList } }] }
+    const stored = {
+      ...model(page()),
+      features: [
+        page(),
+        { feature: 'ListFeature', id: '7', inputs: { name: 'Color list', list: 'Red,Yellow' }, placement: at('1', 'content'), cache: { legacy: legacyList } },
+      ],
+    }
     const doc = await open(stored)
     expect(doc.model?.features[1]?.inputs.items).toEqual(['Red', 'Yellow'])
     expect(doc.result?.root.children[0]?.children[0]?.props).toEqual({ items: ['Red', 'Yellow'], align: 'left' })
@@ -105,7 +113,10 @@ describe('editing with useDocumentStore', () => {
 
   it('upgrades in memory only when not editing (the preview)', async () => {
     const legacyList = { feature: 'ListFeature', id: '7', inputs: { list: 'Red' } }
-    id = await store.create({ ...model(page()), features: [page(), { feature: 'ListFeature', id: '7', inputs: {}, placement: at('1', 'content'), cache: { legacy: legacyList } }] })
+    id = await store.create({
+      ...model(page()),
+      features: [page(), { feature: 'ListFeature', id: '7', inputs: {}, placement: at('1', 'content'), cache: { legacy: legacyList } }],
+    })
     const doc = useDocumentStore()
     await doc.load(id)
     expect(doc.model?.features[1]?.inputs.items).toEqual(['Red'])
@@ -265,7 +276,10 @@ describe('editing with useDocumentStore', () => {
 
     it('does not make the automatic upgrade on open undoable', async () => {
       const legacyList = { feature: 'ListFeature', id: '7', inputs: { list: 'Red' } }
-      const doc = await open({ ...model(page()), features: [page(), { feature: 'ListFeature', id: '7', inputs: {}, placement: at('1', 'content'), cache: { legacy: legacyList } }] })
+      const doc = await open({
+        ...model(page()),
+        features: [page(), { feature: 'ListFeature', id: '7', inputs: {}, placement: at('1', 'content'), cache: { legacy: legacyList } }],
+      })
       expect(doc.model?.features[1]?.inputs.items).toEqual(['Red'])
       expect(doc.canUndo).toBe(false)
     })

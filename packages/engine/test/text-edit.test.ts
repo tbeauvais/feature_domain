@@ -227,7 +227,10 @@ describe('edit marks', () => {
       stub('Paragraph', { text: { input: 'items', kind: 'paragraph', index: 0 } }),
       stub('Fine', { text: { input: 'text', kind: 'text' } }),
     ])
-    const r = generate(model(page(), inst('Undeclared', 'a'), inst('WrongType', 'b'), inst('NotText', 'c'), inst('Entries', 'd'), inst('Paragraph', 'f'), inst('Fine', 'e')), registry)
+    const r = generate(
+      model(page(), inst('Undeclared', 'a'), inst('WrongType', 'b'), inst('NotText', 'c'), inst('Entries', 'd'), inst('Paragraph', 'f'), inst('Fine', 'e')),
+      registry,
+    )
     expect(r.diagnostics.map((d) => `${d.code}:${d.featureInstanceId}: ${d.message}`)).toEqual([
       'invalid-edit-mark:a: Node "a" marks its text as input "title", which the feature doesn\'t declare',
       'invalid-edit-mark:b: Node "b" marks its text as text of input "items", a list input',

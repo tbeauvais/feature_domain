@@ -64,11 +64,7 @@ export function requestInit({ method, body, requestType }: DataRequest): Request
 
 export type TableSource = DataSource
 
-export type RowsState =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'loaded'; rows: unknown[] }
-  | { status: 'error'; message: string }
+export type RowsState = { status: 'idle' } | { status: 'loading' } | { status: 'loaded'; rows: unknown[] } | { status: 'error'; message: string }
 
 /** The rows at `source.path` of the response (the whole response when there is no path), which must be a list. */
 export function selectRows(response: unknown, path?: string): unknown[] {

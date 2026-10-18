@@ -69,7 +69,7 @@ describe('useModelUpdates', () => {
     expect(refresh).toHaveBeenCalledTimes(1)
   })
 
-  it('ignores this tab\'s own saves, which every channel in the tab hears', async () => {
+  it("ignores this tab's own saves, which every channel in the tab hears", async () => {
     const { refresh, wrapper } = watching('m')
     announceSaved('m', 2)
     fromAnotherTab('m', 3)

@@ -51,7 +51,18 @@ describe('InputField', () => {
     await bool.get('input').setValue(true)
     expect(lastChange(bool)).toBe(true)
 
-    const select = mount(InputField, { props: { def: def({ type: 'string', options: [{ value: 'a', text: 'A' }, { value: 'b', text: 'B' }] }), value: 'a' } })
+    const select = mount(InputField, {
+      props: {
+        def: def({
+          type: 'string',
+          options: [
+            { value: 'a', text: 'A' },
+            { value: 'b', text: 'B' },
+          ],
+        }),
+        value: 'a',
+      },
+    })
     await select.get('select').setValue('b')
     expect(lastChange(select)).toBe('b')
 
@@ -76,7 +87,9 @@ describe('InputField choices drawn as buttons', () => {
   ]
 
   it('shows a segmented control labeled as a group, marking the current option', async () => {
-    const w = mount(InputField, { props: { def: def({ name: 'source', label: 'Source', type: 'string', control: 'segmented', default: 'link', options }), value: undefined } })
+    const w = mount(InputField, {
+      props: { def: def({ name: 'source', label: 'Source', type: 'string', control: 'segmented', default: 'link', options }), value: undefined },
+    })
     const group = w.get('[role="group"]')
     expect(w.get(`#${group.attributes('aria-labelledby')}`).text()).toBe('Source')
     expect(w.findAll('button').map((b) => [b.text(), b.attributes('aria-pressed')])).toEqual([
@@ -94,10 +107,16 @@ describe('InputField choices drawn as buttons', () => {
   })
 
   it('shows the illustration gallery with real drawings in the given theme, grouped by kind', async () => {
-    const gallery = def({ name: 'illustration', label: 'Illustration', type: 'string', control: 'illustration-gallery', options: [
-      { value: 'banner/blueprint', text: 'Blueprint' },
-      { value: 'spot/map', text: 'Map' },
-    ] })
+    const gallery = def({
+      name: 'illustration',
+      label: 'Illustration',
+      type: 'string',
+      control: 'illustration-gallery',
+      options: [
+        { value: 'banner/blueprint', text: 'Blueprint' },
+        { value: 'spot/map', text: 'Map' },
+      ],
+    })
     const w = mount(InputField, { props: { def: gallery, value: 'spot/map', themeVars: { '--fd-band': '#123456' } } })
     expect(w.get('[data-testid="illustration-gallery"]').attributes('aria-labelledby')).toBe('input-illustration-label')
     expect(w.findAll('p').map((p) => p.text())).toEqual(['Banners', 'Spots'])
@@ -197,7 +216,10 @@ describe('Inspector', () => {
       ['Ink', 'Accent', 'Muted'],
       ['None', 'Tint', 'Band'],
     ])
-    await w.findAll('button').find((b) => b.text() === 'Band')!.trigger('click')
+    await w
+      .findAll('button')
+      .find((b) => b.text() === 'Band')!
+      .trigger('click')
     expect(doc.result?.root.children[0]?.children[0]?.props).toMatchObject({ text: 'Hello', background: 'band' })
   })
 
@@ -205,7 +227,10 @@ describe('Inspector', () => {
     const { doc, w } = await inspect([page(), inst('ImageFeature', 'i', { source: 'illustration' })], 'i')
     expect(w.find('[data-testid="illustration-gallery"]').exists()).toBe(true)
     expect(w.find('#input-src').exists()).toBe(false)
-    await w.findAll('button').find((b) => b.text() === 'Link')!.trigger('click')
+    await w
+      .findAll('button')
+      .find((b) => b.text() === 'Link')!
+      .trigger('click')
     expect(doc.model?.features.find((f) => f.id === 'i')?.inputs.source).toBe('link')
     expect(w.find('[data-testid="illustration-gallery"]').exists()).toBe(false)
     expect(w.find('#input-src').exists()).toBe(true)
@@ -219,7 +244,10 @@ describe('Inspector', () => {
 
   it('offers only valid locations and moves the feature', async () => {
     const { doc, w } = await inspect([page(), inst('ContainerFeature', 'c', { columns: 2 }), inst('TextFeature', 't')], 'c')
-    const options = w.get('#input-location').findAll('option').map((o) => o.text())
+    const options = w
+      .get('#input-location')
+      .findAll('option')
+      .map((o) => o.text())
     // Not its own cells: a feature cannot be placed inside itself.
     expect(options).toEqual(['Document', 'Page › content'])
     doc.select('t')
@@ -237,7 +265,12 @@ describe('Inspector', () => {
 
   it('offers Themes for a Page, and shows a theme that no longer exists as Missing', async () => {
     const themed = await inspect([inst('ThemeFeature', 'th', { name: 'Warm' }, null), page({ theme: 'th' }), inst('TextFeature', 'x')], '1')
-    expect(themed.w.get('#input-theme').findAll('option').map((o) => o.text())).toEqual(['None', 'Warm (#th)'])
+    expect(
+      themed.w
+        .get('#input-theme')
+        .findAll('option')
+        .map((o) => o.text()),
+    ).toEqual(['None', 'Warm (#th)'])
     expect((themed.w.get('#input-theme').element as HTMLSelectElement).value).toBe('th')
 
     const stale = await inspect([page({ theme: 'gone' })], '1')
@@ -249,8 +282,16 @@ describe('Inspector', () => {
   })
 
   it('lists matching features for references', async () => {
-    const { w } = await inspect([page(), inst('DataResourceFeature', 'r', { name: 'Repos' }, null), inst('TextFeature', 'x'), inst('TableFeature', 't', { data_resource: '' })], 't')
-    expect(w.get('#input-data_resource').findAll('option').map((o) => o.text())).toEqual(['None', 'Repos (#r)'])
+    const { w } = await inspect(
+      [page(), inst('DataResourceFeature', 'r', { name: 'Repos' }, null), inst('TextFeature', 'x'), inst('TableFeature', 't', { data_resource: '' })],
+      't',
+    )
+    expect(
+      w
+        .get('#input-data_resource')
+        .findAll('option')
+        .map((o) => o.text()),
+    ).toEqual(['None', 'Repos (#r)'])
   })
 
   it('confirms deletes in the page, listing what goes with the feature', async () => {
@@ -280,7 +321,9 @@ describe('Inspector', () => {
 
 describe('List and placeholder nodes', () => {
   it('render list items and placeholders', () => {
-    const r = generate(model(page(), inst('ListFeature', 'l', { items: ['Red', '<b>Green</b>'], align: 'right' }), inst('MapFeature', 'm')), undefined, { placeholders: true })
+    const r = generate(model(page(), inst('ListFeature', 'l', { items: ['Red', '<b>Green</b>'], align: 'right' }), inst('MapFeature', 'm')), undefined, {
+      placeholders: true,
+    })
     const w = mount(DocumentView, { props: { root: r.root } })
     expect(w.get('[data-feature-id="l"]').classes()).toEqual(['fd-list', 'fd-list-right', 'fd-list-number'])
     expect(w.findAll('[data-feature-id="l"] li').map((li) => li.text())).toEqual(['Red', '<b>Green</b>'])

@@ -21,5 +21,7 @@ it('is deployed where Terraform puts Access in front of it', () => {
 it('is built from the engine source', () => {
   // The Vite environment is named after the Worker. Configured under another name, the Worker would read the engine's
   // built dist/ instead, and a stale one would deploy an old engine.
-  expect(viteConfig).toContain(`\n    ${config.name}: { resolve: { conditions: ['@feature-domain/source'] } },`)
+  // Whitespace aside, so the formatter may lay the config out as it likes.
+  const flat = viteConfig.replace(/\s+/g, ' ')
+  expect(flat).toContain(` ${config.name}: { resolve: { conditions: ['@feature-domain/source'] } },`)
 })

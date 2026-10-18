@@ -21,7 +21,11 @@ export async function serveModels(context: BrowserContext): Promise<void> {
   await context.route(`**${MODELS_PATH}**`, async (route) => {
     const request = route.request()
     const url = new URL(request.url())
-    const response = await app.request(url.pathname + url.search, { method: request.method(), headers: request.headers(), body: request.postDataBuffer() as BodyInit | null })
+    const response = await app.request(url.pathname + url.search, {
+      method: request.method(),
+      headers: request.headers(),
+      body: request.postDataBuffer() as BodyInit | null,
+    })
     await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) })
   })
 }

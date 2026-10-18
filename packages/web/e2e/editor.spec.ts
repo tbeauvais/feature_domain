@@ -3,7 +3,9 @@ import { isolateNetwork } from './network'
 import { stored, storedId, store as storeModel } from './storage'
 
 // Editor flows on a fresh model. All external requests are blocked except a mocked GitHub API (and Open-Meteo, mocked in the test that uses it).
-isolateNetwork((route, url) => (url.hostname === 'api.github.com' ? route.fulfill({ json: [{ name: 'engine', html_url: 'https://github.com/x/engine' }] }) : undefined))
+isolateNetwork((route, url) =>
+  url.hostname === 'api.github.com' ? route.fulfill({ json: [{ name: 'engine', html_url: 'https://github.com/x/engine' }] }) : undefined,
+)
 
 async function newModel(page: Page) {
   await page.goto('/')
@@ -172,7 +174,9 @@ test('linking a table to a data resource keeps it where it is on the page', asyn
   await tree(page).locator('[data-tree-id="2"]').click()
   await inspector(page).getByLabel('Data Resource').selectOption({ label: 'untitled (#4)' })
   await expect(canvas(page).locator('[data-feature-id="1"] > [data-feature-id]')).toHaveCount(2)
-  const order = await canvas(page).locator('[data-feature-id="1"] > [data-feature-id]').evaluateAll((els) => els.map((e) => e.getAttribute('data-feature-id')))
+  const order = await canvas(page)
+    .locator('[data-feature-id="1"] > [data-feature-id]')
+    .evaluateAll((els) => els.map((e) => e.getAttribute('data-feature-id')))
   expect(order).toEqual(['2', '3'])
 })
 
@@ -199,7 +203,8 @@ test('the selection outline follows content that loads later', async ({ page }) 
 test('leaving after a failed save asks before losing the changes, and Try again saves them', async ({ page }) => {
   await newModel(page)
   // The server fails every save.
-  const failing = (route: Route) => (route.request().method() === 'PUT' ? route.fulfill({ status: 503, json: { error: 'Something went wrong on the server' } }) : route.fallback())
+  const failing = (route: Route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 503, json: { error: 'Something went wrong on the server' } }) : route.fallback()
   await page.route('**/api/v1/models/*', failing)
   await page.getByTestId('model-name').fill('Will not save')
   await expect(page.getByTestId('save-state')).toHaveText('Save failed')
@@ -223,7 +228,9 @@ test('a save refused because the sign-in expired says how to sign in again witho
   await newModel(page)
   // Cloudflare Access answers an expired session with a redirect to its sign-in page.
   const signedOut = (route: Route) =>
-    route.request().method() === 'PUT' ? route.fulfill({ status: 302, headers: { Location: 'https://feature-domain.cloudflareaccess.com/cdn-cgi/access/login' } }) : route.fallback()
+    route.request().method() === 'PUT'
+      ? route.fulfill({ status: 302, headers: { Location: 'https://feature-domain.cloudflareaccess.com/cdn-cgi/access/login' } })
+      : route.fallback()
   await page.route('**/api/v1/models/*', signedOut)
   await page.getByTestId('model-name').fill('After sign-in')
   const banner = page.getByTestId('save-problem')
@@ -258,13 +265,21 @@ test('a model stored before List was ported is upgraded when opened', async ({ p
   await expect(canvas(page).locator('[data-feature-id="2"] li')).toHaveText(['Red', 'Green', 'Blue', 'Yellow'])
   await expect(page.getByTestId('save-state')).toHaveText('Saved')
   const saved = (await stored('stored-list')).features[1]
-  expect(saved).toEqual({ feature: 'ListFeature', id: '2', inputs: { name: 'Color list', disable: false, items: ['Red', 'Green', 'Blue', 'Yellow'], align: 'center' }, placement: { parent: '1', slot: 'content' } })
+  expect(saved).toEqual({
+    feature: 'ListFeature',
+    id: '2',
+    inputs: { name: 'Color list', disable: false, items: ['Red', 'Green', 'Blue', 'Yellow'], align: 'center' },
+    placement: { parent: '1', slot: 'content' },
+  })
 })
 
 test('responsive images keep their aspect ratio in a narrow cell', async ({ page }) => {
   // A responsive 300 x 300 image, served as a 2:1 picture.
   await page.context().route('https://images.test/**', (route) =>
-    route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="green"/></svg>' }),
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="green"/></svg>',
+    }),
   )
   await store(page, {
     id: 'picture',
@@ -273,7 +288,12 @@ test('responsive images keep their aspect ratio in a narrow cell', async ({ page
     features: [
       { feature: 'PageFeature', id: '1', inputs: { name: 'Page' }, placement: { parent: '$root', slot: 'content' } },
       { feature: 'ContainerFeature', id: '2', inputs: { rows: 1, columns: 2 }, placement: { parent: '1', slot: 'content' } },
-      { feature: 'ImageFeature', id: '3', inputs: { source: 'link', src: 'https://images.test/picture.svg', alt: 'A green field', responsive: true, width: '300', height: '300' }, placement: { parent: '2', slot: 'r1c2' } },
+      {
+        feature: 'ImageFeature',
+        id: '3',
+        inputs: { source: 'link', src: 'https://images.test/picture.svg', alt: 'A green field', responsive: true, width: '300', height: '300' },
+        placement: { parent: '2', slot: 'r1c2' },
+      },
     ],
   } as { id: string })
   await page.goto('/models/picture')
@@ -327,7 +347,14 @@ test('adding a Theme restyles the page at once, and its settings drive the previ
   await expect(root).toHaveAttribute('data-fd-scheme', 'dark')
   const darkBg = await root.evaluate((el) => getComputedStyle(el).backgroundColor)
   // A dark scheme paints a dark background: every channel well below mid-gray.
-  expect(darkBg.match(/\d+/g)!.slice(0, 3).map(Number).every((channel) => channel < 64), darkBg).toBe(true)
+  expect(
+    darkBg
+      .match(/\d+/g)!
+      .slice(0, 3)
+      .map(Number)
+      .every((channel) => channel < 64),
+    darkBg,
+  ).toBe(true)
 
   const [preview] = await Promise.all([context.waitForEvent('page'), page.getByTestId('open-preview').click()])
   await expect(preview.locator('.fd-root')).toHaveAttribute('data-fd-scheme', 'dark')
@@ -346,7 +373,9 @@ test('the canvas shows the page at desktop, tablet and phone widths, and remembe
   await newModel(page)
   await page.getByTestId('palette-ContainerFeature').click()
   // An empty container keeps its space below in the editor (the page itself collapses it), so its drop cells stand apart.
-  const marginBottom = await canvas(page).locator('[data-feature-id="2"]').evaluate((el) => parseFloat(getComputedStyle(el).marginBottom))
+  const marginBottom = await canvas(page)
+    .locator('[data-feature-id="2"]')
+    .evaluate((el) => parseFloat(getComputedStyle(el).marginBottom))
   expect(marginBottom).toBeGreaterThan(20)
   const cells = canvas(page).locator('[data-node-id="2.r1c1"], [data-node-id="2.r1c2"]')
   const tops = async () => Promise.all((await cells.all()).map(async (c) => (await c.boundingBox())!.y))
@@ -476,10 +505,21 @@ test('an API spec loads from its URL, offers its operations, and can answer with
     openapi: '3.1.0',
     info: { title: 'Pets' },
     servers: [{ url: 'https://pets.test' }],
-    components: { schemas: { Pet: { type: 'object', properties: { name: { type: 'string', description: 'Name' }, kind: { type: 'string', description: 'Kind' } } } } },
-    paths: { '/pets': { get: { summary: 'List pets', responses: { '200': { content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Pet' } } } } } } } } },
+    components: {
+      schemas: { Pet: { type: 'object', properties: { name: { type: 'string', description: 'Name' }, kind: { type: 'string', description: 'Kind' } } } },
+    },
+    paths: {
+      '/pets': {
+        get: {
+          summary: 'List pets',
+          responses: { '200': { content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Pet' } } } } } },
+        },
+      },
+    },
   }
-  await page.context().route('https://pets.test/**', (route) => route.fulfill({ json: route.request().url().endsWith('openapi.json') ? spec : [{ name: 'Rex', kind: 'dog' }] }))
+  await page
+    .context()
+    .route('https://pets.test/**', (route) => route.fulfill({ json: route.request().url().endsWith('openapi.json') ? spec : [{ name: 'Rex', kind: 'dog' }] }))
   await newModel(page)
   await page.getByTestId('palette-TableFeature').click()
   await page.getByTestId('palette-SwaggerDataResourceFeature').click()
@@ -501,7 +541,7 @@ test('an API spec loads from its URL, offers its operations, and can answer with
   await expect(table.locator('tbody td')).toHaveText(['Tom', 'cat'])
 })
 
-test('a chart draws a data resource\'s rows in the theme\'s colors, and follows its type and data', async ({ page }) => {
+test("a chart draws a data resource's rows in the theme's colors, and follows its type and data", async ({ page }) => {
   await newModel(page)
   await page.getByTestId('palette-GoogleChartFeature').click()
   await page.getByTestId('palette-DataResourceFeature').click()
@@ -520,7 +560,8 @@ test('a chart draws a data resource\'s rows in the theme\'s colors, and follows 
     drawn.evaluate((c: HTMLCanvasElement) => {
       const data = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data
       let colored = 0
-      for (let i = 0; i < data.length; i += 4) if (data[i + 3]! > 200 && Math.max(data[i]!, data[i + 1]!, data[i + 2]!) - Math.min(data[i]!, data[i + 1]!, data[i + 2]!) > 60) colored++
+      for (let i = 0; i < data.length; i += 4)
+        if (data[i + 3]! > 200 && Math.max(data[i]!, data[i + 1]!, data[i + 2]!) - Math.min(data[i]!, data[i + 1]!, data[i + 2]!) > 60) colored++
       return colored
     })
   await expect.poll(painted).toBeGreaterThan(500)
@@ -541,13 +582,20 @@ test('a Weather card shows the forecast for its place, and Find moves it somewhe
       json: {
         current_units: { temperature_2m: url.searchParams.get('temperature_unit') === 'celsius' ? '°C' : '°F' },
         current: { temperature_2m: 61.6 + warm * 10, weather_code: 3, is_day: 1 },
-        daily: { time: ['2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14'], weather_code: [3, 0, 61, 71], temperature_2m_max: [64, 66, 59, 41], temperature_2m_min: [50, 52, 48, 30] },
+        daily: {
+          time: ['2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14'],
+          weather_code: [3, 0, 61, 71],
+          temperature_2m_max: [64, 66, 59, 41],
+          temperature_2m_min: [50, 52, 48, 30],
+        },
       },
     })
   })
-  await page.context().route('https://geocoding-api.open-meteo.com/**', (route) =>
-    route.fulfill({ json: { results: [{ name: 'Portland', latitude: 43.66147, longitude: -70.25533, country: 'United States', admin1: 'Maine' }] } }),
-  )
+  await page
+    .context()
+    .route('https://geocoding-api.open-meteo.com/**', (route) =>
+      route.fulfill({ json: { results: [{ name: 'Portland', latitude: 43.66147, longitude: -70.25533, country: 'United States', admin1: 'Maine' }] } }),
+    )
   await newModel(page)
   await page.getByTestId('palette-WeatherFeature').click()
   const card = canvas(page).locator('[data-feature-id="2"]')
@@ -559,7 +607,9 @@ test('a Weather card shows the forecast for its place, and Find moves it somewhe
 
   await inspector(page).getByLabel('Find a place').fill('Portland')
   await inspector(page).getByLabel('Find a place').press('Enter')
-  await inspector(page).getByRole('button', { name: /Portland, Maine/ }).click()
+  await inspector(page)
+    .getByRole('button', { name: /Portland, Maine/ })
+    .click()
   await expect(card.getByRole('heading')).toHaveText('Portland, Maine')
   await expect(card.locator('.fd-weather-temp')).toHaveText('72°F')
   await expect(inspector(page).getByLabel('Latitude')).toHaveValue('43.6615')

@@ -26,12 +26,30 @@ vi.mock('chart.js', () => {
     }
   }
   const element = class {}
-  return { Chart, ArcElement: element, BarController: element, BarElement: element, CategoryScale: element, DoughnutController: element, Legend: element, LinearScale: element, LineController: element, LineElement: element, PieController: element, PointElement: element, Tooltip: element }
+  return {
+    Chart,
+    ArcElement: element,
+    BarController: element,
+    BarElement: element,
+    CategoryScale: element,
+    DoughnutController: element,
+    Legend: element,
+    LinearScale: element,
+    LineController: element,
+    LineElement: element,
+    PieController: element,
+    PointElement: element,
+    Tooltip: element,
+  }
 })
 
 beforeEach(() => Object.assign(calls, { created: 0, updated: 0, destroyed: 0, leftover: 0 }))
 
-const rows = (n: number) => JSON.stringify([{ region: 'North', sales: n }, { region: 'South', sales: 3 }])
+const rows = (n: number) =>
+  JSON.stringify([
+    { region: 'North', sales: n },
+    { region: 'South', sales: 3 },
+  ])
 const pageModel = (inputs: { text?: string; sales?: number; chart_type?: string }) =>
   model(
     inst('ThemeFeature', 'th', {}, null),
@@ -45,10 +63,13 @@ async function render(m: AppModel) {
   const w = mount(DocumentView, { props: { root: generate(m).root } })
   await vi.dynamicImportSettled()
   await flushPromises()
-  return { w, regenerate: async (next: AppModel) => {
-    await w.setProps({ root: generate(next).root })
-    await flushPromises()
-  } }
+  return {
+    w,
+    regenerate: async (next: AppModel) => {
+      await w.setProps({ root: generate(next).root })
+      await flushPromises()
+    },
+  }
 }
 
 describe('ChartNode redrawing', () => {

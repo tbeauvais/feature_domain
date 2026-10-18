@@ -2,7 +2,17 @@ import type { FeatureDefinition } from '../feature.js'
 import { asInt, asString, nameInput, resolveInputs, type InputDef, type InputOption } from '../inputs.js'
 import { hexToOklch } from '../theme/color.js'
 import type { InputValue } from '../types.js'
-import { BASE_SIZE_RANGE, clampThemeParams, DEFAULT_THEME, deriveTokens, THEME_OPTIONS, THEME_PRESETS, type ThemeParams, type ThemePreset, type ThemeTokens } from '../theme/tokens.js'
+import {
+  BASE_SIZE_RANGE,
+  clampThemeParams,
+  DEFAULT_THEME,
+  deriveTokens,
+  THEME_OPTIONS,
+  THEME_PRESETS,
+  type ThemeParams,
+  type ThemePreset,
+  type ThemeTokens,
+} from '../theme/tokens.js'
 
 const LABELS: Record<string, string> = {
   light: 'Light',

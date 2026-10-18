@@ -8,7 +8,13 @@ import ModelListView from '../src/views/ModelListView.vue'
 
 function list(store: MemoryModelStore) {
   setModelStore(store)
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: ModelListView }, { path: '/models/:id', name: 'model', component: ModelListView }] })
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/', component: ModelListView },
+      { path: '/models/:id', name: 'model', component: ModelListView },
+    ],
+  })
   return { router, w: mount(ModelListView, { global: { plugins: [router] } }) }
 }
 

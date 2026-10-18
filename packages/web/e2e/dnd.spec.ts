@@ -18,7 +18,9 @@ const canvas = (page: Page) => page.getByTestId('canvas')
 const tree = (page: Page) => page.getByTestId('feature-tree')
 const feature = (page: Page, id: string) => canvas(page).locator(`[data-feature-id="${id}"]`)
 const pageOrder = (page: Page, parent = '[data-feature-id="1"]') =>
-  canvas(page).locator(`${parent} > [data-feature-id]`).evaluateAll((els) => els.map((e) => e.getAttribute('data-feature-id')))
+  canvas(page)
+    .locator(`${parent} > [data-feature-id]`)
+    .evaluateAll((els) => els.map((e) => e.getAttribute('data-feature-id')))
 
 /** Drags with real mouse events (native HTML5 drag-and-drop), dropping near the top or bottom edge of the target. */
 async function drag(page: Page, from: Locator, to: Locator, at: 'top' | 'bottom' | 'middle' = 'middle') {
@@ -172,7 +174,13 @@ test('drops near the edge of a page go into the page, not beside it', async ({ p
   await expect.poll(() => pageOrder(page)).toEqual(['2', '3'])
   // Pages themselves can still be ordered at the document root (in the tree, where the page row has edges).
   await drag(page, page.getByTestId('palette-PageFeature'), tree(page).locator('[data-tree-id="1"]'), 'top')
-  await expect.poll(() => canvas(page).locator('.fd-root > [data-feature-id]').evaluateAll((els) => els.map((e) => e.getAttribute('data-feature-id')))).toEqual(['4', '1'])
+  await expect
+    .poll(() =>
+      canvas(page)
+        .locator('.fd-root > [data-feature-id]')
+        .evaluateAll((els) => els.map((e) => e.getAttribute('data-feature-id'))),
+    )
+    .toEqual(['4', '1'])
 })
 
 test('drags a feature that is not on the page from the tree onto the page', async ({ page }) => {

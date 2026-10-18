@@ -61,7 +61,8 @@ async function deleteRow(row: unknown, index: number) {
     await store.delete(deleteAction.value, row)
     confirming.value = undefined
     await nextTick()
-    const next = wrap.value?.querySelector<HTMLElement>(`[data-delete-row="${index}"]`) ?? wrap.value?.querySelector<HTMLElement>(`[data-delete-row="${index - 1}"]`)
+    const next =
+      wrap.value?.querySelector<HTMLElement>(`[data-delete-row="${index}"]`) ?? wrap.value?.querySelector<HTMLElement>(`[data-delete-row="${index - 1}"]`)
     ;(next ?? block.value)?.focus()
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -185,7 +186,9 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
                   <button type="button" class="fd-table-action fd-table-action-danger" :disabled="deleting" @click="deleteRow(row, index)">Delete</button>
                   <button type="button" class="fd-table-action" :disabled="deleting" @click="keep(index)">Keep</button>
                 </span>
-                <button v-else type="button" class="fd-table-action" :data-delete-row="index" :aria-label="`Delete row ${index + 1}`" @click="ask(row)">Delete</button>
+                <button v-else type="button" class="fd-table-action" :data-delete-row="index" :aria-label="`Delete row ${index + 1}`" @click="ask(row)">
+                  Delete
+                </button>
               </template>
             </td>
           </tr>

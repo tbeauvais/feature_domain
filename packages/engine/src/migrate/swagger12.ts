@@ -10,7 +10,15 @@ const own = (v: unknown, key: string): unknown => (isObject(v) && Object.hasOwn(
 const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : [])
 
 /** Swagger 1.2 primitive types as JSON Schema types. */
-const TYPES: Record<string, string> = { integer: 'integer', int: 'integer', long: 'integer', float: 'number', double: 'number', number: 'number', boolean: 'boolean' }
+const TYPES: Record<string, string> = {
+  integer: 'integer',
+  int: 'integer',
+  long: 'integer',
+  float: 'number',
+  double: 'number',
+  number: 'number',
+  boolean: 'boolean',
+}
 const schemaType = (type: string) => (Object.hasOwn(TYPES, type) ? TYPES[type]! : 'string')
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` })
 
@@ -71,12 +79,19 @@ export function swagger12ToOpenApi(spec: Raw): Raw {
       // Form and body parameters become a form-encoded request body, as the legacy form posted them.
       const fields = params.filter((p) => ['form', 'body'].includes(str(own(p, 'paramType'))))
       if (fields.length > 0) {
-        const properties = Object.fromEntries(fields.map((p) => [str(own(p, 'name')), { type: schemaType(str(own(p, 'type'))), ...(str(own(p, 'description')) ? { description: str(own(p, 'description')) } : {}) }]))
+        const properties = Object.fromEntries(
+          fields.map((p) => [
+            str(own(p, 'name')),
+            { type: schemaType(str(own(p, 'type'))), ...(str(own(p, 'description')) ? { description: str(own(p, 'description')) } : {}) },
+          ]),
+        )
         out.requestBody = { content: { 'application/x-www-form-urlencoded': { schema: { type: 'object', properties } } } }
       }
       const type = str(own(op, 'type'))
       const status = method === 'post' ? '201' : '200'
-      out.responses = { [status]: { description: 'OK', ...(type && Object.hasOwn(schemas, type) ? { content: { 'application/json': { schema: ref(type) } } } : {}) } }
+      out.responses = {
+        [status]: { description: 'OK', ...(type && Object.hasOwn(schemas, type) ? { content: { 'application/json': { schema: ref(type) } } } : {}) },
+      }
       item[method] = out
     }
     if (Object.keys(item).length > 0) paths[path] = item

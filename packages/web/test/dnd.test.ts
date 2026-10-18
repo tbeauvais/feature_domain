@@ -30,9 +30,19 @@ describe('zoneTarget', () => {
 
 describe('evaluateDrop', () => {
   it('allows valid moves and palette drops', () => {
-    expect(evaluateDrop(m, result, { kind: 'feature', id: 'a' }, { kind: 'slot', parent: 'c', slot: 'r1c2' })).toEqual({ allowed: true, target: at('c', 'r1c2'), noop: false })
-    expect(evaluateDrop(m, result, { kind: 'palette', featureType: 'ImageFeature' }, feature('t', 'reorder-after'))).toEqual({ allowed: true, target: { ...at('c', 'r1c1'), before: 'u' }, noop: false })
-    expect(evaluateDrop(m, result, { kind: 'palette', featureType: 'PageFeature' }, { kind: 'slot', parent: ROOT_ID, slot: 'content' })).toMatchObject({ allowed: true })
+    expect(evaluateDrop(m, result, { kind: 'feature', id: 'a' }, { kind: 'slot', parent: 'c', slot: 'r1c2' })).toEqual({
+      allowed: true,
+      target: at('c', 'r1c2'),
+      noop: false,
+    })
+    expect(evaluateDrop(m, result, { kind: 'palette', featureType: 'ImageFeature' }, feature('t', 'reorder-after'))).toEqual({
+      allowed: true,
+      target: { ...at('c', 'r1c1'), before: 'u' },
+      noop: false,
+    })
+    expect(evaluateDrop(m, result, { kind: 'palette', featureType: 'PageFeature' }, { kind: 'slot', parent: ROOT_ID, slot: 'content' })).toMatchObject({
+      allowed: true,
+    })
   })
 
   it('refuses drops into a feature itself or its descendants, and into features without slots', () => {
@@ -41,9 +51,17 @@ describe('evaluateDrop', () => {
       target: at('c', 'r1c2'),
       reason: 'A feature cannot be placed inside itself',
     })
-    expect(evaluateDrop(m, result, { kind: 'feature', id: '1' }, feature('t', 'reorder-before'))).toMatchObject({ allowed: false, reason: 'A feature cannot be placed inside itself' })
-    expect(evaluateDrop(m, result, { kind: 'feature', id: 'b' }, feature('a', 'combine'))).toMatchObject({ allowed: false, reason: 'Features cannot be placed inside this feature' })
-    expect(evaluateDrop(m, result, { kind: 'palette', featureType: 'DataResourceFeature' }, { kind: 'slot', parent: '1', slot: 'content' })).toMatchObject({ allowed: false })
+    expect(evaluateDrop(m, result, { kind: 'feature', id: '1' }, feature('t', 'reorder-before'))).toMatchObject({
+      allowed: false,
+      reason: 'A feature cannot be placed inside itself',
+    })
+    expect(evaluateDrop(m, result, { kind: 'feature', id: 'b' }, feature('a', 'combine'))).toMatchObject({
+      allowed: false,
+      reason: 'Features cannot be placed inside this feature',
+    })
+    expect(evaluateDrop(m, result, { kind: 'palette', featureType: 'DataResourceFeature' }, { kind: 'slot', parent: '1', slot: 'content' })).toMatchObject({
+      allowed: false,
+    })
   })
 
   it('recognizes drops that would leave a feature where it is', () => {

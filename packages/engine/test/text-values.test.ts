@@ -69,15 +69,26 @@ describe('migrating legacy {{DataResource…}} bindings', () => {
     migrate({
       features: [
         { feature: 'PageFeature', id: '1', inputs: { name: 'Page', page_location: { target: '#content_section' } } },
-        ...resources.map((r) => ({ feature: 'DataResourceFeature', id: r.id, inputs: { name: r.name, resource: `https://api.example.com/${r.id}`, operation: 'GET' } })),
+        ...resources.map((r) => ({
+          feature: 'DataResourceFeature',
+          id: r.id,
+          inputs: { name: r.name, resource: `https://api.example.com/${r.id}`, operation: 'GET' },
+        })),
         ...texts.map((t, i) => ({ feature: 'TextFeature', id: `t${i}`, inputs: { name: 'Text', text: t, ...loc } })),
       ],
     })
 
   it('point the text at the resource they name (its name without spaces) and become {{path}} values', () => {
     const r = legacy(['Temp {{DataResource.WeatherService.query.temp}} degrees, {{ DataResource.WeatherService.query.when | date }}'])
-    expect(r.model.features.at(-1)!.inputs).toEqual({ name: 'Text', disable: false, text: 'Temp {{query.temp}} degrees, {{query.when | date}}', data_resource: '21' })
-    expect(r.notes.map((n) => [n.code, n.message])).toEqual([['mapped-input', "The text's {{DataResource.WeatherService…}} values read data resource 21 now, as {{path}}"]])
+    expect(r.model.features.at(-1)!.inputs).toEqual({
+      name: 'Text',
+      disable: false,
+      text: 'Temp {{query.temp}} degrees, {{query.when | date}}',
+      data_resource: '21',
+    })
+    expect(r.notes.map((n) => [n.code, n.message])).toEqual([
+      ['mapped-input', "The text's {{DataResource.WeatherService…}} values read data resource 21 now, as {{path}}"],
+    ])
   })
 
   it('stay as written, with a warning, when they read several resources, an unknown one, or anything else', () => {
@@ -104,14 +115,14 @@ describe('upgrading stored Texts that still hold legacy bindings', () => {
     ],
   })
 
-  it('points them at the resource they name, as a legacy model\'s would be, once', () => {
+  it("points them at the resource they name, as a legacy model's would be, once", () => {
     const r = migrate(stored('Temp {{DataResource.WeatherService.query.temp}} degrees'))
     expect(r.model.features[2]!.inputs).toEqual({ name: 'Text', text: 'Temp {{query.temp}} degrees', data_resource: '21' })
     expect(r.notes.map((n) => `${n.code}:${n.featureInstanceId}`)).toEqual(['mapped-input:2'])
     expect(migrate(r.model).model).toBe(r.model)
   })
 
-  it('returns the same model for bindings it can\'t map, or a Text that already has a resource', () => {
+  it("returns the same model for bindings it can't map, or a Text that already has a resource", () => {
     for (const m of [stored('{{DataResource.Nope.x}}'), stored('{{DataResource.WeatherService.x}}', { data_resource: '21' }), stored('No bindings')]) {
       expect(migrate(m)).toEqual({ model: m, notes: [] })
       expect(migrate(m).model).toBe(m)
@@ -120,9 +131,17 @@ describe('upgrading stored Texts that still hold legacy bindings', () => {
 })
 
 describe('Text value warnings', () => {
-  it('warn about a filter the renderer doesn\'t know, and talk about values, not rows', () => {
-    expect(text({ text: '{{a | date}} {{b | shout}} {{c | currency :EUR}}', data_resource: 'r' }).problems).toEqual(['{{b | shout}} names an unknown filter "shout"; the value shows unfiltered'])
-    const r = generate(model(page(), inst('DataResourceFeature', 'r', { name: 'Adder', resource: 'https://api.example.com/x', operation: 'POST' }, null), inst('TextFeature', 't', { text: '{{a}}', data_resource: 'r' })))
+  it("warn about a filter the renderer doesn't know, and talk about values, not rows", () => {
+    expect(text({ text: '{{a | date}} {{b | shout}} {{c | currency :EUR}}', data_resource: 'r' }).problems).toEqual([
+      '{{b | shout}} names an unknown filter "shout"; the value shows unfiltered',
+    ])
+    const r = generate(
+      model(
+        page(),
+        inst('DataResourceFeature', 'r', { name: 'Adder', resource: 'https://api.example.com/x', operation: 'POST' }, null),
+        inst('TextFeature', 't', { text: '{{a}}', data_resource: 'r' }),
+      ),
+    )
     expect(r.diagnostics.map((d) => d.message)).toEqual(['Adder has no GET operation to read values from'])
   })
 

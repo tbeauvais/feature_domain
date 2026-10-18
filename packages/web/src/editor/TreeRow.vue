@@ -49,7 +49,18 @@ const selected = computed(() => store.selectedId === props.item.id)
         :data-testid="`tree-toggle-${item.id}`"
         @click="toggleCollapsed(item.id)"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" :class="collapsed ? '-rotate-90' : ''">
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          :class="collapsed ? '-rotate-90' : ''"
+        >
           <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
@@ -66,10 +77,14 @@ const selected = computed(() => store.selectedId === props.item.id)
         <span v-if="swatch" aria-hidden="true" class="size-3 shrink-0 rounded" :style="{ backgroundColor: swatch }" />
         <span v-if="item.slot" class="font-mono text-[10px] text-slate-400">{{ item.slot }}</span>
         <span class="min-w-0 flex-auto truncate" :class="{ 'font-medium': depth === 0 && hasChildren }">{{ item.label }}</span>
-        <span v-if="collapsed" class="shrink-0 text-[11px] text-slate-500" :title="`${descendantCount(item)} features inside`">{{ descendantCount(item) }}</span>
+        <span v-if="collapsed" class="shrink-0 text-[11px] text-slate-500" :title="`${descendantCount(item)} features inside`">{{
+          descendantCount(item)
+        }}</span>
         <!-- The type (or a page's theme) yields space to the name; a status badge replaces it (the tooltip says why). -->
         <span v-else-if="item.status === 'generated'" class="min-w-0 shrink-[4] truncate text-[11px] text-slate-500">{{ item.detail ?? item.type }}</span>
-        <span v-if="item.status !== 'generated'" class="shrink-0 rounded-full px-1.5 text-[11px]" :class="badge[item.status]">{{ badgeText[item.status] }}</span>
+        <span v-if="item.status !== 'generated'" class="shrink-0 rounded-full px-1.5 text-[11px]" :class="badge[item.status]">{{
+          badgeText[item.status]
+        }}</span>
       </button>
     </div>
     <ul v-if="hasChildren && !collapsed" role="group">

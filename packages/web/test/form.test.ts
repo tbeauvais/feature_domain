@@ -7,19 +7,33 @@ import { FETCH_JSON, requestInit, SEND_REQUEST, type FetchJson, type SendRequest
 import { inst, MemoryStorage, model, page } from './helpers'
 
 const render = (m: AppModel, fetchJson: FetchJson = async () => [], sendRequest: SendRequest = async () => undefined, editing = false) =>
-  mount(DocumentView, { props: { root: generate(m).root, editing }, global: { provide: { [FETCH_JSON as symbol]: fetchJson, [SEND_REQUEST as symbol]: sendRequest } }, attachTo: document.body })
+  mount(DocumentView, {
+    props: { root: generate(m).root, editing },
+    global: { provide: { [FETCH_JSON as symbol]: fetchJson, [SEND_REQUEST as symbol]: sendRequest } },
+    attachTo: document.body,
+  })
 
 const people = inst('DataResourceFeature', 'r', { name: 'People', source: 'sample', sample_rows: '[{"name": "Ada", "projects": 3}]' }, null)
 const fill = async (w: ReturnType<typeof render>, values: Record<string, string>) => {
   for (const [label, value] of Object.entries(values)) {
-    const id = w.findAll('label').find((l) => l.text().replace(' *', '') === label)!.attributes('for')
+    const id = w
+      .findAll('label')
+      .find((l) => l.text().replace(' *', '') === label)!
+      .attributes('for')
     await w.get(`#${id}`).setValue(value)
   }
 }
 
 describe('Form on sample data', () => {
   it('adds a row that the table on the same resource shows at once, with numbers as numbers', async () => {
-    const w = render(model(people, page(), inst('FormFeature', 'f', { data_resource: 'r' }), inst('TableFeature', 't', { data_resource: 'r', delete_operation: 'DELETE rows' })))
+    const w = render(
+      model(
+        people,
+        page(),
+        inst('FormFeature', 'f', { data_resource: 'r' }),
+        inst('TableFeature', 't', { data_resource: 'r', delete_operation: 'DELETE rows' }),
+      ),
+    )
     await flushPromises()
     expect(w.findAll('.fd-form-label').map((l) => l.text())).toEqual(['Name', 'Projects'])
     // Nothing added yet, so nothing can be deleted: no delete column.
@@ -29,7 +43,14 @@ describe('Form on sample data', () => {
     await w.get('form').trigger('submit')
     await flushPromises()
     expect(w.get('.fd-form-sent').text()).toBe('Thanks, that was sent.')
-    expect(w.findAll('tbody tr').map((tr) => tr.findAll('td').slice(0, 2).map((td) => td.text()))).toEqual([
+    expect(
+      w.findAll('tbody tr').map((tr) =>
+        tr
+          .findAll('td')
+          .slice(0, 2)
+          .map((td) => td.text()),
+      ),
+    ).toEqual([
       ['Ada', '3'],
       ['Grace', '9'],
     ])
@@ -41,7 +62,10 @@ describe('Form on sample data', () => {
     expect(rows[0]!.find('.fd-table-action').exists()).toBe(false)
     await rows[1]!.get('.fd-table-action').trigger('click')
     expect(rows[1]!.get('.fd-table-confirm').text()).toContain('Delete this row?')
-    await rows[1]!.findAll('.fd-table-action').find((b) => b.text() === 'Keep')!.trigger('click')
+    await rows[1]!
+      .findAll('.fd-table-action')
+      .find((b) => b.text() === 'Keep')!
+      .trigger('click')
     expect(w.findAll('tbody tr')).toHaveLength(2)
     await w.findAll('tbody tr')[1]!.get('.fd-table-action').trigger('click')
     await w.findAll('tbody tr')[1]!.get('.fd-table-action-danger').trigger('click')
@@ -51,7 +75,14 @@ describe('Form on sample data', () => {
   })
 
   it('moves keyboard focus with the delete buttons: to the question, back after Keep, on after deleting', async () => {
-    const w = render(model(people, page(), inst('FormFeature', 'f', { data_resource: 'r' }), inst('TableFeature', 't', { data_resource: 'r', delete_operation: 'DELETE rows' })))
+    const w = render(
+      model(
+        people,
+        page(),
+        inst('FormFeature', 'f', { data_resource: 'r' }),
+        inst('TableFeature', 't', { data_resource: 'r', delete_operation: 'DELETE rows' }),
+      ),
+    )
     await flushPromises()
     for (const name of ['Grace', 'Alan']) {
       await fill(w, { Name: name })
@@ -63,7 +94,10 @@ describe('Form on sample data', () => {
     await flushPromises()
     expect(focused().textContent).toBe('Delete')
     expect(focused().classList.contains('fd-table-action-danger')).toBe(true)
-    await w.findAll('.fd-table-action').find((b) => b.text() === 'Keep')!.trigger('click')
+    await w
+      .findAll('.fd-table-action')
+      .find((b) => b.text() === 'Keep')!
+      .trigger('click')
     await flushPromises()
     expect(focused().getAttribute('data-delete-row')).toBe('1')
     // Deleting Grace: Alan's row moves up, and focus goes to its Delete button.
@@ -91,9 +125,24 @@ describe('Form on sample data', () => {
   })
 
   it('checks required fields and numbers before sending', async () => {
-    const spec = { openapi: '3.0.0', servers: [{ url: 'https://pets.test' }], paths: { '/pets/{id}': { put: { parameters: [{ name: 'id', in: 'path', required: true }], requestBody: { content: { 'application/json': { schema: { properties: { age: { type: 'integer' } } } } } } } } } }
+    const spec = {
+      openapi: '3.0.0',
+      servers: [{ url: 'https://pets.test' }],
+      paths: {
+        '/pets/{id}': {
+          put: {
+            parameters: [{ name: 'id', in: 'path', required: true }],
+            requestBody: { content: { 'application/json': { schema: { properties: { age: { type: 'integer' } } } } } },
+          },
+        },
+      },
+    }
     const send = vi.fn<SendRequest>(async () => undefined)
-    const w = render(model(inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify(spec) }, null), page(), inst('FormFeature', 'f', { data_resource: 's' })), async () => [], send)
+    const w = render(
+      model(inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify(spec) }, null), page(), inst('FormFeature', 'f', { data_resource: 's' })),
+      async () => [],
+      send,
+    )
     await flushPromises()
     await w.get('form').trigger('submit')
     expect(w.get('.fd-form-error').text()).toBe('Id is required.')
@@ -110,7 +159,10 @@ describe('Form on an address', () => {
       '/owners/{owner}/pets': {
         get: {},
         post: {
-          parameters: [{ name: 'owner', in: 'path', required: true }, { name: 'notify', in: 'query' }],
+          parameters: [
+            { name: 'owner', in: 'path', required: true },
+            { name: 'notify', in: 'query' },
+          ],
           requestBody: { content: { 'application/x-www-form-urlencoded': { schema: { properties: { name: { type: 'string' }, age: { type: 'integer' } } } } } },
         },
       },
@@ -118,23 +170,45 @@ describe('Form on an address', () => {
   }
   const pets = inst('SwaggerDataResourceFeature', 's', { name: 'Pets', spec: JSON.stringify(spec) }, null)
 
-  it('fills path placeholders, adds query values, sends the rest form-encoded, then reloads the resource\'s tables', async () => {
+  it("fills path placeholders, adds query values, sends the rest form-encoded, then reloads the resource's tables", async () => {
     const send = vi.fn<SendRequest>(async () => ({ ok: true }))
     const fetchJson = vi.fn<FetchJson>(async () => [])
-    const w = render(model(pets, page(), inst('FormFeature', 'f', { data_resource: 's' }), inst('TableFeature', 't', { data_resource: 's', operation: 'GET /owners/{owner}/pets' })), fetchJson, send)
+    const w = render(
+      model(
+        pets,
+        page(),
+        inst('FormFeature', 'f', { data_resource: 's' }),
+        inst('TableFeature', 't', { data_resource: 's', operation: 'GET /owners/{owner}/pets' }),
+      ),
+      fetchJson,
+      send,
+    )
     await flushPromises()
     const fetchedBefore = fetchJson.mock.calls.length
     await fill(w, { Owner: 'tom smith', Notify: 'yes', Name: 'Rex', Age: '4' })
     await w.get('form').trigger('submit')
     await flushPromises()
-    expect(send).toHaveBeenCalledWith({ method: 'POST', url: 'https://pets.test/owners/tom%20smith/pets?notify=yes', body: { name: 'Rex', age: 4 }, requestType: 'form' })
+    expect(send).toHaveBeenCalledWith({
+      method: 'POST',
+      url: 'https://pets.test/owners/tom%20smith/pets?notify=yes',
+      body: { name: 'Rex', age: 4 },
+      requestType: 'form',
+    })
     expect(fetchJson.mock.calls.length).toBe(fetchedBefore + 1)
     w.unmount()
   })
 
   it('reloads a text reading the resource too, after sending', async () => {
     const fetchJson = vi.fn<FetchJson>(async () => [{ name: 'Rex' }])
-    const w = render(model(pets, page(), inst('FormFeature', 'f', { data_resource: 's' }), inst('TextFeature', 'x', { text: '{{length}} pets', data_resource: 's', operation: 'GET /owners/{owner}/pets' })), fetchJson)
+    const w = render(
+      model(
+        pets,
+        page(),
+        inst('FormFeature', 'f', { data_resource: 's' }),
+        inst('TextFeature', 'x', { text: '{{length}} pets', data_resource: 's', operation: 'GET /owners/{owner}/pets' }),
+      ),
+      fetchJson,
+    )
     await flushPromises()
     expect(fetchJson).toHaveBeenCalledTimes(1)
     fetchJson.mockResolvedValue([{ name: 'Rex' }, { name: 'Tom' }])
@@ -147,9 +221,13 @@ describe('Form on an address', () => {
   })
 
   it('says what went wrong, naming the site', async () => {
-    const w = render(model(pets, page(), inst('FormFeature', 'f', { data_resource: 's' })), async () => [], async () => {
-      throw new Error('500 Server Error')
-    })
+    const w = render(
+      model(pets, page(), inst('FormFeature', 'f', { data_resource: 's' })),
+      async () => [],
+      async () => {
+        throw new Error('500 Server Error')
+      },
+    )
     await flushPromises()
     await fill(w, { Owner: 'tom' })
     await w.get('form').trigger('submit')
@@ -160,7 +238,19 @@ describe('Form on an address', () => {
 
   it('sends nothing from the editor, saying where it would have gone; sample data still changes there', async () => {
     const send = vi.fn<SendRequest>(async () => undefined)
-    const w = render(model(pets, people, page(), inst('FormFeature', 'f', { data_resource: 's' }), inst('FormFeature', 'g', { data_resource: 'r' }), inst('TableFeature', 't', { data_resource: 'r' })), async () => [], send, true)
+    const w = render(
+      model(
+        pets,
+        people,
+        page(),
+        inst('FormFeature', 'f', { data_resource: 's' }),
+        inst('FormFeature', 'g', { data_resource: 'r' }),
+        inst('TableFeature', 't', { data_resource: 'r' }),
+      ),
+      async () => [],
+      send,
+      true,
+    )
     await flushPromises()
     const [address, sample] = w.findAll('form')
     await fill(w, { Owner: 'tom' })
@@ -188,13 +278,28 @@ describe('Form on an address', () => {
 describe('DataStore changes', () => {
   it('gives a row added to sample data the next id, as a server would', async () => {
     const store = new DataStore(async () => [])
-    const action = { feature: 's', resource: 'Sales', operation: 'POST /sales', method: 'POST', endPoint: '', sample: true as const, sampleIds: { field: 'id', after: 5, text: true } }
+    const action = {
+      feature: 's',
+      resource: 'Sales',
+      operation: 'POST /sales',
+      method: 'POST',
+      endPoint: '',
+      sample: true as const,
+      sampleIds: { field: 'id', after: 5, text: true },
+    }
     await store.send(action, { name: 'Bob' }, [])
     await store.send(action, { name: 'Ann' }, [])
     // An id given in the form is kept.
     await store.send(action, { id: '42', name: 'Cy' }, [])
     const rows = store.rows({ value: { feature: 's', resource: 'Sales', operation: 'GET', endPoint: '', rows: [] } } as never).value
-    expect(rows).toEqual({ status: 'loaded', rows: [{ id: '6', name: 'Bob' }, { id: '7', name: 'Ann' }, { id: '42', name: 'Cy' }] })
+    expect(rows).toEqual({
+      status: 'loaded',
+      rows: [
+        { id: '6', name: 'Bob' },
+        { id: '7', name: 'Ann' },
+        { id: '42', name: 'Cy' },
+      ],
+    })
   })
 
   it('deletes a fetched row at its address, filled from the row, then reloads', async () => {
@@ -218,10 +323,19 @@ describe('DataStore changes', () => {
 
   it('never reuses the id of a deleted sample row, in this page or the next', async () => {
     const storage = new MemoryStorage()
-    const action = { feature: 's', resource: 'Sales', operation: 'POST rows', method: 'POST', endPoint: '', sample: true as const, sampleIds: { field: 'id', after: 5, text: false } }
+    const action = {
+      feature: 's',
+      resource: 'Sales',
+      operation: 'POST rows',
+      method: 'POST',
+      endPoint: '',
+      sample: true as const,
+      sampleIds: { field: 'id', after: 5, text: false },
+    }
     const del = { ...action, operation: 'DELETE rows', method: 'DELETE', sampleIds: undefined }
     const store = new DataStore(async () => [], 'm1', storage)
-    const rows = (s: DataStore) => (s.rows({ value: { feature: 's', resource: 'Sales', operation: 'GET', endPoint: '', rows: [] } } as never).value as { rows: { id: number }[] }).rows
+    const rows = (s: DataStore) =>
+      (s.rows({ value: { feature: 's', resource: 'Sales', operation: 'GET', endPoint: '', rows: [] } } as never).value as { rows: { id: number }[] }).rows
     await store.send(action, { name: 'Bob' }, [])
     await store.delete(del, rows(store)[0])
     await store.send(action, { name: 'Ann' }, [])
@@ -237,9 +351,15 @@ describe('DataStore changes', () => {
     const body = { name: 'Rex', age: 4 }
     const multipart = requestInit({ method: 'POST', url: 'https://x.test', body, requestType: 'multipart' }).body as FormData
     expect(multipart).toBeInstanceOf(FormData)
-    expect([...multipart.entries()]).toEqual([['name', 'Rex'], ['age', '4']])
+    expect([...multipart.entries()]).toEqual([
+      ['name', 'Rex'],
+      ['age', '4'],
+    ])
     expect(String(requestInit({ method: 'POST', url: 'https://x.test', body, requestType: 'form' }).body)).toBe('name=Rex&age=4')
-    expect(requestInit({ method: 'POST', url: 'https://x.test', body })).toMatchObject({ headers: { 'Content-Type': 'application/json' }, body: '{"name":"Rex","age":4}' })
+    expect(requestInit({ method: 'POST', url: 'https://x.test', body })).toMatchObject({
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"name":"Rex","age":4}',
+    })
   })
 
   it('refuses to send or delete at an address from the editor', async () => {
@@ -270,7 +390,9 @@ describe('Tables on an address', () => {
   const spec = { openapi: '3.0.0', servers: [{ url: 'https://x.test' }], paths: { '/repos': { get: {} }, '/repos/{id}': { delete: {} } } }
 
   it('apply their Labels and Filters to the columns the loaded rows give, in order', async () => {
-    const w = render(model(repos, page(), inst('TableFeature', 't', { data_resource: 'g', labels: ['Who'], filters: ['', 'currency'] })), async () => [{ name: 'Ada', amount: 15000 }])
+    const w = render(model(repos, page(), inst('TableFeature', 't', { data_resource: 'g', labels: ['Who'], filters: ['', 'currency'] })), async () => [
+      { name: 'Ada', amount: 15000 },
+    ])
     await flushPromises()
     expect(w.findAll('th').map((th) => th.text())).toEqual(['Who', 'Amount'])
     expect(w.findAll('tbody td').map((td) => td.text())).toEqual(['Ada', '$15,000.00'])
@@ -283,7 +405,15 @@ describe('Tables on an address', () => {
     const send = vi.fn<SendRequest>(async () => {
       throw new Error('500 Server Error')
     })
-    const w = render(model(inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify(spec) }, null), page(), inst('TableFeature', 't', { data_resource: 's', delete_operation: 'DELETE /repos/{id}' })), fetchJson, send)
+    const w = render(
+      model(
+        inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify(spec) }, null),
+        page(),
+        inst('TableFeature', 't', { data_resource: 's', delete_operation: 'DELETE /repos/{id}' }),
+      ),
+      fetchJson,
+      send,
+    )
     await flushPromises()
     // Loading: the column is there already, its skeleton cell too.
     expect(w.find('th.fd-table-actions').exists()).toBe(true)
@@ -294,14 +424,26 @@ describe('Tables on an address', () => {
     await w.get('.fd-table-action-danger').trigger('click')
     await flushPromises()
     expect(w.get('.fd-table-delete-problem').text()).toBe("Couldn't delete the row: 500 Server Error")
-    await w.findAll('.fd-table-action').find((b) => b.text() === 'Keep')!.trigger('click')
+    await w
+      .findAll('.fd-table-action')
+      .find((b) => b.text() === 'Keep')!
+      .trigger('click')
     expect(w.find('.fd-table-delete-problem').exists()).toBe(false)
     w.unmount()
   })
 
   it('delete nothing from the editor, and say so', async () => {
     const send = vi.fn<SendRequest>(async () => undefined)
-    const w = render(model(inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify(spec) }, null), page(), inst('TableFeature', 't', { data_resource: 's', delete_operation: 'DELETE /repos/{id}' })), async () => [{ id: 1 }], send, true)
+    const w = render(
+      model(
+        inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify(spec) }, null),
+        page(),
+        inst('TableFeature', 't', { data_resource: 's', delete_operation: 'DELETE /repos/{id}' }),
+      ),
+      async () => [{ id: 1 }],
+      send,
+      true,
+    )
     await flushPromises()
     await w.get('[data-delete-row="0"]').trigger('click')
     await w.get('.fd-table-action-danger').trigger('click')

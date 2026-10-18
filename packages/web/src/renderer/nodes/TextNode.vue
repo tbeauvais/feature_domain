@@ -48,7 +48,8 @@ const runs = computed((): Run[] => {
     <template v-for="(run, i) in runs" :key="i">
       <template v-if="'text' in run">{{ run.text }}</template>
       <span v-else :class="{ 'fd-text-missing': run.why !== undefined || run.shown === '—' }" :title="run.why"
-        ><span aria-hidden="true">{{ run.shown }}</span><span class="fd-visually-hidden">{{ run.spoken }}</span></span
+        ><span aria-hidden="true">{{ run.shown }}</span
+        ><span class="fd-visually-hidden">{{ run.spoken }}</span></span
       >
     </template>
   </span>

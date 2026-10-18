@@ -195,7 +195,16 @@ export interface NodeKinds {
    * A chart of one value per row, labeled by another field (either guessed from the loaded rows when absent). Drawn
    * in the theme's chart colors; `description` is what screen readers hear (the data also sits in a hidden table).
    */
-  chart: { type: ChartType; height: number; title?: string; description?: string; labelField?: string; valueField?: string; valueFormat?: string; source?: DataSource }
+  chart: {
+    type: ChartType
+    height: number
+    title?: string
+    description?: string
+    labelField?: string
+    valueField?: string
+    valueFormat?: string
+    source?: DataSource
+  }
   table: {
     /** Shown in the table's header with the row count. */
     title?: string

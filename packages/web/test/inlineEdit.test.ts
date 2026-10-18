@@ -276,7 +276,18 @@ describe('inline text editing', () => {
 
 describe('the preview', () => {
   it('has no editable text', () => {
-    const doc = mount(DocumentView, { props: { root: { id: '$root', kind: 'root', props: {}, children: [{ id: 'h', kind: 'heading', props: { text: 'Hi', level: 1, align: 'left' }, edit: { text: { input: 'text', kind: 'text' } }, children: [] }] } } })
+    const doc = mount(DocumentView, {
+      props: {
+        root: {
+          id: '$root',
+          kind: 'root',
+          props: {},
+          children: [
+            { id: 'h', kind: 'heading', props: { text: 'Hi', level: 1, align: 'left' }, edit: { text: { input: 'text', kind: 'text' } }, children: [] },
+          ],
+        },
+      },
+    })
     expect(doc.find('[data-edit]').exists()).toBe(false)
     doc.unmount()
   })

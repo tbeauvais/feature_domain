@@ -1,5 +1,15 @@
 <script setup lang="ts">
-import { canPlace, defaultOperation, defaultRegistry, isDataResourceExports, isInputShown, removeFeature, usedBy, type InputDef, type InputValue } from '@feature-domain/engine'
+import {
+  canPlace,
+  defaultOperation,
+  defaultRegistry,
+  isDataResourceExports,
+  isInputShown,
+  removeFeature,
+  usedBy,
+  type InputDef,
+  type InputValue,
+} from '@feature-domain/engine'
 import { computed } from 'vue'
 import { useDocumentStore } from '../stores/document'
 import { confirmAction } from './confirm'
@@ -19,7 +29,9 @@ const meta = computed(() => store.result?.metadata.features.find((f) => f.id ===
 const diagnostics = computed(() => store.result?.diagnostics.filter((d) => d.featureInstanceId === store.selectedId) ?? [])
 
 /** Inputs that apply to the current values (e.g. the image address only when Source is Link). */
-const shownInputs = computed(() => (def.value && instance.value ? def.value.inputs.filter((i) => isInputShown(i, def.value!.inputs, instance.value!.inputs)) : []))
+const shownInputs = computed(() =>
+  def.value && instance.value ? def.value.inputs.filter((i) => isInputShown(i, def.value!.inputs, instance.value!.inputs)) : [],
+)
 /**
  * An input as the inspector shows it: an operation picker gets the operations of the data resource this feature
  * references (only those with the methods it accepts), so nobody has to type "GET /v1/sales".
@@ -32,7 +44,10 @@ function shown(input: InputDef): InputDef {
   // The one the feature uses when none is chosen (a Form: the first POST, else the first PUT).
   const first = defaultOperation(operations, input.methods ?? operations.map((o) => o.method))
   const none = input.name === 'delete_operation' ? 'None' : first ? `First (${first.name})` : 'None available'
-  return { ...input, options: [{ value: '', text: none }, ...operations.map((o) => ({ value: o.name, text: o.summary ? `${o.name} · ${o.summary}` : o.name }))] }
+  return {
+    ...input,
+    options: [{ value: '', text: none }, ...operations.map((o) => ({ value: o.name, text: o.summary ? `${o.name} · ${o.summary}` : o.name }))],
+  }
 }
 
 /** Inputs grouped into the feature's sections. */
@@ -189,9 +204,7 @@ async function remove() {
 
       <DiagnosticsList v-if="diagnostics.length > 0" :diagnostics="diagnostics" />
 
-      <p v-if="!def" class="text-sm text-slate-600">
-        {{ instance.feature }} is not a known feature type. Its settings are kept as they are.
-      </p>
+      <p v-if="!def" class="text-sm text-slate-600">{{ instance.feature }} is not a known feature type. Its settings are kept as they are.</p>
       <template v-else>
         <div v-if="def.placement === 'required'" class="space-y-1">
           <label for="input-location" class="block text-xs font-medium text-slate-600">Location</label>
@@ -208,7 +221,13 @@ async function remove() {
             <option v-for="option in locations" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select>
           <div v-if="siblings.length > 1" class="flex gap-1 pt-1">
-            <button type="button" class="rounded border border-slate-300 px-2 py-0.5 text-xs disabled:opacity-40" data-testid="move-up" :disabled="position <= 0" @click="moveBy(-1)">
+            <button
+              type="button"
+              class="rounded border border-slate-300 px-2 py-0.5 text-xs disabled:opacity-40"
+              data-testid="move-up"
+              :disabled="position <= 0"
+              @click="moveBy(-1)"
+            >
               Move up
             </button>
             <button
@@ -268,13 +287,21 @@ async function remove() {
                 :data-used-by="user.id"
                 @click="store.select(user.id)"
               >
-                <span class="truncate">{{ user.name }}<span v-if="user.note" class="ml-1 text-xs text-amber-700">({{ user.note }})</span></span>
+                <span class="truncate"
+                  >{{ user.name }}<span v-if="user.note" class="ml-1 text-xs text-amber-700">({{ user.note }})</span></span
+                >
                 <span class="shrink-0 text-xs text-slate-500">{{ user.type }} #{{ user.id }}</span>
               </button>
             </li>
           </ul>
           <template v-if="isTheme">
-            <p v-if="users.length > 0" class="text-xs text-slate-500">{{ users.some((u) => u.note) ? 'Changing a setting restyles the pages listed whenever they are shown.' : 'Changing a setting restyles every page listed.' }}</p>
+            <p v-if="users.length > 0" class="text-xs text-slate-500">
+              {{
+                users.some((u) => u.note)
+                  ? 'Changing a setting restyles the pages listed whenever they are shown.'
+                  : 'Changing a setting restyles every page listed.'
+              }}
+            </p>
             <template v-else>
               <p class="text-sm text-slate-600">No page uses this theme yet.</p>
               <p v-if="unthemedPages.length === 0" class="text-xs text-slate-500">Every page uses another theme; choose this one in a page's Theme setting.</p>

@@ -11,7 +11,11 @@ const tree = computed(() => (store.result ? buildFeatureTree(store.result) : { r
 
 // Collapsed rows are a view preference, not part of the model. Instance ids repeat across models, so another model
 // starts fully expanded.
-watch(() => store.model?.id, () => setCollapsed([]), { immediate: true })
+watch(
+  () => store.model?.id,
+  () => setCollapsed([]),
+  { immediate: true },
+)
 
 const all = computed(() => [...tree.value.roots, ...tree.value.resources, ...tree.value.unplaced])
 const anyCollapsed = computed(() => parentIds(all.value).some((id) => collapsed.value.has(id)))
@@ -31,7 +35,8 @@ watch(
 
 /** The accent each Theme actually uses (invalid values fall back to the default, as on the page), for the swatches. */
 const accents = computed(
-  () => new Map((store.model?.features ?? []).filter((f) => f.feature === 'ThemeFeature').map((f) => [f.id, clampThemeParams({ accent: f.inputs.accent }).accent])),
+  () =>
+    new Map((store.model?.features ?? []).filter((f) => f.feature === 'ThemeFeature').map((f) => [f.id, clampThemeParams({ accent: f.inputs.accent }).accent])),
 )
 provide(THEME_ACCENTS, accents)
 </script>

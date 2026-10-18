@@ -129,7 +129,8 @@ export function migrate(input: unknown): MigrationResult {
   const providers = new Map<string, Placement & { by: string }>([['content_section', { parent: ROOT_ID, slot: ROOT_SLOT, by: 'the document' }]])
   const provide = (target: string, id: string, slot: string) => {
     const existing = providers.get(target)
-    if (existing) noteFor(id)('duplicate-target', 'warning', `Legacy target "#${target}" is also provided by feature ${existing.by}; features placed there go to the first`)
+    if (existing)
+      noteFor(id)('duplicate-target', 'warning', `Legacy target "#${target}" is also provided by feature ${existing.by}; features placed there go to the first`)
     else providers.set(target, { parent: id, slot, by: id })
   }
   for (const { id, feature, inputs } of instances) {
@@ -160,7 +161,13 @@ export function migrate(input: unknown): MigrationResult {
       return []
     }
     const cache = isNonEmptyObject(raw.cache) ? (raw.cache as Raw) : {}
-    const ctx: Context = { note, resourceId: (name) => resources.get(name), boundResourceId: (name) => boundResource(resources, name), resourceOperations: (rid) => operations.get(rid), cache }
+    const ctx: Context = {
+      note,
+      resourceId: (name) => resources.get(name),
+      boundResourceId: (name) => boundResource(resources, name),
+      resourceOperations: (rid) => operations.get(rid),
+      cache,
+    }
     const migrateInputs = Object.hasOwn(INPUTS, feature) ? INPUTS[feature] : undefined
     const out: FeatureInstance = { feature, id, inputs: migrateInputs ? migrateInputs(inputs, ctx) : scalarInputs(inputs) }
 
@@ -194,7 +201,11 @@ const LEGACY_PAGE_COLORS = ['border_color', 'background_color'] as const
 function notePageColors(inputs: Raw, note: Context['note']): void {
   const dropped = LEGACY_PAGE_COLORS.filter((name) => str(inputs[name]).trim() !== '')
   if (dropped.length > 0) {
-    note('dropped-style', 'info', `Dropped legacy page ${dropped.map((name) => `${name} "${str(inputs[name])}"`).join(' and ')}; pages are styled by their theme`)
+    note(
+      'dropped-style',
+      'info',
+      `Dropped legacy page ${dropped.map((name) => `${name} "${str(inputs[name])}"`).join(' and ')}; pages are styled by their theme`,
+    )
   }
 }
 
@@ -263,7 +274,8 @@ function upgradeInputs(f: FeatureInstance, note: Context['note']): Record<string
  * notes, so the removal is silent there.
  */
 const DROPPED_FEATURES: Readonly<Record<string, string>> = {
-  WatsonTextToSpeechFeature: "it spoke a fixed text through IBM's Watson Text to Speech service, which is gone; browsers and screen readers read pages aloud themselves",
+  WatsonTextToSpeechFeature:
+    "it spoke a fixed text through IBM's Watson Text to Speech service, which is gone; browsers and screen readers read pages aloud themselves",
   ScriptTestFeature: 'it ran a script built from its inputs, which pages never do',
 }
 const isDropped = (feature: string) => Object.hasOwn(DROPPED_FEATURES, feature)
@@ -296,7 +308,8 @@ function upgrade(model: AppModel): MigrationResult {
 
   const features = model.features.flatMap((f): FeatureInstance[] => {
     const legacy = pendingLegacy(f)
-    const note = (code: MigrationNoteCode, severity: MigrationNote['severity'], message: string) => notes.push({ code, severity, message, featureInstanceId: f.id })
+    const note = (code: MigrationNoteCode, severity: MigrationNote['severity'], message: string) =>
+      notes.push({ code, severity, message, featureInstanceId: f.id })
     if (isDropped(f.feature)) {
       note('dropped-feature', 'warning', droppedNote(f.feature))
       return []
@@ -312,7 +325,13 @@ function upgrade(model: AppModel): MigrationResult {
       return inputs ? [{ ...f, inputs }] : [f]
     }
     const cache = isNonEmptyObject(legacy.cache) ? (legacy.cache as Raw) : {}
-    const ctx: Context = { note, resourceId: (name) => resources.get(name), boundResourceId: (name) => boundResource(resources, name), resourceOperations: (rid) => operations.get(rid), cache }
+    const ctx: Context = {
+      note,
+      resourceId: (name) => resources.get(name),
+      boundResourceId: (name) => boundResource(resources, name),
+      resourceOperations: (rid) => operations.get(rid),
+      cache,
+    }
     const out: FeatureInstance = { feature: f.feature, id: f.id, inputs: INPUTS[f.feature]!(legacyInputs(f), ctx) }
     // Placement was resolved when the model was first migrated (unported features were placed too).
     if (f.placement && !DATA_RESOURCE_TYPES.includes(f.feature)) out.placement = f.placement
@@ -328,7 +347,13 @@ function upgrade(model: AppModel): MigrationResult {
 
 /** A Text with no Data Resource whose text still has legacy {{DataResource.…}} bindings. */
 function unboundLegacyText(f: FeatureInstance): boolean {
-  return f.feature === 'TextFeature' && !f.inputs.data_resource && typeof f.inputs.text === 'string' && f.inputs.text.includes('{{') && f.inputs.text.includes('DataResource.')
+  return (
+    f.feature === 'TextFeature' &&
+    !f.inputs.data_resource &&
+    typeof f.inputs.text === 'string' &&
+    f.inputs.text.includes('{{') &&
+    f.inputs.text.includes('DataResource.')
+  )
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -347,7 +372,8 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     const bound = legacyBindings(str(i.text), ctx)
     if (!bound) return { ...out, text: text(i.text, ctx) }
     ctx.note('mapped-input', 'info', `The text's {{DataResource.${bound.name}…}} values read data resource ${bound.resourceId} now, as {{path}}`)
-    if (/<[a-z!/]/i.test(bound.text)) ctx.note('markup-in-text', 'warning', 'Text contains HTML markup, which the legacy app rendered as HTML; it now renders as plain text')
+    if (/<[a-z!/]/i.test(bound.text))
+      ctx.note('markup-in-text', 'warning', 'Text contains HTML markup, which the legacy app rendered as HTML; it now renders as plain text')
     return { ...out, text: bound.text, data_resource: bound.resourceId }
   },
 
@@ -392,7 +418,15 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
   ImageWithParagraphFeature: (i, ctx) => {
     dropLegacyLooks(i, ['style'], 'panel', ctx)
     // The legacy app rendered the image with no alt text, on the left.
-    return { name: str(i.name), disable: disable(i.disable, ctx), title: text(i.title, ctx).trim(), text: text(i.text, ctx), src: str(i.src), alt: '', image_side: 'left' }
+    return {
+      name: str(i.name),
+      disable: disable(i.disable, ctx),
+      title: text(i.title, ctx).trim(),
+      text: text(i.text, ctx),
+      src: str(i.src),
+      alt: '',
+      image_side: 'left',
+    }
   },
 
   // The legacy map was a keyless Google Static Maps image of the address; ours is a drawing with a Google Maps link.
@@ -402,7 +436,8 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     // A map with no usable address takes the input's default (the legacy palette's), as a missing one does.
     const address = text(i.address, ctx).trim()
     if (address !== '') out.address = address
-    else if ('address' in i) ctx.note('invalid-value', 'warning', 'The map had no address; it shows the default address (131 Willow Rd. Guilford, CT) until one is set')
+    else if ('address' in i)
+      ctx.note('invalid-value', 'warning', 'The map had no address; it shows the default address (131 Willow Rd. Guilford, CT) until one is set')
     return out
   },
 
@@ -422,7 +457,11 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
   ContainerFeature: (i, ctx) => {
     const { rows, columns } = legacyGrid(i)
     if (rows === 0 || columns === 0) {
-      ctx.note('invalid-value', 'warning', `Container had no valid rows/columns (${JSON.stringify(i.rows)} x ${JSON.stringify(i.columns)}), so the legacy app rendered it empty; using the defaults`)
+      ctx.note(
+        'invalid-value',
+        'warning',
+        `Container had no valid rows/columns (${JSON.stringify(i.rows)} x ${JSON.stringify(i.columns)}), so the legacy app rendered it empty; using the defaults`,
+      )
     }
     if (rows > MAX_ROWS) {
       ctx.note('invalid-value', 'warning', `Container has ${rows} rows; capped at ${MAX_ROWS}, so features in later rows are left unplaced`)
@@ -453,7 +492,11 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
   DataResourceFeature: (i, ctx) => {
     // The legacy samples' weather came from Yahoo's query service, shut down in 2019.
     if (/^https?:\/\/query\.yahooapis\.com\//i.test(str(i.resource).trim())) {
-      ctx.note('dead-service', 'warning', "Yahoo's weather service shut down in 2019, so this resource loads nothing; use a Weather feature to show the weather")
+      ctx.note(
+        'dead-service',
+        'warning',
+        "Yahoo's weather service shut down in 2019, so this resource loads nothing; use a Weather feature to show the weather",
+      )
     }
     return { name: str(i.name), resource: str(i.resource), operation: httpMethod(str(i.operation)) }
   },
@@ -485,7 +528,8 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     const legacyType = str(i.type)
     const chartType = Object.hasOwn(LEGACY_CHART_TYPES, legacyType) ? LEGACY_CHART_TYPES[legacyType]! : 'column'
     if (legacyType === 'p3') ctx.note('coerced-value', 'info', 'The legacy 3D pie chart is drawn as a flat pie')
-    else if (legacyType !== '' && !Object.hasOwn(LEGACY_CHART_TYPES, legacyType)) ctx.note('invalid-value', 'warning', `Unknown legacy chart type "${legacyType}"; drawn as columns`)
+    else if (legacyType !== '' && !Object.hasOwn(LEGACY_CHART_TYPES, legacyType))
+      ctx.note('invalid-value', 'warning', `Unknown legacy chart type "${legacyType}"; drawn as columns`)
     if (str(i.filters).trim() !== '') ctx.note('dropped-input', 'info', `Dropped chart filters "${str(i.filters)}", which charts don't use`)
     return {
       name: str(i.name),
@@ -506,7 +550,8 @@ const INPUTS: Record<string, (inputs: Raw, ctx: Context) => Record<string, Input
     const { resourceId, operation } = dataReference(i, ctx)
     if (str(i.filters).trim() !== '') ctx.note('dropped-input', 'info', `Dropped form filters "${str(i.filters)}", which forms don't use`)
     // The legacy form built its fields from the operation alone; here its own Fields list wins over the spec.
-    if (list(i.fields).length > 0) ctx.note('mapped-input', 'info', `The form's fields are now "${list(i.fields).join(', ')}"; the legacy app took them from the operation instead`)
+    if (list(i.fields).length > 0)
+      ctx.note('mapped-input', 'info', `The form's fields are now "${list(i.fields).join(', ')}"; the legacy app took them from the operation instead`)
     return { name: str(i.name), disable: disable(i.disable, ctx), data_resource: resourceId ?? '', operation, fields: list(i.fields), labels: list(i.labels) }
   },
 
@@ -541,7 +586,11 @@ function dataReference(i: Raw, ctx: Context): { resourceId: string | undefined; 
   const provided = resourceId === undefined ? undefined : ctx.resourceOperations(resourceId)
   for (const name of [operation, deleteOperation]) {
     if (provided && name !== '' && !provided.operations.includes(name)) {
-      ctx.note('unresolved-operation', 'warning', `Operation "${name}" is not provided by data resource "${provided.name}" (it provides ${provided.operations.map((o) => `"${o}"`).join(', ')})`)
+      ctx.note(
+        'unresolved-operation',
+        'warning',
+        `Operation "${name}" is not provided by data resource "${provided.name}" (it provides ${provided.operations.map((o) => `"${o}"`).join(', ')})`,
+      )
     }
   }
   return { resourceId, operation, deleteOperation }
@@ -593,8 +642,14 @@ function int(value: unknown, name: string, fallback: number, ctx: Context): numb
 /** Legacy features injected text as raw HTML. v2 renders plain text, so flag anything that relied on HTML. */
 function text(value: unknown, ctx: Context): string {
   const s = str(value)
-  if (s.includes('{{')) ctx.note('data-binding', 'warning', 'Text contains a legacy {{...}} data binding; it shows as written (only a Text feature whose bindings all read one data resource gets values from data)')
-  else if (/<[a-z!/]/i.test(s)) ctx.note('markup-in-text', 'warning', 'Text contains HTML markup, which the legacy app rendered as HTML; it now renders as plain text')
+  if (s.includes('{{'))
+    ctx.note(
+      'data-binding',
+      'warning',
+      'Text contains a legacy {{...}} data binding; it shows as written (only a Text feature whose bindings all read one data resource gets values from data)',
+    )
+  else if (/<[a-z!/]/i.test(s))
+    ctx.note('markup-in-text', 'warning', 'Text contains HTML markup, which the legacy app rendered as HTML; it now renders as plain text')
   return s
 }
 

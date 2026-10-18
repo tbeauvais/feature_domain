@@ -12,7 +12,10 @@ const id = new URLSearchParams(window.location.search).get('model')
 if (id) void store.load(id)
 
 // Show the editor's saves as they happen (this browser's tabs at once, other devices within a few seconds).
-useModelUpdates(() => store.modelId, () => store.refresh())
+useModelUpdates(
+  () => store.modelId,
+  () => store.refresh(),
+)
 </script>
 
 <template>

@@ -168,7 +168,17 @@ export function useInlineEdit(canvas: Ref<HTMLElement | null>) {
       element.removeEventListener('drop', onDrop)
     }
 
-    session = { element, location, original: element.textContent ?? '', children, values: children.map((c) => c.nodeValue), undraggable, added, result: store.result, stop }
+    session = {
+      element,
+      location,
+      original: element.textContent ?? '',
+      children,
+      values: children.map((c) => c.nodeValue),
+      undraggable,
+      added,
+      result: store.result,
+      stop,
+    }
     inlineEdit.value = { feature: location.feature, element }
     element.focus()
     const selection = window.getSelection()

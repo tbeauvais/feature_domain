@@ -20,14 +20,26 @@ function fieldsFrom(names: string[], labels: string[], operation: DataOperation 
   const parameters = (operation?.parameters ?? []).filter((p) => p.in !== 'header')
   if (parameters.length > 0) {
     return parameters.map((p, i) => {
-      const field: FormField = { name: p.name, label: labels[i] || fieldLabel(p.name), type: NUMBER_TYPES.includes(p.type) ? 'number' : 'text', required: p.required, in: p.in === 'path' || p.in === 'query' ? p.in : 'body' }
+      const field: FormField = {
+        name: p.name,
+        label: labels[i] || fieldLabel(p.name),
+        type: NUMBER_TYPES.includes(p.type) ? 'number' : 'text',
+        required: p.required,
+        in: p.in === 'path' || p.in === 'query' ? p.in : 'body',
+      }
       if (p.description) field.hint = p.description
       return field
     })
   }
   const rows = operation?.sample ? (resource.sampleRows ?? []) : []
   const keys = [...new Set(rows.flatMap((row) => Object.keys(row)))].filter((k) => k.trim() !== '')
-  return keys.map((name, i) => ({ name, label: labels[i] || fieldLabel(name), type: rows.some((r) => typeof r[name] === 'number') ? 'number' : 'text', required: false, in: 'body' }))
+  return keys.map((name, i) => ({
+    name,
+    label: labels[i] || fieldLabel(name),
+    type: rows.some((r) => typeof r[name] === 'number') ? 'number' : 'text',
+    required: false,
+    in: 'body',
+  }))
 }
 
 /**
@@ -71,26 +83,32 @@ export const FormFeature: FeatureDefinition = {
     const name = resource.resource || resolved.id
     const operationName = asString(inputs.operation)
     // No operation chosen: the first that takes data (POST, else PUT), as the inspector's "First (…)" option says.
-    const operation = operationName
-      ? resource.operations.find((o) => o.name === operationName)
-      : defaultOperation(resource.operations, ['POST', 'PUT'])
+    const operation = operationName ? resource.operations.find((o) => o.name === operationName) : defaultOperation(resource.operations, ['POST', 'PUT'])
     if (operationName && !operation) ctx.report('warning', `Operation "${operationName}" is not provided by ${name}`)
     else if (!operation) ctx.report('warning', `${name} has no POST or PUT operation to send to`)
-    else if (operation.method !== 'POST' && operation.method !== 'PUT') ctx.report('warning', `"${operation.name}" doesn't take data; a form sends with POST or PUT`)
-    else if (!operation.sample && !/^https?:\/\//i.test(operation.endPoint)) ctx.report('warning', `Operation "${operation.name}" of ${name} has no http(s) URL`)
+    else if (operation.method !== 'POST' && operation.method !== 'PUT')
+      ctx.report('warning', `"${operation.name}" doesn't take data; a form sends with POST or PUT`)
+    else if (!operation.sample && !/^https?:\/\//i.test(operation.endPoint))
+      ctx.report('warning', `Operation "${operation.name}" of ${name} has no http(s) URL`)
     else props.action = actionFor(resolved.id, resource, operation)
 
     // Header parameters (e.g. an API key) can't be typed into a form, so a required one means the server will refuse.
     const headers = (operation?.parameters ?? []).filter((p) => p.in === 'header' && p.required).map((p) => `"${p.name}"`)
-    if (headers.length > 0) ctx.report('warning', `"${operation!.name}" requires the header${headers.length === 1 ? '' : 's'} ${headers.join(', ')}, which a form can't send`)
+    if (headers.length > 0)
+      ctx.report('warning', `"${operation!.name}" requires the header${headers.length === 1 ? '' : 's'} ${headers.join(', ')}, which a form can't send`)
 
     const required = asList(inputs.required_fields)
     const fields = fieldsFor(asList(inputs.fields), asList(inputs.labels), operation, resource, required)
     const unknown = required.filter((r) => !fields.some((f) => f.name === r))
-    if (unknown.length > 0) ctx.report('warning', `Required field${unknown.length === 1 ? '' : 's'} ${unknown.map((u) => `"${u}"`).join(', ')} ${unknown.length === 1 ? 'is' : 'are'} not in the form`)
+    if (unknown.length > 0)
+      ctx.report(
+        'warning',
+        `Required field${unknown.length === 1 ? '' : 's'} ${unknown.map((u) => `"${u}"`).join(', ')} ${unknown.length === 1 ? 'is' : 'are'} not in the form`,
+      )
     if (fields.length > MAX_FORM_FIELDS) ctx.report('warning', `Only the first ${MAX_FORM_FIELDS} of ${fields.length} fields are shown`)
     props.fields = fields.slice(0, MAX_FORM_FIELDS)
-    if (props.fields.length === 0 && props.action) ctx.report('warning', 'The form has no fields: list them in Fields, or use an operation whose spec describes its inputs')
+    if (props.fields.length === 0 && props.action)
+      ctx.report('warning', 'The form has no fields: list them in Fields, or use an operation whose spec describes its inputs')
     return { node: node('form', ctx.nodeId(), props) }
   },
 }

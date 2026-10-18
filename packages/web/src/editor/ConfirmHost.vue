@@ -33,11 +33,7 @@ const open = computed({
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel data-testid="confirm-cancel" @click="answer(false)">Cancel</AlertDialogCancel>
-        <AlertDialogAction
-          data-testid="confirm-ok"
-          :variant="pendingConfirm.destructive ? 'destructive' : 'default'"
-          @click="answer(true)"
-        >
+        <AlertDialogAction data-testid="confirm-ok" :variant="pendingConfirm.destructive ? 'destructive' : 'default'" @click="answer(true)">
           {{ pendingConfirm.confirmLabel }}
         </AlertDialogAction>
       </AlertDialogFooter>

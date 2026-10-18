@@ -85,7 +85,8 @@ describe('weather icons', () => {
     expect(html).not.toMatch(/<(script|foreignObject|image|use|a|iframe|style)\b|\son\w+=|href=/i)
     expect(html).toMatch(/<(path|circle)\b/)
     for (const [, style] of html.matchAll(/\sstyle="([^"]*)"/g)) {
-      for (const declaration of style!.split(';').filter((d) => d.trim() !== '')) expect(declaration.trim()).toMatch(/^(fill|stroke): var\(--fd-(accent-solid|muted|sunken)\)$/)
+      for (const declaration of style!.split(';').filter((d) => d.trim() !== ''))
+        expect(declaration.trim()).toMatch(/^(fill|stroke): var\(--fd-(accent-solid|muted|sunken)\)$/)
     }
   })
 
@@ -96,7 +97,8 @@ describe('weather icons', () => {
 })
 
 describe('the Weather card', () => {
-  const render = (m: AppModel, fetchJson: FetchJson) => mount(DocumentView, { props: { root: generate(m).root }, global: { provide: { [FETCH_JSON as symbol]: fetchJson } } })
+  const render = (m: AppModel, fetchJson: FetchJson) =>
+    mount(DocumentView, { props: { root: generate(m).root }, global: { provide: { [FETCH_JSON as symbol]: fetchJson } } })
   const url = openMeteoUrl(26.7056, -80.0364, 'fahrenheit', 3)
 
   it('shows the temperature and conditions now, then the next days, named for screen readers', async () => {
@@ -113,7 +115,11 @@ describe('the Weather card', () => {
     expect(weather.get('.fd-weather-temp').text()).toBe('78°F')
     expect(weather.get('.fd-weather-text').text()).toBe('Partly cloudy')
     // As a screen reader reads them: the conditions are hidden text beside the icons.
-    expect(weather.findAll('.fd-weather-day').map((d) => d.text())).toEqual(['Mon: Overcast, high 84°, low 72°', 'Tue: Rain, high 87°, low 69°', 'Wed: Thunderstorm, high 85°, low 80°'])
+    expect(weather.findAll('.fd-weather-day').map((d) => d.text())).toEqual([
+      'Mon: Overcast, high 84°, low 72°',
+      'Tue: Rain, high 87°, low 69°',
+      'Wed: Thunderstorm, high 85°, low 80°',
+    ])
     expect(card.get('a').attributes('href')).toBe('https://open-meteo.com/')
   })
 

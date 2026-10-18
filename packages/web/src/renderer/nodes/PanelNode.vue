@@ -12,7 +12,9 @@ const editAttrs = useEditAttrs()
 <template>
   <section class="fd-panel" :data-fd-panel="theme.styles.panel" :data-fd-emphasis="node.props.emphasis">
     <header class="fd-panel-heading">
-      <h4><strong v-bind="editAttrs(node, 'heading')">{{ node.props.heading }}</strong></h4>
+      <h4>
+        <strong v-bind="editAttrs(node, 'heading')">{{ node.props.heading }}</strong>
+      </h4>
     </header>
     <slot />
   </section>

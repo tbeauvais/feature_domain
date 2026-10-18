@@ -21,7 +21,11 @@ describe('D1ModelStore', () => {
   it('keeps creation order for models created in the same millisecond', async () => {
     await d1.env.DB.exec('DELETE FROM models')
     const ids = ['c', 'a', 'b']
-    const store = new D1ModelStore(d1.env.DB, () => ids.shift()!, () => 1000)
+    const store = new D1ModelStore(
+      d1.env.DB,
+      () => ids.shift()!,
+      () => 1000,
+    )
     for (const name of ['First', 'Second', 'Third']) await store.create({ ...model, name })
     expect((await store.list()).map((m) => m.name)).toEqual(['First', 'Second', 'Third'])
   })

@@ -25,7 +25,11 @@ const summary = computed(() => {
   const read = readApiSpec(parsed, props.specUrl)
   if ('problem' in read) return { ok: false, text: `${read.problem}.` }
   const count = read.operations.length
-  return { ok: true, text: [read.format, read.title, `${count} operation${count === 1 ? '' : 's'}`].filter(Boolean).join(' · '), operations: read.operations.map((o) => o.name) }
+  return {
+    ok: true,
+    text: [read.format, read.title, `${count} operation${count === 1 ? '' : 's'}`].filter(Boolean).join(' · '),
+    operations: read.operations.map((o) => o.name),
+  }
 })
 
 const canLoad = computed(() => isHttpUrl(props.specUrl.trim()))
@@ -44,7 +48,8 @@ async function load() {
     // Stored compact: specs are kept in the model, and every save sends the whole model.
     const text = JSON.stringify(spec)
     if ('problem' in read) problem.value = `${read.problem}.`
-    else if (text.length > MAX_SPEC_CHARS) problem.value = `The spec is too large to store (${(text.length / 1_000_000).toFixed(1)} MB; at most ${MAX_SPEC_CHARS / 1_000_000} MB).`
+    else if (text.length > MAX_SPEC_CHARS)
+      problem.value = `The spec is too large to store (${(text.length / 1_000_000).toFixed(1)} MB; at most ${MAX_SPEC_CHARS / 1_000_000} MB).`
     else emit('change', text)
   } catch (error) {
     if (stale()) return

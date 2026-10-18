@@ -170,4 +170,5 @@ export const alignInput = (defaultAlign: Align): InputDef => ({
 })
 
 /** Options labeled by their value, capitalized: "accent" -> "Accent". */
-export const capitalizedOptions = (values: readonly string[]): InputOption[] => values.map((value) => ({ value, text: value[0]!.toUpperCase() + value.slice(1) }))
+export const capitalizedOptions = (values: readonly string[]): InputOption[] =>
+  values.map((value) => ({ value, text: value[0]!.toUpperCase() + value.slice(1) }))

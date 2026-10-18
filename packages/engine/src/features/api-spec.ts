@@ -4,8 +4,15 @@
 
 import type { FeatureDefinition } from '../feature.js'
 import { asOneOf, asString, nameInput } from '../inputs.js'
-import { HTTP_METHODS, MAX_SAMPLE_ROWS, parseSampleRows, type DataOperation, type DataParameter, type DataResourceExports, type DataSchema } from './data-resource.js'
-
+import {
+  HTTP_METHODS,
+  MAX_SAMPLE_ROWS,
+  parseSampleRows,
+  type DataOperation,
+  type DataParameter,
+  type DataResourceExports,
+  type DataSchema,
+} from './data-resource.js'
 
 export interface ReadSpec {
   /** e.g. "OpenAPI 3.1.0" */
@@ -126,7 +133,13 @@ function parameter(reader: Reader, raw: unknown): DataParameter | undefined {
 function bodyFields(reader: Reader, schema: unknown, name: string): DataParameter[] {
   const ref = refName(own(schema, '$ref'))
   const resolved = ref ? (Object.hasOwn(reader.schemas, ref) ? reader.schemas[ref] : undefined) : schemaOf(reader, schema, name)
-  return Object.entries(resolved?.properties ?? {}).map(([field, p]) => ({ name: field, in: 'form' as const, type: p.type ?? 'string', description: p.description ?? '', required: resolved?.required?.includes(field) ?? false }))
+  return Object.entries(resolved?.properties ?? {}).map(([field, p]) => ({
+    name: field,
+    in: 'form' as const,
+    type: p.type ?? 'string',
+    description: p.description ?? '',
+    required: resolved?.required?.includes(field) ?? false,
+  }))
 }
 
 /** The schema of a request body or response: JSON (any JSON media type) first, then a form, then whatever is there. */
@@ -216,7 +229,9 @@ function operation(m: string, path: string, base: string, summary: string, param
 export function readApiSpec(spec: unknown, specUrl = ''): ReadSpec | { problem: string } {
   if (!isObject(spec)) return { problem: 'The spec is not a JSON object' }
   if (!(typeof spec.openapi === 'string' && /^3\./.test(spec.openapi))) {
-    return { problem: spec.swagger || spec.swaggerVersion ? 'Only OpenAPI 3 specs are read; convert this Swagger spec to OpenAPI 3 first' : 'Not an OpenAPI 3 spec' }
+    return {
+      problem: spec.swagger || spec.swaggerVersion ? 'Only OpenAPI 3 specs are read; convert this Swagger spec to OpenAPI 3 first' : 'Not an OpenAPI 3 spec',
+    }
   }
   const read = read3(spec, specUrl)
   return { ...read, operations: read.operations.slice(0, MAX_SPEC_OPERATIONS) }
@@ -254,7 +269,10 @@ export const ApiSpecFeature: FeatureDefinition = {
     const exports: DataResourceExports = { resource: asString(inputs.name), operations: [], schemas: {} }
     const text = asString(inputs.spec).trim()
     if (text.length > MAX_SPEC_CHARS) {
-      ctx.report('error', `The spec is too large (${(text.length / 1_000_000).toFixed(1)} MB; at most ${MAX_SPEC_CHARS / 1_000_000} MB can be stored in the browser)`)
+      ctx.report(
+        'error',
+        `The spec is too large (${(text.length / 1_000_000).toFixed(1)} MB; at most ${MAX_SPEC_CHARS / 1_000_000} MB can be stored in the browser)`,
+      )
     } else if (text === '') {
       ctx.report('warning', 'No spec loaded yet: enter the Spec URL and choose Load spec, or paste the spec')
     } else {

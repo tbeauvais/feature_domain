@@ -1,7 +1,30 @@
 import type { DataAction, DataSource, FormField } from '@feature-domain/engine'
 import { MAX_SAMPLE_ROWS } from '@feature-domain/engine'
-import { computed, getCurrentScope, inject, onBeforeUnmount, onScopeDispose, provide, ref, shallowRef, watch, type ComputedRef, type InjectionKey, type Ref } from 'vue'
-import { browserFetchJson, browserSendRequest, FETCH_JSON, selectRows, SEND_REQUEST, type DataRequest, type FetchJson, type RowsState, type SendRequest } from './rows'
+import {
+  computed,
+  getCurrentScope,
+  inject,
+  onBeforeUnmount,
+  onScopeDispose,
+  provide,
+  ref,
+  shallowRef,
+  watch,
+  type ComputedRef,
+  type InjectionKey,
+  type Ref,
+} from 'vue'
+import {
+  browserFetchJson,
+  browserSendRequest,
+  FETCH_JSON,
+  selectRows,
+  SEND_REQUEST,
+  type DataRequest,
+  type FetchJson,
+  type RowsState,
+  type SendRequest,
+} from './rows'
 
 // Runtime data for a generated page: one store per document, shared by every feature reading a data resource.
 // - Readers of the same address share one fetch, and `reload` refreshes all of them.
@@ -264,7 +287,8 @@ export class DataStore {
     if (!this.live) throw new NotSentFromEditor('sent', hostOf(action.endPoint))
     let url = fillPath(action.endPoint, values)
     const query = Object.entries(values).filter(([k, v]) => where(k) === 'query' && v !== undefined && v !== '')
-    if (query.length > 0) url += `${url.includes('?') ? '&' : '?'}${query.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&')}`
+    if (query.length > 0)
+      url += `${url.includes('?') ? '&' : '?'}${query.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&')}`
     const request: DataRequest = { method: action.method, url, body }
     if (action.requestType) request.requestType = action.requestType
     await this.sendRequest(request)
@@ -285,7 +309,10 @@ export class DataStore {
       return
     }
     if (!this.live) throw new NotSentFromEditor('deleted', hostOf(action.endPoint))
-    await this.sendRequest({ method: action.method, url: fillPath(action.endPoint, typeof row === 'object' && row !== null ? (row as Record<string, unknown>) : {}) })
+    await this.sendRequest({
+      method: action.method,
+      url: fillPath(action.endPoint, typeof row === 'object' && row !== null ? (row as Record<string, unknown>) : {}),
+    })
     await this.reloadResource(action.feature)
   }
 

@@ -76,8 +76,12 @@
   color: var(--fd-text);
   background: var(--fd-bg);
 }
-[data-fd-scheme='light'] { color-scheme: light; }
-[data-fd-scheme='dark'] { color-scheme: dark; }
+[data-fd-scheme='light'] {
+  color-scheme: light;
+}
+[data-fd-scheme='dark'] {
+  color-scheme: dark;
+}
 
 .fd-root a {
   color: var(--fd-ink);
@@ -87,7 +91,9 @@
   text-underline-offset: 0.25em;
 }
 /* Not buttons: their colors are fixed pairs (a hover recolor would put accent text on an accent fill). */
-.fd-root a:not(.fd-button):hover { color: var(--fd-accent); }
+.fd-root a:not(.fd-button):hover {
+  color: var(--fd-accent);
+}
 
 /* Full width, so a page with its own theme paints its background edge to edge; its content stays within 1120px. */
 .fd-page {
@@ -104,9 +110,15 @@
 }
 /* A line of text or a link right before a card, table, chart, form or panel keeps its distance. The gap is the text's
    own bottom margin (the blocks have no top margin), so it is the same whether margins collapse or not (a flex cell). */
-.fd-root :is(.fd-text, .fd-link):has(+ :is(.fd-card, .fd-table-block, .fd-chart-block, .fd-form, .fd-panel)) { margin-bottom: calc(var(--fd-space) * 2.5); }
+.fd-root :is(.fd-text, .fd-link):has(+ :is(.fd-card, .fd-table-block, .fd-chart-block, .fd-form, .fd-panel)) {
+  margin-bottom: calc(var(--fd-space) * 2.5);
+}
 /* A value from data that isn't there: "—" on the page, its {{binding}} on the editor canvas. */
-.fd-text-missing { color: var(--fd-muted); text-decoration: underline dashed; text-underline-offset: 0.2em; }
+.fd-text-missing {
+  color: var(--fd-muted);
+  text-decoration: underline dashed;
+  text-underline-offset: 0.2em;
+}
 
 /* Headings: display face; sizes follow the theme's modular scale. */
 .fd-heading {
@@ -118,39 +130,89 @@
   text-wrap: balance;
   margin: calc(var(--fd-space) * 3) 0 calc(var(--fd-space) * 2);
 }
-h1.fd-heading { font-size: var(--fd-h1); line-height: 1.02; }
-h2.fd-heading { font-size: var(--fd-h2); }
-h3.fd-heading { font-size: var(--fd-h3); }
-h4.fd-heading { font-size: var(--fd-h4); }
-h5.fd-heading { font-size: var(--fd-h5); }
-h6.fd-heading { font-size: var(--fd-h6); }
+h1.fd-heading {
+  font-size: var(--fd-h1);
+  line-height: 1.02;
+}
+h2.fd-heading {
+  font-size: var(--fd-h2);
+}
+h3.fd-heading {
+  font-size: var(--fd-h3);
+}
+h4.fd-heading {
+  font-size: var(--fd-h4);
+}
+h5.fd-heading {
+  font-size: var(--fd-h5);
+}
+h6.fd-heading {
+  font-size: var(--fd-h6);
+}
 
-.fd-align-left { text-align: left; }
-.fd-align-center { text-align: center; }
-.fd-align-right { text-align: right; }
+.fd-align-left {
+  text-align: left;
+}
+.fd-align-center {
+  text-align: center;
+}
+.fd-align-right {
+  text-align: right;
+}
 
 /*
  * Header color (ink is the default) and background. Text colors reach 4.5:1 on the page, cards, wells and the accent
  * tint; on the band they switch to the band's own set.
  */
-.fd-heading.fd-color-accent { color: var(--fd-accent); }
-.fd-heading.fd-color-muted { color: var(--fd-muted); }
+.fd-heading.fd-color-accent {
+  color: var(--fd-accent);
+}
+.fd-heading.fd-color-muted {
+  color: var(--fd-muted);
+}
 .fd-heading.fd-bg-tint,
 .fd-heading.fd-bg-band {
   padding: calc(var(--fd-space) * 2.5) calc(var(--fd-space) * 3);
   border-radius: var(--fd-radius-lg);
 }
-.fd-heading.fd-bg-tint { background: var(--fd-accent-soft); }
-.fd-heading.fd-bg-band { background: var(--fd-band); color: var(--fd-band-ink); }
-.fd-heading.fd-bg-band.fd-color-accent { color: var(--fd-band-accent); }
-.fd-heading.fd-bg-band.fd-color-muted { color: var(--fd-band-muted); }
+.fd-heading.fd-bg-tint {
+  background: var(--fd-accent-soft);
+}
+.fd-heading.fd-bg-band {
+  background: var(--fd-band);
+  color: var(--fd-band-ink);
+}
+.fd-heading.fd-bg-band.fd-color-accent {
+  color: var(--fd-band-accent);
+}
+.fd-heading.fd-bg-band.fd-color-muted {
+  color: var(--fd-band-muted);
+}
 
 /* Images (legacy pull-left / center-block / pull-right) */
-.fd-image { vertical-align: middle; border-radius: var(--fd-radius-lg); }
-.fd-image-left { float: left; margin-right: calc(var(--fd-space) * 2); }
-.fd-image-center { display: block; margin-left: auto; margin-right: auto; }
-.fd-image-right { float: right; margin-left: calc(var(--fd-space) * 2); }
-.fd-image-responsive { display: block; max-width: 100%; height: auto; margin-bottom: calc(var(--fd-space) * 4); }
+.fd-image {
+  vertical-align: middle;
+  border-radius: var(--fd-radius-lg);
+}
+.fd-image-left {
+  float: left;
+  margin-right: calc(var(--fd-space) * 2);
+}
+.fd-image-center {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+.fd-image-right {
+  float: right;
+  margin-left: calc(var(--fd-space) * 2);
+}
+.fd-image-responsive {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-bottom: calc(var(--fd-space) * 4);
+}
 
 /* Containers */
 .fd-grid {
@@ -163,11 +225,18 @@ h6.fd-heading { font-size: var(--fd-h6); }
   min-width: 0;
 }
 /* A container with nothing in it (e.g. only features that aren't ported yet) adds no space below. */
-.fd-grid:not(:has(> .fd-cell:not(:empty))) { margin-bottom: 0; }
+.fd-grid:not(:has(> .fd-cell:not(:empty))) {
+  margin-bottom: 0;
+}
 /* On phone-width documents, container columns stack in reading order (row by row). Overrides the inline placement. */
 @container fd-document (max-width: 520px) {
-  .fd-grid { grid-template-columns: minmax(0, 1fr) !important; }
-  .fd-cell { grid-row: auto !important; grid-column: auto !important; }
+  .fd-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .fd-cell {
+    grid-row: auto !important;
+    grid-column: auto !important;
+  }
 }
 .fd-well {
   min-height: 20px;
@@ -220,7 +289,9 @@ h6.fd-heading { font-size: var(--fd-h6); }
   line-height: 1.15;
   color: var(--fd-ink);
 }
-.fd-panel-heading h4 strong { font-weight: inherit; }
+.fd-panel-heading h4 strong {
+  font-weight: inherit;
+}
 .fd-panel-body {
   display: block;
 }
@@ -242,7 +313,8 @@ h6.fd-heading { font-size: var(--fd-h6); }
  * A panel holding only tables, charts or forms: they are the cards. Placeholders for unported features don't count (the
  * editor shows them, the page doesn't), so the editor and the preview agree.
  */
-.fd-panel[data-fd-panel='card'] > .fd-panel-body:has(> :is(.fd-table-block, .fd-chart-block, .fd-form)):not(:has(> :not(.fd-table-block, .fd-chart-block, .fd-form, .fd-placeholder))) {
+.fd-panel[data-fd-panel='card']
+  > .fd-panel-body:has(> :is(.fd-table-block, .fd-chart-block, .fd-form)):not(:has(> :not(.fd-table-block, .fd-chart-block, .fd-form, .fd-placeholder))) {
   padding: 0;
   background: none;
   border: 0;
@@ -253,13 +325,19 @@ h6.fd-heading { font-size: var(--fd-h6); }
   border-top: 1px solid var(--fd-border);
 }
 /* Emphasis (the panel's own choice, beside the theme's card or bare look): highlight is accent-tinted, quiet recedes. */
-.fd-panel[data-fd-emphasis='highlight'] > .fd-panel-heading h4 { color: var(--fd-accent); }
+.fd-panel[data-fd-emphasis='highlight'] > .fd-panel-heading h4 {
+  color: var(--fd-accent);
+}
 .fd-panel[data-fd-emphasis='highlight'][data-fd-panel='card'] > .fd-panel-body {
   background: var(--fd-accent-soft);
   border-color: color-mix(in oklab, var(--fd-accent-solid) 30%, var(--fd-accent-soft));
 }
-.fd-panel[data-fd-emphasis='highlight'][data-fd-panel='bare'] > .fd-panel-body { border-top-color: var(--fd-accent-solid); }
-.fd-panel[data-fd-emphasis='quiet'] > .fd-panel-heading { margin-bottom: var(--fd-space); }
+.fd-panel[data-fd-emphasis='highlight'][data-fd-panel='bare'] > .fd-panel-body {
+  border-top-color: var(--fd-accent-solid);
+}
+.fd-panel[data-fd-emphasis='quiet'] > .fd-panel-heading {
+  margin-bottom: var(--fd-space);
+}
 .fd-panel[data-fd-emphasis='quiet'] > .fd-panel-heading h4 {
   font-family: var(--fd-font-body);
   font-size: var(--fd-size);
@@ -303,7 +381,11 @@ h6.fd-heading { font-size: var(--fd-h6); }
   line-height: 1.15;
   color: var(--fd-ink);
 }
-.fd-table-count { margin-left: auto; font-size: var(--fd-size-small); color: var(--fd-muted); }
+.fd-table-count {
+  margin-left: auto;
+  font-size: var(--fd-size-small);
+  color: var(--fd-muted);
+}
 .fd-table-wrap {
   display: block;
   overflow-x: auto;
@@ -328,9 +410,13 @@ h6.fd-heading { font-size: var(--fd-h6); }
   vertical-align: top;
 }
 .fd-table th:first-child,
-.fd-table td:first-child { padding-left: calc(var(--fd-space) * 3); }
+.fd-table td:first-child {
+  padding-left: calc(var(--fd-space) * 3);
+}
 .fd-table th:last-child,
-.fd-table td:last-child { padding-right: calc(var(--fd-space) * 3); }
+.fd-table td:last-child {
+  padding-right: calc(var(--fd-space) * 3);
+}
 .fd-table th {
   position: sticky;
   top: 0;
@@ -345,14 +431,33 @@ h6.fd-heading { font-size: var(--fd-h6); }
   border-top: 1px solid var(--fd-border);
   border-bottom: 1px solid var(--fd-border);
 }
-.fd-table-block > .fd-table-wrap:first-child th { border-top: 0; }
-.fd-table td { color: var(--fd-text); }
-.fd-table td:first-child { font-weight: 600; color: var(--fd-ink); }
-.fd-table .fd-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.fd-table-block[data-fd-table='hairline'] tbody tr + tr td { border-top: 1px solid var(--fd-border-subtle); }
-.fd-table-block[data-fd-table='striped'] tbody tr:nth-child(even) td { background: var(--fd-stripe); }
-.fd-table-block tbody:not(.fd-table-skeleton) tr:hover td { background: var(--fd-stripe); }
-.fd-table-block[data-fd-table='striped'] tbody:not(.fd-table-skeleton) tr:hover td { background: var(--fd-sunken); }
+.fd-table-block > .fd-table-wrap:first-child th {
+  border-top: 0;
+}
+.fd-table td {
+  color: var(--fd-text);
+}
+.fd-table td:first-child {
+  font-weight: 600;
+  color: var(--fd-ink);
+}
+.fd-table .fd-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.fd-table-block[data-fd-table='hairline'] tbody tr + tr td {
+  border-top: 1px solid var(--fd-border-subtle);
+}
+.fd-table-block[data-fd-table='striped'] tbody tr:nth-child(even) td {
+  background: var(--fd-stripe);
+}
+.fd-table-block tbody:not(.fd-table-skeleton) tr:hover td {
+  background: var(--fd-stripe);
+}
+.fd-table-block[data-fd-table='striped'] tbody:not(.fd-table-skeleton) tr:hover td {
+  background: var(--fd-sunken);
+}
 /* Categories as tinted chips: the theme's badge tints, given out per column in order of first appearance. */
 .fd-badge {
   display: inline-block;
@@ -363,10 +468,22 @@ h6.fd-heading { font-size: var(--fd-h6); }
   line-height: 1.5;
   white-space: nowrap;
 }
-.fd-badge-0 { background: var(--fd-badge-0-bg); color: var(--fd-badge-0); }
-.fd-badge-1 { background: var(--fd-badge-1-bg); color: var(--fd-badge-1); }
-.fd-badge-2 { background: var(--fd-badge-2-bg); color: var(--fd-badge-2); }
-.fd-badge-3 { background: var(--fd-badge-3-bg); color: var(--fd-badge-3); }
+.fd-badge-0 {
+  background: var(--fd-badge-0-bg);
+  color: var(--fd-badge-0);
+}
+.fd-badge-1 {
+  background: var(--fd-badge-1-bg);
+  color: var(--fd-badge-1);
+}
+.fd-badge-2 {
+  background: var(--fd-badge-2-bg);
+  color: var(--fd-badge-2);
+}
+.fd-badge-3 {
+  background: var(--fd-badge-3-bg);
+  color: var(--fd-badge-3);
+}
 /* Loading: placeholder bars under the real header, so the table keeps its shape when the rows arrive. */
 .fd-skeleton {
   display: block;
@@ -376,8 +493,12 @@ h6.fd-heading { font-size: var(--fd-h6); }
   border-radius: 999px;
   background: var(--fd-sunken);
 }
-.fd-table-skeleton tr:nth-child(2) .fd-skeleton { width: 55%; }
-.fd-table-skeleton tr:nth-child(3) .fd-skeleton { width: 80%; }
+.fd-table-skeleton tr:nth-child(2) .fd-skeleton {
+  width: 55%;
+}
+.fd-table-skeleton tr:nth-child(3) .fd-skeleton {
+  width: 80%;
+}
 .fd-table-state {
   display: flex;
   flex-direction: column;
@@ -386,13 +507,36 @@ h6.fd-heading { font-size: var(--fd-h6); }
   padding: calc(var(--fd-space) * 3);
   text-align: center;
 }
-.fd-table-state p { margin: 0; }
-.fd-table-state-title { font-weight: 600; color: var(--fd-ink); }
-.fd-table-state-text { font-size: var(--fd-size-small); color: var(--fd-muted); }
-.fd-table-empty-picture { display: block; width: 7.5rem; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--fd-radius-sm); }
-.fd-table-empty-picture > svg { display: block; width: 100%; height: 100%; }
-.fd-table-problem { align-items: flex-start; text-align: left; }
-.fd-table-problem .fd-table-state-title { color: var(--fd-danger); }
+.fd-table-state p {
+  margin: 0;
+}
+.fd-table-state-title {
+  font-weight: 600;
+  color: var(--fd-ink);
+}
+.fd-table-state-text {
+  font-size: var(--fd-size-small);
+  color: var(--fd-muted);
+}
+.fd-table-empty-picture {
+  display: block;
+  width: 7.5rem;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: var(--fd-radius-sm);
+}
+.fd-table-empty-picture > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.fd-table-problem {
+  align-items: flex-start;
+  text-align: left;
+}
+.fd-table-problem .fd-table-state-title {
+  color: var(--fd-danger);
+}
 /* Try again, for tables, charts and weather. */
 .fd-retry {
   min-height: 44px;
@@ -407,7 +551,9 @@ h6.fd-heading { font-size: var(--fd-h6); }
   cursor: pointer;
 }
 /* In a table's state the gap already spaces it. */
-.fd-table-state .fd-retry { margin-top: calc(var(--fd-space) * 0.5); }
+.fd-table-state .fd-retry {
+  margin-top: calc(var(--fd-space) * 0.5);
+}
 .fd-table-foot,
 .fd-table-note {
   margin: 0;
@@ -421,7 +567,9 @@ h6.fd-heading { font-size: var(--fd-h6); }
   .fd-table,
   .fd-table tbody,
   .fd-table tr,
-  .fd-table td { display: block; }
+  .fd-table td {
+    display: block;
+  }
   .fd-table thead {
     position: absolute;
     width: 1px;
@@ -430,31 +578,61 @@ h6.fd-heading { font-size: var(--fd-h6); }
     clip-path: inset(50%);
     white-space: nowrap;
   }
-  .fd-table tbody tr { padding: calc(var(--fd-space) * 1.5) calc(var(--fd-space) * 2); }
-  .fd-table-block[data-fd-table] tbody tr + tr td { border-top: 0; }
-  .fd-table tbody tr + tr { border-top: 1px solid var(--fd-border-subtle); }
+  .fd-table tbody tr {
+    padding: calc(var(--fd-space) * 1.5) calc(var(--fd-space) * 2);
+  }
+  .fd-table-block[data-fd-table] tbody tr + tr td {
+    border-top: 0;
+  }
+  .fd-table tbody tr + tr {
+    border-top: 1px solid var(--fd-border-subtle);
+  }
   .fd-table td,
   .fd-table td:first-child,
-  .fd-table td:last-child { padding: 0.15em 0; }
+  .fd-table td:last-child {
+    padding: 0.15em 0;
+  }
   .fd-table td:not(:first-child) {
     display: grid;
     grid-template-columns: minmax(5.5rem, auto) minmax(0, 1fr);
     gap: calc(var(--fd-space) * 1.5);
     font-size: var(--fd-size-small);
   }
-  .fd-table td:not(:first-child)::before { content: attr(data-label); color: var(--fd-muted); }
-  .fd-table td:not(:first-child) > * { justify-self: start; }
+  .fd-table td:not(:first-child)::before {
+    content: attr(data-label);
+    color: var(--fd-muted);
+  }
+  .fd-table td:not(:first-child) > * {
+    justify-self: start;
+  }
   /* No scroll box inside the page on phones: the page itself scrolls. */
-  .fd-table-scroll { max-height: none; }
-  .fd-table .fd-num { text-align: left; }
-  .fd-table td:first-child { margin-bottom: 0.25em; }
+  .fd-table-scroll {
+    max-height: none;
+  }
+  .fd-table .fd-num {
+    text-align: left;
+  }
+  .fd-table td:first-child {
+    margin-bottom: 0.25em;
+  }
 }
 
 /* Lists: numbered mono markers between hairlines, aligned like the legacy pull-left / center-block / pull-right box. */
-.fd-list { display: block; width: 100%; max-width: calc(var(--fd-size) * 24); }
-.fd-list-left { float: left; }
-.fd-list-center { margin-left: auto; margin-right: auto; }
-.fd-list-right { float: right; }
+.fd-list {
+  display: block;
+  width: 100%;
+  max-width: calc(var(--fd-size) * 24);
+}
+.fd-list-left {
+  float: left;
+}
+.fd-list-center {
+  margin-left: auto;
+  margin-right: auto;
+}
+.fd-list-right {
+  float: right;
+}
 .fd-list ul {
   margin: 0 0 calc(var(--fd-space) * 2);
   padding: 0;
@@ -469,7 +647,9 @@ h6.fd-heading { font-size: var(--fd-h6); }
   border-top: 1px solid var(--fd-border);
   counter-increment: fd-list;
 }
-.fd-list li:last-child { border-bottom: 1px solid var(--fd-border); }
+.fd-list li:last-child {
+  border-bottom: 1px solid var(--fd-border);
+}
 .fd-list li::before {
   content: counter(fd-list, decimal-leading-zero);
   font-family: var(--fd-font-mono);
@@ -477,9 +657,19 @@ h6.fd-heading { font-size: var(--fd-h6); }
   color: var(--fd-accent);
 }
 /* Check-mark lists (e.g. in cards): no rules between items. */
-.fd-list-check li { border: 0; padding: calc(var(--fd-space) * 0.4) 0; }
-.fd-list-check li:last-child { border: 0; }
-.fd-list-check li::before { content: '\2713'; font-family: var(--fd-font-body); font-size: 1em; font-weight: 600; }
+.fd-list-check li {
+  border: 0;
+  padding: calc(var(--fd-space) * 0.4) 0;
+}
+.fd-list-check li:last-child {
+  border: 0;
+}
+.fd-list-check li::before {
+  content: '\2713';
+  font-family: var(--fd-font-body);
+  font-size: 1em;
+  font-weight: 600;
+}
 
 /* Illustrations: built-in SVG, colored by the theme tokens (see the revert at the top). */
 .fd-illustration {
@@ -490,13 +680,27 @@ h6.fd-heading { font-size: var(--fd-h6); }
   overflow: hidden;
   border-radius: var(--fd-radius-lg);
 }
-.fd-illustration-left { margin-left: 0; }
-.fd-illustration-right { margin-right: 0; }
+.fd-illustration-left {
+  margin-left: 0;
+}
+.fd-illustration-right {
+  margin-right: 0;
+}
 /* Banners stack a background layer and a drawing layer; both fill the frame. */
-.fd-illustration > svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.fd-illustration > svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 /* Short banners on narrow pages would be slivers. */
-.fd-illustration-banner { min-height: 6rem; }
-.fd-media > .fd-illustration { margin: 0; }
+.fd-illustration-banner {
+  min-height: 6rem;
+}
+.fd-media > .fd-illustration {
+  margin: 0;
+}
 
 /* Separators: a rule in the theme's border color unless the feature sets one; thickness and width are inline. */
 .fd-separator {
@@ -506,8 +710,12 @@ h6.fd-heading { font-size: var(--fd-h6); }
   border-radius: 999px;
   background-color: var(--fd-border);
 }
-.fd-separator-left { margin-left: 0; }
-.fd-separator-right { margin-right: 0; }
+.fd-separator-left {
+  margin-left: 0;
+}
+.fd-separator-right {
+  margin-right: 0;
+}
 /* Divider illustrations draw in the current color: the feature's color, else the accent. */
 .fd-separator-divider {
   height: auto;
@@ -516,7 +724,11 @@ h6.fd-heading { font-size: var(--fd-h6); }
   background: none;
   color: var(--fd-accent-solid);
 }
-.fd-separator-divider > svg { display: block; width: 100%; height: calc(var(--fd-space) * 3); }
+.fd-separator-divider > svg {
+  display: block;
+  width: 100%;
+  height: calc(var(--fd-space) * 3);
+}
 
 /* Links */
 .fd-root .fd-link {
@@ -524,7 +736,10 @@ h6.fd-heading { font-size: var(--fd-h6); }
   margin: calc(var(--fd-space) * 1) 0;
   font-weight: 500;
 }
-.fd-root a.fd-link::after { content: ' \2197'; color: var(--fd-accent); }
+.fd-root a.fd-link::after {
+  content: ' \2197';
+  color: var(--fd-accent);
+}
 
 /* Buttons: our own styles, in theme colors (text/background pairs the contrast tests cover). */
 .fd-button-row {
@@ -546,11 +761,27 @@ h6.fd-heading { font-size: var(--fd-h6); }
   text-decoration: none;
   cursor: pointer;
 }
-.fd-root .fd-button-small { padding: 0.4em 0.8em; font-size: var(--fd-size-small); }
-.fd-root .fd-button-large { padding: 0.8em 1.5em; font-size: calc(var(--fd-size) * 1.125); }
-.fd-root .fd-button-primary { background: var(--fd-primary-bg); color: var(--fd-primary-on); }
-.fd-root .fd-button-secondary { background: var(--fd-surface); color: var(--fd-ink); border-color: var(--fd-border); }
-.fd-root .fd-button-soft { background: var(--fd-accent-soft); color: var(--fd-accent); }
+.fd-root .fd-button-small {
+  padding: 0.4em 0.8em;
+  font-size: var(--fd-size-small);
+}
+.fd-root .fd-button-large {
+  padding: 0.8em 1.5em;
+  font-size: calc(var(--fd-size) * 1.125);
+}
+.fd-root .fd-button-primary {
+  background: var(--fd-primary-bg);
+  color: var(--fd-primary-on);
+}
+.fd-root .fd-button-secondary {
+  background: var(--fd-surface);
+  color: var(--fd-ink);
+  border-color: var(--fd-border);
+}
+.fd-root .fd-button-soft {
+  background: var(--fd-accent-soft);
+  color: var(--fd-accent);
+}
 .fd-root .fd-button-link {
   padding-left: 0;
   padding-right: 0;
@@ -559,9 +790,17 @@ h6.fd-heading { font-size: var(--fd-h6); }
   text-decoration: underline;
   text-underline-offset: 0.25em;
 }
-.fd-root a.fd-button:hover { box-shadow: inset 0 0 0 999px rgb(0 0 0 / 0.06); }
-.fd-root a.fd-button-link:hover { box-shadow: none; color: var(--fd-ink); }
-.fd-root span.fd-button { cursor: default; opacity: 0.7; }
+.fd-root a.fd-button:hover {
+  box-shadow: inset 0 0 0 999px rgb(0 0 0 / 0.06);
+}
+.fd-root a.fd-button-link:hover {
+  box-shadow: none;
+  color: var(--fd-ink);
+}
+.fd-root span.fd-button {
+  cursor: default;
+  opacity: 0.7;
+}
 
 /* Paragraphs */
 .fd-paragraph {
@@ -569,7 +808,9 @@ h6.fd-heading { font-size: var(--fd-h6); }
   max-width: 68ch;
   color: var(--fd-text);
 }
-.fd-paragraph-muted { color: var(--fd-muted); }
+.fd-paragraph-muted {
+  color: var(--fd-muted);
+}
 .fd-paragraph-highlight {
   padding-top: calc(var(--fd-space) * 2);
   border-top: 1px solid var(--fd-border-subtle);
@@ -590,14 +831,26 @@ h6.fd-heading { font-size: var(--fd-h6); }
   flex-direction: column;
   gap: calc(var(--fd-space) * 1.5);
 }
-.fd-stack { margin: calc(var(--fd-space) * 4) 0; }
-.fd-media > .fd-stack { margin: 0; }
-:is(.fd-stack, .fd-card) > :is(.fd-heading, .fd-paragraph, .fd-list) { margin: 0; }
-:is(.fd-stack, .fd-card) > .fd-list { max-width: none; }
-:is(.fd-stack, .fd-card) > .fd-list ul { margin: 0; }
+.fd-stack {
+  margin: calc(var(--fd-space) * 4) 0;
+}
+.fd-media > .fd-stack {
+  margin: 0;
+}
+:is(.fd-stack, .fd-card) > :is(.fd-heading, .fd-paragraph, .fd-list) {
+  margin: 0;
+}
+:is(.fd-stack, .fd-card) > .fd-list {
+  max-width: none;
+}
+:is(.fd-stack, .fd-card) > .fd-list ul {
+  margin: 0;
+}
 /* An illustration in a layout fills its width (auto margins would shrink it in the flex column). This also overrides
    left / right alignment, so a sized, aligned illustration composed directly into a card would need its own rule. */
-:is(.fd-stack, .fd-card) > .fd-illustration { margin: 0; }
+:is(.fd-stack, .fd-card) > .fd-illustration {
+  margin: 0;
+}
 
 .fd-media {
   display: grid;
@@ -606,8 +859,12 @@ h6.fd-heading { font-size: var(--fd-h6); }
   align-items: start;
   margin: calc(var(--fd-space) * 4) 0;
 }
-.fd-media-right { grid-template-columns: minmax(0, 1fr) minmax(7rem, 11rem); }
-.fd-media-right > .fd-image { order: 2; }
+.fd-media-right {
+  grid-template-columns: minmax(0, 1fr) minmax(7rem, 11rem);
+}
+.fd-media-right > .fd-image {
+  order: 2;
+}
 .fd-media > .fd-image {
   width: 100%;
   margin: 0;
@@ -615,9 +872,16 @@ h6.fd-heading { font-size: var(--fd-h6); }
   object-fit: cover;
 }
 @container fd-document (max-width: 520px) {
-  .fd-media, .fd-media-right { grid-template-columns: minmax(0, 1fr); }
-  .fd-media > .fd-image { max-width: 16rem; }
-  .fd-media-right > .fd-image { order: 0; }
+  .fd-media,
+  .fd-media-right {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fd-media > .fd-image {
+    max-width: 16rem;
+  }
+  .fd-media-right > .fd-image {
+    order: 0;
+  }
 }
 
 .fd-card {
@@ -634,10 +898,17 @@ h6.fd-heading { font-size: var(--fd-h6); }
  * it in the cell (e.g. a button) stays inside the cell. (A card with `height: 100%` pushed it out of the container.)
  */
 /* Only when nothing in the cell relies on normal flow (floated images), which a column would break. */
-.fd-cell:has(> .fd-card):not(:has(> .fd-image-left, > .fd-image-right)) { display: flex; flex-direction: column; }
-.fd-cell > .fd-card { flex: 1 1 auto; }
+.fd-cell:has(> .fd-card):not(:has(> .fd-image-left, > .fd-image-right)) {
+  display: flex;
+  flex-direction: column;
+}
+.fd-cell > .fd-card {
+  flex: 1 1 auto;
+}
 /* A closing highlight sits at the bottom of the card, so highlights side by side line up too. */
-.fd-card > .fd-paragraph-highlight { margin-top: auto; }
+.fd-card > .fd-paragraph-highlight {
+  margin-top: auto;
+}
 
 /* Empty images (no usable source): a quiet frame. */
 .fd-image-empty {
@@ -645,11 +916,19 @@ h6.fd-heading { font-size: var(--fd-h6); }
   border: 1px solid var(--fd-border);
   box-sizing: border-box;
 }
-.fd-image-empty:not([style*='height']) { aspect-ratio: 4 / 3; }
+.fd-image-empty:not([style*='height']) {
+  aspect-ratio: 4 / 3;
+}
 /* Never collapse to nothing (a floated frame with no size would shrink to its border). */
-.fd-image-empty { min-width: 6rem; min-height: 4.5rem; }
+.fd-image-empty {
+  min-width: 6rem;
+  min-height: 4.5rem;
+}
 /* Beside text, images are square; an empty one is too, so adding a picture doesn't shift the layout. */
-.fd-media > .fd-image-empty { aspect-ratio: 1 / 1; min-height: 0; }
+.fd-media > .fd-image-empty {
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+}
 
 /* Editor-only placeholders for features that produced nothing; themed so they read on light and dark pages. */
 .fd-placeholder {
@@ -666,8 +945,14 @@ h6.fd-heading { font-size: var(--fd-h6); }
   font-size: 12px;
   line-height: 1.4;
 }
-.fd-placeholder strong { font-size: 13px; color: var(--fd-ink); }
-.fd-placeholder-skipped { border-color: var(--fd-warning); color: var(--fd-warning); }
+.fd-placeholder strong {
+  font-size: 13px;
+  color: var(--fd-ink);
+}
+.fd-placeholder-skipped {
+  border-color: var(--fd-warning);
+  color: var(--fd-warning);
+}
 
 /*
  * Charts: a card like a table's, holding a drawing (Chart.js, in the theme's chart colors, read from these tokens) and
@@ -692,21 +977,47 @@ h6.fd-heading { font-size: var(--fd-h6); }
   line-height: 1.15;
   color: var(--fd-ink);
 }
-.fd-chart-canvas { position: relative; width: 100%; }
-.fd-chart-canvas > canvas { display: block; }
+.fd-chart-canvas {
+  position: relative;
+  width: 100%;
+}
+.fd-chart-canvas > canvas {
+  display: block;
+}
 .fd-chart-skeleton {
   display: block;
   border-radius: var(--fd-radius-sm);
   background: repeating-linear-gradient(90deg, var(--fd-sunken) 0 18%, transparent 18% 24%);
   opacity: 0.7;
 }
-.fd-chart-note { margin: 0; font-size: var(--fd-size-small); color: var(--fd-muted); }
+.fd-chart-note {
+  margin: 0;
+  font-size: var(--fd-size-small);
+  color: var(--fd-muted);
+}
 /* A chart's or weather card's loading problem or empty state, centered. */
-.fd-state { display: block; margin: 0; padding: calc(var(--fd-space) * 3) 0; text-align: center; }
-.fd-state-title { margin: 0; font-weight: 600; color: var(--fd-ink); }
-.fd-state-text { margin: 0; font-size: var(--fd-size-small); color: var(--fd-muted); }
+.fd-state {
+  display: block;
+  margin: 0;
+  padding: calc(var(--fd-space) * 3) 0;
+  text-align: center;
+}
+.fd-state-title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--fd-ink);
+}
+.fd-state-text {
+  margin: 0;
+  font-size: var(--fd-size-small);
+  color: var(--fd-muted);
+}
 /* Weather: the temperature and conditions now, then the next days in a row. */
-.fd-weather { display: flex; flex-direction: column; gap: calc(var(--fd-space) * 2); }
+.fd-weather {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--fd-space) * 2);
+}
 .fd-weather-now {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -714,7 +1025,11 @@ h6.fd-heading { font-size: var(--fd-h6); }
   column-gap: calc(var(--fd-space) * 2);
   align-items: center;
 }
-.fd-weather-now > .fd-weather-icon { grid-row: 1 / 3; width: 4rem; height: 4rem; }
+.fd-weather-now > .fd-weather-icon {
+  grid-row: 1 / 3;
+  width: 4rem;
+  height: 4rem;
+}
 .fd-weather-temp {
   margin: 0;
   font-family: var(--fd-font-display);
@@ -725,7 +1040,10 @@ h6.fd-heading { font-size: var(--fd-h6); }
   color: var(--fd-ink);
   font-variant-numeric: tabular-nums;
 }
-.fd-weather-text { margin: 0; color: var(--fd-muted); }
+.fd-weather-text {
+  margin: 0;
+  color: var(--fd-muted);
+}
 .fd-weather-days {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(3rem, 1fr));
@@ -742,11 +1060,27 @@ h6.fd-heading { font-size: var(--fd-h6); }
   gap: calc(var(--fd-space) * 0.5);
   font-variant-numeric: tabular-nums;
 }
-.fd-weather-day > .fd-weather-icon { width: 2.5rem; height: 2.5rem; }
-.fd-weather-day-name { font-size: var(--fd-size-small); color: var(--fd-muted); }
-.fd-weather-high { font-weight: 600; color: var(--fd-ink); }
-.fd-weather-low { font-size: var(--fd-size-small); color: var(--fd-muted); }
-.fd-weather-icon { display: block; flex: none; overflow: visible; }
+.fd-weather-day > .fd-weather-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+.fd-weather-day-name {
+  font-size: var(--fd-size-small);
+  color: var(--fd-muted);
+}
+.fd-weather-high {
+  font-weight: 600;
+  color: var(--fd-ink);
+}
+.fd-weather-low {
+  font-size: var(--fd-size-small);
+  color: var(--fd-muted);
+}
+.fd-weather-icon {
+  display: block;
+  flex: none;
+  overflow: visible;
+}
 .fd-weather-skeleton {
   display: block;
   height: 4rem;
@@ -754,9 +1088,14 @@ h6.fd-heading { font-size: var(--fd-h6); }
   background: var(--fd-sunken);
   opacity: 0.7;
 }
-.fd-weather > .fd-state { padding: calc(var(--fd-space) * 2) 0; }
+.fd-weather > .fd-state {
+  padding: calc(var(--fd-space) * 2) 0;
+}
 /* The credit the forecast's licence asks for, beside the place: small and quiet. */
-.fd-card > .fd-weather + .fd-link { margin-top: auto; font-size: var(--fd-size-small); }
+.fd-card > .fd-weather + .fd-link {
+  margin-top: auto;
+  font-size: var(--fd-size-small);
+}
 
 /* Present for screen readers, not drawn. */
 .fd-root .fd-visually-hidden {
@@ -791,9 +1130,17 @@ h6.fd-heading { font-size: var(--fd-h6); }
   line-height: 1.15;
   color: var(--fd-ink);
 }
-.fd-form-field { display: grid; gap: calc(var(--fd-space) * 0.5); }
-.fd-form-label { font-weight: 500; color: var(--fd-ink); }
-.fd-form-required { color: var(--fd-accent); }
+.fd-form-field {
+  display: grid;
+  gap: calc(var(--fd-space) * 0.5);
+}
+.fd-form-label {
+  font-weight: 500;
+  color: var(--fd-ink);
+}
+.fd-form-required {
+  color: var(--fd-accent);
+}
 .fd-form-input {
   box-sizing: border-box;
   width: 100%;
@@ -805,17 +1152,53 @@ h6.fd-heading { font-size: var(--fd-h6); }
   border: 1px solid var(--fd-border);
   border-radius: var(--fd-radius-sm);
 }
-.fd-form-input:focus-visible { outline: 2px solid var(--fd-accent); outline-offset: 1px; }
-.fd-form-hint, .fd-form-note { margin: 0; font-size: var(--fd-size-small); color: var(--fd-muted); }
-.fd-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--fd-space) * 1.5); }
-.fd-form-actions .fd-button { border: 0; font: inherit; font-weight: 600; cursor: pointer; }
-.fd-form-actions .fd-button:disabled { cursor: default; opacity: 0.6; }
-.fd-form-sent { margin: 0; color: var(--fd-ink); }
-.fd-form-error { margin: 0; color: var(--fd-danger); }
+.fd-form-input:focus-visible {
+  outline: 2px solid var(--fd-accent);
+  outline-offset: 1px;
+}
+.fd-form-hint,
+.fd-form-note {
+  margin: 0;
+  font-size: var(--fd-size-small);
+  color: var(--fd-muted);
+}
+.fd-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--fd-space) * 1.5);
+}
+.fd-form-actions .fd-button {
+  border: 0;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.fd-form-actions .fd-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.fd-form-sent {
+  margin: 0;
+  color: var(--fd-ink);
+}
+.fd-form-error {
+  margin: 0;
+  color: var(--fd-danger);
+}
 
 /* Row delete: a quiet button, asked inline first. */
-.fd-table .fd-table-actions { width: 1%; white-space: nowrap; text-align: right; }
-.fd-table-confirm { display: inline-flex; align-items: center; gap: calc(var(--fd-space) * 0.75); color: var(--fd-ink); }
+.fd-table .fd-table-actions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+.fd-table-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--fd-space) * 0.75);
+  color: var(--fd-ink);
+}
 .fd-table-action {
   min-height: 32px;
   padding: 0 calc(var(--fd-space) * 1.25);
@@ -827,6 +1210,15 @@ h6.fd-heading { font-size: var(--fd-h6); }
   font-size: var(--fd-size-small);
   cursor: pointer;
 }
-.fd-table-action-danger { color: var(--fd-danger); border-color: currentColor; }
-.fd-table-action:disabled { opacity: 0.6; cursor: default; }
-.fd-table-delete-problem { padding: 0 calc(var(--fd-space) * 3) calc(var(--fd-space) * 1.5); color: var(--fd-danger); }
+.fd-table-action-danger {
+  color: var(--fd-danger);
+  border-color: currentColor;
+}
+.fd-table-action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.fd-table-delete-problem {
+  padding: 0 calc(var(--fd-space) * 3) calc(var(--fd-space) * 1.5);
+  color: var(--fd-danger);
+}

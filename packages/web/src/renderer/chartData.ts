@@ -22,7 +22,9 @@ export function asNumber(value: unknown): number | undefined {
 
 const isId = (key: string) => /^(id|.+_id|.+Id)$/.test(key)
 
-const keysOf = (rows: readonly unknown[]) => [...new Set(rows.flatMap((row) => (typeof row === 'object' && row !== null && !Array.isArray(row) ? Object.keys(row) : [])))]
+const keysOf = (rows: readonly unknown[]) => [
+  ...new Set(rows.flatMap((row) => (typeof row === 'object' && row !== null && !Array.isArray(row) ? Object.keys(row) : []))),
+]
 
 /**
  * Chart points from rows: one per row, valued by `valueField` and labeled by `labelField`. A field that isn't given is
@@ -32,7 +34,9 @@ const keysOf = (rows: readonly unknown[]) => [...new Set(rows.flatMap((row) => (
 export function chartData(rows: readonly unknown[], labelField?: string, valueField?: string): ChartData {
   // Ids ("id", "user_id", "nodeId") are numbers and opaque text, but rarely what anyone wants charted: they come last.
   const keys = keysOf(rows).sort((a, b) => Number(isId(a)) - Number(isId(b)))
-  const numeric = (k: string) => rows.some((r) => asNumber(getPath(r, k)) !== undefined) && rows.every((r) => getPath(r, k) === undefined || getPath(r, k) === null || asNumber(getPath(r, k)) !== undefined)
+  const numeric = (k: string) =>
+    rows.some((r) => asNumber(getPath(r, k)) !== undefined) &&
+    rows.every((r) => getPath(r, k) === undefined || getPath(r, k) === null || asNumber(getPath(r, k)) !== undefined)
   const value = valueField ?? keys.find(numeric)
   // A label reads best short: the first text field whose values are short, else any text field.
   const texts = keys.filter((k) => k !== value && rows.some((r) => typeof getPath(r, k) === 'string'))

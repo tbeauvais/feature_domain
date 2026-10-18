@@ -32,7 +32,13 @@ const indicator = computed(() => {
     class="pointer-events-none absolute z-10"
     :class="[
       indicator.kind === 'line' ? 'h-0.5' : 'rounded-sm border-2 border-dashed',
-      indicator.allowed ? (indicator.kind === 'line' ? 'bg-sky-500' : 'border-sky-500 bg-sky-500/10') : indicator.kind === 'line' ? 'bg-red-500' : 'border-red-500 bg-red-500/10',
+      indicator.allowed
+        ? indicator.kind === 'line'
+          ? 'bg-sky-500'
+          : 'border-sky-500 bg-sky-500/10'
+        : indicator.kind === 'line'
+          ? 'bg-red-500'
+          : 'border-red-500 bg-red-500/10',
     ]"
     :style="indicator.style"
     data-testid="drop-indicator"

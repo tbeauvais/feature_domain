@@ -9,19 +9,29 @@ const card = (inputs: Record<string, string>) => {
 
 describe('MapFeature', () => {
   it('is a card: title, our street-map drawing (decorative), the address and a link to it in Google Maps', () => {
-    const { card: c, problems } = card({ title: 'Where it\'s Warm', address: 'Palm Beach, FL' })
+    const { card: c, problems } = card({ title: "Where it's Warm", address: 'Palm Beach, FL' })
     expect(problems).toEqual([])
     expect(c.kind).toBe('card')
     expect(c.children.map((n) => [n.kind, n.id, n.props])).toEqual([
-      ['heading', 'm.title', { text: 'Where it\'s Warm', level: 4, align: 'left' }],
+      ['heading', 'm.title', { text: "Where it's Warm", level: 4, align: 'left' }],
       ['illustration', 'm.map', { name: 'banner/map', alt: '', width: '', align: 'center', aspect: 2 }],
       ['paragraph', 'm.address', { text: 'Palm Beach, FL' }],
-      ['link', 'm.link', { text: 'Open in Google Maps', href: 'https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL', ariaLabel: 'Open Palm Beach, FL in Google Maps' }],
+      [
+        'link',
+        'm.link',
+        {
+          text: 'Open in Google Maps',
+          href: 'https://www.google.com/maps/search/?api=1&query=Palm%20Beach%2C%20FL',
+          ariaLabel: 'Open Palm Beach, FL in Google Maps',
+        },
+      ],
     ])
   })
 
   it('names each link with its address, so two maps on a page have different links', () => {
-    const r = generate(model(page(), inst('GoogleMapFeature', 'a', { address: 'Palm Beach, FL' }), inst('GoogleMapFeature', 'b', { address: ' 131 Willow Rd. Guilford, CT ' })))
+    const r = generate(
+      model(page(), inst('GoogleMapFeature', 'a', { address: 'Palm Beach, FL' }), inst('GoogleMapFeature', 'b', { address: ' 131 Willow Rd. Guilford, CT ' })),
+    )
     const names = r.root.children[0]!.children.map((c) => c.children.find((n) => n.kind === 'link')!.props.ariaLabel)
     expect(names).toEqual(['Open Palm Beach, FL in Google Maps', 'Open 131 Willow Rd. Guilford, CT in Google Maps'])
   })
@@ -45,7 +55,9 @@ describe('MapFeature', () => {
   })
 
   it('encodes the address into the link, whatever it holds', () => {
-    expect(googleMapsUrl('1 Main St & 2nd Ave #4 / "Café"')).toBe('https://www.google.com/maps/search/?api=1&query=1%20Main%20St%20%26%202nd%20Ave%20%234%20%2F%20%22Caf%C3%A9%22')
+    expect(googleMapsUrl('1 Main St & 2nd Ave #4 / "Café"')).toBe(
+      'https://www.google.com/maps/search/?api=1&query=1%20Main%20St%20%26%202nd%20Ave%20%234%20%2F%20%22Caf%C3%A9%22',
+    )
   })
 
   it('starts new maps with a title; stored maps without one show none', () => {
@@ -80,7 +92,9 @@ describe('migrating the legacy GoogleMap', () => {
     for (const address of ['  ', null, { street: 'Main' }]) {
       const r = legacy({ title: 'Home', address })
       expect(r.model.features[1]!.inputs).not.toHaveProperty('address')
-      expect(r.notes.map((n) => [n.code, n.message])).toEqual([['invalid-value', 'The map had no address; it shows the default address (131 Willow Rd. Guilford, CT) until one is set']])
+      expect(r.notes.map((n) => [n.code, n.message])).toEqual([
+        ['invalid-value', 'The map had no address; it shows the default address (131 Willow Rd. Guilford, CT) until one is set'],
+      ])
     }
   })
 
@@ -103,11 +117,28 @@ describe('migrating the legacy GoogleMap', () => {
       ...stored,
       features: [
         ...stored.features,
-        { feature: 'GoogleMapFeature', id: '6', inputs: { name: 'map', title: 'Warm', address: 'Palm Beach, FL', height: '200' }, placement: { parent: '1', slot: 'content' }, cache: { legacy: { feature: 'GoogleMapFeature', id: '6', inputs: { name: 'map', title: 'Warm', address: 'Palm Beach, FL', height: '200', page_location: { target: '#page_container' } } } } },
+        {
+          feature: 'GoogleMapFeature',
+          id: '6',
+          inputs: { name: 'map', title: 'Warm', address: 'Palm Beach, FL', height: '200' },
+          placement: { parent: '1', slot: 'content' },
+          cache: {
+            legacy: {
+              feature: 'GoogleMapFeature',
+              id: '6',
+              inputs: { name: 'map', title: 'Warm', address: 'Palm Beach, FL', height: '200', page_location: { target: '#page_container' } },
+            },
+          },
+        },
       ],
     }
     const r = migrate(old)
-    expect(r.model.features[2]).toEqual({ feature: 'GoogleMapFeature', id: '6', inputs: { name: 'map', disable: false, title: 'Warm', address: 'Palm Beach, FL' }, placement: { parent: '1', slot: 'content' } })
+    expect(r.model.features[2]).toEqual({
+      feature: 'GoogleMapFeature',
+      id: '6',
+      inputs: { name: 'map', disable: false, title: 'Warm', address: 'Palm Beach, FL' },
+      placement: { parent: '1', slot: 'content' },
+    })
     expect(r.notes.map((n) => n.code)).toContain('upgraded-feature')
     expect(renderOutline(generate(r.model).root)).toContain('link #6.link')
   })

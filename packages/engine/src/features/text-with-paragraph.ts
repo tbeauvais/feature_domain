@@ -13,7 +13,13 @@ export const TextWithParagraphFeature: FeatureDefinition = {
     nameInput('Text with title'),
     disableInput,
     { name: 'title', label: 'Title', type: 'string', default: 'A short title', control: 'text-input' },
-    { name: 'text', label: 'Text', type: 'text', default: 'A few sentences about this section. Leave a blank line to start a new paragraph.', control: 'text-area' },
+    {
+      name: 'text',
+      label: 'Text',
+      type: 'text',
+      default: 'A few sentences about this section. Leave a blank line to start a new paragraph.',
+      control: 'text-area',
+    },
   ],
 
   generate(inputs, ctx) {

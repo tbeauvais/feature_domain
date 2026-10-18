@@ -75,11 +75,16 @@ export function parseFilter(spec: string | undefined): FilterSpec | undefined {
  */
 export function getPath(row: unknown, path: string): unknown {
   if (typeof row === 'object' && row !== null && !Array.isArray(row) && Object.hasOwn(row, path)) return (row as Record<string, unknown>)[path]
-  return path
-    .replace(/^data\./, '')
-    .split('.')
-    // Own keys only: a field named "constructor" or "toString" is not the row's.
-    .reduce<unknown>((value, key) => (typeof value === 'object' && value !== null && Object.hasOwn(value, key) ? (value as Record<string, unknown>)[key] : undefined), row)
+  return (
+    path
+      .replace(/^data\./, '')
+      .split('.')
+      // Own keys only: a field named "constructor" or "toString" is not the row's.
+      .reduce<unknown>(
+        (value, key) => (typeof value === 'object' && value !== null && Object.hasOwn(value, key) ? (value as Record<string, unknown>)[key] : undefined),
+        row,
+      )
+  )
 }
 
 export function toText(value: unknown): string {

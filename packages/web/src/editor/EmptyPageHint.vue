@@ -52,7 +52,11 @@ function measure() {
   })
 }
 
-watch(() => [props.container, props.root], () => void nextTick(measure), { immediate: true })
+watch(
+  () => [props.container, props.root],
+  () => void nextTick(measure),
+  { immediate: true },
+)
 
 let observer: ResizeObserver | undefined
 onMounted(() => {

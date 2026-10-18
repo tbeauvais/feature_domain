@@ -113,7 +113,13 @@ export function listSource(
 
 /** What a feature sends to an operation: its address, or the resource's sample rows. */
 export function actionFor(resourceId: string, resource: DataResourceExports, operation: DataOperation): DataAction {
-  const action: DataAction = { feature: resourceId, resource: resource.resource, operation: operation.name, method: operation.method, endPoint: operation.endPoint }
+  const action: DataAction = {
+    feature: resourceId,
+    resource: resource.resource,
+    operation: operation.name,
+    method: operation.method,
+    endPoint: operation.endPoint,
+  }
   if (operation.sample) action.sample = true
   if (operation.requestType) action.requestType = operation.requestType
   const ids = operation.sample && operation.method === 'POST' ? sampleIds(resource.sampleRows ?? []) : undefined

@@ -10,10 +10,24 @@ const spec = {
     '/pets': {
       get: {},
       post: {
-        requestBody: { content: { 'application/x-www-form-urlencoded': { schema: { type: 'object', properties: { name: { type: 'string', description: 'What to call it' }, age: { type: 'integer' } } } } } },
+        requestBody: {
+          content: {
+            'application/x-www-form-urlencoded': {
+              schema: { type: 'object', properties: { name: { type: 'string', description: 'What to call it' }, age: { type: 'integer' } } },
+            },
+          },
+        },
       },
     },
-    '/pets/{id}': { put: { parameters: [{ name: 'id', in: 'path', required: true }, { name: 'X-Key', in: 'header' }], requestBody: { content: { 'application/json': { schema: { properties: { name: { type: 'string' } } } } } } } },
+    '/pets/{id}': {
+      put: {
+        parameters: [
+          { name: 'id', in: 'path', required: true },
+          { name: 'X-Key', in: 'header' },
+        ],
+        requestBody: { content: { 'application/json': { schema: { properties: { name: { type: 'string' } } } } } },
+      },
+    },
   },
 }
 const pets = inst('SwaggerDataResourceFeature', 's', { name: 'Pets', spec: JSON.stringify(spec) }, null)
@@ -38,9 +52,16 @@ describe('FormFeature', () => {
     })
   })
 
-  it('with a spec, takes the operation\'s inputs: path parameters, body fields (not headers), types, hints and the encoding', () => {
+  it("with a spec, takes the operation's inputs: path parameters, body fields (not headers), types, hints and the encoding", () => {
     const post = formOf(pets, {}).props
-    expect(post.action).toEqual({ feature: 's', resource: 'Pets', operation: 'POST /pets', method: 'POST', endPoint: 'https://pets.test/pets', requestType: 'form' })
+    expect(post.action).toEqual({
+      feature: 's',
+      resource: 'Pets',
+      operation: 'POST /pets',
+      method: 'POST',
+      endPoint: 'https://pets.test/pets',
+      requestType: 'form',
+    })
     expect(post.fields).toEqual([
       { name: 'name', label: 'Name', type: 'text', required: false, in: 'body', hint: 'What to call it' },
       { name: 'age', label: 'Age', type: 'number', required: false, in: 'body' },
@@ -55,16 +76,33 @@ describe('FormFeature', () => {
   })
 
   it('tells sample data how its rows are numbered, so an added row gets the next id', () => {
-    const numbered = (rows: unknown[]) => formOf(inst('DataResourceFeature', 'n', { name: 'N', source: 'sample', sample_rows: JSON.stringify(rows) }, null), {}).props.action?.sampleIds
-    expect(numbered([{ id: '1', name: 'a' }, { id: '5', name: 'b' }])).toEqual({ field: 'id', after: 5, text: true })
+    const numbered = (rows: unknown[]) =>
+      formOf(inst('DataResourceFeature', 'n', { name: 'N', source: 'sample', sample_rows: JSON.stringify(rows) }, null), {}).props.action?.sampleIds
+    expect(
+      numbered([
+        { id: '1', name: 'a' },
+        { id: '5', name: 'b' },
+      ]),
+    ).toEqual({ field: 'id', after: 5, text: true })
     expect(numbered([{ id: 2 }, { id: 9 }])).toEqual({ field: 'id', after: 9, text: false })
     expect(numbered([{ order_id: 7, total: 1 }])).toEqual({ field: 'order_id', after: 7, text: false })
     // No id, ids that aren't whole numbers, or rows missing it: nothing to number.
     for (const rows of [[{ name: 'a' }], [{ id: 'abc' }], [{ id: 1 }, { name: 'no id' }], []]) expect(numbered(rows)).toBeUndefined()
   })
 
-  it('requires what the spec\'s request schema requires, plus its own Required fields, warning about ones not in the form', () => {
-    const strict = { ...spec, paths: { '/pets': { post: { requestBody: { content: { 'application/json': { schema: { required: ['name'], properties: { name: { type: 'string' }, age: { type: 'integer' } } } } } } } } } }
+  it("requires what the spec's request schema requires, plus its own Required fields, warning about ones not in the form", () => {
+    const strict = {
+      ...spec,
+      paths: {
+        '/pets': {
+          post: {
+            requestBody: {
+              content: { 'application/json': { schema: { required: ['name'], properties: { name: { type: 'string' }, age: { type: 'integer' } } } } },
+            },
+          },
+        },
+      },
+    }
     const s = inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify(strict) }, null)
     expect(formOf(s, {}).props.fields.map((f) => [f.name, f.required])).toEqual([
       ['name', true],
@@ -90,7 +128,7 @@ describe('FormFeature', () => {
     })
   })
 
-  it('says what is wrong instead of sending somewhere it shouldn\'t', () => {
+  it("says what is wrong instead of sending somewhere it shouldn't", () => {
     expect(formOf(people, { operation: 'GET rows' })).toMatchObject({ problems: ['"GET rows" doesn\'t take data; a form sends with POST or PUT'] })
     expect(formOf(people, { operation: 'GET rows' }).props).not.toHaveProperty('action')
     expect(formOf(people, { operation: 'POST /gone' }).problems).toEqual(['Operation "POST /gone" is not provided by People'])
@@ -105,7 +143,10 @@ describe('FormFeature', () => {
     const r = readApiSpec(spec) as ReadSpec
     expect(r.operations.find((o) => o.name === 'POST /pets')!.requestType).toBe('form')
     expect(r.operations.find((o) => o.name === 'PUT /pets/{id}')!.requestType).toBeUndefined()
-    const multipart = { ...spec, paths: { '/photos': { post: { requestBody: { content: { 'multipart/form-data': { schema: { properties: { caption: { type: 'string' } } } } } } } } } }
+    const multipart = {
+      ...spec,
+      paths: { '/photos': { post: { requestBody: { content: { 'multipart/form-data': { schema: { properties: { caption: { type: 'string' } } } } } } } } },
+    }
     expect((readApiSpec(multipart) as ReadSpec).operations[0]!.requestType).toBe('multipart')
   })
 
@@ -113,15 +154,22 @@ describe('FormFeature', () => {
     const putFirst = { ...spec, paths: { '/pets/{id}': spec.paths['/pets/{id}'], '/pets': spec.paths['/pets'] } }
     const s = inst('SwaggerDataResourceFeature', 's', { name: 'Pets', spec: JSON.stringify(putFirst) }, null)
     expect(formOf(s, {}).props.action?.operation).toBe('POST /pets')
-    const ops = [{ name: 'PUT /a', method: 'PUT' }, { name: 'GET /a', method: 'GET' }, { name: 'POST /a', method: 'POST' }] as DataOperation[]
+    const ops = [
+      { name: 'PUT /a', method: 'PUT' },
+      { name: 'GET /a', method: 'GET' },
+      { name: 'POST /a', method: 'POST' },
+    ] as DataOperation[]
     expect(defaultOperation(ops, ['POST', 'PUT'])?.name).toBe('POST /a')
     expect(defaultOperation(ops.slice(0, 2), ['POST', 'PUT'])?.name).toBe('PUT /a')
     expect(defaultOperation(ops, ['DELETE'])).toBeUndefined()
   })
 
-  it('warns that a required header parameter can\'t be sent from a form', () => {
+  it("warns that a required header parameter can't be sent from a form", () => {
     expect(formOf(pets, { operation: 'PUT /pets/{id}' }).problems).toEqual([])
-    const keyed = { ...spec, paths: { '/pets': { post: { parameters: [{ name: 'X-Api-Key', in: 'header', required: true }], requestBody: spec.paths['/pets'].post.requestBody } } } }
+    const keyed = {
+      ...spec,
+      paths: { '/pets': { post: { parameters: [{ name: 'X-Api-Key', in: 'header', required: true }], requestBody: spec.paths['/pets'].post.requestBody } } },
+    }
     const s = inst('SwaggerDataResourceFeature', 's', { spec: JSON.stringify(keyed) }, null)
     expect(formOf(s, {}).problems).toEqual(['"POST /pets" requires the header "X-Api-Key", which a form can\'t send'])
   })
@@ -133,10 +181,29 @@ describe('migrating the legacy Form', () => {
       features: [
         { feature: 'PageFeature', id: '1', inputs: { name: 'Page', page_location: { target: '#content_section' } } },
         { feature: 'DataResourceFeature', id: '2', inputs: { name: 'Sales', resource: 'https://x.test/sales', operation: 'POST' } },
-        { feature: 'FormFeature', id: '3', inputs: { name: 'Add', disable: '', data_resource: { name: 'Sales', operation: 'POST /sales' }, fields: 'name,amount', labels: 'Name,Amount', filters: 'x', page_location: { target: '#page_container' } } },
+        {
+          feature: 'FormFeature',
+          id: '3',
+          inputs: {
+            name: 'Add',
+            disable: '',
+            data_resource: { name: 'Sales', operation: 'POST /sales' },
+            fields: 'name,amount',
+            labels: 'Name,Amount',
+            filters: 'x',
+            page_location: { target: '#page_container' },
+          },
+        },
       ],
     })
-    expect(r.model.features[2]!.inputs).toEqual({ name: 'Add', disable: false, data_resource: '2', operation: 'POST /sales', fields: ['name', 'amount'], labels: ['Name', 'Amount'] })
+    expect(r.model.features[2]!.inputs).toEqual({
+      name: 'Add',
+      disable: false,
+      data_resource: '2',
+      operation: 'POST /sales',
+      fields: ['name', 'amount'],
+      labels: ['Name', 'Amount'],
+    })
     expect(r.notes.map((n) => n.message)).toContain('Dropped form filters "x", which forms don\'t use')
     // The legacy form ignored its fields (it built itself from the operation), so using them is noted.
     expect(r.notes.map((n) => n.message)).toContain('The form\'s fields are now "name, amount"; the legacy app took them from the operation instead')

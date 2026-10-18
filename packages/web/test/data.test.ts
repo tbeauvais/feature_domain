@@ -184,9 +184,16 @@ describe('Tables on shared data', () => {
   const render = (m: AppModel, fetchJson: FetchJson) =>
     mount(DocumentView, { props: { root: generate(m).root }, global: { provide: { [FETCH_JSON as symbol]: fetchJson } } })
 
-  it('shows a new data resource\'s sample rows at once, with a column per key, and fetches nothing', async () => {
+  it("shows a new data resource's sample rows at once, with a column per key, and fetches nothing", async () => {
     const fetchJson = vi.fn<FetchJson>()
-    const w = render(model(inst('DataResourceFeature', 'r', { source: 'sample', sample_rows: '[{"name": "Ada", "city": "London"}]' }, null), page(), inst('TableFeature', 't', { data_resource: 'r' })), fetchJson)
+    const w = render(
+      model(
+        inst('DataResourceFeature', 'r', { source: 'sample', sample_rows: '[{"name": "Ada", "city": "London"}]' }, null),
+        page(),
+        inst('TableFeature', 't', { data_resource: 'r' }),
+      ),
+      fetchJson,
+    )
     await flushPromises()
     expect(w.findAll('th').map((th) => th.text())).toEqual(['Name', 'City'])
     expect(w.findAll('tbody td').map((td) => td.text())).toEqual(['Ada', 'London'])

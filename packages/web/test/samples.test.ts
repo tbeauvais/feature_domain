@@ -12,21 +12,36 @@ describe('sampleModels', () => {
 
   it('are the samples written for this app (set 2), in the order the model list shows them', () => {
     expect(SAMPLE_SET).toBe(2)
-    expect(samples.map((m) => m.name)).toEqual(['Start here', 'Harbor Coffee', 'Ledgerly pricing', 'Northwind sales', 'Tom Beauvais · projects', 'Shoreline JS meetup'])
+    expect(samples.map((m) => m.name)).toEqual([
+      'Start here',
+      'Harbor Coffee',
+      'Ledgerly pricing',
+      'Northwind sales',
+      'Tom Beauvais · projects',
+      'Shoreline JS meetup',
+    ])
   })
 
   it('are valid, and generate a page with no problems at all, in themes that needed no readability fixes', () => {
     for (const m of samples) {
       expect(validateModel(m), m.name).toEqual([])
       const { root, diagnostics } = generate(m)
-      expect(root.children.map((n) => n.kind), m.name).toEqual(['page'])
+      expect(
+        root.children.map((n) => n.kind),
+        m.name,
+      ).toEqual(['page'])
       expect(diagnostics.map((d) => `${m.name} #${d.featureInstanceId}: ${d.message}`)).toEqual([])
-      for (const theme of m.features.filter((f) => f.feature === 'ThemeFeature')) expect(deriveTokens(themeParams(theme.inputs)).adjustments, m.name).toEqual([])
+      for (const theme of m.features.filter((f) => f.feature === 'ThemeFeature'))
+        expect(deriveTokens(themeParams(theme.inputs)).adjustments, m.name).toEqual([])
     }
   })
 
   it('number their features as the editor would, so features added later get the next id', () => {
-    for (const m of samples) expect(m.features.map((f) => f.id), m.name).toEqual(m.features.map((_, i) => String(i + 1)))
+    for (const m of samples)
+      expect(
+        m.features.map((f) => f.id),
+        m.name,
+      ).toEqual(m.features.map((_, i) => String(i + 1)))
   })
 
   it('read like real pages: no placeholder text, and every link and button goes to an https address', () => {
@@ -45,14 +60,22 @@ describe('sampleModels', () => {
 
   it('give each button on a page its own words, so screen readers can tell them apart', () => {
     for (const m of samples) {
-      const words = nodes(m).filter((n) => n.kind === 'button').map((n) => (n.props as { text: string }).text)
+      const words = nodes(m)
+        .filter((n) => n.kind === 'button')
+        .map((n) => (n.props as { text: string }).text)
       expect(new Set(words).size, `${m.name}: ${words.join(', ')}`).toBe(words.length)
     }
   })
 
   it('use our own banners and drawings, so they load no pictures from other sites', () => {
-    for (const m of samples) expect(nodes(m).filter((n) => n.kind === 'image'), m.name).toEqual([])
-    const banners = samples.flatMap((m) => nodes(m).filter((n) => n.kind === 'illustration' && n.props.name.startsWith('banner/') && n.props.name !== 'banner/map'))
+    for (const m of samples)
+      expect(
+        nodes(m).filter((n) => n.kind === 'image'),
+        m.name,
+      ).toEqual([])
+    const banners = samples.flatMap((m) =>
+      nodes(m).filter((n) => n.kind === 'illustration' && n.props.name.startsWith('banner/') && n.props.name !== 'banner/map'),
+    )
     for (const banner of banners) expect(banner.props).toMatchObject({ width: '', alt: '' })
   })
 

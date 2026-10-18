@@ -30,7 +30,10 @@ function rng(seed: number) {
 
 function randomParams(random: () => number): ThemeParams {
   const pick = <T>(xs: readonly T[]) => xs[Math.floor(random() * xs.length)]!
-  const color = () => `#${Math.floor(random() * 0xffffff).toString(16).padStart(6, '0')}`
+  const color = () =>
+    `#${Math.floor(random() * 0xffffff)
+      .toString(16)
+      .padStart(6, '0')}`
   const raw: Record<string, unknown> = { accent: color(), band: color(), baseSize: 12 + Math.floor(random() * 11) }
   for (const [key, options] of Object.entries(THEME_OPTIONS)) raw[key] = pick(options)
   return clampThemeParams(raw)
@@ -75,7 +78,9 @@ describe('color math', () => {
   it('round-trips 2,000 random colors', () => {
     const random = rng(99)
     for (let i = 0; i < 2000; i++) {
-      const hex = `#${Math.floor(random() * 0x1000000).toString(16).padStart(6, '0')}`
+      const hex = `#${Math.floor(random() * 0x1000000)
+        .toString(16)
+        .padStart(6, '0')}`
       expect(oklchToHex(hexToOklch(hex)!)).toBe(hex)
     }
   })
@@ -177,10 +182,12 @@ describe('deriveTokens', () => {
       const params = randomParams(random)
       const t = deriveTokens(params)
       const colors = Array.from({ length: CHART_COLORS }, (_, n) => v(t, `chart-${n}`))
-      for (const c of colors) for (const bg of ['bg', 'surface']) expect(contrast(c, v(t, bg)), `${c} on ${bg} ${JSON.stringify(params)}`).toBeGreaterThanOrEqual(3)
+      for (const c of colors)
+        for (const bg of ['bg', 'surface']) expect(contrast(c, v(t, bg)), `${c} on ${bg} ${JSON.stringify(params)}`).toBeGreaterThanOrEqual(3)
       // Inside a band well the band's own chart colors apply: 3:1 against the band and its raised cards.
       for (let n = 0; n < CHART_COLORS; n++) {
-        for (const bg of ['band', 'band-raised']) expect(contrast(v(t, `band-chart-${n}`), v(t, bg)), `band-chart-${n} on ${bg} ${JSON.stringify(params)}`).toBeGreaterThanOrEqual(3)
+        for (const bg of ['band', 'band-raised'])
+          expect(contrast(v(t, `band-chart-${n}`), v(t, bg)), `band-chart-${n} on ${bg} ${JSON.stringify(params)}`).toBeGreaterThanOrEqual(3)
       }
       expect(new Set(colors).size, JSON.stringify(params)).toBe(CHART_COLORS)
       // Neighbors (a pie's adjacent slices) differ in hue by a sixth of a turn or in lightness.

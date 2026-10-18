@@ -5,7 +5,10 @@ const GROUPS: { label: string; types: string[] }[] = [
   { label: 'Layout', types: ['PageFeature', 'ContainerFeature', 'PanelFeature', 'SeparatorFeature'] },
   { label: 'Text', types: ['HeaderFeature', 'TextFeature', 'TextWithParagraphFeature', 'ListFeature', 'LinkFeature'] },
   { label: 'Media and cards', types: ['ImageFeature', 'ImageWithParagraphFeature', 'ListGroupFeature', 'ButtonFeature', 'GoogleMapFeature', 'WeatherFeature'] },
-  { label: 'Data and style', types: ['DataResourceFeature', 'SwaggerDataResourceFeature', 'TableFeature', 'GoogleChartFeature', 'FormFeature', 'ThemeFeature'] },
+  {
+    label: 'Data and style',
+    types: ['DataResourceFeature', 'SwaggerDataResourceFeature', 'TableFeature', 'GoogleChartFeature', 'FormFeature', 'ThemeFeature'],
+  },
 ]
 
 /** Short palette labels where the feature's name is long. */

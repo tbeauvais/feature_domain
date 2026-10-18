@@ -34,7 +34,12 @@ describe('nextInstanceId', () => {
 
 describe('descendantsOf', () => {
   it('returns everything placed inside a feature, transitively, in model order', () => {
-    const m = model(page(), inst('ContainerFeature', 'c', { columns: 1 }), inst('PanelFeature', 'p', {}, at('c', 'r1c1')), inst('TextFeature', 't', {}, at('p', 'body')))
+    const m = model(
+      page(),
+      inst('ContainerFeature', 'c', { columns: 1 }),
+      inst('PanelFeature', 'p', {}, at('c', 'r1c1')),
+      inst('TextFeature', 't', {}, at('p', 'body')),
+    )
     expect(descendantsOf(m, 'c')).toEqual(['p', 't'])
     expect(descendantsOf(m, '1')).toEqual(['c', 'p', 't'])
     expect(descendantsOf(m, 't')).toEqual([])
@@ -43,7 +48,14 @@ describe('descendantsOf', () => {
 
 describe('normalizeOrder', () => {
   it('puts features after their parent and the features they reference, without changing the page', () => {
-    const m = model(inst('TextFeature', 'a', {}, at('c', 'r1c1')), page(), inst('TableFeature', 't', { data_resource: 'r' }), inst('TextFeature', 'b', {}, at('c', 'r1c1')), inst('ContainerFeature', 'c'), resource('r'))
+    const m = model(
+      inst('TextFeature', 'a', {}, at('c', 'r1c1')),
+      page(),
+      inst('TableFeature', 't', { data_resource: 'r' }),
+      inst('TextFeature', 'b', {}, at('c', 'r1c1')),
+      inst('ContainerFeature', 'c'),
+      resource('r'),
+    )
     const sorted = normalizeOrder(m)
     // The page shows table t before container c; dependencies (page 1, resource r) are pulled forward instead.
     expect(ids(sorted)).toEqual(['1', 'r', 't', 'c', 'a', 'b'])
@@ -153,7 +165,13 @@ describe('moveFeature', () => {
 
 describe('removeFeature', () => {
   it('removes the feature with everything inside it, and reports broken references', () => {
-    const m = model(page(), resource('r'), inst('ContainerFeature', 'c', { columns: 1 }), inst('TableFeature', 't', { data_resource: 'r' }, at('c', 'r1c1')), inst('TableFeature', 'o', { data_resource: 'r' }))
+    const m = model(
+      page(),
+      resource('r'),
+      inst('ContainerFeature', 'c', { columns: 1 }),
+      inst('TableFeature', 't', { data_resource: 'r' }, at('c', 'r1c1')),
+      inst('TableFeature', 'o', { data_resource: 'r' }),
+    )
     expect(removeFeature(m, 'c')).toMatchObject({ removed: ['c', 't'], brokenReferences: [] })
     const result = removeFeature(m, 'r')
     expect(ids(result.model)).toEqual(['1', 'c', 't', 'o'])
@@ -182,7 +200,7 @@ describe('random edit sequences', () => {
   // A small deterministic PRNG, so failures reproduce.
   function prng(seed: number) {
     let s = seed
-    return () => ((s = (s * 1103515245 + 12345) % 2 ** 31) / 2 ** 31)
+    return () => (s = (s * 1103515245 + 12345) % 2 ** 31) / 2 ** 31
   }
 
   it.each([1, 2, 3, 4, 5])('keep the model valid (seed %i)', (seed) => {
@@ -220,7 +238,10 @@ describe('random edit sequences', () => {
       const after = generate(m)
       const codes = after.diagnostics.map((d) => d.code)
       expect(new Set(ids(m)).size, `step ${step}`).toBe(m.features.length)
-      expect(codes.filter((c) => ['out-of-order', 'cycle', 'duplicate-id', 'duplicate-node-id', 'unresolved-placement', 'missing-placement'].includes(c)), `step ${step}`).toEqual([])
+      expect(
+        codes.filter((c) => ['out-of-order', 'cycle', 'duplicate-id', 'duplicate-node-id', 'unresolved-placement', 'missing-placement'].includes(c)),
+        `step ${step}`,
+      ).toEqual([])
       expect(normalizeOrder(m)).toBe(m)
     }
     expect(m.features.length).toBeGreaterThan(5)

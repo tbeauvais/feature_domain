@@ -15,12 +15,30 @@ export const portfolio = sample('Tom Beauvais · projects', (add) => {
     table: 'hairline',
     well: 'band',
   })
-  const profile = add('DataResourceFeature', { name: 'GitHub profile', source: 'address', resource: 'https://api.github.com/users/tbeauvais', operation: 'GET' })
-  const repos = add('DataResourceFeature', { name: 'GitHub repos', source: 'address', resource: 'https://api.github.com/users/tbeauvais/repos?sort=updated&per_page=8', operation: 'GET' })
+  const profile = add('DataResourceFeature', {
+    name: 'GitHub profile',
+    source: 'address',
+    resource: 'https://api.github.com/users/tbeauvais',
+    operation: 'GET',
+  })
+  const repos = add('DataResourceFeature', {
+    name: 'GitHub repos',
+    source: 'address',
+    resource: 'https://api.github.com/users/tbeauvais/repos?sort=updated&per_page=8',
+    operation: 'GET',
+  })
   const page = add('PageFeature', { name: 'Page', theme }, root())
-  add('ImageFeature', { name: 'Banner', source: 'illustration', illustration: 'banner/blueprint', banner_height: 'short', width: '', decorative: true }, inPage(page))
+  add(
+    'ImageFeature',
+    { name: 'Banner', source: 'illustration', illustration: 'banner/blueprint', banner_height: 'short', width: '', decorative: true },
+    inPage(page),
+  )
   add('HeaderFeature', { name: 'Name', text: 'Tom Beauvais', size: 1, align: 'left' }, inPage(page))
-  add('TextFeature', { name: 'Profile', text: '{{public_repos}} public repositories · {{followers}} followers · on GitHub since {{created_at | date}}', data_resource: profile }, inPage(page))
+  add(
+    'TextFeature',
+    { name: 'Profile', text: '{{public_repos}} public repositories · {{followers}} followers · on GitHub since {{created_at | date}}', data_resource: profile },
+    inPage(page),
+  )
   add('LinkFeature', { name: 'GitHub', text: 'github.com/tbeauvais', href: 'https://github.com/tbeauvais' }, inPage(page))
   add(
     'TableFeature',
@@ -44,5 +62,9 @@ export const portfolio = sample('Tom Beauvais · projects', (add) => {
     },
     inPage(page),
   )
-  add('ButtonFeature', { name: 'Repository', text: 'View on GitHub', href: 'https://github.com/tbeauvais/feature_domain', style: 'primary', size: 'medium', align: 'left' }, inPage(page))
+  add(
+    'ButtonFeature',
+    { name: 'Repository', text: 'View on GitHub', href: 'https://github.com/tbeauvais/feature_domain', style: 'primary', size: 'medium', align: 'left' },
+    inPage(page),
+  )
 })

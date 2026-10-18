@@ -3,7 +3,15 @@ import { buildGraph, dependentsOf, topoSort } from '../src'
 
 describe('buildGraph', () => {
   it('ignores edges to unknown nodes and duplicate edges', () => {
-    const g = buildGraph(['a', 'b'], [['a', 'b'], ['a', 'b'], ['a', 'x'], ['x', 'b']])
+    const g = buildGraph(
+      ['a', 'b'],
+      [
+        ['a', 'b'],
+        ['a', 'b'],
+        ['a', 'x'],
+        ['x', 'b'],
+      ],
+    )
     expect(g.children.get('a')).toEqual(['b'])
     expect(g.parents.get('b')).toEqual(['a'])
   })
@@ -27,7 +35,14 @@ describe('topoSort', () => {
   })
 
   it('reports nodes on a cycle separately from nodes blocked behind it', () => {
-    const g = buildGraph(['a', 'b', 'c', 'free'], [['a', 'b'], ['b', 'a'], ['b', 'c']])
+    const g = buildGraph(
+      ['a', 'b', 'c', 'free'],
+      [
+        ['a', 'b'],
+        ['b', 'a'],
+        ['b', 'c'],
+      ],
+    )
     expect(topoSort(g)).toEqual({ order: ['free'], cyclic: ['a', 'b'], blocked: ['c'] })
   })
 
@@ -39,14 +54,27 @@ describe('topoSort', () => {
 
 describe('dependentsOf', () => {
   it('returns transitive dependents in model order, excluding the node itself', () => {
-    const g = buildGraph(['a', 'b', 'c', 'd', 'e'], [['a', 'c'], ['c', 'b'], ['b', 'd']])
+    const g = buildGraph(
+      ['a', 'b', 'c', 'd', 'e'],
+      [
+        ['a', 'c'],
+        ['c', 'b'],
+        ['b', 'd'],
+      ],
+    )
     expect(dependentsOf(g, 'a')).toEqual(['b', 'c', 'd'])
     expect(dependentsOf(g, 'b')).toEqual(['d'])
     expect(dependentsOf(g, 'e')).toEqual([])
   })
 
   it('terminates on cycles', () => {
-    const g = buildGraph(['a', 'b'], [['a', 'b'], ['b', 'a']])
+    const g = buildGraph(
+      ['a', 'b'],
+      [
+        ['a', 'b'],
+        ['b', 'a'],
+      ],
+    )
     expect(dependentsOf(g, 'a')).toEqual(['b'])
   })
 })

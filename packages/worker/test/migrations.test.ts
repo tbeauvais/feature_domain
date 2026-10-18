@@ -16,7 +16,10 @@ afterAll(() => d1?.dispose())
 /** Runs one migration file's statements. */
 async function apply(file: string) {
   const sql = readFileSync(join(WORKER_DIR, 'migrations', file), 'utf8').replace(/^--.*$/gm, '')
-  const statements = sql.split(';').map((s) => s.trim()).filter(Boolean)
+  const statements = sql
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean)
   await d1.env.DB.batch(statements.map((s) => d1.env.DB.prepare(s)))
 }
 
