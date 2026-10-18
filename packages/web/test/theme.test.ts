@@ -28,7 +28,9 @@ describe('document.css and the theme tokens', () => {
   })
 
   it('has a rule for every badge tint the theme provides', () => {
-    for (let i = 0; i < BADGE_COUNT; i++) expect(css).toContain(`.fd-badge-${i} { background: var(--fd-badge-${i}-bg); color: var(--fd-badge-${i}); }`)
+    // Whitespace aside, so the formatter may lay the rules out as it likes.
+    const flat = css.replace(/\s+/g, ' ')
+    for (let i = 0; i < BADGE_COUNT; i++) expect(flat).toContain(`.fd-badge-${i} { background: var(--fd-badge-${i}-bg); color: var(--fd-badge-${i}); }`)
   })
 
   it('has rules for every button style and size', () => {
