@@ -30,7 +30,7 @@ export function describeModelStore(name: string, create: () => ModelStore | Prom
     it('returns stored models with their id, ignoring any id the caller supplied', async () => {
       const store = await create()
       const id = await store.create({ ...sample('A'), id: 'caller-id' })
-      expect(await store.get(id)).toEqual({ model: { ...sample('A'), id }, version: 1 })
+      expect(await store.get(id)).toEqual({ model: { ...sample('A'), id }, revision: 1 })
       expect(await store.get('caller-id')).toBeNull()
     })
 
@@ -38,39 +38,39 @@ export function describeModelStore(name: string, create: () => ModelStore | Prom
       expect(await (await create()).get('nope')).toBeNull()
     })
 
-    it('updates models, adding one to the version each time', async () => {
+    it('updates models, adding one to the revision each time', async () => {
       const store = await create()
       const id = await store.create(sample('A'))
       expect(await store.update(id, sample('Renamed'))).toBe(2)
-      expect(await store.get(id)).toEqual({ model: { ...sample('Renamed'), id }, version: 2 })
+      expect(await store.get(id)).toEqual({ model: { ...sample('Renamed'), id }, revision: 2 })
       expect(await store.list()).toEqual([{ id, name: 'Renamed' }])
       expect(await store.update(id, sample('Again'))).toBe(3)
-      expect((await store.get(id))?.version).toBe(3)
+      expect((await store.get(id))?.revision).toBe(3)
     })
 
-    it('updates a model made from the stored version', async () => {
+    it('updates a model made from the stored revision', async () => {
       const store = await create()
       const id = await store.create(sample('A'))
       expect(await store.update(id, sample('B'), 1)).toBe(2)
       expect(await store.update(id, sample('C'), 2)).toBe(3)
-      expect(await store.get(id)).toMatchObject({ model: { name: 'C' }, version: 3 })
+      expect(await store.get(id)).toMatchObject({ model: { name: 'C' }, revision: 3 })
     })
 
-    it('refuses an update made from an older version, saying which version is stored, and changes nothing', async () => {
+    it('refuses an update made from an older revision, saying which revision is stored, and changes nothing', async () => {
       const store = await create()
       const id = await store.create(sample('A'))
       await store.update(id, sample('Theirs'), 1)
       const refused = store.update(id, sample('Mine'), 1)
       await expect(refused).rejects.toBeInstanceOf(ModelConflictError)
-      await expect(refused).rejects.toMatchObject({ id, version: 2 })
-      expect(await store.get(id)).toMatchObject({ model: { name: 'Theirs' }, version: 2 })
+      await expect(refused).rejects.toMatchObject({ id, revision: 2 })
+      expect(await store.get(id)).toMatchObject({ model: { name: 'Theirs' }, revision: 2 })
       expect(await store.list()).toEqual([{ id, name: 'Theirs' }])
     })
 
-    it('refuses a version it never had', async () => {
+    it('refuses a revision it never had', async () => {
       const store = await create()
       const id = await store.create(sample('A'))
-      await expect(store.update(id, sample('B'), 5)).rejects.toMatchObject({ name: 'ModelConflictError', version: 1 })
+      await expect(store.update(id, sample('B'), 5)).rejects.toMatchObject({ name: 'ModelConflictError', revision: 1 })
     })
 
     it('keeps the stored id when an update carries a different one', async () => {
@@ -85,7 +85,7 @@ export function describeModelStore(name: string, create: () => ModelStore | Prom
     it('refuses to update missing models', async () => {
       const store = await create()
       await expect(store.update('nope', sample('A'))).rejects.toBeInstanceOf(ModelNotFoundError)
-      // Missing is not a conflict, whatever version the caller had.
+      // Missing is not a conflict, whatever revision the caller had.
       await expect(store.update('nope', sample('A'), 1)).rejects.toBeInstanceOf(ModelNotFoundError)
     })
 
@@ -105,8 +105,8 @@ export function describeModelStore(name: string, create: () => ModelStore | Prom
       model.name = 'mutated after create'
       const fetched = (await store.get(id))!
       fetched.model.features.length = 0
-      fetched.version = 99
-      expect(await store.get(id)).toMatchObject({ model: { name: 'A', features: [{ id: '1' }] }, version: 1 })
+      fetched.revision = 99
+      expect(await store.get(id)).toMatchObject({ model: { name: 'A', features: [{ id: '1' }] }, revision: 1 })
     })
   })
 }

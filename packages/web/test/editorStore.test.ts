@@ -149,7 +149,7 @@ describe('editing with useDocumentStore', () => {
     await doc.refresh()
     expect(doc.model?.name).toBe('From another tab')
     expect(doc.status).toBe('ready')
-    vi.spyOn(store, 'get').mockResolvedValue({ model: { version: 2 } as unknown as AppModel, version: 3 })
+    vi.spyOn(store, 'get').mockResolvedValue({ model: { version: 2 } as unknown as AppModel, revision: 3 })
     await doc.refresh()
     expect(doc.model?.name).toBe('From another tab')
   })

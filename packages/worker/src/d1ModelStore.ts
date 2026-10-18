@@ -1,7 +1,7 @@
-import { ModelConflictError, ModelNotFoundError, type AppModel, type ModelStore, type ModelSummary, type VersionedModel } from '@feature-domain/engine'
+import { ModelConflictError, ModelNotFoundError, type AppModel, type ModelStore, type ModelSummary, type StoredModel } from '@feature-domain/engine'
 
 /**
- * Models in D1 (migrations/), one row each, the model as JSON, with its version. The model's own `id` is not stored in
+ * Models in D1 (migrations/), one row each, the model as JSON, with its revision. The model's own `id` is not stored in
  * the JSON: the row's id is the only one, and it is put back on read.
  */
 export class D1ModelStore implements ModelStore {
@@ -16,9 +16,9 @@ export class D1ModelStore implements ModelStore {
     return results.map(({ id, name }) => ({ id, name }))
   }
 
-  async get(id: string): Promise<VersionedModel | null> {
-    const row = await this.db.prepare('SELECT model, version FROM models WHERE id = ?').bind(id).first<{ model: string; version: number }>()
-    return row ? { model: { ...(JSON.parse(row.model) as AppModel), id }, version: row.version } : null
+  async get(id: string): Promise<StoredModel | null> {
+    const row = await this.db.prepare('SELECT model, revision FROM models WHERE id = ?').bind(id).first<{ model: string; revision: number }>()
+    return row ? { model: { ...(JSON.parse(row.model) as AppModel), id }, revision: row.revision } : null
   }
 
   async create(model: AppModel): Promise<string> {
@@ -31,16 +31,16 @@ export class D1ModelStore implements ModelStore {
     return id
   }
 
-  async update(id: string, model: AppModel, ifVersion?: number): Promise<number> {
-    // One statement checks the version and writes, so no other save can land in between.
-    const set = 'UPDATE models SET name = ?, model = ?, updated_at = ?, version = version + 1 WHERE id = ?'
+  async update(id: string, model: AppModel, ifRevision?: number): Promise<number> {
+    // One statement checks the revision and writes, so no other save can land in between.
+    const set = 'UPDATE models SET name = ?, model = ?, updated_at = ?, revision = revision + 1 WHERE id = ?'
     const statement =
-      ifVersion === undefined
-        ? this.db.prepare(`${set} RETURNING version`).bind(model.name, toJson(model), this.now(), id)
-        : this.db.prepare(`${set} AND version = ? RETURNING version`).bind(model.name, toJson(model), this.now(), id, ifVersion)
-    const updated = await statement.first<number>('version')
+      ifRevision === undefined
+        ? this.db.prepare(`${set} RETURNING revision`).bind(model.name, toJson(model), this.now(), id)
+        : this.db.prepare(`${set} AND revision = ? RETURNING revision`).bind(model.name, toJson(model), this.now(), id, ifRevision)
+    const updated = await statement.first<number>('revision')
     if (updated !== null) return updated
-    const stored = await this.db.prepare('SELECT version FROM models WHERE id = ?').bind(id).first<number>('version')
+    const stored = await this.db.prepare('SELECT revision FROM models WHERE id = ?').bind(id).first<number>('revision')
     if (stored === null) throw new ModelNotFoundError(id)
     throw new ModelConflictError(id, stored)
   }

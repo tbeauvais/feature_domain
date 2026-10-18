@@ -116,14 +116,14 @@ describe('/api/v1/models', () => {
   })
 })
 
-describe('model versions', () => {
+describe('model revisions', () => {
   async function created(): Promise<string> {
     return ((await (await request('/api/v1/models', json(model))).json()) as { id: string }).id
   }
   const put = (id: string, name: string, ifMatch?: string) =>
     request(`/api/v1/models/${id}`, json({ ...model, name }, 'PUT', ifMatch === undefined ? {} : { 'If-Match': ifMatch }))
 
-  it('gives each version of a model as its ETag, starting at 1', async () => {
+  it('gives each revision of a model as its ETag, starting at 1', async () => {
     const response = await request('/api/v1/models', json(model))
     expect(response.headers.get('ETag')).toBe('"1"')
     const { id } = (await response.json()) as { id: string }
@@ -136,7 +136,7 @@ describe('model versions', () => {
     expect((await request(`/api/v1/models/${id}`)).headers.get('ETag')).toBe('"2"')
   })
 
-  it('saves over the version If-Match names', async () => {
+  it('saves over the revision If-Match names', async () => {
     const id = await created()
     const first = await put(id, 'Mine', '"1"')
     expect(first.status).toBe(204)
@@ -145,17 +145,17 @@ describe('model versions', () => {
     expect(await (await request(`/api/v1/models/${id}`)).json()).toMatchObject({ name: 'Mine again' })
   })
 
-  it('refuses a save made from an older version with a 412 naming the stored one, and keeps what is stored', async () => {
+  it('refuses a save made from an older revision with a 412 naming the stored one, and keeps what is stored', async () => {
     const id = await created()
     await put(id, 'Theirs', '"1"')
     const refused = await put(id, 'Mine', '"1"')
     expect(refused.status).toBe(412)
     expect(refused.headers.get('ETag')).toBe('"2"')
-    expect(await refused.json()).toEqual({ error: 'The model was changed since this version' })
+    expect(await refused.json()).toEqual({ error: 'The model was changed since this revision' })
     expect(await (await request(`/api/v1/models/${id}`)).json()).toMatchObject({ name: 'Theirs' })
   })
 
-  it('takes If-Match: * as any stored version, and a missing model is still a 404', async () => {
+  it('takes If-Match: * as any stored revision, and a missing model is still a 404', async () => {
     const id = await created()
     expect((await put(id, 'Any', '*')).status).toBe(204)
     expect((await put('nope', 'Any', '*')).status).toBe(404)
@@ -164,11 +164,34 @@ describe('model versions', () => {
 
   it('refuses If-Match values it never sends, before reading the model', async () => {
     const id = await created()
-    for (const value of ['W/"1"', '"1", "2"', '1', '"0"', '"abc"', '']) {
+    for (const value of ['"1", "2"', '1', '"0"', '"abc"', '', '"1234567890123456"', 'W/1']) {
       const response = await put(id, 'Bad', value)
       expect(response.status, value).toBe(400)
     }
     expect(await (await request(`/api/v1/models/${id}`)).json()).toMatchObject({ name: model.name })
+  })
+
+  it('takes a weak tag in If-Match as the revision it names (the edge weakens tags when it compresses)', async () => {
+    const id = await created()
+    const saved = await put(id, 'Through the edge', 'W/"1"')
+    expect(saved.status).toBe(204)
+    expect(saved.headers.get('ETag')).toBe('"2"')
+    expect((await put(id, 'Stale', 'W/"1"')).status).toBe(412)
+  })
+
+  it('reads the longest revision it accepts exactly', async () => {
+    const id = await created()
+    const refused = await put(id, 'Far ahead', '"999999999999999"')
+    expect(refused.status).toBe(412)
+    expect(refused.headers.get('ETag')).toBe('"1"')
+  })
+
+  it('checks the model before the revision: an invalid model is a 400 even when the revision is stale', async () => {
+    const id = await created()
+    await put(id, 'Theirs', '"1"')
+    const response = await request(`/api/v1/models/${id}`, json({ ...model, features: 'none' }, 'PUT', { 'If-Match': '"1"' }))
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ error: 'The model is not valid' })
   })
 
   it('answers If-None-Match with a 304 while the model is unchanged', async () => {
