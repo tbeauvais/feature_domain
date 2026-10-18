@@ -1,7 +1,7 @@
 import { generate, MemoryModelStore, type InputDef, type InputValue } from '@feature-domain/engine'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, ref, type Ref } from 'vue'
 import { confirmAction, pendingConfirm } from '../src/editor/confirm'
 import ConfirmHost from '../src/editor/ConfirmHost.vue'

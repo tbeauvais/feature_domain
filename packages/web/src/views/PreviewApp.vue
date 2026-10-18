@@ -8,7 +8,8 @@ const store = useDocumentStore()
 const { status, error, result, generateError } = storeToRefs(store)
 
 const id = new URLSearchParams(window.location.search).get('model')
-if (id) store.load(id)
+// load() never rejects: a failure shows as the load error below.
+if (id) void store.load(id)
 
 // Show the editor's saves as they happen (this browser's tabs at once, other devices within a few seconds).
 useModelUpdates(() => store.modelId, () => store.refresh())

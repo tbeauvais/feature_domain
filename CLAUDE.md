@@ -39,12 +39,16 @@ The purpose of the project is to **showcase parametric, feature-based modeling**
 
 ## New stack (in progress)
 
-An npm workspace (`package.json` at the root, packages under `packages/`). Node LTS. CI (`.github/workflows/ci.yml`) runs typecheck and tests on every push and PR. **Everything new must be covered by tests.**
+An npm workspace (`package.json` at the root, packages under `packages/`). Node LTS. CI (`.github/workflows/ci.yml`) runs typecheck, lint and tests on every push and PR. **Everything new must be covered by tests.**
 
 ```bash
 npm install
 npm test                    # all workspaces (Vitest)
 npm run typecheck           # tsc --noEmit, all workspaces
+npm run lint                # ESLint (eslint.config.js): the recommended JS, TypeScript and Vue correctness rules, plus
+                            # no-floating-promises, no-misused-promises, await-thenable and vue/no-v-html; no formatting
+                            # rules; any warning fails. Type-aware: a new .ts file must be in its package's tsconfig
+                            # `include`, or ESLint can't parse it. `npx eslint --fix <file>` fixes some
 npm run build               # emit packages/engine/dist (JS + .d.ts)
 npm run smoke               # build, then import the engine by package name from plain Node
 npm run e2e                 # Playwright end-to-end tests (packages/web; first run: npx playwright install chromium); screenshot tests are skipped off Linux
@@ -170,7 +174,7 @@ cd packages/engine && npx vitest           # watch mode
 - **Engine imports.** The app imports the engine's TypeScript source through the `@feature-domain/source` export condition: `customConditions` in tsconfig, and `resolve.conditions` in `vite.config.ts`, which keeps Vite's defaults (and on the Worker's environment).
 - **Tests.** Vitest + Vue Test Utils (jsdom) in `test/`. Playwright in `e2e/` runs against a production build. Tests run in parallel, so each gets a model API of its own (`e2e/storage.ts`, set up by `isolateNetwork`): the Worker's real routes in the test process over a `MemoryModelStore` seeded with the samples under the seed's ids (`sample-2-1` …); `store` puts a model there, `stored` / `changeStored` / `storedId` read and change it as another tab would, and `featureId` finds a sample's feature by name, so adding a feature to a sample doesn't break tests. `e2e/api.spec.ts` and `e2e/sync.spec.ts` (`isolateNetwork(…, { realModels: true })`: two tabs, other devices, conflicts, deletes, the save on the way out) use the real Worker and its D1. Playwright loads the engine's source, so `npm run e2e` runs it with `NODE_OPTIONS=--conditions=@feature-domain/source` (`npx playwright test` alone fails). Every external request is blocked except mocked GitHub and Open-Meteo APIs (the screenshot tests also stand in a local picture for photos from other sites, and give fixed weather that shows every icon).
   - **Screenshot tests** (`e2e/screenshots.spec.ts`): every sample, plus models showing every Header and Panel option, every chart type, and Weather cards with every icon and the error state, in light and dark, at desktop (1280) and phone (390) width, in the standalone preview. Photos from other sites are replaced by a flat local picture, GitHub returns fixed rows and profiles, and Open-Meteo fixed weather. A pixel counts as changed past a 1% color difference (`playwright.config.ts`; Playwright's default 20% missed a swap between two pale tints). Text renders differently per OS, so baselines are Linux only (`*-chromium-linux.png`): they run in the Playwright Docker image (`e2e/docker.sh`; container-only volumes keep its Linux `npm ci` out of the host's `node_modules`), and CI's e2e job runs in that same image. `@playwright/test` is pinned exactly, and a unit test checks that CI's image version matches it.
-- **TypeScript is pinned to 6.x** for the whole workspace (root `overrides`). `vue-tsc` needs TypeScript's JavaScript API, which TypeScript 7 (the native Go compiler) doesn't ship.
+- **TypeScript is pinned to 6.x** for the whole workspace (root `overrides`). `vue-tsc` needs TypeScript's JavaScript API, which TypeScript 7 (the native Go compiler) doesn't ship. typescript-eslint also supports only TypeScript below 6.1 (as of 8.71), so a TypeScript upgrade waits for it too. The ESLint packages are pinned exactly; upgrade them together.
 
 ## Commands (original stack; won't work until dependencies are modernized)
 

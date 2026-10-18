@@ -172,7 +172,7 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
         <tbody v-else role="rowgroup">
           <tr v-for="(row, index) in rows" :key="index" role="row">
             <td v-for="(column, c) in columns" :key="column.field" role="cell" :data-label="column.label" :class="{ 'fd-num': numeric[c] }">
-              <template v-for="cell in [cellContent(row, column.field, column.filter)]" :key="column.field">
+              <template v-for="(cell, k) in [cellContent(row, column.field, column.filter)]" :key="k">
                 <a v-if="cell.href" :href="cell.href" target="_blank" rel="noopener noreferrer">{{ cell.text }}</a>
                 <span v-else-if="cell.badge" class="fd-badge" :class="`fd-badge-${tints[c]?.get(badgeKey(cell.text)) ?? 0}`">{{ cell.text }}</span>
                 <template v-else>{{ cell.text }}</template>

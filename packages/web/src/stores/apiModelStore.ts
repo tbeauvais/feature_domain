@@ -56,8 +56,8 @@ export class ApiModelStore implements ModelStore {
 
   async list(): Promise<ModelSummary[]> {
     const body = await this.json(await this.request(MODELS_PATH))
-    if (!Array.isArray(body) || !body.every((m) => typeof m?.id === 'string' && typeof m?.name === 'string')) throw unexpected()
-    return body.map(({ id, name }: ModelSummary) => ({ id, name }))
+    if (!Array.isArray(body) || !body.every(isSummary)) throw unexpected()
+    return body.map(({ id, name }) => ({ id, name }))
   }
 
   async get(id: string): Promise<StoredModel | null> {
@@ -72,8 +72,9 @@ export class ApiModelStore implements ModelStore {
 
   async create(model: AppModel): Promise<string> {
     const body = await this.json(await this.request(MODELS_PATH, { method: 'POST', ...send(model) }))
-    if (typeof body?.id !== 'string') throw unexpected()
-    return body.id
+    const id = typeof body === 'object' && body !== null ? (body as { id?: unknown }).id : undefined
+    if (typeof id !== 'string') throw unexpected()
+    return id
   }
 
   async update(id: string, model: AppModel, ifRevision?: number): Promise<number> {
@@ -130,7 +131,7 @@ export class ApiModelStore implements ModelStore {
   }
 
   /** The response's JSON, which each caller checks. */
-  private async json(response: Response): Promise<any> {
+  private async json(response: Response): Promise<unknown> {
     await this.ok(response)
     // Something in front of the Worker (Access's sign-in page) answered with HTML.
     if (!isJson(response)) throw new SignedOutError()
@@ -140,6 +141,8 @@ export class ApiModelStore implements ModelStore {
   }
 }
 
+const isSummary = (m: unknown): m is ModelSummary =>
+  typeof m === 'object' && m !== null && typeof (m as ModelSummary).id === 'string' && typeof (m as ModelSummary).name === 'string'
 const path = (id: string) => `${MODELS_PATH}/${encodeURIComponent(id)}`
 const send = (model: AppModel) => ({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(model) })
 const isJson = (response: Response) => response.headers.get('Content-Type')?.toLowerCase().startsWith('application/json') ?? false
