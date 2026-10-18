@@ -4,9 +4,11 @@
 #
 # style-src has no 'unsafe-inline': Vue sets style bindings through the DOM, which the policy allows, but it would turn
 # large static templates (the illustrations' `style="fill: var(…)"`) into HTML strings, whose style attributes it
-# refuses. vite.config.ts turns that off (hoistStatic). img-src takes any https image, since model images can be anywhere;
+# refuses. vueCompilerOptions.ts turns that off (hoistStatic; test/csp.test.ts checks it holds). img-src takes any https image, since model images can be anywhere;
 # connect-src any https address, since data resources fetch from the browser.
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Cross-Origin-Opener-Policy: same-origin

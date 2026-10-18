@@ -4,14 +4,13 @@ import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { defaultClientConditions } from 'vite'
 import { defineConfig } from 'vitest/config'
+import { vueCompilerOptions } from './vueCompilerOptions'
 
 const worker = (path: string) => fileURLToPath(new URL(`../worker/${path}`, import.meta.url))
 
 export default defineConfig({
   plugins: [
-    // No static hoisting: it turns large static templates into HTML strings, and the Content Security Policy
-    // (public/_headers) refuses the style attributes in them (the illustrations' `style="fill: var(…)"`).
-    vue({ template: { compilerOptions: { hoistStatic: false } } }),
+    vue({ template: { compilerOptions: vueCompilerOptions } }),
     tailwindcss(),
     // The Worker (packages/worker): `vite dev` and `vite preview` run it in workerd with its local D1, as Cloudflare
     // runs it, and `vite build` emits it beside the app. Its data is the worker package's, so wrangler commands run

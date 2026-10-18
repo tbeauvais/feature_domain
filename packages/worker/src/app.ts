@@ -35,8 +35,11 @@ export function createApp(store?: (env: Env) => ModelStore) {
   // API answers are data, never pages: nothing in them may run, load or be framed. (The app's pages get their policy
   // from packages/web/public/_headers.)
   app.use('/api/*', async (c, next) => {
-    await next()
-    for (const [name, value] of Object.entries(API_HEADERS)) c.res.headers.set(name, value)
+    try {
+      await next()
+    } finally {
+      for (const [name, value] of Object.entries(API_HEADERS)) c.res.headers.set(name, value)
+    }
   })
 
   api.use(async (c, next) => {

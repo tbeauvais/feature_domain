@@ -248,15 +248,21 @@ describe('the API', () => {
   it('sends security headers on every answer, errors included', async () => {
     const failing = new MemoryModelStore()
     failing.list = () => Promise.reject(new Error('failed'))
+    const created = await request('/api/v1/models', json(model))
+    const path = `/api/v1/models/${((await created.json()) as { id: string }).id}`
     const responses = [
       await request('/api/v1/models'),
-      await request('/api/v1/models', json(model)),
+      created,
+      await request(path, { headers: { 'If-None-Match': '"1"' } }),
+      await request(path, json(model, 'PUT', { 'If-Match': '"1"' })),
+      await request(path, json(model, 'PUT', { 'If-Match': '"1"' })),
+      await request(path, { method: 'DELETE' }),
       await request('/api/v1/models/missing'),
       await request('/api/v1/models', { method: 'PATCH' }),
       await request('/api/nope'),
       await createApp(() => failing).request('/api/v1/models', undefined, d1.env),
     ]
-    expect(responses.map((r) => r.status)).toEqual([200, 201, 404, 405, 404, 500])
+    expect(responses.map((r) => r.status)).toEqual([200, 201, 304, 204, 412, 204, 404, 405, 404, 500])
     for (const response of responses) {
       for (const [name, value] of Object.entries(API_HEADERS)) expect(response.headers.get(name), name).toBe(value)
     }

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { isCspViolation } from './network'
 
 // The model API as deployed: the built Worker in workerd, on a local D1 database migrated by wrangler.
 
@@ -64,14 +65,19 @@ test('answers unknown API paths with JSON, and editor paths with the editor', as
 
 test('serves pages and assets with a Content Security Policy, and keeps _headers itself private', async ({ request }) => {
   const index = await request.get('/')
-  const script = /src="(\/assets\/[^"]+\.js)"/.exec(await index.text())?.[1]
-  expect(script).toBeDefined()
-  for (const path of ['/', '/preview.html', '/models/some-id', script!]) {
+  const html = await index.text()
+  const script = /src="(\/assets\/[^"]+\.js)"/.exec(html)?.[1]
+  const stylesheet = /href="(\/assets\/[^"]+\.css)"/.exec(html)?.[1]
+  const font = /url\((\/assets\/[^)]+\.woff2)\)/.exec(await (await request.get(stylesheet!)).text())?.[1]
+  expect([script, stylesheet, font]).not.toContain(undefined)
+  for (const path of ['/', '/preview.html', '/models/some-id', script!, stylesheet!, font!]) {
     const headers = (await request.get(path)).headers()
     expect(headers['content-security-policy'], path).toContain("script-src 'self';")
     expect(headers['content-security-policy'], path).toContain("frame-ancestors 'none'")
     expect(headers['x-content-type-options'], path).toBe('nosniff')
     expect(headers['referrer-policy'], path).toBe('no-referrer')
+    expect(headers['cross-origin-opener-policy'], path).toBe('same-origin')
+    expect(headers['permissions-policy'], path).toBe('camera=(), microphone=(), geolocation=()')
   }
   expect(await (await request.get('/_headers')).text()).not.toContain('Content-Security-Policy')
 
@@ -79,7 +85,8 @@ test('serves pages and assets with a Content Security Policy, and keeps _headers
   expect(api['content-security-policy']).toBe("default-src 'none'; frame-ancestors 'none'")
 })
 
-test('refuses scripts that are not the app’s own', async ({ page }) => {
+test('refuses scripts that are not the app’s own, and reports it as the e2e guard expects', async ({ page }) => {
+  const reported = page.waitForEvent('console', isCspViolation)
   await page.goto('/preview.html')
   const ran = await page.evaluate(() => {
     const script = document.createElement('script')
@@ -88,4 +95,6 @@ test('refuses scripts that are not the app’s own', async ({ page }) => {
     return (window as { injected?: boolean }).injected === true
   })
   expect(ran).toBe(false)
+  // isolateNetwork fails tests on these messages, so they must keep arriving in this form.
+  expect((await reported).text()).toContain("script-src 'self'")
 })
