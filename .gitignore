@@ -12,3 +12,6 @@ playwright-report/
 infrastructure/.terraform/
 *.tfstate
 *.tfstate.*
+# Variables (allowed_emails) are personal data and the repo is public: set them as TF_VAR_* outside it
+*.tfvars
+*.tfvars.json

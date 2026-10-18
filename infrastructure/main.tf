@@ -2,9 +2,8 @@
 # Code is not deployed from here: `npm run deploy` (wrangler) applies migrations and uploads the Worker and the web
 # build, from the same config `vite dev` uses, so local and Cloudflare stay the same. See README.md.
 #
-# Auth: CLOUDFLARE_API_TOKEN (Workers Scripts, D1, Access: Apps and Policies, Workers R2 Storage, Account Settings
-# read) for the provider; AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (an R2 key for the state bucket) for the backend.
-# Neither is ever committed.
+# Auth: CLOUDFLARE_API_TOKEN for the provider and an R2 key (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY) for the
+# backend; README.md lists the token's permissions. Neither is ever committed.
 
 terraform {
   required_version = ">= 1.10"
@@ -113,6 +112,12 @@ resource "cloudflare_zero_trust_access_policy" "editors" {
       }
     }
   ]
+
+  # Without it the editor and /api are open to anyone, and deploying never brings it back. Remove this block
+  # deliberately before Terraform may ever delete it.
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "cloudflare_zero_trust_access_application" "editor" {
@@ -128,6 +133,12 @@ resource "cloudflare_zero_trust_access_application" "editor" {
       precedence = 1
     }
   ]
+
+  # Without it the editor and /api are open to anyone, and deploying never brings it back. Remove this block
+  # deliberately before Terraform may ever delete it.
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 output "d1_database_id" {

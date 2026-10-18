@@ -40,5 +40,9 @@ source ~/.config/feature-domain/cloudflare.env
 npm run deploy -w packages/web   # build, migrate and seed D1 (--remote), wrangler deploy
 ```
 
+Migrations run before the new code is uploaded, and nothing rolls them back if the upload fails, so every migration
+must keep working with the Worker already running: add tables and columns; drop or rename only in a later deploy, once
+no running code uses them. wrangler asks before applying migrations to Cloudflare.
+
 `terraform output d1_database_id` is the id in `packages/worker/wrangler.jsonc`. Local D1 data is stored per database
 id, so after it changes `npm run dev` starts from freshly seeded samples.
