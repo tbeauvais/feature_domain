@@ -17,7 +17,7 @@ describe('BrowserModelStore', () => {
   it('persists models in storage, so another instance (e.g. the preview tab) sees them', async () => {
     const storage = new MemoryStorage()
     const id = await new BrowserModelStore(storage, counterIds()).create({ ...model(page()), name: 'Shared' })
-    expect(await new BrowserModelStore(storage).get(id)).toMatchObject({ id, name: 'Shared' })
+    expect((await new BrowserModelStore(storage).get(id))?.model).toMatchObject({ id, name: 'Shared' })
   })
 
   it('seeds sample models once, and does not bring back deleted ones', async () => {

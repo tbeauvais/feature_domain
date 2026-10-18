@@ -1,4 +1,4 @@
-import { ModelNotFoundError, validateModel, type AppModel, type ModelStore, type ModelSummary } from '@feature-domain/engine'
+import { ModelConflictError, ModelNotFoundError, validateModel, type AppModel, type ModelStore, type ModelSummary, type VersionedModel } from '@feature-domain/engine'
 
 /** The storage key holding all models; other tabs watch it (the `storage` event) to pick up saves. */
 export const MODELS_KEY = 'feature-domain:models'
@@ -11,6 +11,8 @@ const SAMPLE_SET_KEY = 'feature-domain:sample-set'
 interface Stored {
   order: string[]
   models: Record<string, AppModel>
+  /** Each model's version; absent (stored before versions) means 1. */
+  versions?: Record<string, number>
 }
 
 /**
@@ -28,29 +30,37 @@ export class BrowserModelStore implements ModelStore {
     return order.flatMap((id) => (models[id] ? [{ id, name: models[id].name }] : []))
   }
 
-  async get(id: string): Promise<AppModel | null> {
-    return this.read().models[id] ?? null
+  async get(id: string): Promise<VersionedModel | null> {
+    const { models, versions } = this.read()
+    const model = models[id]
+    return model ? { model, version: versions?.[id] ?? 1 } : null
   }
 
   async create(model: AppModel): Promise<string> {
     const stored = this.read()
     const id = this.newId()
     stored.models[id] = { ...model, id }
+    if (stored.versions) delete stored.versions[id]
     stored.order.push(id)
     this.write(stored)
     return id
   }
 
-  async update(id: string, model: AppModel): Promise<void> {
+  async update(id: string, model: AppModel, ifVersion?: number): Promise<number> {
     const stored = this.read()
     if (!stored.models[id]) throw new ModelNotFoundError(id)
+    const current = stored.versions?.[id] ?? 1
+    if (ifVersion !== undefined && ifVersion !== current) throw new ModelConflictError(id, current)
     stored.models[id] = { ...model, id }
+    stored.versions = { ...stored.versions, [id]: current + 1 }
     this.write(stored)
+    return current + 1
   }
 
   async delete(id: string): Promise<void> {
     const stored = this.read()
     delete stored.models[id]
+    if (stored.versions) delete stored.versions[id]
     stored.order = stored.order.filter((o) => o !== id)
     this.write(stored)
   }

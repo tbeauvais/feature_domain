@@ -30,7 +30,7 @@ it('seeds the samples once, in order, as D1ModelStore reads them', async () => {
   const store = new D1ModelStore(d1.env.DB)
   const listed = await store.list()
   expect(listed.map((m) => m.name)).toEqual(SAMPLE_MODELS.map((m) => m.name))
-  for (const [i, { id }] of listed.entries()) expect(await store.get(id)).toEqual({ ...SAMPLE_MODELS[i], id })
+  for (const [i, { id }] of listed.entries()) expect(await store.get(id)).toEqual({ model: { ...SAMPLE_MODELS[i], id }, version: 1 })
   expect(await d1.env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(SEEDED_KEY).first('value')).toBe('2')
 
   // Deleted samples don't come back when seeding runs again.
@@ -62,5 +62,5 @@ it('stores names and text holding quotes and semicolons as they are', async () =
   seed([model])
   const store = new D1ModelStore(d1.env.DB)
   const [listed] = await store.list()
-  expect(await store.get(listed!.id)).toEqual({ ...model, id: listed!.id })
+  expect((await store.get(listed!.id))?.model).toEqual({ ...model, id: listed!.id })
 }, 60_000)
