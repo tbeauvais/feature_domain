@@ -1,0 +1,10 @@
+/* The standalone preview page has no editor styles; just let the generated page fill the window (its theme sets the
+   background). */
+html,
+body,
+#app {
+  height: 100%;
+}
+body {
+  margin: 0;
+}

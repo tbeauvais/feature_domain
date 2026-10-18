@@ -16,5 +16,5 @@
     "noEmit": true,
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "test/**/*.ts", "e2e/**/*.ts", "vite.config.ts", "playwright.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "test/**/*.ts", "e2e/**/*.ts", "vite.config.ts", "vueCompilerOptions.ts", "playwright.config.ts"]
 }
