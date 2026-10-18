@@ -50,7 +50,9 @@ npm run lint                # ESLint (eslint.config.js): the recommended JS, Typ
                             # rules; any warning fails. Type-aware: a new .ts file must be in its package's tsconfig
                             # `include`, or ESLint can't parse it. `npx eslint --fix <file>` fixes some
 npm run format              # Prettier (.prettierrc.json: no semicolons, single quotes, 160 columns) rewrites the code;
-                            # `npm run format:check` is CI's check. .prettierignore skips Markdown, vendored and legacy files.
+                            # `npm run format:check` is CI's check (if it still fails right after formatting, format again:
+                            # a few chained calls settle on the second pass). .prettierignore skips Markdown, vendored
+                            # (shadcn-vue's components and shadcn.css) and legacy files.
                             # The one-time reformat is in .git-blame-ignore-revs (`git config blame.ignoreRevsFile .git-blame-ignore-revs`)
 npm run build               # emit packages/engine/dist (JS + .d.ts)
 npm run smoke               # build, then import the engine by package name from plain Node
