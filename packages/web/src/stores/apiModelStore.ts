@@ -9,6 +9,13 @@ export const MODELS_PATH = '/api/v1/models'
  */
 export const KEEPALIVE_MAX_BYTES = 60_000
 
+/**
+ * How long a request may take before it counts as failed: `fetch` never gives up on its own, and a save that never
+ * ends would hold every later one (and leaving the model) forever. A save sent as the page closes is not cut off: the
+ * page's timers end with it.
+ */
+export const REQUEST_TIMEOUT_MS = 30_000
+
 /** A request the API refused or failed, with the message it gave. */
 export class ApiError extends Error {
   constructor(
@@ -92,7 +99,21 @@ export class ApiModelStore implements ModelStore {
 
   private async request(url: string, init: RequestInit = {}): Promise<Response> {
     // `manual`: an expired Access session answers with a redirect to its sign-in page, which must not be followed.
-    const response = await this.fetch(url, { ...init, redirect: 'manual', headers: { Accept: 'application/json', ...init.headers } })
+    const controller = new AbortController()
+    let timedOut = false
+    const timer = setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, REQUEST_TIMEOUT_MS)
+    let response: Response
+    try {
+      response = await this.fetch(url, { ...init, redirect: 'manual', signal: controller.signal, headers: { Accept: 'application/json', ...init.headers } })
+    } catch (e) {
+      if (timedOut) throw new ApiError(0, 'the server did not answer in time')
+      throw e
+    } finally {
+      clearTimeout(timer)
+    }
     if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) throw new SignedOutError()
     return response
   }

@@ -2,6 +2,13 @@ import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 import { announceSaved } from '../src/stores/modelChannel'
+
+/** A save announced by another tab. */
+const fromAnotherTab = (id: string, revision: number) => {
+  const channel = new BroadcastChannel('feature-domain:models')
+  channel.postMessage({ id, revision, tab: 'another-tab' })
+  channel.close()
+}
 import { CHECK_INTERVAL_MS, useModelUpdates } from '../src/stores/modelUpdates'
 
 function watching(id: string) {
@@ -53,13 +60,23 @@ describe('useModelUpdates', () => {
 
   it('checks at once when another tab saves this model, not others', async () => {
     const { refresh, wrapper } = watching('m')
-    announceSaved('other', 2)
-    announceSaved('m', 2)
+    fromAnotherTab('other', 2)
+    fromAnotherTab('m', 2)
     await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
     wrapper.unmount()
-    announceSaved('m', 3)
+    fromAnotherTab('m', 3)
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores this tab\'s own saves, which every channel in the tab hears', async () => {
+    const { refresh, wrapper } = watching('m')
+    announceSaved('m', 2)
+    fromAnotherTab('m', 3)
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(refresh).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
   })
 
   it('logs a failed check instead of failing', async () => {

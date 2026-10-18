@@ -4,8 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setModelStore } from '../src/services'
 import { KEEPALIVE_MAX_BYTES } from '../src/stores/apiModelStore'
 import { SAVE_DELAY_MS, useDocumentStore } from '../src/stores/document'
-import { onSaved } from '../src/stores/modelChannel'
-import { model, page } from './helpers'
+import { SignedOutError } from '../src/stores/apiModelStore'
+import { TAB_ID } from '../src/stores/modelChannel'
+import { inst, model, page } from './helpers'
 
 // Saving through a store with revisions: one save at a time, conflicts and deleted models held for the user.
 
@@ -170,19 +171,131 @@ describe('saving with revisions', () => {
     expect(await doc.flush()).toBe(true)
   })
 
-  it('a save started after the edits were dropped still happens', async () => {
+  it('a save started after the edits were dropped still happens, from the revision the dropped one made', async () => {
     const doc = await open()
-    const late = deferred<number>()
-    const update = vi.spyOn(store, 'update').mockReturnValueOnce(late.promise)
+    const real = store.update.bind(store)
+    const first = deferred<void>()
+    const update = vi.spyOn(store, 'update').mockImplementationOnce(async (...args) => {
+      await first.promise
+      return real(...args)
+    })
     doc.rename('Dropped')
     vi.advanceTimersByTime(SAVE_DELAY_MS)
     doc.discard()
     doc.rename('Kept')
     vi.advanceTimersByTime(SAVE_DELAY_MS)
-    late.resolve(2)
+    // The dropped save still reached the store (revision 2), so the next one goes from there, not as a conflict.
+    first.resolve()
     expect(await doc.flush()).toBe(true)
-    expect(update.mock.calls.at(-1)![1].name).toBe('Kept')
-    expect((await stored()).model.name).toBe('Kept')
+    expect(update.mock.calls.map((c) => [c[1].name, c[2]])).toEqual([
+      ['Dropped', 1],
+      ['Kept', 2],
+    ])
+    expect(await stored()).toMatchObject({ model: { name: 'Kept' }, revision: 3 })
+  })
+
+  it('never lets a slow read undo a save that landed meanwhile', async () => {
+    const doc = await open()
+    const real = store.get.bind(store)
+    const read = deferred<void>()
+    vi.spyOn(store, 'get').mockImplementationOnce(async (...args) => {
+      const before = await real(...args)
+      await read.promise
+      return before
+    })
+    // A check starts and reads revision 1 slowly; meanwhile an edit is saved as revision 2.
+    const refreshing = doc.refresh()
+    doc.rename('Mine')
+    expect(await doc.flush()).toBe(true)
+    read.resolve()
+    expect(await refreshing).toBe(false)
+    expect(doc.model?.name).toBe('Mine')
+    doc.rename('Mine again')
+    expect(await doc.flush()).toBe(true)
+    expect(doc.saveState).toBe('saved')
+  })
+
+  it('never replaces the model while text is being typed in place', async () => {
+    const doc = await open()
+    await store.update(id, { ...model(page()), name: 'Theirs' })
+    let typing = true
+    expect(await doc.refresh(() => !typing)).toBe(false)
+    // Typing started while the read was out.
+    const real = store.get.bind(store)
+    vi.spyOn(store, 'get').mockImplementationOnce(async (...args) => {
+      typing = true
+      return real(...args)
+    })
+    typing = false
+    expect(await doc.refresh(() => !typing)).toBe(false)
+    typing = false
+    expect(await doc.refresh(() => !typing)).toBe(true)
+    expect(doc.model?.name).toBe('Theirs')
+  })
+
+  it('shows the stored model when only the automatic upgrade is refused, with no conflict', async () => {
+    // A List stored before List was ported: opening it upgrades it, and the editor saves the upgrade.
+    const legacy = { feature: 'ListFeature', id: '2', inputs: { name: 'Colors', list: 'Red,Green' } }
+    const old = model(page(), { ...inst('ListFeature', '2', { ...legacy.inputs }), cache: { legacy } })
+    id = await store.create(old)
+    // Another tab opened it first and saved the upgrade.
+    await store.update(id, { ...old, name: 'Upgraded elsewhere' })
+    const doc = useDocumentStore()
+    doc.editing = true
+    const get = store.get.bind(store)
+    vi.spyOn(store, 'get').mockImplementationOnce(async () => ({ model: old, revision: 1 }))
+    await doc.load(id)
+    expect(await doc.flush()).toBe(true)
+    expect(doc.saveState).toBe('saved')
+    vi.spyOn(store, 'get').mockImplementation(get)
+    await vi.runAllTimersAsync()
+    expect(doc.model?.name).toBe('Upgraded elsewhere')
+    expect(doc.saveState).toBe('saved')
+    // A user edit refused the same way is a conflict.
+    await store.update(id, { ...old, name: 'Theirs' })
+    doc.rename('Mine')
+    expect(await doc.flush()).toBe(false)
+    expect(doc.saveState).toBe('conflict')
+  })
+
+  it('says when a save failed because the sign-in expired, until a save works', async () => {
+    const doc = await open()
+    vi.spyOn(store, 'update').mockRejectedValueOnce(new SignedOutError())
+    doc.rename('Later')
+    await doc.flush()
+    expect(doc.saveState).toBe('error')
+    expect(doc.signedOut).toBe(true)
+    await doc.retry()
+    expect(doc.signedOut).toBe(false)
+  })
+
+  it('reads as saving while an edit waits behind a save in flight', async () => {
+    const doc = await open()
+    const real = store.update.bind(store)
+    const late = deferred<void>()
+    vi.spyOn(store, 'update').mockImplementationOnce(async (...args) => {
+      await late.promise
+      return real(...args)
+    })
+    doc.rename('First')
+    vi.advanceTimersByTime(SAVE_DELAY_MS)
+    doc.rename('Second')
+    expect(doc.saveState).toBe('saving')
+    late.resolve()
+    await doc.flush()
+    expect(doc.saveState).toBe('saved')
+  })
+
+  it('after saving a deleted model as a new one, never checks the deleted one again', async () => {
+    const doc = await open()
+    await store.delete(id)
+    doc.rename('Rescued')
+    await doc.flush()
+    await doc.saveCopy()
+    const get = vi.spyOn(store, 'get')
+    expect(await doc.refresh()).toBe(false)
+    expect(get).not.toHaveBeenCalled()
+    expect(doc.status).toBe('ready')
   })
 
   it('says when closing the page would lose edits', async () => {
@@ -242,13 +355,14 @@ describe('saving with revisions', () => {
     await doc.flush()
   })
 
-  it('tells this browser\'s other tabs about each save', async () => {
+  it('tells this browser\'s other tabs about each save, saying which tab saved', async () => {
     const heard: unknown[] = []
-    const stop = onSaved((m) => heard.push(m))
+    const channel = new BroadcastChannel('feature-domain:models')
+    channel.onmessage = (event) => heard.push(event.data)
     const doc = await open()
     doc.rename('Announced')
     await doc.flush()
-    await vi.waitFor(() => expect(heard).toEqual([{ id, revision: 2 }]))
-    stop()
+    await vi.waitFor(() => expect(heard).toEqual([{ id, revision: 2, tab: TAB_ID }]))
+    channel.close()
   })
 })

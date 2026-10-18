@@ -1,6 +1,6 @@
 import { MemoryModelStore, type AppModel } from '@feature-domain/engine'
 import type { BrowserContext, Page } from '@playwright/test'
-import { sampleModels } from '../src/data/samples'
+import { SAMPLE_SET, sampleModels } from '../src/data/samples'
 import { MODELS_PATH } from '../src/stores/apiModelStore'
 import { workerApp, type WorkerApp } from '../test/workerApp'
 
@@ -12,11 +12,11 @@ let models: MemoryModelStore
 /** The id the next stored model gets (MemoryModelStore makes up its own otherwise). */
 let nextId: string | undefined
 
-/** Answers the app's model API in this context from a fresh store holding the samples (`sample-1` …). */
+/** Answers the app's model API in this context from a fresh store holding the samples, under the seed's ids (`sample-2-1` …). */
 export async function serveModels(context: BrowserContext): Promise<void> {
   let n = 0
   models = new MemoryModelStore(() => nextId ?? `model-${++n}`)
-  for (const [i, sample] of sampleModels().entries()) await put(`sample-${i + 1}`, sample)
+  for (const [i, sample] of sampleModels().entries()) await put(`sample-${SAMPLE_SET}-${i + 1}`, sample)
   const app: WorkerApp = await workerApp(models)
   await context.route(`**${MODELS_PATH}**`, async (route) => {
     const request = route.request()

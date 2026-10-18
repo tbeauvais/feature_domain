@@ -219,7 +219,23 @@ test('leaving after a failed save asks before losing the changes, and Try again 
   expect((await stored(await storedId('Will not save'))).name).toBe('Will not save')
 })
 
-/** Puts a model into the app's browser storage (after the home page has loaded, so the samples are seeded first). */
+test('a save refused because the sign-in expired says how to sign in again without losing the edits', async ({ page }) => {
+  await newModel(page)
+  // Cloudflare Access answers an expired session with a redirect to its sign-in page.
+  const signedOut = (route: Route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 302, headers: { Location: 'https://feature-domain.cloudflareaccess.com/cdn-cgi/access/login' } }) : route.fallback()
+  await page.route('**/api/v1/models/*', signedOut)
+  await page.getByTestId('model-name').fill('After sign-in')
+  const banner = page.getByTestId('save-problem')
+  await expect(banner).toContainText('Your sign-in has expired, so your latest changes are not saved.')
+  await expect(banner.getByTestId('sign-in-again')).toHaveAttribute('target', '_blank')
+  await page.unroute('**/api/v1/models/*', signedOut)
+  await banner.getByTestId('retry-save').click()
+  await expect(page.getByTestId('save-state')).toHaveText('Saved')
+  expect((await stored(await storedId('After sign-in'))).name).toBe('After sign-in')
+})
+
+/** Stores a model in the test's model API, after the home page has loaded. */
 async function store(page: Page, model: { id: string; [key: string]: unknown }) {
   await page.goto('/')
   await expect(page.getByTestId('model-list')).toBeVisible()

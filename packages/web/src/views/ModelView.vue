@@ -27,7 +27,7 @@ import DiagnosticsList from './DiagnosticsList.vue'
 const props = defineProps<{ id: string }>()
 const store = useDocumentStore()
 const router = useRouter()
-const { model, status, error, result, generateError, selectedId, saveState, saveError, canUndo, canRedo } = storeToRefs(store)
+const { model, status, error, result, generateError, selectedId, saveState, saveError, signedOut, canUndo, canRedo } = storeToRefs(store)
 const canvas = ref<HTMLElement | null>(null)
 const tree = ref<HTMLElement | null>(null)
 const palette = ref<HTMLElement | null>(null)
@@ -105,12 +105,20 @@ const onBeforeUnload = (event: BeforeUnloadEvent) => {
   event.returnValue = ''
 }
 
-// Show saves made in other tabs and on other devices while there are no edits here to save.
-useModelUpdates(() => store.modelId, () => store.refresh())
+// Show saves made in other tabs and on other devices while there are no edits here to save, nor text being typed.
+useModelUpdates(() => store.modelId, () => store.refresh(() => inlineEdit.value === null))
 
+const copyError = ref('')
 /** The model was deleted elsewhere: keep what is here as a new model, and open it. */
 async function saveCopy() {
-  const id = await store.saveCopy()
+  copyError.value = ''
+  let id: string
+  try {
+    id = await store.saveCopy()
+  } catch (e) {
+    copyError.value = e instanceof Error ? e.message : String(e)
+    return
+  }
   await router.push({ name: 'model', params: { id } })
 }
 
@@ -242,8 +250,17 @@ async function deleteModel() {
         <button type="button" class="rounded-md bg-slate-900 px-3 py-1 font-medium text-white hover:bg-slate-700" data-testid="keep-mine" @click="store.keepMine()">Keep mine</button>
       </template>
       <template v-else-if="saveState === 'deleted'">
-        <p class="flex-1">This model was deleted in another tab or on another device. Your latest changes are not saved.</p>
+        <p class="flex-1">
+          This model was deleted in another tab or on another device. Your latest changes are not saved.
+          <span v-if="copyError" data-testid="copy-error">Saving them as a new model failed: {{ copyError }}.</span>
+        </p>
         <button type="button" class="rounded-md bg-slate-900 px-3 py-1 font-medium text-white hover:bg-slate-700" data-testid="save-copy" @click="saveCopy()">Save as a new model</button>
+      </template>
+      <template v-else-if="signedOut">
+        <!-- Reloading would sign in again but lose the edits; signing in in another tab renews the session for this one. -->
+        <p class="flex-1">Your sign-in has expired, so your latest changes are not saved. Sign in again in a new tab, then come back and choose Try again. Reloading this page would lose them.</p>
+        <a href="/" target="_blank" rel="noopener" class="rounded-md border border-amber-300 bg-white px-3 py-1 font-medium hover:bg-amber-100" data-testid="sign-in-again">Sign in again</a>
+        <button type="button" class="rounded-md bg-slate-900 px-3 py-1 font-medium text-white hover:bg-slate-700" data-testid="retry-save" @click="store.retry()">Try again</button>
       </template>
       <template v-else>
         <p class="flex-1">Your latest changes could not be saved: {{ saveError }}.</p>

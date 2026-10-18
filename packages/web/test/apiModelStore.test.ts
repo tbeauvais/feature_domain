@@ -1,7 +1,7 @@
 import { MemoryModelStore, ModelConflictError, ModelNotFoundError } from '@feature-domain/engine'
 import { describe, expect, it, vi } from 'vitest'
 import { describeModelStore } from '../../engine/test/store-contract'
-import { ApiError, ApiModelStore, KEEPALIVE_MAX_BYTES, revisionOf, SignedOutError } from '../src/stores/apiModelStore'
+import { ApiError, ApiModelStore, KEEPALIVE_MAX_BYTES, REQUEST_TIMEOUT_MS, revisionOf, SignedOutError } from '../src/stores/apiModelStore'
 import { model, page } from './helpers'
 import { workerApp } from './workerApp'
 
@@ -84,6 +84,23 @@ describe('ApiModelStore', () => {
     const { api } = await worker()
     expect(await api.get('nope')).toBeNull()
     await expect(api.update('nope', model(page()), 1)).rejects.toBeInstanceOf(ModelNotFoundError)
+  })
+
+  it('gives up on a request that takes too long, so a hung save becomes a failed one', async () => {
+    let signal: AbortSignal | undefined
+    const hanging = vi.fn((_: unknown, init?: RequestInit) => {
+      signal = init?.signal ?? undefined
+      return new Promise<Response>((_, reject) => signal!.addEventListener('abort', () => reject(signal!.reason)))
+    }) as unknown as typeof globalThis.fetch
+    vi.useFakeTimers()
+    try {
+      const saving = new ApiModelStore(hanging).update('a', model(page()), 1)
+      const settled = expect(saving).rejects.toEqual(new ApiError(0, 'the server did not answer in time'))
+      await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS)
+      await settled
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('escapes ids in paths', async () => {

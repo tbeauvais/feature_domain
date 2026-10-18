@@ -26,7 +26,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 import { paletteTarget } from '../editor/targets'
 import { modelStore } from '../services'
-import { KEEPALIVE_MAX_BYTES } from './apiModelStore'
+import { KEEPALIVE_MAX_BYTES, SignedOutError } from './apiModelStore'
 import { announceSaved } from './modelChannel'
 
 export type LoadStatus = 'idle' | 'loading' | 'ready' | 'missing' | 'error'
@@ -65,12 +65,18 @@ export const useDocumentStore = defineStore('document', () => {
   const selectedId = ref<string | null>(null)
   const saveState = ref<SaveState>('saved')
   const saveError = ref('')
+  /** The last save failed because the Cloudflare Access session expired. */
+  const signedOut = ref(false)
   /** In a conflict: the revision someone else saved. */
   let theirRevision: number | undefined
   /** The revision of the model as stored, which the next save is made from. */
   let revision: number | undefined
   /** Bumped when another model loads or pending saves are dropped, so a save still in flight is ignored when it ends. */
   let session = 0
+  /** The model on screen is only the editor's upgrade of the stored one (no user edit yet), so a conflict is no loss. */
+  let upgradeOnly = false
+  /** Saved as a new model and about to open it: the old one (deleted) is not checked again. */
+  let leaving = false
   const past = shallowRef<HistoryEntry[]>([])
   const future = shallowRef<HistoryEntry[]>([])
   const canUndo = computed(() => past.value.length > 0)
@@ -91,6 +97,8 @@ export const useDocumentStore = defineStore('document', () => {
     await flush()
     session++
     revision = undefined
+    upgradeOnly = false
+    leaving = false
     modelId.value = id
     model.value = null
     selectedId.value = null
@@ -121,8 +129,10 @@ export const useDocumentStore = defineStore('document', () => {
       revision = stored.revision
       status.value = 'ready'
       if (upgraded !== loaded) {
-        if (editing.value) setModel(upgraded)
-        else model.value = upgraded
+        if (editing.value) {
+          setModel(upgraded)
+          upgradeOnly = true
+        } else model.value = upgraded
       }
     } catch (e) {
       if (modelId.value !== id) return
@@ -133,22 +143,26 @@ export const useDocumentStore = defineStore('document', () => {
 
   /**
    * Re-reads the current model without showing a loading state, e.g. when another tab or device saved it. Never
-   * replaces local edits that aren't saved yet; invalid data leaves the current model in place, and a deleted model
-   * shows as missing. Returns whether the model changed. In the editor, undo history ends there (undoing past someone
-   * else's save would quietly take it back).
+   * replaces local edits that aren't saved yet, or text being typed (`canReplace`, checked before and after reading);
+   * only a revision newer than the one here counts (a slow read can return one older than a save that landed
+   * meanwhile); invalid data leaves the current model in place, and a deleted model shows as missing. Returns whether
+   * the model changed. In the editor, undo history ends there (undoing past someone else's save would quietly take it
+   * back).
    */
-  async function refresh(): Promise<boolean> {
+  async function refresh(canReplace: () => boolean = () => true): Promise<boolean> {
     const id = modelId.value
     const at = session
-    if (id === null || saveState.value !== 'saved' || status.value !== 'ready' || running) return false
+    const from = revision
+    const quiet = () => saveState.value === 'saved' && status.value === 'ready' && !running && !leaving && canReplace()
+    if (id === null || !quiet()) return false
     const stored = await modelStore().get(id)
-    if (at !== session || modelId.value !== id || saveState.value !== 'saved' || running) return false
+    if (at !== session || modelId.value !== id || revision !== from || !quiet()) return false
     if (stored === null) {
       model.value = null
       status.value = 'missing'
       return true
     }
-    if (stored.revision === revision || validateModel(stored.model).length > 0) return false
+    if (stored.revision <= (revision ?? 0) || validateModel(stored.model).length > 0) return false
     model.value = migrate(stored.model).model
     revision = stored.revision
     past.value = []
@@ -183,14 +197,28 @@ export const useDocumentStore = defineStore('document', () => {
       saveState.value = 'saving'
       try {
         const saved = await modelStore().update(id, snapshot, revision)
-        // Another model opened, or the edits were dropped, while this save was in flight: it no longer counts.
-        if (at !== session) continue
+        // Another model opened, or the edits were dropped, while this save was in flight: it no longer counts, but a
+        // later save of the same model goes on from the revision it made.
+        if (at !== session) {
+          if (modelId.value === id && saved > (revision ?? 0)) revision = saved
+          continue
+        }
         revision = saved
+        signedOut.value = false
         announceSaved(id, saved)
         saveState.value = timer !== undefined ? 'pending' : again ? 'saving' : 'saved'
       } catch (e) {
         if (at !== session) continue
-        if (e instanceof ModelConflictError) {
+        signedOut.value = e instanceof SignedOutError
+        if (e instanceof ModelConflictError && upgradeOnly && model.value === snapshot) {
+          // Only the automatic upgrade was refused (another tab saved first, likely the same upgrade): show theirs.
+          saveState.value = 'saved'
+          clearTimeout(timer)
+          timer = undefined
+          again = false
+          setTimeout(() => void refresh())
+          return
+        } else if (e instanceof ModelConflictError) {
           theirRevision = e.revision
           saveState.value = 'conflict'
           saveError.value = 'someone else saved this model since you opened it'
@@ -265,10 +293,14 @@ export const useDocumentStore = defineStore('document', () => {
     return save()
   }
 
-  /** When the model was deleted elsewhere: stores it as it is here as a new model, and returns that model's id. */
+  /**
+   * When the model was deleted elsewhere: stores it as it is here as a new model, and returns that model's id, to be
+   * opened next. Until then the deleted one is not checked again (it would show as missing in between).
+   */
   async function saveCopy(): Promise<string> {
     const id = await modelStore().create(current())
     discard()
+    leaving = true
     return id
   }
 
@@ -276,7 +308,8 @@ export const useDocumentStore = defineStore('document', () => {
   function setModel(next: AppModel): void {
     model.value = next
     if (held()) return
-    saveState.value = 'pending'
+    // A save already in flight takes this edit next, so it still reads as saving.
+    saveState.value = running ? 'saving' : 'pending'
     clearTimeout(timer)
     timer = setTimeout(() => void save(), SAVE_DELAY_MS)
   }
@@ -291,6 +324,7 @@ export const useDocumentStore = defineStore('document', () => {
     if (next === model.value || !model.value) return
     const now = Date.now()
     const continuing = key !== undefined && key === lastKey && now - lastAt < UNDO_COALESCE_MS
+    upgradeOnly = false
     if (!continuing) past.value = [...past.value.slice(-(UNDO_LIMIT - 1)), { model: model.value, selectedId: selectedId.value }]
     future.value = []
     lastKey = key
@@ -426,6 +460,7 @@ export const useDocumentStore = defineStore('document', () => {
     selectedId,
     saveState,
     saveError,
+    signedOut,
     result,
     generateError,
     load,
