@@ -46,7 +46,9 @@ npm install
 npm test                    # all workspaces (Vitest)
 npm run typecheck           # tsc --noEmit, all workspaces
 npm run lint                # ESLint (eslint.config.js): the recommended JS, TypeScript and Vue correctness rules, plus
-                            # floating promises and v-html; no formatting rules. `npx eslint --fix <file>` fixes some
+                            # no-floating-promises, no-misused-promises, await-thenable and vue/no-v-html; no formatting
+                            # rules; any warning fails. Type-aware: a new .ts file must be in its package's tsconfig
+                            # `include`, or ESLint can't parse it. `npx eslint --fix <file>` fixes some
 npm run build               # emit packages/engine/dist (JS + .d.ts)
 npm run smoke               # build, then import the engine by package name from plain Node
 npm run e2e                 # Playwright end-to-end tests (packages/web; first run: npx playwright install chromium); screenshot tests are skipped off Linux

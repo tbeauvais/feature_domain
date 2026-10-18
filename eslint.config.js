@@ -3,11 +3,12 @@
 // injected into generated pages.
 
 import js from '@eslint/js'
+import { defineConfig } from 'eslint/config'
 import vue from 'eslint-plugin-vue'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
-export default tseslint.config(
+export default defineConfig(
   {
     ignores: [
       '**/dist/**',
@@ -27,6 +28,9 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   // Vue's correctness rules; its formatting rules are left out (layout is not what this lint is for).
   ...vue.configs['flat/essential'],
+  // typescript-eslint turns off the core rules TypeScript already checks (no-undef, no-redeclare …) for .ts files only;
+  // components' <script lang="ts"> needs the same, or a type like NodeJS.Timeout is "not defined".
+  { files: ['**/*.vue'], rules: tseslint.configs.eslintRecommended.rules },
   {
     files: ['**/*.{ts,vue}'],
     languageOptions: {

@@ -9,7 +9,7 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "smoke": "npm run smoke --workspaces --if-present",
     "e2e": "npm run e2e --workspaces --if-present"
   },
