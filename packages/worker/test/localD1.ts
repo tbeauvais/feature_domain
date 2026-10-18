@@ -23,9 +23,10 @@ export interface LocalD1 {
   dispose(): Promise<void>
 }
 
-export async function localD1(): Promise<LocalD1> {
+/** A fresh local database, migrated unless `migrate` is false (to test the migrations themselves). */
+export async function localD1({ migrate = true } = {}): Promise<LocalD1> {
   const dir = mkdtempSync(join(tmpdir(), 'feature-domain-d1-'))
-  wrangler(dir, 'd1', 'migrations', 'apply', 'DB')
+  if (migrate) wrangler(dir, 'd1', 'migrations', 'apply', 'DB')
   const proxy = await getPlatformProxy<Env>({ configPath: join(WORKER_DIR, 'wrangler.jsonc'), persist: { path: join(dir, 'v3') }, remoteBindings: false })
   return {
     env: proxy.env,

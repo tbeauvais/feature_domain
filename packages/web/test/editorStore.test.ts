@@ -37,10 +37,10 @@ describe('editing with useDocumentStore', () => {
     doc.setInputs('t', { text: 'b' })
     expect(doc.result?.root.children[0]?.children[0]?.props).toEqual({ text: 'b' })
     expect(doc.saveState).toBe('pending')
-    expect((await store.get(id))?.features[1]?.inputs.text).toBe('a')
+    expect((await store.get(id))?.model.features[1]?.inputs.text).toBe('a')
     await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS)
     expect(doc.saveState).toBe('saved')
-    expect((await store.get(id))?.features[1]?.inputs.text).toBe('b')
+    expect((await store.get(id))?.model.features[1]?.inputs.text).toBe('b')
   })
 
   it('saves once after a burst of edits', async () => {
@@ -52,18 +52,18 @@ describe('editing with useDocumentStore', () => {
     }
     await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS)
     expect(update).toHaveBeenCalledTimes(1)
-    expect((await store.get(id))?.features[1]?.inputs.text).toBe('abc')
+    expect((await store.get(id))?.model.features[1]?.inputs.text).toBe('abc')
   })
 
   it('flushes a pending save immediately, and before loading another model', async () => {
     const doc = await open(model(page(), inst('TextFeature', 't')))
     doc.rename('Renamed')
     await doc.flush()
-    expect((await store.get(id))?.name).toBe('Renamed')
+    expect((await store.get(id))?.model.name).toBe('Renamed')
     doc.rename('Again')
     const other = await store.create(model(page()))
     await doc.load(other)
-    expect((await store.get(id))?.name).toBe('Again')
+    expect((await store.get(id))?.model.name).toBe('Again')
   })
 
   it('reports save failures', async () => {
@@ -100,7 +100,7 @@ describe('editing with useDocumentStore', () => {
     expect(doc.result?.root.children[0]?.children[0]?.props).toEqual({ items: ['Red', 'Yellow'], align: 'left' })
     expect(doc.saveState).toBe('pending')
     await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS)
-    expect((await store.get(id))?.features[1]).not.toHaveProperty('cache')
+    expect((await store.get(id))?.model.features[1]).not.toHaveProperty('cache')
   })
 
   it('upgrades in memory only when not editing (the preview)', async () => {
@@ -111,7 +111,7 @@ describe('editing with useDocumentStore', () => {
     expect(doc.model?.features[1]?.inputs.items).toEqual(['Red'])
     expect(doc.saveState).toBe('saved')
     await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS)
-    expect((await store.get(id))?.features[1]).toHaveProperty('cache')
+    expect((await store.get(id))?.model.features[1]).toHaveProperty('cache')
   })
 
   it('never lets refresh replace edits that are not saved yet', async () => {
@@ -134,7 +134,7 @@ describe('editing with useDocumentStore', () => {
     update.mockImplementation(() => new Promise((_, reject) => (fail = reject)))
     doc.rename('y')
     vi.advanceTimersByTime(SAVE_DELAY_MS)
-    update.mockResolvedValue(undefined)
+    update.mockResolvedValue(2)
     const other = await store.create(model(page()))
     const loading = doc.load(other)
     fail(new Error('late failure'))
@@ -149,7 +149,7 @@ describe('editing with useDocumentStore', () => {
     await doc.refresh()
     expect(doc.model?.name).toBe('From another tab')
     expect(doc.status).toBe('ready')
-    vi.spyOn(store, 'get').mockResolvedValue({ version: 2 } as unknown as AppModel)
+    vi.spyOn(store, 'get').mockResolvedValue({ model: { version: 2 } as unknown as AppModel, revision: 3 })
     await doc.refresh()
     expect(doc.model?.name).toBe('From another tab')
   })
@@ -215,7 +215,7 @@ describe('editing with useDocumentStore', () => {
       doc.redo()
       expect(doc.model?.features.map((f) => f.id)).toEqual(['1', added])
       await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS)
-      expect((await store.get(id))?.features).toHaveLength(2)
+      expect((await store.get(id))?.model.features).toHaveLength(2)
     })
 
     it('restores the selection that was current before the edit', async () => {
@@ -277,7 +277,7 @@ describe('editing with useDocumentStore', () => {
     doc.discard()
     expect(doc.saveState).toBe('saved')
     await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS)
-    expect((await store.get(id))?.name).toBe('test')
+    expect((await store.get(id))?.model.name).toBe('test')
     expect(await doc.flush()).toBe(true)
   })
 })

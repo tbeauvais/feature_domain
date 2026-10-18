@@ -1,4 +1,4 @@
-import { ModelNotFoundError, validateModel, type AppModel, type ModelStore } from '@feature-domain/engine'
+import { ModelConflictError, ModelNotFoundError, validateModel, type AppModel, type ModelStore } from '@feature-domain/engine'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { D1ModelStore, toJson } from './d1ModelStore'
@@ -16,6 +16,10 @@ type AppEnv = { Bindings: Env; Variables: { store: ModelStore } }
 /**
  * The Worker's HTTP API. Every response under /api is JSON; errors are `{ error, problems? }`. `store` replaces the D1
  * store (tests); by default each request uses the DB binding.
+ *
+ * A model's revision is its ETag (`"3"`). GET answers `If-None-Match` with a 304 when the model is unchanged, so
+ * checking for changes is cheap. PUT with `If-Match` saves only over that revision (else 412, with the stored revision
+ * as the ETag); PUT without it overwrites.
  */
 export function createApp(store?: (env: Env) => ModelStore) {
   const app = new Hono<AppEnv>()
@@ -26,30 +30,39 @@ export function createApp(store?: (env: Env) => ModelStore) {
     await next()
   })
 
-  api.get('/models', async (c) => c.json(await c.var.store.list()))
+  api.get('/models', async (c) => c.json(await c.var.store.list(), 200, { 'Cache-Control': 'no-cache' }))
 
   api.post('/models', limit, async (c) => {
     const model = await readModel(c.req.raw)
     if (model instanceof Response) return model
     const id = await c.var.store.create(model)
-    return c.json({ id }, 201, { Location: `/api/v1/models/${encodeURIComponent(id)}` })
+    // Every store creates models at revision 1 (the ModelStore contract checks it).
+    return c.json({ id }, 201, { Location: `/api/v1/models/${encodeURIComponent(id)}`, ETag: etag(1) })
   })
 
   api.get('/models/:id', async (c) => {
-    const model = await c.var.store.get(c.req.param('id'))
-    return model ? c.json(model) : notFound()
+    const stored = await c.var.store.get(c.req.param('id'))
+    if (!stored) return notFound()
+    const headers = { ETag: etag(stored.revision), 'Cache-Control': 'no-cache' }
+    if (noneMatch(c.req.header('If-None-Match'), stored.revision)) return c.body(null, 304, headers)
+    return c.json(stored.model, 200, headers)
   })
 
   api.put('/models/:id', limit, async (c) => {
+    const ifMatch = c.req.header('If-Match')
+    const ifRevision = ifMatch === undefined ? undefined : matchRevision(ifMatch)
+    if (ifRevision === null) return error(400, 'If-Match must be "*" or one revision, as the ETag gave it')
     const model = await readModel(c.req.raw)
     if (model instanceof Response) return model
+    let revision: number
     try {
-      await c.var.store.update(c.req.param('id'), model)
-    } catch (error) {
-      if (error instanceof ModelNotFoundError) return notFound()
-      throw error
+      revision = await c.var.store.update(c.req.param('id'), model, ifRevision)
+    } catch (e) {
+      if (e instanceof ModelNotFoundError) return notFound()
+      if (e instanceof ModelConflictError) return error(412, 'The model was changed since this revision', { headers: { ETag: etag(e.revision) } })
+      throw e
     }
-    return c.body(null, 204)
+    return c.body(null, 204, { ETag: etag(revision) })
   })
 
   api.delete('/models/:id', async (c) => {
@@ -57,8 +70,8 @@ export function createApp(store?: (env: Env) => ModelStore) {
     return c.body(null, 204)
   })
 
-  api.all('/models', () => error(405, 'Method not allowed', undefined, 'GET, POST'))
-  api.all('/models/:id', () => error(405, 'Method not allowed', undefined, 'GET, PUT, DELETE'))
+  api.all('/models', () => error(405, 'Method not allowed', { allow: 'GET, POST' }))
+  api.all('/models/:id', () => error(405, 'Method not allowed', { allow: 'GET, PUT, DELETE' }))
 
   app.route('/api/v1', api)
   app.all('/api/*', () => error(404, 'No such API endpoint'))
@@ -85,13 +98,44 @@ async function readModel(request: Request): Promise<AppModel | Response> {
     return error(400, 'The body is not valid JSON')
   }
   const problems = validateModel(body)
-  if (problems.length > 0) return error(400, 'The model is not valid', problems)
+  if (problems.length > 0) return error(400, 'The model is not valid', { problems })
   const model = body as AppModel
   return bytes(toJson(model)) + bytes(model.name) > MAX_MODEL_BYTES ? tooLarge() : model
 }
 
 const notFound = () => error(404, 'No model with this id')
 
-function error(status: number, message: string, problems?: string[], allow?: string): Response {
-  return Response.json(problems ? { error: message, problems } : { error: message }, { status, headers: allow ? { Allow: allow } : {} })
+interface ErrorOptions {
+  problems?: string[]
+  /** The methods a path supports (a 405's Allow header). */
+  allow?: string
+  headers?: Record<string, string>
+}
+
+function error(status: number, message: string, { problems, allow, headers = {} }: ErrorOptions = {}): Response {
+  return Response.json(problems ? { error: message, problems } : { error: message }, { status, headers: allow ? { ...headers, Allow: allow } : headers })
+}
+
+const etag = (revision: number) => `"${revision}"`
+
+/**
+ * The revision an If-Match header names: undefined for `*` (any stored revision), null when it is not one tag this API
+ * could have sent. A weak tag (`W/"3"`) counts as the revision it names: this API only sends strong ones, so a weak
+ * one was weakened on the way (Cloudflare's edge does that when it compresses a response).
+ */
+function matchRevision(header: string): number | undefined | null {
+  const value = header.trim()
+  if (value === '*') return undefined
+  // At most 15 digits, so Number() reads it exactly.
+  const match = /^(?:W\/)?"([1-9][0-9]{0,14})"$/.exec(value)
+  return match ? Number(match[1]) : null
+}
+
+/** Whether an If-None-Match header names this revision (weak comparison: `W/"3"` matches too) or is `*`. */
+function noneMatch(header: string | undefined, revision: number): boolean {
+  if (header === undefined) return false
+  return header.split(',').some((tag) => {
+    const value = tag.trim()
+    return value === '*' || value.replace(/^W\//, '') === etag(revision)
+  })
 }

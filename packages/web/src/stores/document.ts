@@ -82,7 +82,7 @@ export const useDocumentStore = defineStore('document', () => {
     future.value = []
     lastKey = undefined
     try {
-      const loaded: unknown = await modelStore().get(id)
+      const loaded: unknown = (await modelStore().get(id))?.model ?? null
       if (modelId.value !== id) return
       if (loaded === null) {
         status.value = 'missing'
@@ -117,7 +117,7 @@ export const useDocumentStore = defineStore('document', () => {
   async function refresh(): Promise<boolean> {
     const id = modelId.value
     if (id === null || saveState.value !== 'saved') return false
-    const loaded: unknown = await modelStore().get(id)
+    const loaded: unknown = (await modelStore().get(id))?.model ?? null
     if (modelId.value !== id || saveState.value !== 'saved' || loaded === null || validateModel(loaded).length > 0) return false
     model.value = migrate(loaded).model
     status.value = 'ready'

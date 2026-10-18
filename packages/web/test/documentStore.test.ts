@@ -35,7 +35,7 @@ describe('useDocumentStore', () => {
   })
 
   it('refuses models that are not structurally valid, instead of failing to generate them', async () => {
-    setModelStore({ get: async () => ({ version: 2, name: 'Malformed' }) } as unknown as ModelStore)
+    setModelStore({ get: async () => ({ model: { version: 2, name: 'Malformed' }, revision: 1 }) } as unknown as ModelStore)
     const doc = useDocumentStore()
     await doc.load('malformed')
     expect(doc.status).toBe('error')
@@ -45,7 +45,7 @@ describe('useDocumentStore', () => {
   })
 
   it('summarizes long lists of problems', async () => {
-    setModelStore({ get: async () => ({ version: 2, name: 'x', features: [1, 2, 3, 4, 5] }) } as unknown as ModelStore)
+    setModelStore({ get: async () => ({ model: { version: 2, name: 'x', features: [1, 2, 3, 4, 5] }, revision: 1 }) } as unknown as ModelStore)
     const doc = useDocumentStore()
     await doc.load('m')
     expect(doc.error).toBe('the model is not valid (Feature 0 is not an object; Feature 1 is not an object; Feature 2 is not an object; 2 more)')

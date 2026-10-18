@@ -23,7 +23,7 @@ describe('initBrowserModelStore', () => {
     await initBrowserModelStore()
     const expected = [...sampleModels().map((m) => m.name), 'Old']
     expect(await names()).toEqual(expected)
-    expect((await modelStore().get('old'))!.features.map((f) => f.id)).toEqual(['1', 't'])
+    expect((await modelStore().get('old'))!.model.features.map((f) => f.id)).toEqual(['1', 't'])
     expect(window.localStorage.getItem('feature-domain:samples-version')).toBe(String(SAMPLES_VERSION))
     await initBrowserModelStore()
     expect(await names()).toEqual(expected)
