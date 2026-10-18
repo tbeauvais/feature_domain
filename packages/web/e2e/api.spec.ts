@@ -37,6 +37,8 @@ test('versions saves, refusing one made from an older version', async ({ request
   expect(stale.headers()['etag']).toBe('"2"')
 
   expect((await request.get(path, { headers: { 'If-None-Match': '"2"' } })).status()).toBe(304)
+  // As a browser revalidates after Cloudflare's edge weakened the ETag.
+  expect((await request.get(path, { headers: { 'If-None-Match': 'W/"2"' } })).status()).toBe(304)
   const read = await request.get(path, { headers: { 'If-None-Match': '"1"' } })
   expect(read.status()).toBe(200)
   expect(await read.json()).toMatchObject({ name: 'Theirs' })

@@ -1,6 +1,6 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page, type Route } from '@playwright/test'
 import { isolateNetwork } from './network'
-import { store as storeModel } from './storage'
+import { stored, storedId, store as storeModel } from './storage'
 
 // Editor flows on a fresh model. All external requests are blocked except a mocked GitHub API (and Open-Meteo, mocked in the test that uses it).
 isolateNetwork((route, url) => (url.hostname === 'api.github.com' ? route.fulfill({ json: [{ name: 'engine', html_url: 'https://github.com/x/engine' }] }) : undefined))
@@ -196,28 +196,46 @@ test('the selection outline follows content that loads later', async ({ page }) 
   }).toPass()
 })
 
-test('leaving after a failed save asks before losing the changes', async ({ page }) => {
+test('leaving after a failed save asks before losing the changes, and Try again saves them', async ({ page }) => {
   await newModel(page)
-  // Make browser storage refuse to save models.
-  await page.evaluate(() => {
-    const setItem = Storage.prototype.setItem
-    Storage.prototype.setItem = function (key: string, value: string) {
-      if (key === 'feature-domain:models') throw new Error('QuotaExceededError')
-      return setItem.call(this, key, value)
-    }
-  })
+  // The server fails every save.
+  const failing = (route: Route) => (route.request().method() === 'PUT' ? route.fulfill({ status: 503, json: { error: 'Something went wrong on the server' } }) : route.fallback())
+  await page.route('**/api/v1/models/*', failing)
   await page.getByTestId('model-name').fill('Will not save')
   await expect(page.getByTestId('save-state')).toHaveText('Save failed')
+  await expect(page.getByTestId('save-problem')).toContainText('Your latest changes could not be saved: Something went wrong on the server.')
 
   await page.getByRole('link', { name: 'Feature Domain' }).click()
   const dialog = page.getByTestId('confirm-dialog')
-  await expect(dialog).toContainText('Your latest changes could not be saved (QuotaExceededError). Leave anyway and lose them?')
+  await expect(dialog).toContainText('Your latest changes could not be saved (Something went wrong on the server). Leave anyway and lose them?')
   await dialog.getByTestId('confirm-cancel').click()
   await expect(page).not.toHaveURL('/')
   await expect(page.getByTestId('model-name')).toHaveValue('Will not save')
+
+  await page.unroute('**/api/v1/models/*', failing)
+  await page.getByTestId('retry-save').click()
+  await expect(page.getByTestId('save-state')).toHaveText('Saved')
+  await expect(page.getByTestId('save-problem')).toHaveCount(0)
+  expect((await stored(await storedId('Will not save'))).name).toBe('Will not save')
 })
 
-/** Puts a model into the app's browser storage (after the home page has loaded, so the samples are seeded first). */
+test('a save refused because the sign-in expired says how to sign in again without losing the edits', async ({ page }) => {
+  await newModel(page)
+  // Cloudflare Access answers an expired session with a redirect to its sign-in page.
+  const signedOut = (route: Route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 302, headers: { Location: 'https://feature-domain.cloudflareaccess.com/cdn-cgi/access/login' } }) : route.fallback()
+  await page.route('**/api/v1/models/*', signedOut)
+  await page.getByTestId('model-name').fill('After sign-in')
+  const banner = page.getByTestId('save-problem')
+  await expect(banner).toContainText('Your sign-in has expired, so your latest changes are not saved.')
+  await expect(banner.getByTestId('sign-in-again')).toHaveAttribute('target', '_blank')
+  await page.unroute('**/api/v1/models/*', signedOut)
+  await banner.getByTestId('retry-save').click()
+  await expect(page.getByTestId('save-state')).toHaveText('Saved')
+  expect((await stored(await storedId('After sign-in'))).name).toBe('After sign-in')
+})
+
+/** Stores a model in the test's model API, after the home page has loaded. */
 async function store(page: Page, model: { id: string; [key: string]: unknown }) {
   await page.goto('/')
   await expect(page.getByTestId('model-list')).toBeVisible()
@@ -239,7 +257,7 @@ test('a model stored before List was ported is upgraded when opened', async ({ p
   await page.goto('/models/stored-list')
   await expect(canvas(page).locator('[data-feature-id="2"] li')).toHaveText(['Red', 'Green', 'Blue', 'Yellow'])
   await expect(page.getByTestId('save-state')).toHaveText('Saved')
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('feature-domain:models')!).models['stored-list'].features[1])
+  const saved = (await stored('stored-list')).features[1]
   expect(saved).toEqual({ feature: 'ListFeature', id: '2', inputs: { name: 'Color list', disable: false, items: ['Red', 'Green', 'Blue', 'Yellow'], align: 'center' }, placement: { parent: '1', slot: 'content' } })
 })
 

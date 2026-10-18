@@ -6,21 +6,37 @@ import BrandLink from '../components/BrandLink.vue'
 import { modelStore } from '../services'
 
 const models = ref<ModelSummary[] | null>(null)
+const loadError = ref('')
+const createError = ref('')
 const router = useRouter()
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /** A new model starts with one empty page. */
 async function createModel() {
-  const id = await modelStore().create({
-    version: 2,
-    name: 'Untitled model',
-    features: [{ feature: 'PageFeature', id: '1', inputs: { name: 'Page' }, placement: { parent: ROOT_ID, slot: ROOT_SLOT } }],
-  })
+  createError.value = ''
+  let id: string
+  try {
+    id = await modelStore().create({
+      version: 2,
+      name: 'Untitled model',
+      features: [{ feature: 'PageFeature', id: '1', inputs: { name: 'Page' }, placement: { parent: ROOT_ID, slot: ROOT_SLOT } }],
+    })
+  } catch (e) {
+    createError.value = message(e)
+    return
+  }
   await router.push({ name: 'model', params: { id } })
 }
 
-onMounted(async () => {
-  models.value = await modelStore().list()
-})
+async function loadModels() {
+  loadError.value = ''
+  try {
+    models.value = await modelStore().list()
+  } catch (e) {
+    loadError.value = message(e)
+  }
+}
+onMounted(loadModels)
 </script>
 
 <template>
@@ -37,7 +53,12 @@ onMounted(async () => {
         New model
       </button>
     </div>
-    <p v-if="models === null" class="text-slate-500">Loading…</p>
+    <p v-if="createError" class="mb-4 text-sm text-red-700" role="alert" data-testid="create-error">Could not create a model: {{ createError }}.</p>
+    <div v-if="loadError" class="flex flex-wrap items-center gap-3 text-red-700" role="alert" data-testid="list-error">
+      <p>Could not load the models: {{ loadError }}.</p>
+      <button type="button" class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 hover:bg-slate-50" @click="loadModels">Try again</button>
+    </div>
+    <p v-else-if="models === null" class="text-slate-500">Loading…</p>
     <div v-else-if="models.length === 0" class="flex flex-col items-center gap-2 rounded-lg border border-slate-200 bg-white px-6 py-10 text-center" data-testid="no-models">
       <svg width="60" height="45" viewBox="0 0 120 90" aria-hidden="true" class="text-slate-400">
         <rect x="16" y="12" width="88" height="66" rx="8" fill="none" stroke="currentColor" stroke-width="2" />

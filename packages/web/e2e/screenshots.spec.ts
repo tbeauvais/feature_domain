@@ -114,7 +114,7 @@ function weatherModel(id: string, scheme: 'light' | 'dark') {
 /** A sample's name as a file name: "Tom Beauvais · projects" -> "tom-beauvais-projects". */
 const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
-/** The id of a model listed on the home page (which also seeds the samples on first use). */
+/** The id of a model listed on the home page. */
 async function modelId(page: Page, name: string): Promise<string> {
   await page.goto('/')
   const href = await page.getByTestId('model-list').getByRole('link', { name, exact: true }).getAttribute('href')
@@ -147,7 +147,7 @@ for (const [size, viewport] of Object.entries(WIDTHS)) {
       await page.getByTestId('palette-ThemeFeature').click()
       await page.getByTestId('inspector').locator('[data-preset="night-garden"]').click()
       await expect(page.getByTestId('theme-summary')).toContainText('Night Garden')
-      await expect(page.getByText('Saved')).toBeVisible()
+      await expect(page.getByTestId('save-state')).toHaveText('Saved')
       await snapshot(page, id, `start-here-night-garden-${size}`)
     })
 

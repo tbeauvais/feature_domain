@@ -41,7 +41,7 @@ async function load() {
     const spec = await fetchJson(url)
     if (stale()) return
     const read = readApiSpec(spec, url)
-    // Stored compact: specs are kept with the model in browser storage.
+    // Stored compact: specs are kept in the model, and every save sends the whole model.
     const text = JSON.stringify(spec)
     if ('problem' in read) problem.value = `${read.problem}.`
     else if (text.length > MAX_SPEC_CHARS) problem.value = `The spec is too large to store (${(text.length / 1_000_000).toFixed(1)} MB; at most ${MAX_SPEC_CHARS / 1_000_000} MB).`
