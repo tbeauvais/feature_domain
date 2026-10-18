@@ -31,7 +31,7 @@ export default defineConfig({
   environments: {
     // The Worker's environment (named after it in wrangler.jsonc) reads the engine's source too. The plugin sets its
     // own conditions there, which Vite merges with these.
-    feature_domain: { resolve: { conditions: ['@feature-domain/source'] } },
+    app: { resolve: { conditions: ['@feature-domain/source'] } },
     client: {
       build: {
         // Two pages: the editor (index.html, with Tailwind) and the standalone preview (preview.html, without it), so

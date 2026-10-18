@@ -3,9 +3,13 @@
 // emits the deployable Worker. Local D1 data lives in .wrangler/state (delete it, or run `npm run db:reset`, to reset).
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "feature-domain",
+  "name": "app",
   "main": "./src/index.ts",
   "compatibility_date": "2026-10-01",
+  // Deployed at app.feature-domain.workers.dev (infrastructure/ puts Cloudflare Access in front of it). Preview URLs
+  // (a hostname per uploaded version) are off: Access covers only the main hostname.
+  "workers_dev": true,
+  "preview_urls": false,
   "assets": {
     // Editor routes (/models/:id) are client-side, so unknown paths get index.html. API paths always reach the Worker.
     "not_found_handling": "single-page-application",
@@ -18,8 +22,9 @@
     {
       "binding": "DB",
       "database_name": "feature-domain",
-      // Local development and tests need no real id; deploying (phase 3, PR 3) sets the id `wrangler d1 create` gives.
-      "database_id": "local",
+      // The database Terraform created (`terraform output d1_database_id` in infrastructure/). Local development and
+      // tests use a local copy named after this id, so changing it starts local data afresh.
+      "database_id": "9de3d514-43a1-40e8-a04a-ed6035020242",
       "migrations_dir": "./migrations"
     }
   ]
