@@ -1,0 +1,15 @@
+# Prettier formats the code and config it knows (TypeScript, Vue, JS, CSS, HTML, JSON, YAML): `npm run format`.
+# Also skipped: .gitignore'd files (build output, .wrangler, test results).
+package-lock.json
+# Prose is written by hand: line breaks and tables stay as written.
+*.md
+# Vendored from shadcn-vue: its components, added and updated by its CLI, and its Tailwind variants (copied by hand).
+packages/web/src/components/ui/
+packages/web/src/styles/shadcn.css
+# The legacy app, its deploy files and data, kept as written: the samples are the engine's migration fixtures.
+app/
+spec/
+public/
+app_models/
+sample.json
+manifest.yml
