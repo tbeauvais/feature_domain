@@ -5,6 +5,7 @@
 import type { FeatureDefinition } from '../feature.js'
 import { asOneOf, asString, nameInput } from '../inputs.js'
 import {
+  fetchThroughInput,
   HTTP_METHODS,
   MAX_SAMPLE_ROWS,
   parseSampleRows,
@@ -12,6 +13,7 @@ import {
   type DataParameter,
   type DataResourceExports,
   type DataSchema,
+  viaServer,
 } from './data-resource.js'
 
 export interface ReadSpec {
@@ -263,6 +265,8 @@ export const ApiSpecFeature: FeatureDefinition = {
       ],
     },
     { name: 'sample_rows', label: 'Sample rows (JSON)', type: 'text', default: '[]', control: 'json-area', showWhen: { input: 'source', equals: 'sample' } },
+    // Shown with sample data too: Load spec fetches the Spec URL the same way.
+    fetchThroughInput(),
   ],
 
   generate(inputs, ctx) {
@@ -297,6 +301,7 @@ export const ApiSpecFeature: FeatureDefinition = {
       exports.sampleRows = parsed.rows.slice(0, MAX_SAMPLE_ROWS)
       exports.operations = exports.operations.map((o) => ({ ...o, sample: true as const }))
     }
+    if (viaServer(inputs)) exports.fetchThrough = 'server'
     return { exports: { ...exports } }
   },
 }

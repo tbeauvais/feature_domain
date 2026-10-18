@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { D1ModelStore, toJson } from './d1ModelStore'
 import type { Env } from './env'
+import { allowedOrigins, forward, PROXY_ERROR_HEADER, PROXY_LIMITS, ProxyError, readProxyRequest } from './proxy'
 
 /**
  * The largest model the API accepts: bytes of the request body, and of the row D1ModelStore stores (the JSON plus the
@@ -27,8 +28,10 @@ type AppEnv = { Bindings: Env; Variables: { store: ModelStore } }
  * A model's revision is its ETag (`"3"`). GET answers `If-None-Match` with a 304 when the model is unchanged, so
  * checking for changes is cheap. PUT with `If-Match` saves only over that revision (else 412, with the stored revision
  * as the ETag); PUT without it overwrites.
+ *
+ * POST /proxy fetches an address for a page (src/proxy.ts); `upstream` replaces the fetch it uses (tests).
  */
-export function createApp(store?: (env: Env) => ModelStore) {
+export function createApp(store?: (env: Env) => ModelStore, upstream: typeof fetch = (...args) => fetch(...args)) {
   const app = new Hono<AppEnv>()
   const api = new Hono<AppEnv>()
 
@@ -87,8 +90,28 @@ export function createApp(store?: (env: Env) => ModelStore) {
     return c.body(null, 204)
   })
 
+  api.post('/proxy', proxyLimit, async (c) => {
+    try {
+      if (!c.req.header('Content-Type')?.toLowerCase().startsWith('application/json')) throw new ProxyError(400, 'Send the request as application/json')
+      let body: unknown
+      try {
+        body = await c.req.json()
+      } catch {
+        throw new ProxyError(400, 'The body is not valid JSON')
+      }
+      const request = readProxyRequest(body)
+      const stored = await c.var.store.get(request.model)
+      if (!stored) throw new ProxyError(404, 'No model with this id')
+      return await forward(request, originsOf(request.model, stored.revision, stored.model), new URL(c.req.url).hostname, upstream)
+    } catch (e) {
+      if (e instanceof ProxyError) return proxyError(e.status, e.message)
+      throw e
+    }
+  })
+
   api.all('/models', () => error(405, 'Method not allowed', { allow: 'GET, POST' }))
   api.all('/models/:id', () => error(405, 'Method not allowed', { allow: 'GET, PUT, DELETE' }))
+  api.all('/proxy', () => proxyError(405, 'Method not allowed', 'POST'))
 
   app.route('/api/v1', api)
   app.all('/api/*', () => error(404, 'No such API endpoint'))
@@ -118,6 +141,31 @@ async function readModel(request: Request): Promise<AppModel | Response> {
   if (problems.length > 0) return error(400, 'The model is not valid', { problems })
   const model = body as AppModel
   return bytes(toJson(model)) + bytes(model.name) > MAX_MODEL_BYTES ? tooLarge() : model
+}
+
+const proxyLimit = bodyLimit({
+  maxSize: PROXY_LIMITS.requestBytes,
+  onError: () => proxyError(413, `Requests through the proxy are limited to ${PROXY_LIMITS.requestBytes} bytes`),
+})
+
+/** A proxy error: marked, so the page can tell it from the site's own answers. */
+function proxyError(status: number, message: string, allow?: string): Response {
+  return error(status, message, { allow, headers: { [PROXY_ERROR_HEADER]: 'true' } })
+}
+
+/** Each model revision's allowed origins, so a page's requests don't regenerate the model every time. */
+const origins = new Map<string, Set<string>>()
+const MAX_CACHED_MODELS = 50
+
+function originsOf(id: string, revision: number, model: AppModel): Set<string> {
+  const key = `${revision}:${id}`
+  let allowed = origins.get(key)
+  if (!allowed) {
+    allowed = allowedOrigins(model)
+    if (origins.size >= MAX_CACHED_MODELS) origins.delete(origins.keys().next().value!)
+    origins.set(key, allowed)
+  }
+  return allowed
 }
 
 const notFound = () => error(404, 'No model with this id')

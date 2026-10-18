@@ -4,21 +4,73 @@ import { useDataStore } from './data'
 import { getPath } from './filters'
 import { isHttpUrl } from './urls'
 
-export type FetchJson = (url: string) => Promise<unknown>
-
 /**
- * How tables load their rows. Runtime data bindings fetch directly from the data resource for now; phase 3 routes
- * this through the Worker's allow-listed /api/proxy. Tests provide a fake.
+ * Sends a request through the Worker's /api/v1/proxy instead of from the browser (a resource whose Fetch through is
+ * Server), for sites that don't let other pages read them. The proxy fetches only the stored model's Server addresses.
  */
+export interface Via {
+  model: string
+}
+
+export type FetchJson = (url: string, via?: Via) => Promise<unknown>
+
+/** How data resources are read: by the browser, or through the proxy (`via`). Tests provide a fake. */
 export const FETCH_JSON: InjectionKey<FetchJson> = Symbol('fetchJson')
 
-export const browserFetchJson: FetchJson = async (url) => {
+export const browserFetchJson: FetchJson = async (url, via) => {
   // Never fetch relative or non-http URLs: an empty endpoint would otherwise load this app's own HTML.
   if (!isHttpUrl(url)) throw new Error(`Only http(s) URLs can be loaded, not "${url}"`)
-  const response = await fetch(url)
+  if (via) return (await proxied({ method: 'GET', url }, via)).json()
+  let response: Response
+  try {
+    response = await fetch(url)
+  } catch {
+    // The browser says no more than this when a site doesn't let other pages read it (CORS), or can't be reached.
+    throw new Error("Couldn't load it. If the site doesn't let other pages read its data, set the data resource's Fetch through to Server.")
+  }
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`.trim())
   return response.json()
 }
+
+/** The path of the Worker's proxy, on this site. */
+export const PROXY_PATH = '/api/v1/proxy'
+
+/** How long a request through the proxy may take: the proxy's own limit (10 s) plus the way there and back. */
+const PROXY_TIMEOUT_MS = 20_000
+
+/**
+ * The site's answer to a request sent through the proxy. Throws, in words, when the proxy refused it or the site
+ * answered with an error.
+ */
+async function proxied(request: DataRequest, via: Via): Promise<Response> {
+  let response: Response
+  try {
+    response = await fetch(PROXY_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ model: via.model, ...request }),
+      // An expired Cloudflare Access session answers with a redirect to its sign-in page.
+      redirect: 'manual',
+      signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
+    })
+  } catch (error) {
+    throw new Error(error instanceof DOMException && error.name === 'TimeoutError' ? "The server didn't answer in time" : "Couldn't reach the server", {
+      cause: error,
+    })
+  }
+  if (response.type === 'opaqueredirect' || response.headers.get('Content-Type')?.startsWith('text/html')) {
+    throw new Error('Your sign-in has expired; reload the page to sign in again')
+  }
+  if (response.headers.get(PROXY_ERROR_HEADER)) {
+    const answer = (await response.json().catch(() => ({}))) as { error?: unknown }
+    throw new Error(typeof answer.error === 'string' ? answer.error : `The server refused it (${response.status})`)
+  }
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`.trim())
+  return response
+}
+
+/** Marks the proxy's own errors (packages/worker/src/proxy.ts), as opposed to the site's. */
+const PROXY_ERROR_HEADER = 'X-Proxy-Error'
 
 /** A request that changes data (a Form's submit, a row's delete). The body goes as JSON unless `requestType` says a form. */
 export interface DataRequest {
@@ -27,15 +79,23 @@ export interface DataRequest {
   body?: Record<string, unknown>
   requestType?: 'form' | 'multipart'
 }
-export type SendRequest = (request: DataRequest) => Promise<unknown>
+export type SendRequest = (request: DataRequest, via?: Via) => Promise<unknown>
 
 /** How forms and row deletes reach a data resource; tests provide a fake. Only http(s) addresses are ever sent to. */
 export const SEND_REQUEST: InjectionKey<SendRequest> = Symbol('sendRequest')
 
-export const browserSendRequest: SendRequest = async (request) => {
+export const browserSendRequest: SendRequest = async (request, via) => {
   if (!isHttpUrl(request.url)) throw new Error(`Only http(s) URLs can be sent to, not "${request.url}"`)
-  const response = await fetch(request.url, requestInit(request))
-  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`.trim())
+  let response: Response
+  if (via) response = await proxied(request, via)
+  else {
+    try {
+      response = await fetch(request.url, requestInit(request))
+    } catch {
+      throw new Error("Couldn't send it. If the site doesn't take requests from other pages, set the data resource's Fetch through to Server.")
+    }
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`.trim())
+  }
   const text = await response.text()
   try {
     return text ? JSON.parse(text) : undefined

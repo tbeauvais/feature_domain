@@ -1,5 +1,5 @@
 import type { FeatureDefinition } from '../feature.js'
-import { asOneOf, asString, nameInput } from '../inputs.js'
+import { asOneOf, asString, nameInput, type InputDef } from '../inputs.js'
 
 export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE'] as const
 
@@ -46,7 +46,32 @@ export interface DataResourceExports {
   schemas: Record<string, DataSchema>
   /** The sample rows, when the resource serves sample data. */
   sampleRows?: Record<string, unknown>[]
+  /** Its addresses are fetched through the Worker's proxy (Fetch through: Server), not by the browser. */
+  fetchThrough?: 'server'
 }
+
+/** How a resource's addresses are reached: by the browser, or through the Worker's proxy (`proxyAddresses`). */
+export const FETCH_THROUGH = ['browser', 'server'] as const
+
+/** The Fetch through input. Browser by default, so stored resources keep fetching as they did. */
+export function fetchThroughInput(showWhen?: InputDef['showWhen']): InputDef {
+  return {
+    name: 'fetch_through',
+    label: 'Fetch through',
+    type: 'string',
+    default: 'browser',
+    control: 'segmented',
+    options: [
+      { value: 'browser', text: 'Browser' },
+      { value: 'server', text: 'Server' },
+    ],
+    hint: "Server reaches sites that don't let other pages read them. Only this model's Server addresses can be fetched that way.",
+    ...(showWhen ? { showWhen } : {}),
+  }
+}
+
+/** Whether a resource's inputs say to fetch through the server. */
+export const viaServer = (inputs: Record<string, unknown>) => asOneOf(inputs.fetch_through, FETCH_THROUGH, 'browser') === 'server'
 
 /** The feature types whose exports are `DataResourceExports`. */
 export const DATA_RESOURCE_TYPES = ['DataResourceFeature', 'SwaggerDataResourceFeature']
@@ -207,6 +232,7 @@ export const DataResourceFeature: FeatureDefinition = {
       control: 'json-area',
       showWhen: { input: 'source', equals: 'sample' },
     },
+    fetchThroughInput({ input: 'source', notEquals: 'sample' }),
   ],
 
   generate(inputs, ctx) {
@@ -229,6 +255,7 @@ export const DataResourceFeature: FeatureDefinition = {
       operations: [{ name: operationName(method, resource), method, endPoint: resource }],
       schemas: {},
     }
+    if (viaServer(inputs)) exports.fetchThrough = 'server'
     return { exports: { ...exports } }
   },
 }

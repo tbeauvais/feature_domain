@@ -98,3 +98,27 @@ test('refuses scripts that are not the app’s own, and reports it as the e2e gu
   // isolateNetwork fails tests on these messages, so they must keep arriving in this form.
   expect((await reported).text()).toContain("script-src 'self'")
 })
+
+test("proxies only a model's Server addresses", async ({ request }) => {
+  const created = await request.post('/api/v1/models', {
+    data: {
+      ...model,
+      features: [
+        ...model.features,
+        { feature: 'DataResourceFeature', id: '2', inputs: { name: 'Rows', resource: 'https://rows.example.test/rows', fetch_through: 'server' } },
+      ],
+    },
+  })
+  const { id } = (await created.json()) as { id: string }
+  const proxy = (data: Record<string, unknown>) => request.post('/api/v1/proxy', { data: { model: id, method: 'GET', ...data } })
+
+  const refused = await proxy({ url: 'https://elsewhere.example.test/rows' })
+  expect(refused.status()).toBe(403)
+  expect(refused.headers()['x-proxy-error']).toBe('true')
+  expect(refused.headers()['content-security-policy']).toBe("default-src 'none'; frame-ancestors 'none'")
+  expect((await proxy({ url: 'https://localhost/rows' })).status()).toBe(403)
+  expect((await proxy({ model: 'missing', url: 'https://rows.example.test/rows' })).status()).toBe(404)
+  expect((await request.get('/api/v1/proxy')).status()).toBe(405)
+
+  await request.delete(`/api/v1/models/${id}`)
+})

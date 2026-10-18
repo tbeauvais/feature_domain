@@ -166,6 +166,7 @@ function settle() {
       :labelledby="`${id}-label`"
       :value="text"
       :spec-url="typeof inputs?.spec_url === 'string' ? inputs.spec_url : ''"
+      :via-server="inputs?.fetch_through === 'server'"
       @change="emit('change', $event)"
     />
 

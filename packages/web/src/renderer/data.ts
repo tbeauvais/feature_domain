@@ -24,6 +24,7 @@ import {
   type FetchJson,
   type RowsState,
   type SendRequest,
+  type Via,
 } from './rows'
 
 // Runtime data for a generated page: one store per document, shared by every feature reading a data resource.
@@ -34,6 +35,9 @@ import {
 export type FetchState = { status: 'idle' } | { status: 'loading' } | { status: 'loaded'; response: unknown } | { status: 'error'; message: string }
 
 interface Fetched {
+  address: string
+  /** Fetched through the Worker's proxy (the resource's Fetch through is Server). */
+  proxy: boolean
   state: Ref<FetchState>
   request: number
   /** Readers of this address; with none left, its response is dropped. */
@@ -124,21 +128,28 @@ export class DataStore {
     }
   }
 
-  private entry(endPoint: string): Fetched {
-    let entry = this.fetched.get(endPoint)
+  /** The fetch of an address, by the browser or through the proxy (two separate fetches, even of the same address). */
+  private entry(address: string, proxy = false): Fetched {
+    const key = fetchKey(address, proxy)
+    let entry = this.fetched.get(key)
     if (!entry) {
-      entry = { state: ref<FetchState>({ status: 'idle' }), request: 0, readers: 0, features: new Set() }
-      this.fetched.set(endPoint, entry)
+      entry = { address, proxy, state: ref<FetchState>({ status: 'idle' }), request: 0, readers: 0, features: new Set() }
+      this.fetched.set(key, entry)
     }
     return entry
   }
 
-  private async load(endPoint: string): Promise<void> {
-    const entry = this.entry(endPoint)
+  /** How to reach the proxy for this model; it fetches only the stored model's Server addresses. */
+  private via(): Via {
+    if (!this.modelId) throw new Error('Fetching through the server needs a saved model')
+    return { model: this.modelId }
+  }
+
+  private async load(entry: Fetched): Promise<void> {
     const current = ++entry.request
     entry.state.value = { status: 'loading' }
     try {
-      const response = await this.fetchJson(endPoint)
+      const response = await (entry.proxy ? this.fetchJson(entry.address, this.via()) : this.fetchJson(entry.address))
       if (current === entry.request) entry.state.value = { status: 'loaded', response }
     } catch (error) {
       if (current === entry.request) entry.state.value = { status: 'error', message: error instanceof Error ? error.message : String(error) }
@@ -150,7 +161,7 @@ export class DataStore {
    * changes. A failed one is tried again for a new reader; a loaded or loading one is shared. Each reader counts on its
    * address, and an address no one reads any more is dropped.
    */
-  private track(endPoint: () => string | undefined, feature?: () => string | undefined): void {
+  private track(target: () => { address: string; proxy?: boolean } | undefined, feature?: () => string | undefined): void {
     let current: string | undefined
     const release = () => {
       if (current === undefined) return
@@ -162,16 +173,20 @@ export class DataStore {
       current = undefined
     }
     watch(
-      endPoint,
-      (address) => {
+      () => {
+        const t = target()
+        return t && fetchKey(t.address, t.proxy)
+      },
+      () => {
         release()
-        if (address === undefined) return
-        const entry = this.entry(address)
+        const t = target()
+        if (t === undefined) return
+        const entry = this.entry(t.address, t.proxy)
         entry.readers++
         const id = feature?.()
         if (id !== undefined) entry.features.add(id)
-        current = address
-        if (entry.state.value.status === 'idle' || entry.state.value.status === 'error') void this.load(address)
+        current = fetchKey(t.address, t.proxy)
+        if (entry.state.value.status === 'idle' || entry.state.value.status === 'error') void this.load(entry)
       },
       { immediate: true },
     )
@@ -180,10 +195,10 @@ export class DataStore {
 
   /** The JSON at an address as it loads (e.g. a Weather card's forecast), shared with every reader of it. */
   json(endPoint: Ref<string | undefined>): ComputedRef<FetchState> {
-    this.track(() => endPoint.value)
+    this.track(() => (endPoint.value === undefined ? undefined : { address: endPoint.value }))
     return computed((): FetchState => {
       if (endPoint.value === undefined) return { status: 'idle' }
-      const state = (this.fetched.get(endPoint.value) ?? this.entry(endPoint.value)).state.value
+      const state = this.entry(endPoint.value).state.value
       return state.status === 'idle' ? { status: 'loading' } : state
     })
   }
@@ -195,34 +210,34 @@ export class DataStore {
   answer(source: Ref<DataSource | undefined>): ComputedRef<FetchState> {
     // Read through the resource like a table's rows, so a change made through it (a Form's send) reloads this too.
     this.track(
-      () => (source.value && !source.value.rows ? source.value.endPoint : undefined),
+      () => fetchTarget(source.value),
       () => source.value?.feature,
     )
     return computed((): FetchState => {
       const s = source.value
       if (!s) return { status: 'idle' }
       if (s.rows) return { status: 'loaded', response: [...s.rows, ...(this.added.value[s.feature] ?? [])] }
-      const state = (this.fetched.get(s.endPoint) ?? this.entry(s.endPoint)).state.value
+      const state = this.entry(s.endPoint, s.proxy).state.value
       return state.status === 'idle' ? { status: 'loading' } : state
     })
   }
 
   /** Fetches an address again, for every reader of it. */
   refetch(endPoint: string | undefined): Promise<void> {
-    return endPoint === undefined ? Promise.resolve() : this.load(endPoint)
+    return endPoint === undefined ? Promise.resolve() : this.load(this.entry(endPoint))
   }
 
   /** The rows of a source as they load. Readers of one address share its response; each picks its own `path`. */
   rows(source: Ref<DataSource | undefined>): ComputedRef<RowsState> {
     this.track(
-      () => (source.value && !source.value.rows ? source.value.endPoint : undefined),
+      () => fetchTarget(source.value),
       () => source.value?.feature,
     )
     return computed((): RowsState => {
       const s = source.value
       if (!s) return { status: 'idle' }
       if (s.rows) return { status: 'loaded', rows: [...s.rows, ...(this.added.value[s.feature] ?? [])] }
-      const state = (this.fetched.get(s.endPoint) ?? this.entry(s.endPoint)).state.value
+      const state = this.entry(s.endPoint, s.proxy).state.value
       if (state.status !== 'loaded') return state.status === 'idle' ? { status: 'loading' } : state
       try {
         return { status: 'loaded', rows: selectRows(state.response, s.path) }
@@ -234,7 +249,7 @@ export class DataStore {
 
   /** Fetches a source's address again, for every reader of it. Sample data has nothing to fetch. */
   reload(source: DataSource | undefined): Promise<void> {
-    return source && !source.rows ? this.load(source.endPoint) : Promise.resolve()
+    return source && !source.rows ? this.load(this.entry(source.endPoint, source.proxy)) : Promise.resolve()
   }
 
   /**
@@ -264,7 +279,7 @@ export class DataStore {
 
   /** Fetches again every address a data resource is read through (after it was changed). */
   async reloadResource(resource: string): Promise<void> {
-    await Promise.all([...this.fetched].filter(([, entry]) => entry.features.has(resource)).map(([endPoint]) => this.load(endPoint)))
+    await Promise.all([...this.fetched.values()].filter((entry) => entry.features.has(resource)).map((entry) => this.load(entry)))
   }
 
   /**
@@ -291,7 +306,7 @@ export class DataStore {
       url += `${url.includes('?') ? '&' : '?'}${query.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&')}`
     const request: DataRequest = { method: action.method, url, body }
     if (action.requestType) request.requestType = action.requestType
-    await this.sendRequest(request)
+    await (action.proxy ? this.sendRequest(request, this.via()) : this.sendRequest(request))
     await this.reloadResource(action.feature)
   }
 
@@ -309,10 +324,11 @@ export class DataStore {
       return
     }
     if (!this.live) throw new NotSentFromEditor('deleted', hostOf(action.endPoint))
-    await this.sendRequest({
+    const request: DataRequest = {
       method: action.method,
       url: fillPath(action.endPoint, typeof row === 'object' && row !== null ? (row as Record<string, unknown>) : {}),
-    })
+    }
+    await (action.proxy ? this.sendRequest(request, this.via()) : this.sendRequest(request))
     await this.reloadResource(action.feature)
   }
 
@@ -327,6 +343,12 @@ export class DataStore {
     return () => window.removeEventListener('storage', onStorage)
   }
 }
+
+/** The key of a fetch: its address, and whether it goes through the proxy. */
+const fetchKey = (address: string, proxy = false) => `${proxy ? 'server' : 'browser'} ${address}`
+
+/** What a source fetches (none for sample data, which has rows). */
+const fetchTarget = (source: DataSource | undefined) => (source && !source.rows ? { address: source.endPoint, proxy: source.proxy } : undefined)
 
 /**
  * A row added to sample data, given the next id when it has none: after the model's rows, those added since and any
@@ -367,10 +389,25 @@ export function forgetSampleRows(modelId: string, storage: SampleRowsStorage | u
 
 export const DATA_STORE: InjectionKey<DataStore> = Symbol('dataStore')
 
+/**
+ * What to wait for before a request through the proxy, which fetches only the stored model's Server addresses: the
+ * editor's pending save, so an address just typed (or a resource just switched to Server) is stored first.
+ */
+export const PROXY_READY: InjectionKey<() => Promise<unknown>> = Symbol('proxyReady')
+
 /** Creates the document's data store and provides it to every node inside; `live` as for DataStore. */
 export function provideDataStore(modelId?: string, live = true): DataStore {
   const storage = typeof window !== 'undefined' ? safeLocalStorage() : undefined
-  const store = new DataStore(inject(FETCH_JSON, browserFetchJson), modelId, storage, inject(SEND_REQUEST, browserSendRequest), live)
+  const ready = inject(PROXY_READY, undefined)
+  const fetchJson = inject(FETCH_JSON, browserFetchJson)
+  const sendRequest = inject(SEND_REQUEST, browserSendRequest)
+  const store = new DataStore(
+    ready ? async (url, via) => (via ? (await ready(), fetchJson(url, via)) : fetchJson(url)) : fetchJson,
+    modelId,
+    storage,
+    ready ? async (request, via) => (via ? (await ready(), sendRequest(request, via)) : sendRequest(request)) : sendRequest,
+    live,
+  )
   provide(DATA_STORE, store)
   // Rows added in another tab (the editor, while this is the preview) show here too.
   onBeforeUnmount(store.follow())

@@ -1,6 +1,7 @@
 import { MemoryModelStore, type AppModel } from '@feature-domain/engine'
-import type { BrowserContext, Page } from '@playwright/test'
+import type { BrowserContext, Page, Route } from '@playwright/test'
 import { SAMPLE_SET, sampleModels } from '../src/data/samples'
+import { PROXY_PATH } from '../src/renderer/rows'
 import { MODELS_PATH } from '../src/stores/apiModelStore'
 import { workerApp, type WorkerApp } from '../test/workerApp'
 
@@ -9,6 +10,8 @@ import { workerApp, type WorkerApp } from '../test/workerApp'
 // edits); e2e/api.spec.ts and e2e/sync.spec.ts test the real Worker and D1.
 
 let models: MemoryModelStore
+/** Answers what the Worker's proxy fetches from other sites; nothing is reachable unless a test says so (`answerProxy`). */
+let upstream: (url: string, init: RequestInit) => Response | Promise<Response>
 /** The id the next stored model gets (MemoryModelStore makes up its own otherwise). */
 let nextId: string | undefined
 
@@ -17,8 +20,9 @@ export async function serveModels(context: BrowserContext): Promise<void> {
   let n = 0
   models = new MemoryModelStore(() => nextId ?? `model-${++n}`)
   for (const [i, sample] of sampleModels().entries()) await put(`sample-${SAMPLE_SET}-${i + 1}`, sample)
-  const app: WorkerApp = await workerApp(models)
-  await context.route(`**${MODELS_PATH}**`, async (route) => {
+  upstream = () => Promise.reject(new TypeError('fetch failed'))
+  const app: WorkerApp = await workerApp(models, async (input, init = {}) => upstream(String(input), init))
+  const serve = async (route: Route) => {
     const request = route.request()
     const url = new URL(request.url())
     const response = await app.request(url.pathname + url.search, {
@@ -27,7 +31,14 @@ export async function serveModels(context: BrowserContext): Promise<void> {
       body: request.postDataBuffer() as BodyInit | null,
     })
     await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) })
-  })
+  }
+  await context.route(`**${MODELS_PATH}**`, serve)
+  await context.route(`**${PROXY_PATH}`, serve)
+}
+
+/** How the sites the Worker's proxy fetches from answer (the proxy itself is the Worker's real route). */
+export function answerProxy(answer: typeof upstream): void {
+  upstream = answer
 }
 
 async function put(id: string, model: unknown): Promise<void> {

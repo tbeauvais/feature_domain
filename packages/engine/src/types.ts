@@ -78,6 +78,8 @@ export interface DataSource {
   endPoint: string
   path?: string
   rows?: Record<string, unknown>[]
+  /** Fetch through the Worker's /api/v1/proxy (the resource's Fetch through is Server), for sites that don't let pages read them. */
+  proxy?: true
 }
 
 /**
@@ -91,6 +93,8 @@ export interface DataAction {
   method: string
   endPoint: string
   sample?: true
+  /** Send through the Worker's /api/v1/proxy (the resource's Fetch through is Server). */
+  proxy?: true
   /** Send the body form-encoded or as multipart form data (the spec says so), else as JSON. */
   requestType?: 'form' | 'multipart'
   /**
