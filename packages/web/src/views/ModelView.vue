@@ -21,6 +21,7 @@ import DocumentView from '../renderer/DocumentView.vue'
 import { modelStore } from '../services'
 import { confirmAction, pendingConfirm } from '../editor/confirm'
 import { useDocumentStore } from '../stores/document'
+import { useModelUpdates } from '../stores/modelUpdates'
 import DiagnosticsList from './DiagnosticsList.vue'
 
 const props = defineProps<{ id: string }>()
@@ -83,13 +84,35 @@ onMounted(() => window.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 const previewUrl = (id: string) => `${import.meta.env.BASE_URL}preview.html?model=${encodeURIComponent(id)}`
-const saveLabel = { saved: 'Saved', pending: 'Unsaved changes', saving: 'Saving…', error: 'Save failed' } as const
+const saveLabel = {
+  saved: 'Saved',
+  pending: 'Unsaved changes',
+  saving: 'Saving…',
+  error: 'Save failed',
+  conflict: 'Not saved: changed elsewhere',
+  deleted: 'Not saved: deleted elsewhere',
+} as const
 
 store.editing = true
 watch(() => props.id, (id) => store.load(id), { immediate: true })
 
-// Save anything pending before the page goes away (browser storage writes synchronously).
+// Save anything pending before the page goes away: small saves are sent with keepalive, so they arrive after it closes.
 const flush = () => void store.flush()
+// Ask before closing the page only when edits would be lost (see `unsavedOnLeave`); the browser shows its own prompt.
+const onBeforeUnload = (event: BeforeUnloadEvent) => {
+  if (!store.unsavedOnLeave()) return
+  event.preventDefault()
+  event.returnValue = ''
+}
+
+// Show saves made in other tabs and on other devices while there are no edits here to save.
+useModelUpdates(() => store.modelId, () => store.refresh())
+
+/** The model was deleted elsewhere: keep what is here as a new model, and open it. */
+async function saveCopy() {
+  const id = await store.saveCopy()
+  await router.push({ name: 'model', params: { id } })
+}
 
 /** Before opening another page: save pending edits, and if saving fails, ask before dropping them. */
 async function confirmLeave(): Promise<boolean> {
@@ -103,9 +126,13 @@ async function confirmLeave(): Promise<boolean> {
 }
 onBeforeRouteLeave(confirmLeave)
 onBeforeRouteUpdate(confirmLeave)
-onMounted(() => window.addEventListener('pagehide', flush))
+onMounted(() => {
+  window.addEventListener('pagehide', flush)
+  window.addEventListener('beforeunload', onBeforeUnload)
+})
 onBeforeUnmount(() => {
   window.removeEventListener('pagehide', flush)
+  window.removeEventListener('beforeunload', onBeforeUnload)
   flush()
 })
 
@@ -172,7 +199,7 @@ async function deleteModel() {
           :value="model.name"
           @input="store.rename(($event.target as HTMLInputElement).value)"
         />
-        <span class="inline-flex items-center gap-1.5 text-[13px]" :class="saveState === 'error' ? 'text-red-700' : 'text-slate-600'" :title="saveError">
+        <span class="inline-flex items-center gap-1.5 text-[13px]" :class="saveState === 'error' || saveState === 'conflict' || saveState === 'deleted' ? 'text-red-700' : 'text-slate-600'" :title="saveError">
           <svg v-if="saveState === 'saved'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="text-green-600">
             <path d="M20 6 9 17l-5-5" />
           </svg>
@@ -203,6 +230,26 @@ async function deleteModel() {
         </button>
       </template>
     </header>
+    <div
+      v-if="model && (saveState === 'error' || saveState === 'conflict' || saveState === 'deleted')"
+      class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-950"
+      role="alert"
+      data-testid="save-problem"
+    >
+      <template v-if="saveState === 'conflict'">
+        <p class="flex-1">Someone else saved this model since you opened it, in another tab or on another device. Your latest changes are not saved.</p>
+        <button type="button" class="rounded-md border border-amber-300 bg-white px-3 py-1 font-medium hover:bg-amber-100" data-testid="load-theirs" @click="store.loadTheirs()">Load their version</button>
+        <button type="button" class="rounded-md bg-slate-900 px-3 py-1 font-medium text-white hover:bg-slate-700" data-testid="keep-mine" @click="store.keepMine()">Keep mine</button>
+      </template>
+      <template v-else-if="saveState === 'deleted'">
+        <p class="flex-1">This model was deleted in another tab or on another device. Your latest changes are not saved.</p>
+        <button type="button" class="rounded-md bg-slate-900 px-3 py-1 font-medium text-white hover:bg-slate-700" data-testid="save-copy" @click="saveCopy()">Save as a new model</button>
+      </template>
+      <template v-else>
+        <p class="flex-1">Your latest changes could not be saved: {{ saveError }}.</p>
+        <button type="button" class="rounded-md bg-slate-900 px-3 py-1 font-medium text-white hover:bg-slate-700" data-testid="retry-save" @click="store.retry()">Try again</button>
+      </template>
+    </div>
 
     <p v-if="status === 'loading'" class="p-6 text-slate-500">Loading…</p>
     <p v-else-if="status === 'missing'" class="p-6 text-slate-500">This model does not exist.</p>

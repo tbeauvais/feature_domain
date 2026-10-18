@@ -13,6 +13,8 @@ import {
   updateInputs,
   useThemeOnUnthemedPages,
   validateModel,
+  ModelConflictError,
+  ModelNotFoundError,
   type AppModel,
   type GenerateResult,
   type InputValue,
@@ -24,9 +26,15 @@ import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 import { paletteTarget } from '../editor/targets'
 import { modelStore } from '../services'
+import { KEEPALIVE_MAX_BYTES } from './apiModelStore'
+import { announceSaved } from './modelChannel'
 
 export type LoadStatus = 'idle' | 'loading' | 'ready' | 'missing' | 'error'
-export type SaveState = 'saved' | 'pending' | 'saving' | 'error'
+/**
+ * `error`: the last save failed (the next edit tries again). `conflict`: someone else saved the model since it was
+ * loaded, and `deleted`: someone deleted it; both hold every save until the user chooses what to do.
+ */
+export type SaveState = 'saved' | 'pending' | 'saving' | 'error' | 'conflict' | 'deleted'
 
 /** Edits are saved this long after the last change. */
 export const SAVE_DELAY_MS = 400
@@ -43,6 +51,9 @@ interface HistoryEntry {
  * The model being viewed or edited, and its generated document (regenerated whenever the model changes). Models from
  * storage are validated before use, and a failed generation becomes `generateError`, so bad data shows an error
  * instead of a blank page. In editing mode the document includes placeholders, and every edit is saved shortly after.
+ *
+ * Saves go one at a time, each sent with the revision the last one returned, so a save is refused (a `conflict`)
+ * only when someone else saved in between, never because of an earlier save from here.
  */
 export const useDocumentStore = defineStore('document', () => {
   const modelId = ref<string | null>(null)
@@ -54,6 +65,12 @@ export const useDocumentStore = defineStore('document', () => {
   const selectedId = ref<string | null>(null)
   const saveState = ref<SaveState>('saved')
   const saveError = ref('')
+  /** In a conflict: the revision someone else saved. */
+  let theirRevision: number | undefined
+  /** The revision of the model as stored, which the next save is made from. */
+  let revision: number | undefined
+  /** Bumped when another model loads or pending saves are dropped, so a save still in flight is ignored when it ends. */
+  let session = 0
   const past = shallowRef<HistoryEntry[]>([])
   const future = shallowRef<HistoryEntry[]>([])
   const canUndo = computed(() => past.value.length > 0)
@@ -72,6 +89,8 @@ export const useDocumentStore = defineStore('document', () => {
 
   async function load(id: string): Promise<void> {
     await flush()
+    session++
+    revision = undefined
     modelId.value = id
     model.value = null
     selectedId.value = null
@@ -82,12 +101,13 @@ export const useDocumentStore = defineStore('document', () => {
     future.value = []
     lastKey = undefined
     try {
-      const loaded: unknown = (await modelStore().get(id))?.model ?? null
+      const stored = await modelStore().get(id)
       if (modelId.value !== id) return
-      if (loaded === null) {
+      if (stored === null) {
         status.value = 'missing'
         return
       }
+      const loaded: unknown = stored.model
       const problems = validateModel(loaded)
       if (problems.length > 0) {
         status.value = 'error'
@@ -98,6 +118,7 @@ export const useDocumentStore = defineStore('document', () => {
       // upgrade so it happens once; the preview only reads.
       const upgraded = migrate(loaded).model
       model.value = loaded as AppModel
+      revision = stored.revision
       status.value = 'ready'
       if (upgraded !== loaded) {
         if (editing.value) setModel(upgraded)
@@ -111,59 +132,150 @@ export const useDocumentStore = defineStore('document', () => {
   }
 
   /**
-   * Re-reads the current model without showing a loading state, e.g. when another tab saved it. Never replaces local
-   * edits that aren't saved yet; invalid or missing data leaves the current model in place. Returns whether it did.
+   * Re-reads the current model without showing a loading state, e.g. when another tab or device saved it. Never
+   * replaces local edits that aren't saved yet; invalid data leaves the current model in place, and a deleted model
+   * shows as missing. Returns whether the model changed. In the editor, undo history ends there (undoing past someone
+   * else's save would quietly take it back).
    */
   async function refresh(): Promise<boolean> {
     const id = modelId.value
-    if (id === null || saveState.value !== 'saved') return false
-    const loaded: unknown = (await modelStore().get(id))?.model ?? null
-    if (modelId.value !== id || saveState.value !== 'saved' || loaded === null || validateModel(loaded).length > 0) return false
-    model.value = migrate(loaded).model
-    status.value = 'ready'
+    const at = session
+    if (id === null || saveState.value !== 'saved' || status.value !== 'ready' || running) return false
+    const stored = await modelStore().get(id)
+    if (at !== session || modelId.value !== id || saveState.value !== 'saved' || running) return false
+    if (stored === null) {
+      model.value = null
+      status.value = 'missing'
+      return true
+    }
+    if (stored.revision === revision || validateModel(stored.model).length > 0) return false
+    model.value = migrate(stored.model).model
+    revision = stored.revision
+    past.value = []
+    future.value = []
+    lastKey = undefined
     return true
   }
 
   // --- Saving -------------------------------------------------------------------------------------------------------
 
   let timer: ReturnType<typeof setTimeout> | undefined
+  /** The save in flight, if any; `again` asks it to save the newest model once more when it ends. */
+  let running: Promise<void> | undefined
+  let again = false
+  const held = () => saveState.value === 'conflict' || saveState.value === 'deleted'
 
-  async function save(): Promise<void> {
+  /** Saves the newest model now, after any save in flight. */
+  function save(): Promise<void> {
     timer = undefined
-    const id = modelId.value
-    const snapshot = model.value
-    if (id === null || !snapshot) return
-    saveState.value = 'saving'
-    try {
-      await modelStore().update(id, snapshot)
-      // A save that finishes after another model was opened must not change that model's state.
-      if (modelId.value === id && model.value === snapshot) saveState.value = timer === undefined ? 'saved' : 'pending'
-    } catch (e) {
-      if (modelId.value !== id) return
-      saveState.value = 'error'
-      saveError.value = e instanceof Error ? e.message : String(e)
+    again = true
+    running ??= run().finally(() => (running = undefined))
+    return running
+  }
+
+  async function run(): Promise<void> {
+    while (again) {
+      again = false
+      const id = modelId.value
+      const snapshot = model.value
+      const at = session
+      if (id === null || !snapshot || held()) return
+      saveState.value = 'saving'
+      try {
+        const saved = await modelStore().update(id, snapshot, revision)
+        // Another model opened, or the edits were dropped, while this save was in flight: it no longer counts.
+        if (at !== session) continue
+        revision = saved
+        announceSaved(id, saved)
+        saveState.value = timer !== undefined ? 'pending' : again ? 'saving' : 'saved'
+      } catch (e) {
+        if (at !== session) continue
+        if (e instanceof ModelConflictError) {
+          theirRevision = e.revision
+          saveState.value = 'conflict'
+          saveError.value = 'someone else saved this model since you opened it'
+        } else if (e instanceof ModelNotFoundError) {
+          saveState.value = 'deleted'
+          saveError.value = 'this model was deleted'
+        } else {
+          saveState.value = 'error'
+          saveError.value = e instanceof Error ? e.message : String(e)
+        }
+        clearTimeout(timer)
+        timer = undefined
+        again = false
+      }
     }
   }
 
-  /** Drops an edit waiting to be saved, e.g. when the model is about to be deleted. */
+  /** Drops edits waiting to be saved (and the result of one in flight), e.g. when the model is about to be deleted. */
   function discard(): void {
     clearTimeout(timer)
     timer = undefined
+    again = false
+    session++
     saveState.value = 'saved'
   }
 
-  /** Saves now if an edit is waiting to be saved. Resolves to false if that save failed (the edits are not stored). */
+  /**
+   * Saves now if an edit is waiting to be saved, and waits for any save in flight. Resolves to false if the edits are
+   * not stored (a failed save, a conflict or a deleted model).
+   */
   async function flush(): Promise<boolean> {
     if (timer !== undefined) {
       clearTimeout(timer)
       await save()
+    } else if (running) {
+      await running
     }
-    return saveState.value !== 'error'
+    return saveState.value !== 'error' && !held()
   }
 
-  /** Sets the model and schedules a save, without touching undo history. */
+  /**
+   * Whether closing the page now would lose edits: they could not be saved, or a save the page can't send as it
+   * closes is still to go (one queued behind another, or too large for a keepalive request).
+   */
+  function unsavedOnLeave(): boolean {
+    if (saveState.value === 'error' || held()) return true
+    const waiting = timer !== undefined || again
+    if (waiting && running) return true
+    if (!waiting && !running) return false
+    return model.value !== null && new TextEncoder().encode(JSON.stringify(model.value)).length >= KEEPALIVE_MAX_BYTES
+  }
+
+  /** After a failed save: tries again. */
+  function retry(): Promise<void> {
+    if (saveState.value !== 'error') return Promise.resolve()
+    saveState.value = 'pending'
+    return save()
+  }
+
+  /** In a conflict: drops the edits made here and shows the model as someone else saved it. */
+  async function loadTheirs(): Promise<void> {
+    if (modelId.value === null) return
+    discard()
+    await load(modelId.value)
+  }
+
+  /** In a conflict: saves the model as it is here over what someone else saved. */
+  function keepMine(): Promise<void> {
+    if (saveState.value !== 'conflict') return Promise.resolve()
+    revision = theirRevision
+    saveState.value = 'pending'
+    return save()
+  }
+
+  /** When the model was deleted elsewhere: stores it as it is here as a new model, and returns that model's id. */
+  async function saveCopy(): Promise<string> {
+    const id = await modelStore().create(current())
+    discard()
+    return id
+  }
+
+  /** Sets the model and schedules a save, without touching undo history. Saving waits while a conflict is open. */
   function setModel(next: AppModel): void {
     model.value = next
+    if (held()) return
     saveState.value = 'pending'
     clearTimeout(timer)
     timer = setTimeout(() => void save(), SAVE_DELAY_MS)
@@ -320,6 +432,11 @@ export const useDocumentStore = defineStore('document', () => {
     refresh,
     flush,
     discard,
+    unsavedOnLeave,
+    retry,
+    loadTheirs,
+    keepMine,
+    saveCopy,
     select,
     add,
     addAt,

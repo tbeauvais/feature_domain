@@ -12,4 +12,4 @@ exec docker run --rm --ipc=host \
   -v /work/node_modules -v /work/packages/web/node_modules -v /work/packages/engine/node_modules -v /work/packages/worker/node_modules \
   -w /work/packages/web \
   "mcr.microsoft.com/playwright:v$version-noble" \
-  bash -c 'npm ci --prefix /work --no-audit --no-fund --loglevel=error && npx playwright test "$@"' -- "$@"
+  bash -c 'npm ci --prefix /work --no-audit --no-fund --loglevel=error && npm run e2e -- "$@"' -- "$@"

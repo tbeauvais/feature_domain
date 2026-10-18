@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { isolateNetwork } from './network'
+import { changeStored, storedId } from './storage'
 
 // Drag-and-drop, undo/redo and keyboard moves, on fresh models. External requests are blocked.
 isolateNetwork()
@@ -178,11 +179,8 @@ test('drags a feature that is not on the page from the tree onto the page', asyn
   await addToPage(page, 'TextFeature')
   // Break its placement in storage, then reload: it is listed under "Not on the page".
   await page.waitForTimeout(500)
-  await page.evaluate(() => {
-    const stored = JSON.parse(localStorage.getItem('feature-domain:models')!)
-    const model = (Object.values(stored.models) as { name: string; features: { id: string; placement?: unknown }[] }[]).find((m) => m.name === 'Untitled model')!
+  await changeStored(await storedId('Untitled model'), (model) => {
     delete model.features.find((f) => f.id === '2')!.placement
-    localStorage.setItem('feature-domain:models', JSON.stringify(stored))
   })
   await page.reload()
   await expect(tree(page).getByRole('tree', { name: 'Not on the page' }).locator('[data-tree-id="2"]')).toBeVisible()

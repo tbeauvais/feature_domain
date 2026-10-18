@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { isolateNetwork } from './network'
-import { featureId, store } from './storage'
+import { changeStored, featureId, store } from './storage'
 
 // Every request leaves localhost only to the GitHub and Open-Meteo APIs, which are mocked, so runs are deterministic and
 // offline-safe.
@@ -71,11 +71,9 @@ test('neighboring texts and links sit on their own lines, and empty containers a
   const id = await openSample(page, 'Harbor Coffee')
   // Away from the editor first, so its autosave can't write over the change.
   await page.goto(`/preview.html?model=${encodeURIComponent(id)}`)
-  await page.evaluate((modelId) => {
-    const stored = JSON.parse(localStorage.getItem('feature-domain:models')!)
-    for (const f of stored.models[modelId].features) if (f.feature === 'GoogleMapFeature' || f.feature === 'WeatherFeature') f.inputs.disable = true
-    localStorage.setItem('feature-domain:models', JSON.stringify(stored))
-  }, id)
+  await changeStored(id, (model) => {
+    for (const f of model.features) if (f.feature === 'GoogleMapFeature' || f.feature === 'WeatherFeature') f.inputs.disable = true
+  })
   await page.reload()
   await expect(page.locator(`[data-feature-id="${await featureId(page, id, 'Map')}"]`)).toHaveCount(0)
   await expect(page.locator(`[data-feature-id="${await featureId(page, id, 'Visit')}"]`)).toHaveCSS('margin-bottom', '0px')
@@ -355,14 +353,8 @@ for (const sample of SAMPLES) {
 }
 
 test('shows an error, not a blank page, for a malformed stored model', async ({ page }) => {
-  await page.goto('/')
-  await expect(page.getByTestId('model-list')).toBeVisible()
-  await page.evaluate(() => {
-    const stored = JSON.parse(localStorage.getItem('feature-domain:models')!)
-    stored.models.malformed = { version: 2, name: 'Malformed' }
-    stored.order.push('malformed')
-    localStorage.setItem('feature-domain:models', JSON.stringify(stored))
-  })
+  // The Worker never stores one, but what it sends is checked all the same.
+  await store(page, { id: 'malformed', version: 2, name: 'Malformed' })
   await page.goto('/models/malformed')
   await expect(page.getByText('Could not load the model: the model is not valid (Model has no features list)')).toBeVisible()
   await page.goto('/preview.html?model=malformed')
