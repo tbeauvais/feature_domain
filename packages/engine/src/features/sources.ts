@@ -108,6 +108,7 @@ export function listSource(
   }
   const source: DataSource = { feature: resourceId, resource: resource.resource, operation: operation.name, endPoint: operation.endPoint }
   if (schema?.path) source.path = schema.path
+  if (resource.fetchThrough === 'server') source.proxy = true
   return schema ? { source, schemaColumns: schema.columns } : { source }
 }
 
@@ -121,6 +122,7 @@ export function actionFor(resourceId: string, resource: DataResourceExports, ope
     endPoint: operation.endPoint,
   }
   if (operation.sample) action.sample = true
+  else if (resource.fetchThrough === 'server') action.proxy = true
   if (operation.requestType) action.requestType = operation.requestType
   const ids = operation.sample && operation.method === 'POST' ? sampleIds(resource.sampleRows ?? []) : undefined
   if (ids) action.sampleIds = ids

@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { MAX_SPEC_CHARS, readApiSpec } from '@feature-domain/engine'
 import { computed, inject, ref } from 'vue'
+import { PROXY_READY, proxyReady } from '../renderer/data'
 import { browserFetchJson, FETCH_JSON } from '../renderer/rows'
 import { isHttpUrl } from '../renderer/urls'
+import { useDocumentStore } from '../stores/document'
 
 // The API spec's stored spec: what was loaded, a button to (re)load it from the Spec URL, and a box to paste it when
-// the site doesn't allow the browser to fetch it. Generation only ever reads the stored text.
-const props = defineProps<{ id: string; labelledby: string; value: string; specUrl: string }>()
+// the site doesn't allow the browser to fetch it. Generation only ever reads the stored text. With Fetch through set
+// to Server, Load spec goes through the Worker's proxy, which allows the stored model's Spec URL.
+const props = defineProps<{ id: string; labelledby: string; value: string; specUrl: string; viaServer?: boolean }>()
 const emit = defineEmits<{ change: [value: string] }>()
 
 const fetchJson = inject(FETCH_JSON, browserFetchJson)
+const ready = inject(PROXY_READY, () => Promise.resolve(true))
 const loading = ref(false)
 const problem = ref('')
 
@@ -42,7 +46,14 @@ async function load() {
   // A load for an address that has since been changed is ignored: its spec isn't the one now asked for.
   const stale = () => props.specUrl.trim() !== url
   try {
-    const spec = await fetchJson(url)
+    let spec: unknown
+    if (props.viaServer) {
+      // The proxy allows the stored Spec URL, so save one just typed first.
+      await proxyReady(ready)
+      const model = useDocumentStore().modelId
+      if (!model) throw new Error('the model is not saved')
+      spec = await fetchJson(url, { model })
+    } else spec = await fetchJson(url)
     if (stale()) return
     const read = readApiSpec(spec, url)
     // Stored compact: specs are kept in the model, and every save sends the whole model.
@@ -54,7 +65,7 @@ async function load() {
   } catch (error) {
     if (stale()) return
     const host = /^https?:\/\/([^/?#]+)/i.exec(url)?.[1] ?? url
-    problem.value = `Couldn't load the spec from ${host} (${error instanceof Error ? error.message : String(error)}). If the site doesn't allow it, open the address yourself and paste the spec below.`
+    problem.value = `Couldn't load the spec from ${host} (${error instanceof Error ? error.message : String(error)}). ${props.viaServer ? 'Open' : "If the site doesn't let other pages read it, set Fetch through to Server, or open"} the address yourself and paste the spec below.`
   } finally {
     loading.value = false
   }

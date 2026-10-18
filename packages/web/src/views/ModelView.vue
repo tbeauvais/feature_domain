@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter } from 'vue-router'
 import BrandLink from '../components/BrandLink.vue'
 import FeatureTree from '../editor/FeatureTree.vue'
@@ -16,7 +16,7 @@ import { themeSummary } from '../editor/status'
 import { CANVAS_WIDTHS, loadCanvasWidth, saveCanvasWidth, type CanvasWidth } from '../editor/canvasWidth'
 import { useEditorDnd } from '../editor/useEditorDnd'
 import { inlineEdit, useInlineEdit } from '../editor/useInlineEdit'
-import { forgetSampleRows } from '../renderer/data'
+import { forgetSampleRows, PROXY_READY } from '../renderer/data'
 import DocumentView from '../renderer/DocumentView.vue'
 import { modelStore } from '../services'
 import { confirmAction, pendingConfirm } from '../editor/confirm'
@@ -26,6 +26,8 @@ import DiagnosticsList from './DiagnosticsList.vue'
 
 const props = defineProps<{ id: string }>()
 const store = useDocumentStore()
+// The proxy reads the stored model, so the canvas's requests through it wait for the pending save.
+provide(PROXY_READY, () => store.flush())
 const router = useRouter()
 const { model, status, error, result, generateError, selectedId, saveState, saveError, signedOut, canUndo, canRedo } = storeToRefs(store)
 const canvas = ref<HTMLElement | null>(null)

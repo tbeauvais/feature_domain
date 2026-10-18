@@ -10,7 +10,8 @@ export interface WorkerApp {
 
 const APP = `${import.meta.dirname}/../../worker/src/app.ts`
 
-export async function workerApp(store: ModelStore): Promise<WorkerApp> {
-  const { createApp } = (await import(/* @vite-ignore */ APP)) as { createApp(store: () => ModelStore): WorkerApp }
-  return createApp(() => store)
+/** `upstream` answers the requests its proxy sends to other sites (by default, the real fetch). */
+export async function workerApp(store: ModelStore, upstream?: typeof fetch): Promise<WorkerApp> {
+  const { createApp } = (await import(/* @vite-ignore */ APP)) as { createApp(store: () => ModelStore, upstream?: typeof fetch): WorkerApp }
+  return createApp(() => store, upstream)
 }
