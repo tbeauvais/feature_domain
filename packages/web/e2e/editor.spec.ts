@@ -92,6 +92,7 @@ test('a table shows what it needs until it gets a data resource', async ({ page 
   // New data resources start on sample rows; these tests fetch the (mocked) GitHub API instead.
   await inspector(page).getByRole('button', { name: 'Address' }).click()
   await inspector(page).getByLabel('Resource URL').fill('https://api.github.com/users/x/repos')
+  await inspector(page).getByLabel('Resource URL').press('Enter')
   await tree(page).locator('[data-tree-id="2"]').click()
   await inspector(page).getByLabel('Data Resource').selectOption({ label: 'untitled (#3)' })
   await inspector(page).getByLabel('Fields').fill('name')
@@ -171,6 +172,7 @@ test('linking a table to a data resource keeps it where it is on the page', asyn
   // New data resources start on sample rows; these tests fetch the (mocked) GitHub API instead.
   await inspector(page).getByRole('button', { name: 'Address' }).click()
   await inspector(page).getByLabel('Resource URL').fill('https://api.github.com/users/x/repos')
+  await inspector(page).getByLabel('Resource URL').press('Enter')
   await tree(page).locator('[data-tree-id="2"]').click()
   await inspector(page).getByLabel('Data Resource').selectOption({ label: 'untitled (#4)' })
   await expect(canvas(page).locator('[data-feature-id="1"] > [data-feature-id]')).toHaveCount(2)
@@ -190,6 +192,7 @@ test('the selection outline follows content that loads later', async ({ page }) 
   // New data resources start on sample rows; these tests fetch the (mocked) GitHub API instead.
   await inspector(page).getByRole('button', { name: 'Address' }).click()
   await inspector(page).getByLabel('Resource URL').fill('https://api.github.com/users/x/repos')
+  await inspector(page).getByLabel('Resource URL').press('Enter')
   await page.getByTestId('palette-TableFeature').click()
   await inspector(page).getByLabel('Data Resource').selectOption({ label: 'untitled (#2)' })
   await inspector(page).getByLabel('Fields').fill('name')

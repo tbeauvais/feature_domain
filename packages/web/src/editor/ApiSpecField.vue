@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { MAX_SPEC_CHARS, readApiSpec } from '@feature-domain/engine'
 import { computed, inject, ref } from 'vue'
-import { PROXY_READY } from '../renderer/data'
+import { PROXY_READY, proxyReady } from '../renderer/data'
 import { browserFetchJson, FETCH_JSON } from '../renderer/rows'
 import { isHttpUrl } from '../renderer/urls'
 import { useDocumentStore } from '../stores/document'
@@ -13,7 +13,7 @@ const props = defineProps<{ id: string; labelledby: string; value: string; specU
 const emit = defineEmits<{ change: [value: string] }>()
 
 const fetchJson = inject(FETCH_JSON, browserFetchJson)
-const ready = inject(PROXY_READY, () => Promise.resolve())
+const ready = inject(PROXY_READY, () => Promise.resolve(true))
 const loading = ref(false)
 const problem = ref('')
 
@@ -49,7 +49,7 @@ async function load() {
     let spec: unknown
     if (props.viaServer) {
       // The proxy allows the stored Spec URL, so save one just typed first.
-      await ready()
+      await proxyReady(ready)
       const model = useDocumentStore().modelId
       if (!model) throw new Error('the model is not saved')
       spec = await fetchJson(url, { model })

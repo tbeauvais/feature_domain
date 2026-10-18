@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, effectScope, h, provide, ref } from 'vue'
 import ApiSpecField from '../src/editor/ApiSpecField.vue'
-import { DataStore, PROXY_READY } from '../src/renderer/data'
+import { DataStore, PROXY_READY, proxyReady } from '../src/renderer/data'
 import DocumentView from '../src/renderer/DocumentView.vue'
 import { browserFetchJson, browserSendRequest, FETCH_JSON, PROXY_PATH, SEND_REQUEST, type FetchJson, type SendRequest } from '../src/renderer/rows'
 import { useDocumentStore } from '../src/stores/document'
@@ -66,6 +66,22 @@ describe('requests through the proxy', () => {
     await expect(browserSendRequest({ method: 'DELETE', url: 'https://api.test/repos/1' }, { model: 'm1' })).rejects.toThrow('500 Server Error')
     stub(() => new Response('<html>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } }))
     await expect(browserFetchJson('https://api.test/repos', { model: 'm1' })).rejects.toThrow('sign-in has expired')
+    stub(() => ({ type: 'opaqueredirect', status: 0, ok: false, headers: new Headers() }) as Response)
+    await expect(browserFetchJson('https://api.test/repos', { model: 'm1' })).rejects.toThrow('sign-in has expired')
+  })
+
+  it("shows the site's own HTML error page as its status, not as an expired sign-in", async () => {
+    stub(() => new Response('<h1>Not here</h1>', { status: 404, statusText: 'Not Found', headers: { 'Content-Type': 'text/html', 'X-Proxy-Answer': 'site' } }))
+    await expect(browserFetchJson('https://api.test/repos', { model: 'm1' })).rejects.toThrow('404 Not Found')
+    stub(() => new Response('<p>Hello</p>', { headers: { 'Content-Type': 'text/html', 'X-Proxy-Answer': 'site' } }))
+    await expect(browserFetchJson('https://api.test/repos', { model: 'm1' })).rejects.toThrow("The site didn't answer with JSON")
+  })
+
+  it("says when the server didn't answer in time, and when a site's answer isn't JSON", async () => {
+    vi.stubGlobal('fetch', () => Promise.reject(new DOMException('timed out', 'TimeoutError')))
+    await expect(browserFetchJson('https://api.test/repos', { model: 'm1' })).rejects.toThrow("The server didn't answer in time")
+    stub(() => new Response(''))
+    await expect(browserFetchJson('https://api.test/repos')).rejects.toThrow("The site didn't answer with JSON")
   })
 
   it('never sends a non-http(s) address, even through the proxy', async () => {
@@ -125,7 +141,7 @@ describe('the editor and the proxy', () => {
   it('waits for the pending save before fetching through the proxy, but not before a browser fetch', async () => {
     const order: string[] = []
     let save!: () => void
-    const ready = vi.fn(() => new Promise<void>((resolve) => (save = () => (order.push('saved'), resolve()))))
+    const ready = vi.fn(() => new Promise<boolean>((resolve) => (save = () => (order.push('saved'), resolve(true)))))
     const fetchJson = vi.fn<FetchJson>(async (url, via) => (order.push(`${via ? 'server' : 'browser'} ${url}`), [{ name: 'Ada' }]))
     const m = model(
       inst('DataResourceFeature', 'r', { name: 'Repos', resource: 'https://api.test/repos', fetch_through: 'server' }, null),
@@ -147,6 +163,22 @@ describe('the editor and the proxy', () => {
     expect(fetchJson).toHaveBeenLastCalledWith('https://api.test/repos', { model: 'm1' })
   })
 
+  it("doesn't fetch through the proxy while the model isn't saved", async () => {
+    await expect(proxyReady(async () => false)).rejects.toThrow("The model isn't saved")
+    await expect(proxyReady(async () => true)).resolves.toBeUndefined()
+    setActivePinia(createPinia())
+    useDocumentStore().modelId = 'm1'
+    const fetchJson = vi.fn<FetchJson>()
+    const field = mount(ApiSpecField, {
+      props: { id: 'spec', labelledby: 'spec-label', value: '', specUrl: 'https://docs.test/openapi.json', viaServer: true },
+      global: { provide: { [FETCH_JSON as symbol]: fetchJson, [PROXY_READY as symbol]: async () => false } },
+    })
+    await field.get('[data-testid="load-spec"]').trigger('click')
+    await flushPromises()
+    expect(fetchJson).not.toHaveBeenCalled()
+    expect(field.text()).toContain("The model isn't saved")
+  })
+
   it('loads a spec through the proxy when Fetch through is Server, after saving the Spec URL', async () => {
     setActivePinia(createPinia())
     useDocumentStore().modelId = 'm1'
@@ -154,7 +186,7 @@ describe('the editor and the proxy', () => {
     const fetchJson = vi.fn<FetchJson>(async (_, via) => (order.push(via ? `server ${via.model}` : 'browser'), { openapi: '3.0.3', paths: {} }))
     const field = mount(ApiSpecField, {
       props: { id: 'spec', labelledby: 'spec-label', value: '', specUrl: 'https://docs.test/openapi.json', viaServer: true },
-      global: { provide: { [FETCH_JSON as symbol]: fetchJson, [PROXY_READY as symbol]: async () => order.push('saved') } },
+      global: { provide: { [FETCH_JSON as symbol]: fetchJson, [PROXY_READY as symbol]: async () => (order.push('saved'), true) } },
     })
     await field.get('[data-testid="load-spec"]').trigger('click')
     await flushPromises()

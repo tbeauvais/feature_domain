@@ -34,6 +34,7 @@ type AppEnv = { Bindings: Env; Variables: { store: ModelStore } }
 export function createApp(store?: (env: Env) => ModelStore, upstream: typeof fetch = (...args) => fetch(...args)) {
   const app = new Hono<AppEnv>()
   const api = new Hono<AppEnv>()
+  const originsOf = originsCache()
 
   // API answers are data, never pages: nothing in them may run, load or be framed. (The app's pages get their policy
   // from packages/web/public/_headers.)
@@ -153,19 +154,24 @@ function proxyError(status: number, message: string, allow?: string): Response {
   return error(status, message, { allow, headers: { [PROXY_ERROR_HEADER]: 'true' } })
 }
 
-/** Each model revision's allowed origins, so a page's requests don't regenerate the model every time. */
-const origins = new Map<string, Set<string>>()
 const MAX_CACHED_MODELS = 50
 
-function originsOf(id: string, revision: number, model: AppModel): Set<string> {
-  const key = `${revision}:${id}`
-  let allowed = origins.get(key)
-  if (!allowed) {
-    allowed = allowedOrigins(model)
-    if (origins.size >= MAX_CACHED_MODELS) origins.delete(origins.keys().next().value!)
-    origins.set(key, allowed)
+/**
+ * The allowed origins of a model revision, remembered so a page's requests don't regenerate the model every time. One
+ * cache per app: another app's store may hold a different model under the same id and revision (tests' stores do).
+ */
+function originsCache(): (id: string, revision: number, model: AppModel) => Set<string> {
+  const origins = new Map<string, Set<string>>()
+  return (id, revision, model) => {
+    const key = `${revision}:${id}`
+    let allowed = origins.get(key)
+    if (!allowed) {
+      allowed = allowedOrigins(model)
+      if (origins.size >= MAX_CACHED_MODELS) origins.delete(origins.keys().next().value!)
+      origins.set(key, allowed)
+    }
+    return allowed
   }
-  return allowed
 }
 
 const notFound = () => error(404, 'No model with this id')

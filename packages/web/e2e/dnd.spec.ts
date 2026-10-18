@@ -204,6 +204,7 @@ test('a drag that starts on a link inside a feature moves the feature', async ({
   // New data resources start on sample rows; these tests fetch the (mocked) GitHub API instead.
   await inspector.getByRole('button', { name: 'Address' }).click()
   await inspector.getByLabel('Resource URL').fill('https://api.github.com/users/x/repos')
+  await inspector.getByLabel('Resource URL').press('Enter')
   await tree(page).locator('[data-tree-id="1"]').click()
   await page.getByTestId('palette-TableFeature').click()
   await inspector.getByLabel('Data Resource').selectOption({ label: 'untitled (#3)' })

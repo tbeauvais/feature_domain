@@ -20,7 +20,7 @@ export const FETCH_JSON: InjectionKey<FetchJson> = Symbol('fetchJson')
 export const browserFetchJson: FetchJson = async (url, via) => {
   // Never fetch relative or non-http URLs: an empty endpoint would otherwise load this app's own HTML.
   if (!isHttpUrl(url)) throw new Error(`Only http(s) URLs can be loaded, not "${url}"`)
-  if (via) return (await proxied({ method: 'GET', url }, via)).json()
+  if (via) return readJson(await proxied({ method: 'GET', url }, via))
   let response: Response
   try {
     response = await fetch(url)
@@ -29,7 +29,16 @@ export const browserFetchJson: FetchJson = async (url, via) => {
     throw new Error("Couldn't load it. If the site doesn't let other pages read its data, set the data resource's Fetch through to Server.")
   }
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`.trim())
-  return response.json()
+  return readJson(response)
+}
+
+/** The JSON a site answered with, or an error in words when it answered with something else (or nothing). */
+async function readJson(response: Response): Promise<unknown> {
+  try {
+    return JSON.parse(await response.text())
+  } catch (error) {
+    throw new Error("The site didn't answer with JSON", { cause: error })
+  }
 }
 
 /** The path of the Worker's proxy, on this site. */
@@ -58,9 +67,9 @@ async function proxied(request: DataRequest, via: Via): Promise<Response> {
       cause: error,
     })
   }
-  if (response.type === 'opaqueredirect' || response.headers.get('Content-Type')?.startsWith('text/html')) {
-    throw new Error('Your sign-in has expired; reload the page to sign in again')
-  }
+  // A page that isn't the site's answer (marked by the proxy) is Access's sign-in page; the site's own pages are its errors.
+  const signInPage = response.headers.get(PROXY_ANSWER_HEADER) !== 'site' && response.headers.get('Content-Type')?.startsWith('text/html')
+  if (response.type === 'opaqueredirect' || signInPage) throw new Error('Your sign-in has expired; reload the page to sign in again')
   if (response.headers.get(PROXY_ERROR_HEADER)) {
     const answer = (await response.json().catch(() => ({}))) as { error?: unknown }
     throw new Error(typeof answer.error === 'string' ? answer.error : `The server refused it (${response.status})`)
@@ -69,8 +78,9 @@ async function proxied(request: DataRequest, via: Via): Promise<Response> {
   return response
 }
 
-/** Marks the proxy's own errors (packages/worker/src/proxy.ts), as opposed to the site's. */
+/** Mark the proxy's own errors and the site's answers it passes on (packages/worker/src/proxy.ts). */
 const PROXY_ERROR_HEADER = 'X-Proxy-Error'
+const PROXY_ANSWER_HEADER = 'X-Proxy-Answer'
 
 /** A request that changes data (a Form's submit, a row's delete). The body goes as JSON unless `requestType` says a form. */
 export interface DataRequest {

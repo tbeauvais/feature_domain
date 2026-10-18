@@ -391,9 +391,15 @@ export const DATA_STORE: InjectionKey<DataStore> = Symbol('dataStore')
 
 /**
  * What to wait for before a request through the proxy, which fetches only the stored model's Server addresses: the
- * editor's pending save, so an address just typed (or a resource just switched to Server) is stored first.
+ * editor's pending save, so an address just typed (or a resource just switched to Server) is stored first. Resolves to
+ * false when the edits could not be stored.
  */
-export const PROXY_READY: InjectionKey<() => Promise<unknown>> = Symbol('proxyReady')
+export const PROXY_READY: InjectionKey<() => Promise<boolean>> = Symbol('proxyReady')
+
+/** Waits for `ready`, refusing to go on when the model isn't stored: the proxy would check a stale copy. */
+export async function proxyReady(ready: () => Promise<boolean>): Promise<void> {
+  if (!(await ready())) throw new Error("The model isn't saved; resolve the save problem first")
+}
 
 /** Creates the document's data store and provides it to every node inside; `live` as for DataStore. */
 export function provideDataStore(modelId?: string, live = true): DataStore {
@@ -402,10 +408,10 @@ export function provideDataStore(modelId?: string, live = true): DataStore {
   const fetchJson = inject(FETCH_JSON, browserFetchJson)
   const sendRequest = inject(SEND_REQUEST, browserSendRequest)
   const store = new DataStore(
-    ready ? async (url, via) => (via ? (await ready(), fetchJson(url, via)) : fetchJson(url)) : fetchJson,
+    ready ? async (url, via) => (via ? (await proxyReady(ready), fetchJson(url, via)) : fetchJson(url)) : fetchJson,
     modelId,
     storage,
-    ready ? async (request, via) => (via ? (await ready(), sendRequest(request, via)) : sendRequest(request)) : sendRequest,
+    ready ? async (request, via) => (via ? (await proxyReady(ready), sendRequest(request, via)) : sendRequest(request)) : sendRequest,
     live,
   )
   provide(DATA_STORE, store)

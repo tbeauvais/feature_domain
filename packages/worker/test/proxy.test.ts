@@ -1,7 +1,7 @@
 import { MemoryModelStore, type AppModel, type FeatureInstance } from '@feature-domain/engine'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { API_HEADERS, createApp } from '../src/app'
-import { PROXY_ERROR_HEADER, PROXY_LIMITS } from '../src/proxy'
+import { PROXY_ANSWER_HEADER, PROXY_ERROR_HEADER, PROXY_LIMITS } from '../src/proxy'
 
 const resource = (id: string, url: string, fetchThrough = 'server'): FeatureInstance => ({
   feature: 'DataResourceFeature',
@@ -73,6 +73,7 @@ describe('/api/v1/proxy', () => {
     expect(response.headers.get('Set-Cookie')).toBeNull()
     expect(response.headers.get('X-Other')).toBeNull()
     expect(response.headers.get(PROXY_ERROR_HEADER)).toBeNull()
+    expect(response.headers.get(PROXY_ANSWER_HEADER)).toBe('site')
     for (const [name, value] of Object.entries(API_HEADERS)) expect(response.headers.get(name)).toBe(value)
 
     expect(sent).toHaveLength(1)
@@ -92,6 +93,18 @@ describe('/api/v1/proxy', () => {
     expect(response.status).toBe(500)
     expect(await response.text()).toBe('nope')
     expect(response.headers.get(PROXY_ERROR_HEADER)).toBeNull()
+    expect(response.headers.get(PROXY_ANSWER_HEADER)).toBe('site')
+  })
+
+  it('passes on answers without a body', async () => {
+    for (const status of [204, 304]) {
+      answer = () => new Response(null, { status, headers: { ETag: '"1"' } })
+      const response = await proxy({ url: 'https://api.example.com/repos' })
+      expect(response.status).toBe(status)
+      expect(await response.text()).toBe('')
+      expect(response.headers.get('ETag')).toBeNull()
+      expect(response.headers.get(PROXY_ANSWER_HEADER)).toBe('site')
+    }
   })
 
   it('sends a body as JSON, form-encoded or multipart form data', async () => {
@@ -126,6 +139,11 @@ describe('/api/v1/proxy', () => {
       'https://0x7f.1/x',
       'https://[::1]/x',
       'https://localhost/x',
+      'https://localhost./x',
+      'https://api.example.com./repos',
+      'https://127.1/x',
+      'https://2130706433/x',
+      'https://0177.0.0.1/x',
       'https://intranet/x',
       'https://printer.local/x',
       'https://db.internal/x',
@@ -135,6 +153,7 @@ describe('/api/v1/proxy', () => {
     for (const url of local) expect((await proxy({ url })).status, url).toBe(403)
     expect(await errorOf(await proxy({ url: 'https://127.0.0.1/x' }))).toBe('IP addresses are never fetched')
     expect(await errorOf(await proxy({ url: 'https://printer.local/x' }))).toBe('Local names are never fetched')
+    expect(await errorOf(await proxy({ url: 'https://localhost./x' }))).toBe('Names ending in a dot are never fetched')
     expect(await errorOf(await proxy({ url: 'https://app.feature-domain.workers.dev/x' }))).toBe('This site is never fetched')
     for (const url of ['ftp://api.example.com/x', 'https://user:pass@api.example.com/repos', 'not an address']) {
       expect((await proxy({ url })).status, url).toBe(400)
@@ -158,7 +177,13 @@ describe('/api/v1/proxy', () => {
     expect(await errorOf(tooMany)).toContain('more than 3 times')
     expect(sent).toHaveLength(4)
 
-    for (const location of ['https://evil.example.com/', 'http://127.0.0.1/', 'https://localhost/']) {
+    for (const location of [
+      'https://evil.example.com/',
+      '//evil.example.com/rows',
+      'http://api.example.com/repos',
+      'http://127.0.0.1/',
+      'https://localhost/',
+    ]) {
       answer = () => new Response(null, { status: 307, headers: { Location: location } })
       const refused = await proxy({ url: 'https://api.example.com/repos' })
       expect(refused.status, location).toBe(502)
@@ -255,5 +280,21 @@ describe('/api/v1/proxy', () => {
     expect((await proxy({ url: 'https://browser.example.com/rows' })).status).toBe(200)
     await store.update(id, modelWith())
     expect((await proxy({ url: 'https://api.example.com/repos' })).status).toBe(403)
+  })
+
+  it("never checks against another app's model stored under the same id and revision", async () => {
+    const other = new MemoryModelStore()
+    expect(await other.create(modelWith(resource('a', 'https://other.example.com/rows')))).toBe(id)
+    const request = (app: ReturnType<typeof createApp>, url: string) =>
+      app.request('https://app.feature-domain.workers.dev/api/v1/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: id, method: 'GET', url }),
+      })
+    const first = createApp(() => store, upstream)
+    const second = createApp(() => other, upstream)
+    expect((await request(first, 'https://api.example.com/repos')).status).toBe(200)
+    expect((await request(second, 'https://other.example.com/rows')).status).toBe(200)
+    expect((await request(second, 'https://api.example.com/repos')).status).toBe(403)
   })
 })

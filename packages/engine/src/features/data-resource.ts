@@ -212,6 +212,8 @@ export const DataResourceFeature: FeatureDefinition = {
       default: '',
       placeholder: 'https://',
       control: 'text-input',
+      // Every address typed is fetched (through the server, after a save), so a partial one shouldn't be.
+      commitOnBlur: true,
       showWhen: { input: 'source', notEquals: 'sample' },
     },
     {

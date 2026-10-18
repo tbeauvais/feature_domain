@@ -15,6 +15,9 @@ export const PROXY_LIMITS = {
 /** Marks answers made by the proxy itself (its errors), so a page can tell them from the site's own. */
 export const PROXY_ERROR_HEADER = 'X-Proxy-Error'
 
+/** Marks the site's answers the proxy passes on (`site`), so a page can tell them from anything else on the way. */
+export const PROXY_ANSWER_HEADER = 'X-Proxy-Answer'
+
 const USER_AGENT = 'feature-domain-proxy (+https://github.com/tbeauvais/feature_domain)'
 
 /** What a page asks the proxy for: the same shape as the web app's DataRequest, plus the model it comes from. */
@@ -59,6 +62,8 @@ export function readProxyRequest(value: unknown): ProxyRequest {
 
 /** Hosts the proxy never fetches from: addresses, names that only mean something on a local network, and this site. */
 function refusedHost(hostname: string, self: string): string | undefined {
+  // `localhost.` is localhost: a trailing dot would slip past the checks below.
+  if (hostname.endsWith('.')) return 'Names ending in a dot are'
   if (hostname.startsWith('[') || /^\d+(\.\d+){3}$/.test(hostname)) return 'IP addresses are'
   if (!hostname.includes('.') || /\.(localhost|local|internal|home\.arpa|localdomain)$/.test(hostname)) return 'Local names are'
   if (hostname === self) return 'This site is'
@@ -155,7 +160,7 @@ export async function forward(request: ProxyRequest, allowed: ReadonlySet<string
 
 /** The site's answer as the proxy passes it on. */
 async function passOn(response: Response): Promise<Response> {
-  const headers = new Headers()
+  const headers = new Headers({ [PROXY_ANSWER_HEADER]: 'site' })
   const type = response.headers.get('Content-Type')
   if (type) headers.set('Content-Type', type)
   if ([204, 205, 304].includes(response.status)) {
@@ -163,6 +168,8 @@ async function passOn(response: Response): Promise<Response> {
     return new Response(null, { status: response.status, headers })
   }
   const tooLarge = () => new ProxyError(502, `The site answered with more than ${PROXY_LIMITS.responseBytes / 1_000_000} MB`)
+  // A quick refusal for an announced size. Fetch decodes compressed answers, so Content-Length may count the compressed
+  // bytes: the count while reading below is the real check.
   if (Number(response.headers.get('Content-Length') ?? 0) > PROXY_LIMITS.responseBytes) {
     await response.body?.cancel()
     throw tooLarge()

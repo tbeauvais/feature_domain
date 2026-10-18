@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generate, proxyAddresses, type DocNodeOf } from '../src'
+import { defaultRegistry, generate, proxyAddresses, type DocNodeOf } from '../src'
 import { inst, model, page } from './helpers'
 
 const spec = JSON.stringify({
@@ -81,5 +81,12 @@ describe('Fetch through', () => {
     expect(table.props.source).not.toHaveProperty('proxy')
     expect(form.props.action).toMatchObject({ sample: true })
     expect(form.props.action).not.toHaveProperty('proxy')
+  })
+})
+
+describe('Fetch through', () => {
+  it("commits a Data Resource's address when the field is left, so a partial one is never fetched", () => {
+    const def = defaultRegistry.get('DataResourceFeature')!
+    expect(def.inputs.find((i) => i.name === 'resource')?.commitOnBlur).toBe(true)
   })
 })
