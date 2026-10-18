@@ -7,3 +7,8 @@ node_modules/
 dist/
 test-results/
 playwright-report/
+
+# Terraform (the lock file is committed; state lives in R2)
+infrastructure/.terraform/
+*.tfstate
+*.tfstate.*

@@ -19,6 +19,19 @@ jobs:
       - run: npm test
       - run: npm run smoke
 
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infrastructure
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check -diff
+      # No backend: validating needs no credentials and touches no state.
+      - run: terraform init -backend=false
+      - run: terraform validate
+
   e2e:
     runs-on: ubuntu-latest
     # The Playwright image (browsers and fonts included) that `npm run e2e:docker` uses too, so screenshots match the
