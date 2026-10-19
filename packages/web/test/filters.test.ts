@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BADGE_TINTS, badgeTints, cellContent, getPath, NUMERIC_FILTERS, parseFilter } from '../src/renderer/filters'
+import { BADGE_TINTS, badgeTints, cellContent, fillLink, getPath, NUMERIC_FILTERS, parseFilter } from '../src/renderer/filters'
 
 describe('parseFilter', () => {
   it('reads a name and an optional argument', () => {
@@ -18,6 +18,34 @@ describe('getPath', () => {
     expect(getPath(row, 'owner.login')).toBe('tb')
     expect(getPath(row, 'data.name')).toBe('repo')
     expect(getPath(row, 'missing.deep')).toBeUndefined()
+  })
+
+  it('reads "data." as a path first, so an answer shaped { data: { id } } can be read', () => {
+    expect(getPath({ data: { id: 7 } }, 'data.id')).toBe(7)
+    expect(getPath({ data: { id: 7 }, id: 1 }, 'data.id')).toBe(7)
+    expect(getPath({ id: 1 }, 'data.id')).toBe(1)
+  })
+})
+
+describe('fillLink', () => {
+  it('fills each placeholder from the first source with a value, encoded as one part of the address', () => {
+    expect(fillLink('/models/{id}', { id: 7 })).toBe('/models/7')
+    expect(fillLink('/models/{ id }', { id: 0 })).toBe('/models/0')
+    expect(fillLink('/flags/{on}', { on: false })).toBe('/flags/false')
+    expect(fillLink('/m/{id}', { id: '' }, { id: 'typed' })).toBe('/m/typed')
+    expect(fillLink('/m/{id}', { id: 'answer' }, { id: 'typed' })).toBe('/m/answer')
+    expect(fillLink('/m/{id}', undefined, { id: 'typed' })).toBe('/m/typed')
+    expect(fillLink('/m/{id}', 'some text', { id: 'typed' })).toBe('/m/typed')
+    expect(fillLink('/m/{data.id}', { data: { id: 7 } })).toBe('/m/7')
+    expect(fillLink('/m/{id}', { id: 'a/b?c#d%e' })).toBe('/m/a%2Fb%3Fc%23d%25e')
+    // A value holding a placeholder isn't filled again; empty braces and nested ones are left as text.
+    expect(fillLink('/m/{id}', { id: '{x}', x: 'no' })).toBe('/m/%7Bx%7D')
+    expect(fillLink('/m/{}', {})).toBe('/m/{}')
+    expect(fillLink('/m/{{id}}', { id: 7 })).toBe('/m/{7}')
+  })
+
+  it('gives no address when a value is missing, a list or object, or "." or ".."', () => {
+    for (const id of [undefined, null, '', { a: 1 }, [1], '.', '..']) expect(fillLink('/m/{id}', { id }), JSON.stringify(id)).toBeUndefined()
   })
 
   it("reads only the row's own keys, never built-in properties", () => {

@@ -123,6 +123,15 @@ describe('tables', () => {
     expect(w.find('.fd-table-head').exists()).toBe(false)
   })
 
+  it('opens row links to paths on this site in the same tab', async () => {
+    const w = render(tableModel({ fields: ['name'], labels: [], filters: ['dataLink :/models/{id}'] }), async () => [{ id: 7, name: 'Shop' }])
+    await flushPromises()
+    const link = w.get('tbody a')
+    expect(link.attributes('href')).toBe('/models/7')
+    expect(link.attributes('target')).toBeUndefined()
+    expect(link.attributes('rel')).toBeUndefined()
+  })
+
   it('puts a title and the row count in the header, and labels the table by it', async () => {
     const w = render(tableModel({ title: 'My repos' }), async () => [{ name: 'one' }])
     expect(w.get('.fd-table-count').text()).toBe('Loading rows…')

@@ -24,7 +24,7 @@ export const ButtonFeature: FeatureDefinition = {
       default: 'https://example.com',
       placeholder: 'https://',
       control: 'text-input',
-      hint: 'An https:// address, or a path on this site such as /models/7',
+      hint: 'An http(s) address, or a path on this site such as /models/7',
     },
     { name: 'style', label: 'Style', type: 'string', default: 'primary', control: 'text-select', options: options(BUTTON_VARIANTS) },
     { name: 'size', label: 'Size', type: 'string', default: 'medium', control: 'text-select', options: options(BUTTON_SIZES) },

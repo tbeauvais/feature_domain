@@ -72,7 +72,7 @@ export const FormFeature: FeatureDefinition = {
       default: '',
       placeholder: 'Stay on the page',
       control: 'text-input',
-      hint: 'An address to open after sending, with {name} filled from what was created, e.g. /models/{id}',
+      hint: 'An address to open after sending, e.g. /models/{id}: each {name} fills one part of it from what was created',
     },
   ],
 
@@ -85,7 +85,8 @@ export const FormFeature: FeatureDefinition = {
     const title = asString(inputs.title).trim()
     if (title) props.title = title
     const open = asString(inputs.open_after).trim()
-    if (open !== '' && !isLinkAddress(open))
+    // Placeholders are filled (and encoded) when sent, so they count as one ordinary part of the address here.
+    if (open !== '' && !isLinkAddress(open.replace(/\{[^{}]+\}/g, 'x')))
       ctx.report('warning', `Then open "${open}" is not an http(s) address or a path on this site, so the form stays on the page`)
     else if (open !== '') props.open = open
     const resolved = ctx.resolve(asString(inputs.data_resource))

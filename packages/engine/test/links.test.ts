@@ -21,6 +21,10 @@ describe('isLinkAddress', () => {
       '/a b',
       '/a\u0000',
       '/a\\b',
+      '/a\u00a0b',
+      '/a\u2028b',
+      '/\ufeff/evil.example',
+      '/a\u0085b',
       '',
     ])
       expect(isLinkAddress(bad), JSON.stringify(bad)).toBe(false)

@@ -285,9 +285,15 @@ export class DataStore {
   /**
    * Sends a form's values: on sample data as an added row; otherwise to the operation's address, path fields filling
    * its `{name}` placeholders, query fields added to it and the rest as the body. Then every reader of the resource
-   * reloads. Returns what was created: the added row, or the site's answer. Throws, in words, when it can't.
+   * reloads (`waitForReload: false` returns without waiting for it, e.g. when the page is about to be left). Returns
+   * what was created: the added row, or the site's answer. Throws, in words, when it can't.
    */
-  async send(action: DataAction, values: Readonly<Record<string, unknown>>, fields: readonly FormField[]): Promise<unknown> {
+  async send(
+    action: DataAction,
+    values: Readonly<Record<string, unknown>>,
+    fields: readonly FormField[],
+    { waitForReload = true }: { waitForReload?: boolean } = {},
+  ): Promise<unknown> {
     const where = (field: string) => fields.find((f) => f.name === field)?.in ?? 'body'
     const body = Object.fromEntries(Object.entries(values).filter(([k]) => where(k) === 'body'))
     if (action.sample) {
@@ -307,7 +313,9 @@ export class DataStore {
     const request: DataRequest = { method: action.method, url, body }
     if (action.requestType) request.requestType = action.requestType
     const answer = await (action.proxy ? this.sendRequest(request, this.via()) : this.sendRequest(request))
-    await this.reloadResource(action.feature)
+    // Loading never throws: a failed reload shows on its readers.
+    const reloaded = this.reloadResource(action.feature)
+    if (waitForReload) await reloaded
     return answer
   }
 

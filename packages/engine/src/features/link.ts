@@ -20,7 +20,7 @@ export const LinkFeature: FeatureDefinition = {
       default: 'https://example.com',
       placeholder: 'https://',
       control: 'text-input',
-      hint: 'An https:// address, or a path on this site such as /models/7',
+      hint: 'An http(s) address, or a path on this site such as /models/7',
     },
   ],
 

@@ -132,7 +132,9 @@ describe('FormFeature', () => {
     expect(formOf(people, {}).props).not.toHaveProperty('open')
     expect(formOf(people, { open_after: ' /people/{id} ' })).toMatchObject({ props: { open: '/people/{id}' }, problems: [] })
     expect(formOf(people, { open_after: 'https://x.test/{id}' }).props).toMatchObject({ open: 'https://x.test/{id}' })
-    for (const bad of ['javascript:alert(1)', '//evil.example/{id}', 'people/{id}']) {
+    // Placeholders are filled and encoded when sent, so spaces inside one are fine.
+    expect(formOf(people, { open_after: '/people/{ id }' })).toMatchObject({ props: { open: '/people/{ id }' }, problems: [] })
+    for (const bad of ['javascript:alert(1)', '//evil.example/{id}', '//{host}/x', 'people/{id}', '/a b/{id}']) {
       const form = formOf(people, { open_after: bad })
       expect(form.props).not.toHaveProperty('open')
       expect(form.problems).toEqual([`Then open "${bad}" is not an http(s) address or a path on this site, so the form stays on the page`])
