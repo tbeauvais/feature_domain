@@ -6,6 +6,7 @@ import SpotEmpty from '../illustrations/SpotEmpty.vue'
 import { NotSentFromEditor, useDataStore } from '../data'
 import { useTableRows } from '../rows'
 import { useTheme } from '../theme'
+import { opensNewTab } from '../urls'
 
 const props = defineProps<{ node: DocNodeOf<'table'> }>()
 
@@ -174,7 +175,13 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
           <tr v-for="(row, index) in rows" :key="index" role="row">
             <td v-for="(column, c) in columns" :key="column.field" role="cell" :data-label="column.label" :class="{ 'fd-num': numeric[c] }">
               <template v-for="(cell, k) in [cellContent(row, column.field, column.filter)]" :key="k">
-                <a v-if="cell.href" :href="cell.href" target="_blank" rel="noopener noreferrer">{{ cell.text }}</a>
+                <a
+                  v-if="cell.href"
+                  :href="cell.href"
+                  :target="opensNewTab(cell.href) ? '_blank' : undefined"
+                  :rel="opensNewTab(cell.href) ? 'noopener noreferrer' : undefined"
+                  >{{ cell.text }}</a
+                >
                 <span v-else-if="cell.badge" class="fd-badge" :class="`fd-badge-${tints[c]?.get(badgeKey(cell.text)) ?? 0}`">{{ cell.text }}</span>
                 <template v-else>{{ cell.text }}</template>
               </template>

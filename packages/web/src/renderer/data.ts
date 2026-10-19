@@ -285,9 +285,9 @@ export class DataStore {
   /**
    * Sends a form's values: on sample data as an added row; otherwise to the operation's address, path fields filling
    * its `{name}` placeholders, query fields added to it and the rest as the body. Then every reader of the resource
-   * reloads. Throws, in words, when it can't.
+   * reloads. Returns what was created: the added row, or the site's answer. Throws, in words, when it can't.
    */
-  async send(action: DataAction, values: Readonly<Record<string, unknown>>, fields: readonly FormField[]): Promise<void> {
+  async send(action: DataAction, values: Readonly<Record<string, unknown>>, fields: readonly FormField[]): Promise<unknown> {
     const where = (field: string) => fields.find((f) => f.name === field)?.in ?? 'body'
     const body = Object.fromEntries(Object.entries(values).filter(([k]) => where(k) === 'body'))
     if (action.sample) {
@@ -297,7 +297,7 @@ export class DataStore {
         if (Number.isSafeInteger(id) && id > (this.lastIds[action.feature] ?? -Infinity)) this.lastIds = { ...this.lastIds, [action.feature]: id }
       }
       if (!this.addSampleRow(action.feature, row)) throw new Error(`At most ${MAX_SAMPLE_ROWS} rows can be added`)
-      return
+      return row
     }
     if (!this.live) throw new NotSentFromEditor('sent', hostOf(action.endPoint))
     let url = fillPath(action.endPoint, values)
@@ -306,8 +306,9 @@ export class DataStore {
       url += `${url.includes('?') ? '&' : '?'}${query.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&')}`
     const request: DataRequest = { method: action.method, url, body }
     if (action.requestType) request.requestType = action.requestType
-    await (action.proxy ? this.sendRequest(request, this.via()) : this.sendRequest(request))
+    const answer = await (action.proxy ? this.sendRequest(request, this.via()) : this.sendRequest(request))
     await this.reloadResource(action.feature)
+    return answer
   }
 
   /** Whether a row can be deleted: any fetched row, but only rows added to sample data (the model's own are the sample). */

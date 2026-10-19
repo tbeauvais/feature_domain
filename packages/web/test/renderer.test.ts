@@ -263,15 +263,23 @@ describe('separators, links and buttons', () => {
     expect(w.get('[data-feature-id="x"]').attributes('style') ?? '').not.toContain('url(')
   })
 
-  it('renders links only for http(s) addresses', () => {
+  it('renders links only for http(s) addresses and paths on this site', () => {
     const w = render(
       model(
         page(),
         inst('LinkFeature', 'ok', { text: 'GitHub', href: 'https://github.com' }),
         inst('LinkFeature', 'bad', { text: 'Run', href: 'javascript:alert(1)' }),
+        inst('LinkFeature', 'here', { text: 'Open', href: '/models/7' }),
+        inst('ButtonFeature', 'go', { text: 'Open', href: '/models/7' }),
       ),
     )
     expect(w.get('[data-feature-id="ok"]').attributes()).toMatchObject({ href: 'https://github.com', target: '_blank', rel: 'noopener noreferrer' })
+    // Paths on this site open in the same tab.
+    for (const link of [w.get('[data-feature-id="here"]'), w.get('[data-feature-id="go"] a')]) {
+      expect(link.attributes('href')).toBe('/models/7')
+      expect(link.attributes('target')).toBeUndefined()
+      expect(link.attributes('rel')).toBeUndefined()
+    }
     expect(w.get('[data-feature-id="ok"]').text()).toBe('GitHub')
     const bad = w.get('[data-feature-id="bad"]')
     expect(bad.element.tagName).toBe('SPAN')

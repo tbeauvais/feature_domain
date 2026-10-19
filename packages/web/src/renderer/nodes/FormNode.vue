@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import type { DocNodeOf } from '@feature-domain/engine'
-import { computed, reactive, ref, useId } from 'vue'
+import { computed, inject, reactive, ref, useId } from 'vue'
 import { NotSentFromEditor, useDataStore } from '../data'
+import { fillLink } from '../filters'
+import { browserOpenAddress, OPEN_ADDRESS, safeHref } from '../urls'
 
 // A form that sends what is typed to a data resource (through the page's data store, so every table and chart on the
 // resource reloads), with sending, sent and failed states.
 const props = defineProps<{ node: DocNodeOf<'form'> }>()
 
 const store = useDataStore()
+const openAddress = inject(OPEN_ADDRESS, browserOpenAddress)
 const id = useId()
 const fieldId = (name: string) => `fd-${id}-${name}`
 const titleId = `fd-${id}-title`
@@ -16,6 +19,8 @@ const titleId = `fd-${id}-title`
 const values = reactive<Record<string, string | number>>({})
 const status = ref<'idle' | 'sending' | 'sent' | 'error'>('idle')
 const message = ref('')
+/** Said after the success message: what the form would open (on the editor canvas), or that it had nothing to open. */
+const note = ref('')
 
 const fields = computed(() => props.node.props.fields)
 const action = computed(() => props.node.props.action)
@@ -51,15 +56,26 @@ async function submit() {
   }
   status.value = 'sending'
   message.value = ''
+  note.value = ''
   try {
-    await store.send(action.value, collected.values, fields.value)
+    const created = await store.send(action.value, collected.values, fields.value)
     status.value = 'sent'
     for (const key of Object.keys(values)) values[key] = ''
+    if (props.node.props.open) open(props.node.props.open, created, collected.values)
   } catch (error) {
     status.value = 'error'
     if (error instanceof NotSentFromEditor) message.value = error.message
     else message.value = `${host.value ? `${host.value}: ` : ''}${error instanceof Error ? error.message : String(error)}`
   }
+}
+
+/** Opens the address, its placeholders filled from what was created, else from what was typed; the editor only says so. */
+function open(template: string, created: unknown, sent: Record<string, unknown>) {
+  const filled = fillLink(template, created, sent)
+  const href = filled === undefined ? undefined : safeHref(filled)
+  if (!href) note.value = `There was nothing to open: the answer didn't fill ${template}.`
+  else if (store.live) openAddress(href)
+  else note.value = `In the preview, this opens ${href}.`
 }
 </script>
 
@@ -95,7 +111,7 @@ async function submit() {
         {{ status === 'sending' ? 'Sending…' : node.props.submit }}
       </button>
       <!-- Always present, so screen readers announce the message when it appears. -->
-      <p class="fd-form-sent" role="status">{{ status === 'sent' ? node.props.success : '' }}</p>
+      <p class="fd-form-sent" role="status">{{ status === 'sent' ? [node.props.success, note].filter(Boolean).join(' ') : '' }}</p>
       <p v-if="status === 'error'" class="fd-form-error" role="alert">{{ message }}</p>
     </div>
   </form>

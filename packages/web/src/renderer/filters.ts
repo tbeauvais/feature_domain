@@ -1,14 +1,15 @@
 // Display filters for table cells. Legacy models used AngularJS filter expressions ("uppercase", "date",
 // "dataLink :data.html_url"); this is a small, safe language with the same names: `name` or `name :argument`.
 // Added since: "number" (grouped digits; "number :2" for fixed places), "currency" (US dollars, or "currency :EUR")
-// and "badge" (a tinted chip for categories such as a language).
+// and "badge" (a tinted chip for categories such as a language). "dataLink" also takes an address with `{path}`
+// placeholders filled from the row ("dataLink :/models/{id}").
 
 import { BADGE_COUNT } from '@feature-domain/engine'
 import { safeHref } from './urls'
 
 export interface CellContent {
   text: string
-  /** Set when the cell is a link. Only http(s) URLs are ever returned. */
+  /** Set when the cell is a link. Only http(s) addresses and paths on this site are ever returned. */
   href?: string
   /** Set for the badge filter: the cell shows a tinted chip (see `badgeTints` for its color). */
   badge?: true
@@ -124,10 +125,27 @@ export function cellContent(row: unknown, field: string, filter?: string): CellC
       return text.trim() === '' ? { text } : { text, badge: true }
     }
     case 'dataLink': {
-      const href = safeHref(toText(spec.argument ? getPath(row, spec.argument) : value))
+      const argument = spec.argument
+      const address = argument?.includes('{') ? fillLink(argument, row) : toText(argument ? getPath(row, argument) : value)
+      const href = address === undefined ? undefined : safeHref(address)
       return href ? { text: toText(value), href } : { text: toText(value) }
     }
     default:
       return { text: toText(value) }
   }
+}
+
+/**
+ * An address with its `{path}` placeholders filled from the first of `sources` that has a value there (each value
+ * encoded, so it stays one part of the address). Undefined when a placeholder has no value, or one that would move the
+ * address up a level ("." or "..").
+ */
+export function fillLink(template: string, ...sources: unknown[]): string | undefined {
+  let missing = false
+  const filled = template.replace(/\{([^{}]+)\}/g, (_, path: string) => {
+    const text = sources.map((source) => toText(getPath(source, path.trim()))).find((t) => t !== '')
+    if (text === undefined || /^\.{1,2}$/.test(text)) missing = true
+    return encodeURIComponent(text ?? '')
+  })
+  return missing ? undefined : filled
 }

@@ -497,3 +497,36 @@ test('on the editor canvas, text in a form field can be selected with the mouse 
   await page.mouse.up()
   expect(await input.evaluate((el: HTMLInputElement) => [el.selectionStart, el.selectionEnd])).toEqual([0, 13])
 })
+
+test('in the preview, links to paths on this site and a form that opens what it created stay in the same tab', async ({ page, context }) => {
+  await store(page, {
+    id: 'links',
+    version: 2,
+    name: 'Links',
+    features: [
+      { feature: 'DataResourceFeature', id: '1', inputs: { name: 'Models', source: 'sample', sample_rows: '[{"id": "links", "name": "This model"}]' } },
+      { feature: 'DataResourceFeature', id: '2', inputs: { name: 'People', source: 'sample', sample_rows: '[{"id": 1, "name": "Ada"}]' } },
+      { feature: 'PageFeature', id: '3', inputs: { name: 'Page' }, placement: { parent: '$root', slot: 'content' } },
+      {
+        feature: 'TableFeature',
+        id: '4',
+        inputs: { data_resource: '1', fields: ['name'], filters: ['dataLink :/models/{id}'] },
+        placement: { parent: '3', slot: 'content' },
+      },
+      { feature: 'FormFeature', id: '5', inputs: { data_resource: '2', open_after: '/models/{id}' }, placement: { parent: '3', slot: 'content' } },
+    ],
+  })
+  await page.goto('/preview.html?model=links')
+  const link = page.getByRole('link', { name: 'This model' })
+  await expect(link).toHaveAttribute('href', '/models/links')
+  await link.click()
+  await expect(page).toHaveURL('/models/links')
+  await expect(page.getByRole('link', { name: 'Preview' })).toBeVisible()
+
+  await page.goto('/preview.html?model=links')
+  await page.getByLabel('Name').fill('Grace')
+  await page.getByRole('button', { name: 'Submit' }).click()
+  // The added row is number 2.
+  await expect(page).toHaveURL('/models/2')
+  expect(context.pages()).toHaveLength(1)
+})

@@ -194,7 +194,15 @@ export interface NodeKinds {
    */
   weather: { url?: string; place: string; units: 'fahrenheit' | 'celsius'; days: number }
   /** A form that sends its fields to a data resource (`action`); absent action: nothing to send to. */
-  form: { title?: string; fields: FormField[]; submit: string; success: string; action?: DataAction }
+  form: {
+    title?: string
+    fields: FormField[]
+    submit: string
+    success: string
+    action?: DataAction
+    /** An address to open after sending (http(s) or a path on this site), its `{name}` placeholders filled from what was created. */
+    open?: string
+  }
   /**
    * A chart of one value per row, labeled by another field (either guessed from the loaded rows when absent). Drawn
    * in the theme's chart colors; `description` is what screen readers hear (the data also sits in a hidden table).

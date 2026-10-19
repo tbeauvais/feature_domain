@@ -128,6 +128,17 @@ describe('FormFeature', () => {
     })
   })
 
+  it('opens an http(s) address or a path on this site after sending, else stays and says why', () => {
+    expect(formOf(people, {}).props).not.toHaveProperty('open')
+    expect(formOf(people, { open_after: ' /people/{id} ' })).toMatchObject({ props: { open: '/people/{id}' }, problems: [] })
+    expect(formOf(people, { open_after: 'https://x.test/{id}' }).props).toMatchObject({ open: 'https://x.test/{id}' })
+    for (const bad of ['javascript:alert(1)', '//evil.example/{id}', 'people/{id}']) {
+      const form = formOf(people, { open_after: bad })
+      expect(form.props).not.toHaveProperty('open')
+      expect(form.problems).toEqual([`Then open "${bad}" is not an http(s) address or a path on this site, so the form stays on the page`])
+    }
+  })
+
   it("says what is wrong instead of sending somewhere it shouldn't", () => {
     expect(formOf(people, { operation: 'GET rows' })).toMatchObject({ problems: ['"GET rows" doesn\'t take data; a form sends with POST or PUT'] })
     expect(formOf(people, { operation: 'GET rows' }).props).not.toHaveProperty('action')

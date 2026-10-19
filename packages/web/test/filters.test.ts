@@ -67,6 +67,18 @@ describe('cellContent', () => {
     expect(cellContent(row, 'name', 'dataLink :data.bad')).toEqual({ text: 'Repo' })
   })
 
+  it('links with dataLink to an address filled from the row, encoding each value', () => {
+    const model = { id: 'a b/7', name: 'Shop', owner: { login: 'tom' } }
+    expect(cellContent(model, 'name', 'dataLink :/models/{id}')).toEqual({ text: 'Shop', href: '/models/a%20b%2F7' })
+    expect(cellContent(model, 'name', 'dataLink :https://github.com/{owner.login}')).toEqual({ text: 'Shop', href: 'https://github.com/tom' })
+    expect(cellContent(model, 'name', 'dataLink :/models/{gone}')).toEqual({ text: 'Shop' })
+    expect(cellContent({ id: '..' }, 'id', 'dataLink :/models/{id}')).toEqual({ text: '..' })
+    expect(cellContent(model, 'name', 'dataLink :javascript:{id}')).toEqual({ text: 'Shop' })
+    // A path on this site read from the row links too; one a browser would read as another site doesn't.
+    expect(cellContent({ to: '/models/7' }, 'to', 'dataLink')).toEqual({ text: '/models/7', href: '/models/7' })
+    expect(cellContent({ to: '//evil.example' }, 'to', 'dataLink')).toEqual({ text: '//evil.example' })
+  })
+
   it('shows the raw value for unknown filters', () => {
     expect(cellContent(row, 'name', 'currency')).toEqual({ text: 'Repo' })
   })
