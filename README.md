@@ -7,8 +7,7 @@ Sample feature based domain for constructing an application with data service an
 
 ![Application Architecture](/doc/AppArchitecture.jpg)
 
-(c) Thomas Beauvais 2014 All Rights Reserved.
-No part of this document or any of its contents may be reproduced, copied, modified or adapted, without the prior written consent of the author, unless otherwise indicated.
+Copyright 2014-2026 Thomas Beauvais. Licensed under FSL-1.1-ALv2; see [License](#license).
 
 
 Points
@@ -167,4 +166,8 @@ A feature instance in the application model contains the following:
 The application metadata is used to publish information related to feature instances. The feature metadata can be used at generation time by other features to introspect information about the application under construction, and at design time to enhance the visual or feature input pages. The application metadata is transient.
 
 # License
-Released under the MIT license.
+Released under the [Functional Source License, Version 1.1, ALv2 Future License](LICENSE.md) (FSL-1.1-ALv2): you may use, change and share it for any purpose except making it available to others in a commercial product or service that competes with it, and each version also becomes available under the Apache License 2.0 two years after its release.
+
+Commits whose `LICENSE` file is the MIT license (everything before the change to FSL-1.1-ALv2) were released under the MIT license, and remain available under it.
+
+Third-party code kept in this repository is under its own license, not this one: the legacy front-end libraries and fonts in `app/js/vendor`, `app/css/vendor` and `app/css/fonts` (MIT, except d3, which is BSD-3-Clause), and the shadcn-vue components and styles in `packages/web/src/components/ui` and `packages/web/src/styles/shadcn.css` (MIT).
