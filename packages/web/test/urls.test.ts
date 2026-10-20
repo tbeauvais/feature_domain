@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { browserFetchJson } from '../src/renderer/rows'
-import { isHttpUrl, safeHref, safeImageSrc } from '../src/renderer/urls'
+import { isHttpUrl, opensNewTab, safeHref, safeImageSrc } from '../src/renderer/urls'
 
 describe('URL policies', () => {
-  it('allows only http(s) links', () => {
+  it('allows only http(s) addresses for fetches and links to other sites', () => {
     expect(['https://a.b/c', 'HTTP://a', ' https://x ', '', '/rel', 'javascript:alert(1)', 'data:text/html,x', 'mailto:a@b'].map(isHttpUrl)).toEqual([
       true,
       true,
@@ -16,6 +16,13 @@ describe('URL policies', () => {
     ])
     expect(safeHref(' https://x ')).toBe('https://x')
     expect(safeHref('javascript:alert(1)')).toBeUndefined()
+  })
+
+  it('links to paths on this site too, in the same tab, but never to one a browser reads as another site', () => {
+    expect(safeHref(' /models/7 ')).toBe('/models/7')
+    for (const bad of ['//evil.example', '/\\evil.example', '/\t/evil.example', 'models/7']) expect(safeHref(bad), bad).toBeUndefined()
+    expect(opensNewTab('https://x')).toBe(true)
+    expect(opensNewTab('/models/7')).toBe(false)
   })
 
   it('allows http(s), relative and data:image sources for images', () => {

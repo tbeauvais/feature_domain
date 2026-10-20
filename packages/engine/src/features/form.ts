@@ -1,5 +1,6 @@
 import type { FeatureDefinition } from '../feature.js'
 import { asList, asString, disableInput, nameInput } from '../inputs.js'
+import { isLinkAddress } from '../links.js'
 import { node } from '../nodes.js'
 import type { FormField, NodeKinds } from '../types.js'
 import { DATA_RESOURCE_TYPES, isDataResourceExports, type DataOperation, type DataResourceExports } from './data-resource.js'
@@ -64,6 +65,15 @@ export const FormFeature: FeatureDefinition = {
     { name: 'required_fields', label: 'Required fields', type: 'list', default: [], placeholder: 'As the spec says', control: 'list-input' },
     { name: 'submit_label', label: 'Button text', type: 'string', default: 'Submit', control: 'text-input' },
     { name: 'success_message', label: 'Message after sending', type: 'string', default: 'Thanks, that was sent.', control: 'text-input' },
+    {
+      name: 'open_after',
+      label: 'Then open',
+      type: 'string',
+      default: '',
+      placeholder: 'Stay on the page',
+      control: 'text-input',
+      hint: 'An address to open after sending, e.g. /models/{id}: each {name} fills one part of it from what was created',
+    },
   ],
 
   generate(inputs, ctx) {
@@ -74,6 +84,11 @@ export const FormFeature: FeatureDefinition = {
     }
     const title = asString(inputs.title).trim()
     if (title) props.title = title
+    const open = asString(inputs.open_after).trim()
+    // Placeholders are filled (and encoded) when sent, so they count as one ordinary part of the address here.
+    if (open !== '' && !isLinkAddress(open.replace(/\{[^{}]+\}/g, 'x')))
+      ctx.report('warning', `Then open "${open}" is not an http(s) address or a path on this site, so the form stays on the page`)
+    else if (open !== '') props.open = open
     const resolved = ctx.resolve(asString(inputs.data_resource))
     if (!resolved || !isDataResourceExports(resolved.exports)) {
       ctx.report('error', 'Data resource did not export any operations')

@@ -123,6 +123,15 @@ describe('tables', () => {
     expect(w.find('.fd-table-head').exists()).toBe(false)
   })
 
+  it('opens row links to paths on this site in the same tab', async () => {
+    const w = render(tableModel({ fields: ['name'], labels: [], filters: ['dataLink :/models/{id}'] }), async () => [{ id: 7, name: 'Shop' }])
+    await flushPromises()
+    const link = w.get('tbody a')
+    expect(link.attributes('href')).toBe('/models/7')
+    expect(link.attributes('target')).toBeUndefined()
+    expect(link.attributes('rel')).toBeUndefined()
+  })
+
   it('puts a title and the row count in the header, and labels the table by it', async () => {
     const w = render(tableModel({ title: 'My repos' }), async () => [{ name: 'one' }])
     expect(w.get('.fd-table-count').text()).toBe('Loading rows…')
@@ -263,15 +272,23 @@ describe('separators, links and buttons', () => {
     expect(w.get('[data-feature-id="x"]').attributes('style') ?? '').not.toContain('url(')
   })
 
-  it('renders links only for http(s) addresses', () => {
+  it('renders links only for http(s) addresses and paths on this site', () => {
     const w = render(
       model(
         page(),
         inst('LinkFeature', 'ok', { text: 'GitHub', href: 'https://github.com' }),
         inst('LinkFeature', 'bad', { text: 'Run', href: 'javascript:alert(1)' }),
+        inst('LinkFeature', 'here', { text: 'Open', href: '/models/7' }),
+        inst('ButtonFeature', 'go', { text: 'Open', href: '/models/7' }),
       ),
     )
     expect(w.get('[data-feature-id="ok"]').attributes()).toMatchObject({ href: 'https://github.com', target: '_blank', rel: 'noopener noreferrer' })
+    // Paths on this site open in the same tab.
+    for (const link of [w.get('[data-feature-id="here"]'), w.get('[data-feature-id="go"] a')]) {
+      expect(link.attributes('href')).toBe('/models/7')
+      expect(link.attributes('target')).toBeUndefined()
+      expect(link.attributes('rel')).toBeUndefined()
+    }
     expect(w.get('[data-feature-id="ok"]').text()).toBe('GitHub')
     const bad = w.get('[data-feature-id="bad"]')
     expect(bad.element.tagName).toBe('SPAN')

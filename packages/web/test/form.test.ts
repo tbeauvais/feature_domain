@@ -4,12 +4,19 @@ import { describe, expect, it, vi } from 'vitest'
 import { DataStore, fillPath, NotSentFromEditor } from '../src/renderer/data'
 import DocumentView from '../src/renderer/DocumentView.vue'
 import { FETCH_JSON, requestInit, SEND_REQUEST, type FetchJson, type SendRequest } from '../src/renderer/rows'
+import { OPEN_ADDRESS } from '../src/renderer/urls'
 import { inst, MemoryStorage, model, page } from './helpers'
 
-const render = (m: AppModel, fetchJson: FetchJson = async () => [], sendRequest: SendRequest = async () => undefined, editing = false) =>
+const render = (
+  m: AppModel,
+  fetchJson: FetchJson = async () => [],
+  sendRequest: SendRequest = async () => undefined,
+  editing = false,
+  openAddress: (href: string) => void = () => {},
+) =>
   mount(DocumentView, {
     props: { root: generate(m).root, editing },
-    global: { provide: { [FETCH_JSON as symbol]: fetchJson, [SEND_REQUEST as symbol]: sendRequest } },
+    global: { provide: { [FETCH_JSON as symbol]: fetchJson, [SEND_REQUEST as symbol]: sendRequest, [OPEN_ADDRESS as symbol]: openAddress } },
     attachTo: document.body,
   })
 
@@ -271,6 +278,193 @@ describe('Form on an address', () => {
     await flushPromises()
     expect(w.get('.fd-form-note').text()).toContain('Nothing to send to yet')
     expect(w.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+    w.unmount()
+  })
+})
+
+describe('Form that opens what it created', () => {
+  const models = inst(
+    'SwaggerDataResourceFeature',
+    'm',
+    {
+      name: 'Models',
+      spec: JSON.stringify({
+        openapi: '3.0.0',
+        servers: [{ url: 'https://app.test/api/v1' }],
+        paths: { '/models': { get: {}, post: { requestBody: { content: { 'application/json': { schema: { properties: { name: { type: 'string' } } } } } } } } },
+      }),
+    },
+    null,
+  )
+  const numbered = inst('DataResourceFeature', 'r', { name: 'People', source: 'sample', sample_rows: '[{"id": 1, "name": "Ada"}]' }, null)
+
+  it("opens the address filled from the site's answer, in this tab", async () => {
+    const openAddress = vi.fn()
+    const send = vi.fn<SendRequest>(async () => ({ id: 'a b/7' }))
+    const w = render(model(models, page(), inst('FormFeature', 'f', { data_resource: 'm', open_after: '/models/{id}' })), undefined, send, false, openAddress)
+    await flushPromises()
+    await fill(w, { Name: 'Shop' })
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(send).toHaveBeenCalledOnce()
+    // The value is encoded, so it stays one part of the path.
+    expect(openAddress).toHaveBeenCalledWith('/models/a%20b%2F7')
+    // While the next page loads, the form can't send again (that would create a second record)…
+    expect(w.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(send).toHaveBeenCalledOnce()
+    // …unless the browser shows this page again from its cache (Back).
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
+    await flushPromises()
+    expect(w.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
+    w.unmount()
+  })
+
+  it("opens what was created without waiting for the resource's tables to reload", async () => {
+    const openAddress = vi.fn()
+    let loads = 0
+    // The first load answers; the reload after sending never does.
+    const fetchJson = vi.fn<FetchJson>(() => (loads++ === 0 ? Promise.resolve([]) : new Promise(() => {})))
+    const w = render(
+      model(models, page(), inst('FormFeature', 'f', { data_resource: 'm', open_after: '/models/{id}' }), inst('TableFeature', 't', { data_resource: 'm' })),
+      fetchJson,
+      async () => ({ id: 7 }),
+      false,
+      openAddress,
+    )
+    await flushPromises()
+    await fill(w, { Name: 'Shop' })
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(fetchJson).toHaveBeenCalledTimes(2)
+    expect(openAddress).toHaveBeenCalledWith('/models/7')
+    w.unmount()
+  })
+
+  it('fills from what was typed when the answer is empty, text or a list', async () => {
+    const openAddress = vi.fn()
+    const answers: unknown[] = [undefined, 'Created', [1]]
+    const w = render(
+      model(models, page(), inst('FormFeature', 'f', { data_resource: 'm', open_after: '/search/{name}' })),
+      undefined,
+      async () => answers.shift(),
+      false,
+      openAddress,
+    )
+    await flushPromises()
+    for (let i = 0; i < 3; i++) {
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
+      await fill(w, { Name: 'Shop' })
+      await w.get('form').trigger('submit')
+      await flushPromises()
+    }
+    expect(openAddress.mock.calls).toEqual([['/search/Shop'], ['/search/Shop'], ['/search/Shop']])
+    w.unmount()
+  })
+
+  it('opens nothing when sending fails', async () => {
+    const openAddress = vi.fn()
+    const w = render(
+      model(models, page(), inst('FormFeature', 'f', { data_resource: 'm', open_after: '/search/{name}' })),
+      undefined,
+      async () => {
+        throw new Error('500 Server Error')
+      },
+      false,
+      openAddress,
+    )
+    await flushPromises()
+    await fill(w, { Name: 'Shop' })
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(w.get('[role="alert"]').text()).toBe('app.test: 500 Server Error')
+    expect(openAddress).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('fills from what was typed when the answer has no such value, and on sample data from the added row', async () => {
+    const openAddress = vi.fn()
+    const w = render(
+      model(
+        models,
+        numbered,
+        page(),
+        inst('FormFeature', 'f', { data_resource: 'm', open_after: 'https://shop.test/{name}' }),
+        inst('FormFeature', 'g', { data_resource: 'r', open_after: '/people/{id}' }),
+      ),
+      undefined,
+      async () => ({ ok: true }),
+      false,
+      openAddress,
+    )
+    await flushPromises()
+    const [api, sample] = w.findAll('form')
+    await api!.get('input[name="name"]').setValue('Shop')
+    await api!.trigger('submit')
+    await sample!.get('input[name="name"]').setValue('Grace')
+    await sample!.trigger('submit')
+    await flushPromises()
+    expect(openAddress.mock.calls).toEqual([['https://shop.test/Shop'], ['/people/2']])
+    w.unmount()
+  })
+
+  it('stays and says so when nothing fills the address, or a value would move it up a level', async () => {
+    const openAddress = vi.fn()
+    const answers = [{ ok: true }, { id: '..' }]
+    const w = render(
+      model(models, page(), inst('FormFeature', 'f', { data_resource: 'm', open_after: '/models/{id}', success_message: 'Saved' })),
+      undefined,
+      async () => answers.shift(),
+      false,
+      openAddress,
+    )
+    await flushPromises()
+    for (let i = 0; i < 2; i++) {
+      await fill(w, { Name: 'Shop' })
+      await w.get('form').trigger('submit')
+      await flushPromises()
+      // The message is ended as a sentence, so the two don't run together.
+      expect(w.get('.fd-form-sent').text()).toBe("Saved. Nothing filled in /models/{id}, so it wasn't opened.")
+    }
+    expect(openAddress).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('opens nothing from the editor, saying what the preview would open', async () => {
+    const openAddress = vi.fn()
+    const w = render(
+      model(numbered, page(), inst('FormFeature', 'g', { data_resource: 'r', open_after: '/people/{id}' })),
+      undefined,
+      undefined,
+      true,
+      openAddress,
+    )
+    await flushPromises()
+    await fill(w, { Name: 'Grace' })
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(w.get('.fd-form-sent').text()).toBe('Thanks, that was sent. In the preview, this opens /people/2.')
+    expect(openAddress).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('on an address in the editor, sends nothing and says only that', async () => {
+    const openAddress = vi.fn()
+    const w = render(
+      model(models, page(), inst('FormFeature', 'f', { data_resource: 'm', open_after: '/models/{id}' })),
+      undefined,
+      undefined,
+      true,
+      openAddress,
+    )
+    await flushPromises()
+    await fill(w, { Name: 'Shop' })
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(w.get('[role="alert"]').text()).toBe('Nothing is sent from the editor (this would go to app.test). Open the preview to try it.')
+    expect(w.get('.fd-form-sent').text()).toBe('')
+    expect(openAddress).not.toHaveBeenCalled()
     w.unmount()
   })
 })

@@ -570,12 +570,22 @@ describe('SeparatorFeature', () => {
 })
 
 describe('LinkFeature', () => {
-  it('renders text and an http(s) link, warning about any other address', () => {
+  it('renders text and an http(s) link or a path on this site, warning about any other address', () => {
     const ok = run(LinkFeature, { text: 'GitHub', href: ' https://github.com ' })
     expect(ok.out.node).toMatchObject({ kind: 'link', props: { text: 'GitHub', href: 'https://github.com' } })
     expect(ok.report).not.toHaveBeenCalled()
+    const path = run(LinkFeature, { text: 'Open', href: '/models/7' })
+    expect(path.out.node?.props).toMatchObject({ href: '/models/7' })
+    expect(path.report).not.toHaveBeenCalled()
     const bad = run(LinkFeature, { href: 'javascript:alert(1)' })
-    expect(bad.report).toHaveBeenCalledWith('warning', 'Link URL "javascript:alert(1)" is not an http(s) address, so the link is shown without it')
+    expect(bad.report).toHaveBeenCalledWith(
+      'warning',
+      'Link URL "javascript:alert(1)" is not an http(s) address or a path on this site, so the link is shown without it',
+    )
+    expect(run(LinkFeature, { href: '//evil.example' }).report).toHaveBeenCalledWith(
+      'warning',
+      'Link URL "//evil.example" is not an http(s) address or a path on this site, so the link is shown without it',
+    )
     expect(run(LinkFeature, { text: ' ' }).report).toHaveBeenCalledWith('warning', 'The link has no text, so it is invisible')
     expect(run(ButtonFeature, { text: '' }).report).toHaveBeenCalledWith('warning', 'The button has no text, so it is invisible')
   })
@@ -588,8 +598,9 @@ describe('ButtonFeature', () => {
     expect(run(ButtonFeature, { style: 'soft', size: 'small', align: 'left' }).out.node?.props).toMatchObject({ variant: 'soft', size: 'small', align: 'left' })
     expect(run(ButtonFeature, { href: 'mailto:x@example.com' }).report).toHaveBeenCalledWith(
       'warning',
-      'Link URL "mailto:x@example.com" is not an http(s) address, so the button is shown without it',
+      'Link URL "mailto:x@example.com" is not an http(s) address or a path on this site, so the button is shown without it',
     )
+    expect(run(ButtonFeature, { href: '/models/7' }).report).not.toHaveBeenCalled()
   })
 })
 
