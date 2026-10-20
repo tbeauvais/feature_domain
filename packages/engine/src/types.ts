@@ -159,7 +159,8 @@ export interface NodeKinds {
    * only), else the illustration's own shape.
    */
   illustration: { name: string; alt: string; width: string; align: Align; aspect?: number }
-  grid: { rows: number; columns: number; well: boolean }
+  /** `widths`: relative column widths (shares), absent for equal columns. */
+  grid: { rows: number; columns: number; well: boolean; widths?: number[] }
   'grid-cell': { row: number; column: number }
   /** `emphasis` is absent for normal. */
   panel: { heading: string; emphasis?: Exclude<PanelEmphasis, 'normal'> }

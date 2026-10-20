@@ -8,6 +8,7 @@ import Inspector from '../editor/Inspector.vue'
 import Palette from '../editor/Palette.vue'
 import DropIndicator from '../editor/DropIndicator.vue'
 import EmptyPageHint from '../editor/EmptyPageHint.vue'
+import ResizeHandles from '../editor/ResizeHandles.vue'
 import SelectionOverlay from '../editor/SelectionOverlay.vue'
 import ShortcutsDialog from '../editor/ShortcutsDialog.vue'
 import StatusBar from '../editor/StatusBar.vue'
@@ -458,6 +459,7 @@ async function deleteModel() {
             >
               <DocumentView :key="id" :root="result.root" :model-id="id" editing />
               <SelectionOverlay :container="canvas" :selected-id="selectedId" :editing="inlineEdit?.element ?? null" :version="result" />
+              <ResizeHandles :container="canvas" :selected-id="selectedId" :version="result" :disabled="inlineEdit !== null" />
               <DropIndicator :container="canvas" />
               <EmptyPageHint :container="canvas" :root="result.root" />
             </div>
