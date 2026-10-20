@@ -1,8 +1,7 @@
 import { MemoryModelStore, type AppModel } from '@feature-domain/engine'
 import type { BrowserContext, Page, Route } from '@playwright/test'
 import { SAMPLE_SET, sampleModels } from '../src/data/samples'
-import { PROXY_PATH } from '../src/renderer/rows'
-import { MODELS_PATH } from '../src/stores/apiModelStore'
+import { HOME_RESET_PATH } from '../src/stores/apiModelStore'
 import { workerApp, type WorkerApp } from '../test/workerApp'
 
 // Each test's model API: the Worker's own routes, run in the test process over a store of the test's own, seeded with
@@ -15,13 +14,23 @@ let upstream: (url: string, init: RequestInit) => Response | Promise<Response>
 /** The id the next stored model gets (MemoryModelStore makes up its own otherwise). */
 let nextId: string | undefined
 
-/** Answers the app's model API in this context from a fresh store holding the samples, under the seed's ids (`sample-2-1` …). */
+/** When every model in the tests' stores was last saved, so the home page's dates never change a screenshot. */
+export const SAVED_AT = Date.UTC(2026, 9, 20, 9, 0)
+
+/**
+ * Answers the app's API in this context from a fresh store holding the samples, under the seed's ids (`sample-2-1` …),
+ * and the built-in home page, as the seeded database does.
+ */
 export async function serveModels(context: BrowserContext): Promise<void> {
   let n = 0
-  models = new MemoryModelStore(() => nextId ?? `model-${++n}`)
+  models = new MemoryModelStore(
+    () => nextId ?? `model-${++n}`,
+    () => SAVED_AT,
+  )
   for (const [i, sample] of sampleModels().entries()) await put(`sample-${SAMPLE_SET}-${i + 1}`, sample)
   upstream = () => Promise.reject(new TypeError('fetch failed'))
   const app: WorkerApp = await workerApp(models, async (input, init = {}) => upstream(String(input), init))
+  await app.request(HOME_RESET_PATH, { method: 'POST' })
   const serve = async (route: Route) => {
     const request = route.request()
     const url = new URL(request.url())
@@ -32,8 +41,7 @@ export async function serveModels(context: BrowserContext): Promise<void> {
     })
     await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) })
   }
-  await context.route(`**${MODELS_PATH}**`, serve)
-  await context.route(`**${PROXY_PATH}`, serve)
+  await context.route('**/api/v1/**', serve)
 }
 
 /** How the sites the Worker's proxy fetches from answer (the proxy itself is the Worker's real route). */
@@ -54,6 +62,11 @@ async function put(id: string, model: unknown): Promise<void> {
 export async function store(_page: Page, model: { id: string; [key: string]: unknown }): Promise<void> {
   await models.delete(model.id)
   await put(model.id, model)
+}
+
+/** Deletes a stored model, as someone else would. */
+export async function removeStored(id: string): Promise<void> {
+  await models.delete(id)
 }
 
 /** The stored model with this id. */

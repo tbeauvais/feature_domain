@@ -4,7 +4,7 @@ import { isLinkAddress } from '../links.js'
 import { node } from '../nodes.js'
 import type { FormField, NodeKinds } from '../types.js'
 import { DATA_RESOURCE_TYPES, isDataResourceExports, type DataOperation, type DataResourceExports } from './data-resource.js'
-import { actionFor, defaultOperation, fieldLabel } from './sources.js'
+import { actionFor, defaultOperation, fieldLabel, isDataAddress } from './sources.js'
 
 /** At most this many fields are shown; a form longer than that wants splitting anyway. */
 export const MAX_FORM_FIELDS = 30
@@ -103,8 +103,7 @@ export const FormFeature: FeatureDefinition = {
     else if (!operation) ctx.report('warning', `${name} has no POST or PUT operation to send to`)
     else if (operation.method !== 'POST' && operation.method !== 'PUT')
       ctx.report('warning', `"${operation.name}" doesn't take data; a form sends with POST or PUT`)
-    else if (!operation.sample && !/^https?:\/\//i.test(operation.endPoint))
-      ctx.report('warning', `Operation "${operation.name}" of ${name} has no http(s) URL`)
+    else if (!operation.sample && !isDataAddress(operation.endPoint)) ctx.report('warning', `Operation "${operation.name}" of ${name} has no http(s) URL`)
     else props.action = actionFor(resolved.id, resource, operation)
 
     // Header parameters (e.g. an API key) can't be typed into a form, so a required one means the server will refuse.

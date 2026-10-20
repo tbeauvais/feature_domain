@@ -1,9 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import HomeView from './views/HomeView.vue'
 import ModelListView from './views/ModelListView.vue'
 import ModelView from './views/ModelView.vue'
 
 export const routes = [
-  { path: '/', name: 'models', component: ModelListView },
+  { path: '/', name: 'home', component: HomeView },
+  { path: '/models', name: 'models', component: ModelListView },
   { path: '/models/:id', name: 'model', component: ModelView, props: true },
 ]
 

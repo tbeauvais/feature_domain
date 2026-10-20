@@ -503,7 +503,7 @@ describe('TableFeature', () => {
         Sale: { properties: { name: { description: 'Name' }, amount: { description: 'Amount' }, id: {} } },
       },
     })
-    const { out } = run(TableFeature, { data_resource: 'r', operation: 'GET /v1/sales', fields: ['ignored'] }, resolveTo(exports))
+    const { out } = run(TableFeature, { data_resource: 'r', operation: 'GET /v1/sales' }, resolveTo(exports))
     expect(out.node?.props).toMatchObject({
       source: { path: 'sales' },
       columns: [
@@ -512,6 +512,9 @@ describe('TableFeature', () => {
         { field: 'id', label: 'id' },
       ],
     })
+    // Its own Fields win over the spec's columns (the row path still comes from the spec).
+    const chosen = run(TableFeature, { data_resource: 'r', operation: 'GET /v1/sales', fields: ['name'], labels: ['Rep'] }, resolveTo(exports)).out
+    expect(chosen.node?.props).toMatchObject({ source: { path: 'sales' }, columns: [{ field: 'name', label: 'Rep' }] })
   })
 
   it('has no source when the operation has no http(s) URL', () => {

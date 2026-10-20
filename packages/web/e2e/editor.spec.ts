@@ -8,7 +8,7 @@ isolateNetwork((route, url) =>
 )
 
 async function newModel(page: Page) {
-  await page.goto('/')
+  await page.goto('/models')
   await page.getByTestId('new-model').click()
   await expect(page.getByTestId('model-name')).toHaveValue('Untitled model')
 }
@@ -118,7 +118,7 @@ test('creates and deletes models', async ({ page }) => {
   await page.getByTestId('delete-model').click()
   await page.getByTestId('confirm-dialog').getByTestId('confirm-ok').click()
   await expect(page).toHaveURL('/')
-  await expect(page.getByTestId('model-list').getByRole('link')).toHaveCount(6)
+  await expect(page.getByTestId('home-page').getByRole('table').getByRole('link')).toHaveCount(6)
 })
 
 test('typing into list and number fields keeps what you type', async ({ page }) => {
@@ -247,7 +247,7 @@ test('a save refused because the sign-in expired says how to sign in again witho
 
 /** Stores a model in the test's model API, after the home page has loaded. */
 async function store(page: Page, model: { id: string; [key: string]: unknown }) {
-  await page.goto('/')
+  await page.goto('/models')
   await expect(page.getByTestId('model-list')).toBeVisible()
   await storeModel(page, model)
 }
@@ -318,7 +318,7 @@ test('deleting a model with an unsaved edit goes straight back to the list', asy
   await page.getByTestId('confirm-dialog').getByTestId('confirm-ok').click()
   await expect(page).toHaveURL('/')
   await expect(page.getByTestId('confirm-dialog')).toHaveCount(0)
-  await expect(page.getByTestId('model-list').getByRole('link')).toHaveCount(6)
+  await expect(page.getByTestId('home-page').getByRole('table').getByRole('link')).toHaveCount(6)
 })
 
 test('the editor and preview load nothing from other sites', async ({ page, context }) => {
@@ -329,7 +329,7 @@ test('the editor and preview load nothing from other sites', async ({ page, cont
     external.push(url.href)
     return route.abort()
   })
-  await page.goto('/')
+  await page.goto('/models')
   await page.getByTestId('new-model').click()
   await page.getByTestId('palette-TextFeature').click()
   await page.getByTestId('open-preview').click()

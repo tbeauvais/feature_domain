@@ -1,5 +1,6 @@
 import type { AppModel } from '@feature-domain/engine'
 import { toJson } from '../src/d1ModelStore'
+import { HOME_ID } from '../src/home'
 
 /** The settings row recording that the samples were seeded, so models the user deletes don't come back. */
 export const SEEDED_KEY = 'samples-seeded'
@@ -25,6 +26,22 @@ export function seedSql(models: readonly AppModel[], set: number, now = Date.now
         `INSERT OR IGNORE INTO models (id, name, model, created_at, updated_at) SELECT ${[text(sampleId(set, i)), text(model.name), text(toJson(model)), now, now].join(', ')} WHERE ${seeding};`,
     ),
     `UPDATE settings SET value = ${text(String(set))} WHERE key = ${key} AND value = 'seeding';`,
+    '',
+  ].join('\n')
+}
+
+/** The settings row recording that the home model was seeded, so a home page the user deletes doesn't come back. */
+export const HOME_SEEDED_KEY = 'home-seeded'
+
+/**
+ * SQL that stores the home model under `HOME_ID` unless it was seeded before (and never over a stored one), then
+ * records the seeding. Run again, or after stopping between the two statements, it changes nothing.
+ */
+export function homeSeedSql(model: AppModel, now = Date.now()): string {
+  const key = text(HOME_SEEDED_KEY)
+  return [
+    `INSERT OR IGNORE INTO models (id, name, model, created_at, updated_at) SELECT ${[text(HOME_ID), text(model.name), text(toJson(model)), now, now].join(', ')} WHERE NOT EXISTS (SELECT 1 FROM settings WHERE key = ${key});`,
+    `INSERT OR IGNORE INTO settings (key, value) VALUES (${key}, '1');`,
     '',
   ].join('\n')
 }

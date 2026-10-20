@@ -3,6 +3,12 @@ import { ModelConflictError, ModelNotFoundError, type AppModel, type ModelStore,
 /** The Worker's model API (packages/worker/src/app.ts). */
 export const MODELS_PATH = '/api/v1/models'
 
+/** The id the home page's model is stored under (the Worker's HOME_ID); the model list leaves it out. */
+export const HOME_ID = 'home'
+
+/** Where the Worker puts the built-in home page back. */
+export const HOME_RESET_PATH = '/api/v1/home/reset'
+
 /**
  * Browsers cap the bodies of `keepalive` requests (which may outlive the page) at 64 KiB in all, so only saves smaller
  * than this are sent that way; a larger save can still be cut off when the page closes.
@@ -57,7 +63,7 @@ export class ApiModelStore implements ModelStore {
   async list(): Promise<ModelSummary[]> {
     const body = await this.json(await this.request(MODELS_PATH))
     if (!Array.isArray(body) || !body.every(isSummary)) throw unexpected()
-    return body.map(({ id, name }) => ({ id, name }))
+    return body.map(({ id, name, updated_at }) => ({ id, name, updatedAt: updated_at }))
   }
 
   async get(id: string): Promise<StoredModel | null> {
@@ -96,6 +102,11 @@ export class ApiModelStore implements ModelStore {
 
   async delete(id: string): Promise<void> {
     await this.ok(await this.request(path(id), { method: 'DELETE' }))
+  }
+
+  /** Puts the built-in home page back, over a stored one or in place of a deleted one. */
+  async resetHome(): Promise<void> {
+    await this.ok(await this.request(HOME_RESET_PATH, { method: 'POST' }))
   }
 
   private async request(url: string, init: RequestInit = {}): Promise<Response> {
@@ -141,8 +152,19 @@ export class ApiModelStore implements ModelStore {
   }
 }
 
-const isSummary = (m: unknown): m is ModelSummary =>
-  typeof m === 'object' && m !== null && typeof (m as ModelSummary).id === 'string' && typeof (m as ModelSummary).name === 'string'
+/** A model in the API's list: its times are `updated_at`. */
+interface ListedModel {
+  id: string
+  name: string
+  updated_at: string
+}
+
+const isSummary = (m: unknown): m is ListedModel =>
+  typeof m === 'object' &&
+  m !== null &&
+  typeof (m as ListedModel).id === 'string' &&
+  typeof (m as ListedModel).name === 'string' &&
+  typeof (m as ListedModel).updated_at === 'string'
 const path = (id: string) => `${MODELS_PATH}/${encodeURIComponent(id)}`
 const send = (model: AppModel) => ({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(model) })
 const isJson = (response: Response) => response.headers.get('Content-Type')?.toLowerCase().startsWith('application/json') ?? false

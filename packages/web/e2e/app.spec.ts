@@ -46,7 +46,7 @@ async function openSample(page: Page, name: string): Promise<string> {
 }
 
 test('lists the sample models', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/models')
   await expect(page.getByTestId('model-list').getByRole('link')).toHaveText([
     'Start here',
     'Harbor Coffee',
@@ -129,7 +129,7 @@ test('neighboring texts and links sit on their own lines, and empty containers a
 })
 
 test('a card after a line of text or a link keeps the same distance, in the page and in a container cell', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/models')
   await expect(page.getByTestId('model-list')).toBeVisible()
   const card = (id: string, parent: string, slot: string) => ({
     feature: 'ListGroupFeature',

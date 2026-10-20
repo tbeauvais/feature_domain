@@ -1,6 +1,7 @@
 // Where a data-reading feature (Table, Chart) gets its rows: the operation it lists, and what a spec says the rows hold.
 
 import type { FeatureContext } from '../feature.js'
+import { isModelsApiAddress } from '../links.js'
 import type { DataAction, DataSource, TableColumn } from '../types.js'
 import type { DataOperation, DataResourceExports, DataSchema } from './data-resource.js'
 
@@ -102,13 +103,13 @@ export function listSource(
     const source: DataSource = { feature: resourceId, resource: resource.resource, operation: operation.name, endPoint: '', rows: resource.sampleRows ?? [] }
     return schema ? { source, schemaColumns: schema.columns } : { source }
   }
-  if (!/^https?:\/\//i.test(operation.endPoint)) {
+  if (!isDataAddress(operation.endPoint)) {
     ctx.report('warning', `Operation "${operation.name}" of ${name} has no http(s) URL`)
     return {}
   }
   const source: DataSource = { feature: resourceId, resource: resource.resource, operation: operation.name, endPoint: operation.endPoint }
   if (schema?.path) source.path = schema.path
-  if (resource.fetchThrough === 'server') source.proxy = true
+  if (viaProxy(resource, operation)) source.proxy = true
   return schema ? { source, schemaColumns: schema.columns } : { source }
 }
 
@@ -122,11 +123,21 @@ export function actionFor(resourceId: string, resource: DataResourceExports, ope
     endPoint: operation.endPoint,
   }
   if (operation.sample) action.sample = true
-  else if (resource.fetchThrough === 'server') action.proxy = true
+  else if (viaProxy(resource, operation)) action.proxy = true
   if (operation.requestType) action.requestType = operation.requestType
   const ids = operation.sample && operation.method === 'POST' ? sampleIds(resource.sampleRows ?? []) : undefined
   if (ids) action.sampleIds = ids
   return action
+}
+
+/** An address a page reads or sends data to: http(s), or the models API on this site (`isModelsApiAddress`). */
+export function isDataAddress(endPoint: string): boolean {
+  return /^https?:\/\//i.test(endPoint) || isModelsApiAddress(endPoint)
+}
+
+/** Whether the proxy fetches an operation: its resource says Server, and it isn't on this site (always the browser's). */
+function viaProxy(resource: DataResourceExports, operation: DataOperation): boolean {
+  return resource.fetchThrough === 'server' && !isModelsApiAddress(operation.endPoint)
 }
 
 /**

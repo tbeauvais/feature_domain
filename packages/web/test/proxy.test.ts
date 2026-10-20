@@ -86,7 +86,7 @@ describe('requests through the proxy', () => {
 
   it('never sends a non-http(s) address, even through the proxy', async () => {
     const calls = stub(() => Response.json([]))
-    await expect(browserFetchJson('/api/v1/models', { model: 'm1' })).rejects.toThrow('Only http(s) URLs')
+    await expect(browserFetchJson('/api/v1/other', { model: 'm1' })).rejects.toThrow('Only http(s) URLs')
     await expect(browserSendRequest({ method: 'POST', url: 'javascript:x' }, { model: 'm1' })).rejects.toThrow('Only http(s) URLs')
     expect(calls).toEqual([])
   })

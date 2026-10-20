@@ -1,4 +1,4 @@
-import type { DataSource } from '@feature-domain/engine'
+import { isModelsApiAddress, type DataSource } from '@feature-domain/engine'
 import type { InjectionKey, Ref } from 'vue'
 import { useDataStore } from './data'
 import { getPath } from './filters'
@@ -18,7 +18,9 @@ export type FetchJson = (url: string, via?: Via) => Promise<unknown>
 export const FETCH_JSON: InjectionKey<FetchJson> = Symbol('fetchJson')
 
 export const browserFetchJson: FetchJson = async (url, via) => {
-  // Never fetch relative or non-http URLs: an empty endpoint would otherwise load this app's own HTML.
+  // The models API on this site is read with the viewer's session, never through the proxy.
+  if (isModelsApiAddress(url)) return readJson(await onThisSite(url, { headers: { Accept: 'application/json' } }))
+  // Never fetch other relative or non-http URLs: an empty endpoint would otherwise load this app's own HTML.
   if (!isHttpUrl(url)) throw new Error(`Only http(s) URLs can be loaded, not "${url}"`)
   if (via) return readJson(await proxied({ method: 'GET', url }, via))
   let response: Response
@@ -41,10 +43,37 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
+/**
+ * The models API's answer to a request from this site. Throws, in words, when it refused (its own message) or when
+ * Cloudflare Access answered instead because the sign-in expired (a redirect, or its HTML page).
+ */
+async function onThisSite(url: string, init: RequestInit): Promise<Response> {
+  let response: Response
+  try {
+    response = await fetch(url.trim(), { ...init, redirect: 'manual', signal: AbortSignal.timeout(PROXY_TIMEOUT_MS) })
+  } catch (error) {
+    throw new Error(error instanceof DOMException && error.name === 'TimeoutError' ? "The server didn't answer in time" : "Couldn't reach the server", {
+      cause: error,
+    })
+  }
+  if (response.type === 'opaqueredirect' || response.headers.get('Content-Type')?.startsWith('text/html'))
+    throw new Error('Your sign-in has expired; reload the page to sign in again')
+  if (!response.ok) {
+    const answer = (await response.json().catch(() => ({}))) as { error?: unknown; problems?: unknown }
+    const problems = Array.isArray(answer.problems) ? answer.problems.filter((p) => typeof p === 'string') : []
+    if (typeof answer.error === 'string') throw new Error(problems.length > 0 ? `${answer.error}: ${problems.join('; ')}` : answer.error)
+    throw new Error(`${response.status} ${response.statusText}`.trim())
+  }
+  return response
+}
+
 /** The path of the Worker's proxy, on this site. */
 export const PROXY_PATH = '/api/v1/proxy'
 
-/** How long a request through the proxy may take: the proxy's own limit (10 s) plus the way there and back. */
+/**
+ * How long a request through the proxy may take: the proxy's own limit (10 s) plus the way there and back. Requests to
+ * the models API get as long.
+ */
 const PROXY_TIMEOUT_MS = 20_000
 
 /**
@@ -91,13 +120,20 @@ export interface DataRequest {
 }
 export type SendRequest = (request: DataRequest, via?: Via) => Promise<unknown>
 
-/** How forms and row deletes reach a data resource; tests provide a fake. Only http(s) addresses are ever sent to. */
+/**
+ * How forms and row deletes reach a data resource; tests provide a fake. Only http(s) addresses and the models API on
+ * this site are ever sent to.
+ */
 export const SEND_REQUEST: InjectionKey<SendRequest> = Symbol('sendRequest')
 
 export const browserSendRequest: SendRequest = async (request, via) => {
-  if (!isHttpUrl(request.url)) throw new Error(`Only http(s) URLs can be sent to, not "${request.url}"`)
+  const onSite = isModelsApiAddress(request.url)
+  if (!onSite && !isHttpUrl(request.url)) throw new Error(`Only http(s) URLs can be sent to, not "${request.url}"`)
   let response: Response
-  if (via) response = await proxied(request, via)
+  if (onSite) {
+    const init = requestInit(request)
+    response = await onThisSite(request.url, { ...init, headers: { Accept: 'application/json', ...(init.headers as Record<string, string> | undefined) } })
+  } else if (via) response = await proxied(request, via)
   else {
     try {
       response = await fetch(request.url, requestInit(request))

@@ -171,9 +171,9 @@ const slug = (name: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 
-/** The id of a model listed on the home page. */
+/** The id of a model in the model list. */
 async function modelId(page: Page, name: string): Promise<string> {
-  await page.goto('/')
+  await page.goto('/models')
   const href = await page.getByTestId('model-list').getByRole('link', { name, exact: true }).getAttribute('href')
   return decodeURIComponent(href!.split('/').pop()!)
 }
@@ -196,6 +196,13 @@ for (const [size, viewport] of Object.entries(WIDTHS)) {
         await snapshot(page, await modelId(page, sample), `${slug(sample)}-${size}`)
       })
     }
+
+    test('the home page looks as it should', async ({ page }) => {
+      await page.goto('/')
+      await expect(page.getByTestId('home-page').getByRole('table').getByRole('link')).toHaveCount(SAMPLES.length)
+      await page.evaluate(() => document.fonts.ready)
+      await expect(page).toHaveScreenshot(`home-${size}.png`, { fullPage: true, animations: 'disabled' })
+    })
 
     test('Start here in the Night Garden theme looks as it should', async ({ page }) => {
       // Applied as a user would: add a Theme (it themes the page), then start it from Night Garden.
