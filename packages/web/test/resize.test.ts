@@ -4,8 +4,12 @@ import {
   aspectHeights,
   imageWidthAt,
   imageWidthBy,
+  nearestIndex,
   nearestStep,
+  percentWidthAt,
+  percentWidthBy,
   scrollRowsAt,
+  scrollRowsEstimated,
   scrollRowsBy,
   scrollRowsText,
   sharesText,
@@ -83,21 +87,63 @@ describe('column edges', () => {
   })
 })
 
-describe('table Scroll after', () => {
-  // Rows of 44 px: the box is the header and that many rows.
-  it('snaps to whole rows, at least 3', () => {
-    expect(scrollRowsAt(44 * 9, 44, 20)).toBe(8)
-    expect(scrollRowsAt(44 * 9 + 20, 44, 20)).toBe(8)
-    expect(scrollRowsAt(10, 44, 20)).toBe(3)
+describe('snapping', () => {
+  it('keeps the current value until another is clearly nearer, so a boundary does not flicker', () => {
+    // Boundary at 260 between 220 and 300.
+    expect(nearestIndex([220, 300], 262)).toBe(1)
+    expect(nearestIndex([220, 300], 262, 0)).toBe(0)
+    expect(nearestIndex([220, 300], 270, 0)).toBe(1)
+    expect(nearestStep(CHART_HEIGHTS, 262, 'short')).toBe('short')
+    expect(nearestStep(CHART_HEIGHTS, 280, 'short')).toBe('medium')
+  })
+})
+
+describe('separator width', () => {
+  it('is a percentage of the room in steps of 5, from 5 to 100', () => {
+    // A centered rule 400 px wide in 800 px, its handle dragged 100 px further out: 600 px, 75%.
+    expect(percentWidthAt('center', { left: 200, width: 400 }, 700, 800)).toBe(75)
+    expect(percentWidthAt('left', { left: 0, width: 400 }, 333, 1000, true)).toBe(33)
+    expect(percentWidthAt('left', { left: 0, width: 400 }, 5000, 1000)).toBe(100)
+    expect(percentWidthAt('left', { left: 0, width: 400 }, 0, 1000)).toBe(5)
+    expect(percentWidthBy(50, 1)).toBe(55)
+    expect(percentWidthBy(50, -1, true)).toBe(49)
+    expect(percentWidthBy(50, 1000)).toBe(100)
   })
 
-  it('shows every row past the rows loaded', () => {
-    expect(scrollRowsAt(44 * 21, 44, 20)).toBe(20)
-    expect(scrollRowsAt(44 * 22, 44, 20)).toBe(0)
-    expect(scrollRowsAt(44 * 4, 44, 2)).toBe(0)
-    // Rows shorter than the estimate: half a row past the content's bottom is enough.
-    expect(scrollRowsAt(280, 44, 6, 266)).toBe(5)
-    expect(scrollRowsAt(290, 44, 6, 266)).toBe(0)
+  it('takes several steps at once for Page Up and the ends', () => {
+    expect(imageWidthBy(300, 5, 1000)).toBe(350)
+    expect(imageWidthBy(300, -1000, 1000)).toBe(20)
+    expect(imageWidthBy(300, 1000, 640)).toBe(640)
+  })
+})
+
+describe('table Scroll after', () => {
+  // Rows as they render: a 40 px header, then rows of different heights (descriptions that wrap).
+  const bottoms = [84, 200, 245, 290, 383, 452, 497, 566]
+
+  it('snaps to the nearest real row bottom, at least 3 rows', () => {
+    expect(scrollRowsAt(290, bottoms)).toBe(4)
+    expect(scrollRowsAt(380, bottoms)).toBe(5)
+    expect(scrollRowsAt(100, bottoms)).toBe(3)
+  })
+
+  it('keeps the current rows near a boundary', () => {
+    // Halfway between rows 5 (383) and 6 (452) is 417.5.
+    expect(scrollRowsAt(420, bottoms)).toBe(6)
+    expect(scrollRowsAt(420, bottoms, 5)).toBe(5)
+  })
+
+  it('shows every row more than half a row past the last one', () => {
+    expect(scrollRowsAt(566, bottoms)).toBe(8)
+    expect(scrollRowsAt(600, bottoms)).toBe(8)
+    expect(scrollRowsAt(602, bottoms)).toBe(0)
+    expect(scrollRowsAt(10, [])).toBe(0)
+  })
+
+  it('estimates rows while none are loaded', () => {
+    expect(scrollRowsEstimated(44 * 9, 44)).toBe(8)
+    expect(scrollRowsEstimated(10, 44)).toBe(3)
+    expect(scrollRowsEstimated(44 * 200, 44)).toBe(0)
   })
 
   it('steps a row at a time, with every row one past the last', () => {
@@ -106,7 +152,14 @@ describe('table Scroll after', () => {
     expect(scrollRowsBy(0, -1, 20)).toBe(20)
     expect(scrollRowsBy(0, 1, 20)).toBe(0)
     expect(scrollRowsBy(3, -1, 20)).toBe(3)
-    expect(scrollRowsBy(0, -1, 2)).toBe(0)
+    expect(scrollRowsBy(3, -1000, 20)).toBe(3)
+    expect(scrollRowsBy(3, 1000, 20)).toBe(0)
+  })
+
+  it('reaches every row from the keyboard past 100 rows too', () => {
+    expect(scrollRowsBy(100, 1, 150)).toBe(0)
+    expect(scrollRowsBy(0, -1, 150)).toBe(100)
+    expect(scrollRowsBy(0, -1, Infinity)).toBe(100)
   })
 
   it('says the value in words', () => {

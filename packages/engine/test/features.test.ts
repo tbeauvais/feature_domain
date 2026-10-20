@@ -354,6 +354,9 @@ describe('moveColumnEdge', () => {
     expect(columnEdgeFraction([3, 1], 1)).toBe(0.75)
     expect(formatColumnWidths(moveColumnEdge([3, 1], 1, columnEdgeFraction([3, 1], 1) - 1 / 12))).toBe('2, 1')
     expect(parseColumnWidths('', 2)).toBeUndefined()
+    // Equal shares are stored as no widths at all, so dragging an edge back to the middle leaves nothing behind.
+    expect(formatColumnWidths(moveColumnEdge([2, 1], 1, 0.5))).toBe('')
+    expect(formatColumnWidths([3, 3, 3])).toBe('')
   })
 })
 

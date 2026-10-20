@@ -43,8 +43,8 @@ export function parseColumnWidths(value: unknown, columns: number): number[] | u
   return Array.from({ length: columns }, (_, i) => given[i] ?? mean)
 }
 
-/** Shares as a Column widths input: "2, 1". */
-export const formatColumnWidths = (shares: readonly number[]) => shares.join(', ')
+/** Shares as a Column widths input: "2, 1", or empty for equal columns (as a container without the input has). */
+export const formatColumnWidths = (shares: readonly number[]) => (shares.every((s) => s === shares[0]) ? '' : shares.join(', '))
 
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b))
 
@@ -99,7 +99,9 @@ export const ContainerFeature: FeatureDefinition = {
       default: '',
       placeholder: 'Equal',
       hint: 'Shares of the row, e.g. 2, 1 makes the first column twice as wide. You can also drag a column edge on the page.',
-      control: 'text-input',
+      control: 'column-widths',
+      // Applied when the field is left: "2," on the way to "2, 1" would warn and flip the page to equal columns.
+      commitOnBlur: true,
     },
     { name: 'rows', label: 'Rows', type: 'integer', default: 1, min: 1, max: MAX_ROWS, control: 'text-input' },
     { name: 'well', label: 'Add Well', type: 'boolean', default: true, control: 'checkbox-input' },
