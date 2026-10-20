@@ -48,6 +48,20 @@ describe('requests to the models API', () => {
     expect(calls).toEqual([])
   })
 
+  it("fetches and sends to every http(s) address without this site's cookies, so a full address on this site can't use the session", async () => {
+    const calls = stub(() => Response.json({}))
+    const own = 'https://app.feature-domain.workers.dev/api/v1/home/reset'
+    await browserFetchJson(own)
+    await browserSendRequest({ method: 'POST', url: own, body: {} })
+    await browserSendRequest({ method: 'DELETE', url: 'https://api.example.com/rows/1' })
+    expect(calls.map((c) => c.init.credentials)).toEqual(['omit', 'omit', 'omit'])
+  })
+
+  it("reads Access's HTML sign-in page as an expired sign-in, however its Content-Type is written", async () => {
+    stub(() => new Response('<html>', { status: 200, headers: { 'Content-Type': 'Text/HTML; charset=utf-8' } }))
+    await expect(browserFetchJson('/api/v1/models')).rejects.toThrow('Your sign-in has expired; reload the page to sign in again')
+  })
+
   it('says what the API refused, and that the sign-in expired when Access answers instead', async () => {
     stub(() => Response.json({ error: 'The model is not valid', problems: ['Give the model a name'] }, { status: 400 }))
     await expect(browserSendRequest({ method: 'POST', url: '/api/v1/models', body: { name: '' } })).rejects.toThrow(

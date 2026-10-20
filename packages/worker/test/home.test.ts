@@ -16,6 +16,7 @@ beforeEach(() => d1.env.DB.exec('DELETE FROM models'))
 
 const app = createApp()
 const request = (path: string, init?: RequestInit) => app.request(path, init, d1.env)
+const reset = () => request('/api/v1/home/reset', json({}))
 
 describe('the home model', () => {
   it('generates with no problems at all', () => {
@@ -37,8 +38,26 @@ describe('the home model', () => {
     ])
   })
 
+  it('describes exactly the methods the routes take', async () => {
+    // The home model stores a copy of this spec, so a route that changed without it would leave the home page wrong.
+    const paths = MODELS_API_SPEC.paths as Record<string, Record<string, unknown>>
+    const methods = ['get', 'put', 'post', 'delete', 'patch', 'head', 'options', 'trace']
+    for (const [path, item] of Object.entries(paths)) {
+      const url = '/api/v1' + path.replace('{id}', 'any')
+      const allow = (await request(url, { method: 'PATCH' })).headers.get('Allow')
+      const described = Object.keys(item).filter((key) => methods.includes(key))
+      expect(
+        allow
+          ?.split(', ')
+          .map((m) => m.toLowerCase())
+          .sort(),
+        path,
+      ).toEqual(described.sort())
+    }
+  })
+
   it('is left out of the model list', async () => {
-    await request('/api/v1/home/reset', { method: 'POST' })
+    await reset()
     const { id } = (await (await request('/api/v1/models', json({ name: 'Mine' }))).json()) as { id: string }
     expect(((await (await request('/api/v1/models')).json()) as { id: string }[]).map((m) => m.id)).toEqual([id])
     expect((await request(`/api/v1/models/${HOME_ID}`)).status).toBe(200)
@@ -47,17 +66,32 @@ describe('the home model', () => {
 
 describe('POST /api/v1/home/reset', () => {
   it('stores the built-in home model when there is none, and puts it back over a changed one', async () => {
-    const created = await request('/api/v1/home/reset', { method: 'POST' })
+    const created = await reset()
     expect(created.status).toBe(204)
     expect(created.headers.get('ETag')).toBe('"1"')
     expect(await (await request(`/api/v1/models/${HOME_ID}`)).json()).toEqual({ ...homeModel(), id: HOME_ID })
 
     await request(`/api/v1/models/${HOME_ID}`, json({ version: 2, name: 'Broken', features: [] }, 'PUT'))
-    const reset = await request('/api/v1/home/reset', { method: 'POST' })
-    expect(reset.headers.get('ETag')).toBe('"3"')
+    const again = await reset()
+    expect(again.headers.get('ETag')).toBe('"3"')
     const stored = await request(`/api/v1/models/${HOME_ID}`)
     expect(await stored.json()).toEqual({ ...homeModel(), id: HOME_ID })
     expect(stored.headers.get('ETag')).toBe('"3"')
+  })
+
+  it('refuses anything but application/json, so a form on another site cannot send it', async () => {
+    await reset()
+    await request(`/api/v1/models/${HOME_ID}`, json({ version: 2, name: 'Mine', features: [] }, 'PUT'))
+    for (const init of [
+      { method: 'POST' },
+      { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'a=1' },
+      { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: '{}' },
+    ]) {
+      const response = await request('/api/v1/home/reset', init)
+      expect(response.status).toBe(415)
+      expect(await response.json()).toEqual({ error: 'Send the request as application/json' })
+    }
+    expect(((await (await request(`/api/v1/models/${HOME_ID}`)).json()) as AppModel).name).toBe('Mine')
   })
 })
 

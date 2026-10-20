@@ -25,7 +25,9 @@ export const browserFetchJson: FetchJson = async (url, via) => {
   if (via) return readJson(await proxied({ method: 'GET', url }, via))
   let response: Response
   try {
-    response = await fetch(url)
+    // Never with this site's cookies: an absolute address on this site would otherwise reach any endpoint with the
+    // viewer's session. Other sites never get them anyway.
+    response = await fetch(url, { credentials: 'omit' })
   } catch {
     // The browser says no more than this when a site doesn't let other pages read it (CORS), or can't be reached.
     throw new Error("Couldn't load it. If the site doesn't let other pages read its data, set the data resource's Fetch through to Server.")
@@ -56,8 +58,7 @@ async function onThisSite(url: string, init: RequestInit): Promise<Response> {
       cause: error,
     })
   }
-  if (response.type === 'opaqueredirect' || response.headers.get('Content-Type')?.startsWith('text/html'))
-    throw new Error('Your sign-in has expired; reload the page to sign in again')
+  if (response.type === 'opaqueredirect' || isHtml(response)) throw new Error('Your sign-in has expired; reload the page to sign in again')
   if (!response.ok) {
     const answer = (await response.json().catch(() => ({}))) as { error?: unknown; problems?: unknown }
     const problems = Array.isArray(answer.problems) ? answer.problems.filter((p) => typeof p === 'string') : []
@@ -97,7 +98,7 @@ async function proxied(request: DataRequest, via: Via): Promise<Response> {
     })
   }
   // A page that isn't the site's answer (marked by the proxy) is Access's sign-in page; the site's own pages are its errors.
-  const signInPage = response.headers.get(PROXY_ANSWER_HEADER) !== 'site' && response.headers.get('Content-Type')?.startsWith('text/html')
+  const signInPage = response.headers.get(PROXY_ANSWER_HEADER) !== 'site' && isHtml(response)
   if (response.type === 'opaqueredirect' || signInPage) throw new Error('Your sign-in has expired; reload the page to sign in again')
   if (response.headers.get(PROXY_ERROR_HEADER)) {
     const answer = (await response.json().catch(() => ({}))) as { error?: unknown }
@@ -106,6 +107,8 @@ async function proxied(request: DataRequest, via: Via): Promise<Response> {
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`.trim())
   return response
 }
+
+const isHtml = (response: Response) => !!response.headers.get('Content-Type')?.toLowerCase().startsWith('text/html')
 
 /** Mark the proxy's own errors and the site's answers it passes on (packages/worker/src/proxy.ts). */
 const PROXY_ERROR_HEADER = 'X-Proxy-Error'
@@ -136,7 +139,7 @@ export const browserSendRequest: SendRequest = async (request, via) => {
   } else if (via) response = await proxied(request, via)
   else {
     try {
-      response = await fetch(request.url, requestInit(request))
+      response = await fetch(request.url, { ...requestInit(request), credentials: 'omit' })
     } catch {
       throw new Error("Couldn't send it. If the site doesn't take requests from other pages, set the data resource's Fetch through to Server.")
     }

@@ -106,7 +106,7 @@ export class ApiModelStore implements ModelStore {
 
   /** Puts the built-in home page back, over a stored one or in place of a deleted one. */
   async resetHome(): Promise<void> {
-    await this.ok(await this.request(HOME_RESET_PATH, { method: 'POST' }))
+    await this.ok(await this.request(HOME_RESET_PATH, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }))
   }
 
   private async request(url: string, init: RequestInit = {}): Promise<Response> {

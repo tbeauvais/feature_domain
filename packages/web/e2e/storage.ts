@@ -30,7 +30,7 @@ export async function serveModels(context: BrowserContext): Promise<void> {
   for (const [i, sample] of sampleModels().entries()) await put(`sample-${SAMPLE_SET}-${i + 1}`, sample)
   upstream = () => Promise.reject(new TypeError('fetch failed'))
   const app: WorkerApp = await workerApp(models, async (input, init = {}) => upstream(String(input), init))
-  await app.request(HOME_RESET_PATH, { method: 'POST' })
+  await app.request(HOME_RESET_PATH, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
   const serve = async (route: Route) => {
     const request = route.request()
     const url = new URL(request.url())

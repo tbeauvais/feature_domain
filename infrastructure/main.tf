@@ -126,6 +126,9 @@ resource "cloudflare_zero_trust_access_application" "editor" {
   domain           = var.hostname
   type             = "self_hosted"
   session_duration = var.session_duration
+  # The session cookie goes with navigation to the site, but never with requests other sites' pages make (such as a
+  # form posting to /api), whatever a browser's own default.
+  same_site_cookie_attribute = "lax"
 
   policies = [
     {

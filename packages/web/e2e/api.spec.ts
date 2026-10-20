@@ -33,7 +33,10 @@ test('starts a model from a name, serves its OpenAPI spec, and resets the home p
     const spec = (await (await request.get('/api/v1/openapi.json')).json()) as { openapi: string; servers: { url: string }[] }
     expect(spec).toMatchObject({ openapi: '3.0.3', servers: [{ url: '/api/v1' }] })
 
-    expect((await request.post('/api/v1/home/reset')).status()).toBe(204)
+    // This changes the home model in the shared e2e database (and deletes it afterwards), which other real-D1 tests
+    // (sync.spec.ts) run beside: none of them may depend on what / shows.
+    expect((await request.post('/api/v1/home/reset', { data: {} })).status()).toBe(204)
+    expect((await request.post('/api/v1/home/reset', { form: { a: '1' } })).status()).toBe(415)
     expect(await (await request.get('/api/v1/models/home')).json()).toMatchObject({ id: 'home', name: 'Home page' })
     const listed = (await (await request.get('/api/v1/models')).json()) as { id: string }[]
     expect(listed.map((m) => m.id)).toContain(id)

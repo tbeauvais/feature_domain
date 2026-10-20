@@ -103,8 +103,10 @@ export function createApp(store?: (env: Env) => ServerModelStore, upstream: type
 
   api.get('/openapi.json', (c) => c.json(MODELS_API_SPEC))
 
-  // Puts the built-in home page back, over whatever is stored (a broken one) or in place of a deleted one.
+  // Puts the built-in home page back, over whatever is stored (a broken one) or in place of a deleted one. Only as
+  // application/json, like every other request that changes data, so a form on another site can't send it.
   api.post('/home/reset', async (c) => {
+    if (!c.req.header('Content-Type')?.toLowerCase().startsWith('application/json')) return error(415, 'Send the request as application/json')
     const revision = await c.var.store.put(HOME_ID, homeModel())
     return c.body(null, 204, { ETag: etag(revision) })
   })
