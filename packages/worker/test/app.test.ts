@@ -35,7 +35,7 @@ describe('/api/v1/models', () => {
     const { id } = (await created.json()) as { id: string }
     expect(created.headers.get('Location')).toBe(`/api/v1/models/${id}`)
 
-    expect(await (await request('/api/v1/models')).json()).toEqual([{ id, name: 'Harbor Coffee' }])
+    expect(await (await request('/api/v1/models')).json()).toEqual([{ id, name: 'Harbor Coffee', updated_at: expect.stringMatching(/^\d{4}-\d\d-\d\dT/) }])
     expect(await (await request(`/api/v1/models/${id}`)).json()).toEqual({ ...model, id })
 
     const updated = await request(`/api/v1/models/${id}`, json({ ...model, name: 'Harbor Tea' }, 'PUT'))
@@ -221,6 +221,8 @@ describe('the API', () => {
     for (const [path, allow] of [
       ['/api/v1/models', 'GET, POST'],
       ['/api/v1/models/1', 'GET, PUT, DELETE'],
+      ['/api/v1/openapi.json', 'GET'],
+      ['/api/v1/home/reset', 'POST'],
     ] as const) {
       const response = await request(path, { method: 'PATCH' })
       expect(response.status, path).toBe(405)

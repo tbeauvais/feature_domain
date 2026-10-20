@@ -1,10 +1,10 @@
-import { ModelConflictError, ModelNotFoundError, type AppModel, type ModelStore, type ModelSummary, type StoredModel } from '@feature-domain/engine'
+import { ModelConflictError, ModelNotFoundError, type AppModel, type ModelSummary, type ServerModelStore, type StoredModel } from '@feature-domain/engine'
 
 /**
  * Models in D1 (migrations/), one row each, the model as JSON, with its revision. The model's own `id` is not stored in
  * the JSON: the row's id is the only one, and it is put back on read.
  */
-export class D1ModelStore implements ModelStore {
+export class D1ModelStore implements ServerModelStore {
   constructor(
     private readonly db: D1Database,
     private readonly newId: () => string = () => crypto.randomUUID(),
@@ -12,8 +12,10 @@ export class D1ModelStore implements ModelStore {
   ) {}
 
   async list(): Promise<ModelSummary[]> {
-    const { results } = await this.db.prepare('SELECT id, name FROM models ORDER BY created_at, rowid').all<ModelSummary>()
-    return results.map(({ id, name }) => ({ id, name }))
+    const { results } = await this.db
+      .prepare('SELECT id, name, updated_at FROM models ORDER BY created_at, rowid')
+      .all<{ id: string; name: string; updated_at: number }>()
+    return results.map(({ id, name, updated_at }) => ({ id, name, updatedAt: new Date(updated_at).toISOString() }))
   }
 
   async get(id: string): Promise<StoredModel | null> {
@@ -43,6 +45,19 @@ export class D1ModelStore implements ModelStore {
     const stored = await this.db.prepare('SELECT revision FROM models WHERE id = ?').bind(id).first<number>('revision')
     if (stored === null) throw new ModelNotFoundError(id)
     throw new ModelConflictError(id, stored)
+  }
+
+  async put(id: string, model: AppModel): Promise<number> {
+    const at = this.now()
+    const revision = await this.db
+      .prepare(
+        `INSERT INTO models (id, name, model, created_at, updated_at, revision) VALUES (?, ?, ?, ?, ?, 1)
+         ON CONFLICT (id) DO UPDATE SET name = excluded.name, model = excluded.model, updated_at = excluded.updated_at, revision = revision + 1
+         RETURNING revision`,
+      )
+      .bind(id, model.name, toJson(model), at, at)
+      .first<number>('revision')
+    return revision!
   }
 
   async delete(id: string): Promise<void> {

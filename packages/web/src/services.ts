@@ -12,3 +12,15 @@ export function modelStore(): ModelStore {
 export function setModelStore(next: ModelStore): void {
   store = next
 }
+
+let resetHome: (() => Promise<void>) | undefined
+
+/** Puts the built-in home page back: the Worker's reset (`ApiModelStore.resetHome`) unless tests replace it with `setHomeReset`. */
+export function homeReset(): () => Promise<void> {
+  resetHome ??= () => new ApiModelStore().resetHome()
+  return resetHome
+}
+
+export function setHomeReset(next: () => Promise<void>): void {
+  resetHome = next
+}

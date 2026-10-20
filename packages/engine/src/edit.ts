@@ -6,7 +6,7 @@ import { defaultRegistry } from './features/index.js'
 import { generate, type GenerateResult } from './generate.js'
 import { buildGraph, topoSort } from './graph.js'
 import { resolveInputs } from './inputs.js'
-import { ROOT_ID, type AppModel, type FeatureInstance, type InputValue, type Placement } from './types.js'
+import { ROOT_ID, ROOT_SLOT, type AppModel, type FeatureInstance, type InputValue, type Placement } from './types.js'
 
 /** Where to put a feature: a slot, optionally before a sibling already in that slot (otherwise at the end). */
 export interface PlacementTarget extends Placement {
@@ -24,6 +24,15 @@ export type CanPlace = { ok: true } | { ok: false; reason: string }
 
 export interface EditOptions {
   registry?: FeatureRegistry
+}
+
+/** A new model: one empty page, named `name` (else "Untitled model"). */
+export function newModel(name = ''): AppModel {
+  return {
+    version: 2,
+    name: name.trim() || 'Untitled model',
+    features: [{ feature: 'PageFeature', id: '1', inputs: { name: 'Page' }, placement: { parent: ROOT_ID, slot: ROOT_SLOT } }],
+  }
 }
 
 /** The next free instance id, legacy style: the highest numeric id + 1. */

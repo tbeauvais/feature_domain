@@ -14,7 +14,7 @@ test('stores, reads, updates and deletes models', async ({ request }) => {
   expect(created.status()).toBe(201)
   const { id } = (await created.json()) as { id: string }
 
-  expect(await (await request.get('/api/v1/models')).json()).toContainEqual({ id, name: 'API round trip' })
+  expect(await (await request.get('/api/v1/models')).json()).toContainEqual({ id, name: 'API round trip', updated_at: expect.any(String) })
   expect(await (await request.get(`/api/v1/models/${id}`)).json()).toEqual({ ...model, id })
 
   expect((await request.put(`/api/v1/models/${id}`, { data: { ...model, name: 'Renamed' } })).status()).toBe(204)
@@ -22,6 +22,29 @@ test('stores, reads, updates and deletes models', async ({ request }) => {
 
   expect((await request.delete(`/api/v1/models/${id}`)).status()).toBe(204)
   expect((await request.get(`/api/v1/models/${id}`)).status()).toBe(404)
+})
+
+test('starts a model from a name, serves its OpenAPI spec, and resets the home page, which the list leaves out', async ({ request }) => {
+  const created = await request.post('/api/v1/models', { data: { name: 'Named only' } })
+  expect(created.status()).toBe(201)
+  const { id } = (await created.json()) as { id: string }
+  try {
+    expect(await (await request.get(`/api/v1/models/${id}`)).json()).toMatchObject({ name: 'Named only', features: [{ feature: 'PageFeature' }] })
+    const spec = (await (await request.get('/api/v1/openapi.json')).json()) as { openapi: string; servers: { url: string }[] }
+    expect(spec).toMatchObject({ openapi: '3.0.3', servers: [{ url: '/api/v1' }] })
+
+    // This changes the home model in the shared e2e database (and deletes it afterwards), which other real-D1 tests
+    // (sync.spec.ts) run beside: none of them may depend on what / shows.
+    expect((await request.post('/api/v1/home/reset', { data: {} })).status()).toBe(204)
+    expect((await request.post('/api/v1/home/reset', { form: { a: '1' } })).status()).toBe(415)
+    expect(await (await request.get('/api/v1/models/home')).json()).toMatchObject({ id: 'home', name: 'Home page' })
+    const listed = (await (await request.get('/api/v1/models')).json()) as { id: string }[]
+    expect(listed.map((m) => m.id)).toContain(id)
+    expect(listed.map((m) => m.id)).not.toContain('home')
+  } finally {
+    await request.delete(`/api/v1/models/${id}`)
+    await request.delete('/api/v1/models/home')
+  }
 })
 
 test('versions saves, refusing one made from an older version', async ({ request }) => {

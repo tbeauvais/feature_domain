@@ -1,7 +1,7 @@
 import { MemoryModelStore, ModelConflictError, ModelNotFoundError } from '@feature-domain/engine'
 import { describe, expect, it, vi } from 'vitest'
 import { describeModelStore } from '../../engine/test/store-contract'
-import { ApiError, ApiModelStore, KEEPALIVE_MAX_BYTES, REQUEST_TIMEOUT_MS, revisionOf, SignedOutError } from '../src/stores/apiModelStore'
+import { ApiError, ApiModelStore, HOME_ID, KEEPALIVE_MAX_BYTES, REQUEST_TIMEOUT_MS, revisionOf, SignedOutError } from '../src/stores/apiModelStore'
 import { model, page } from './helpers'
 import { workerApp } from './workerApp'
 
@@ -69,7 +69,8 @@ describe('ApiModelStore', () => {
     const json = (body: unknown, headers: Record<string, string> = {}) =>
       new ApiModelStore(answer(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json', ...headers } }))
     const odd = { name: 'ApiError', message: 'the server sent an answer the editor does not understand' }
-    await expect(json([{ id: 1, name: 'x' }]).list()).rejects.toMatchObject(odd)
+    await expect(json([{ id: 1, name: 'x', updated_at: '2026-10-20T08:00:00.000Z' }]).list()).rejects.toMatchObject(odd)
+    await expect(json([{ id: '1', name: 'x' }]).list()).rejects.toMatchObject(odd)
     await expect(json({ not: 'a list' }).list()).rejects.toMatchObject(odd)
     await expect(json([1]).get('a')).rejects.toMatchObject(odd)
     // A model without a revision can't be saved safely.
@@ -112,5 +113,19 @@ describe('ApiModelStore', () => {
     const { api, fetch } = await worker()
     await api.get('a/b?c')
     expect(fetch.mock.calls[0]![0]).toBe('/api/v1/models/a%2Fb%3Fc')
+  })
+
+  it('lists when each model was last saved', async () => {
+    const { api, store } = await worker(new MemoryModelStore(undefined, () => Date.UTC(2026, 9, 20, 8, 30)))
+    const id = await store.create(model(page()))
+    expect(await api.list()).toEqual([{ id, name: 'test', updatedAt: '2026-10-20T08:30:00.000Z' }])
+  })
+
+  it("puts the built-in home page back under the Worker's home id, which the list leaves out", async () => {
+    const { api, store } = await worker()
+    await api.resetHome()
+    expect((await api.get(HOME_ID))?.model.name).toBe('Home page')
+    expect(await api.list()).toEqual([])
+    expect((await store.list()).map((m) => m.id)).toEqual([HOME_ID])
   })
 })

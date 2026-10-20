@@ -58,9 +58,9 @@ export const TableFeature: FeatureDefinition = {
     const listed = listSource(resolved.id, resource, asString(inputs.operation), ctx, 'a table')
     if (listed.source) {
       props.source = listed.source
-      // Columns: a spec's (which win, as in the legacy app, for an address), else the chosen fields, else the rows' keys.
+      // Columns: the chosen fields, else a spec's, else the rows' keys.
       const fields = asList(inputs.fields)
-      if (listed.schemaColumns && (!listed.source.rows || props.columns.length === 0)) props.columns = listed.schemaColumns
+      if (listed.schemaColumns && props.columns.length === 0) props.columns = listed.schemaColumns
       else if (props.columns.length === 0 && listed.source.rows) props.columns = columnsFromRows(listed.source.rows)
       // With no Fields of its own, Labels and Filters apply to these columns in order (e.g. "currency" for an amount).
       if (fields.length === 0) props.columns = withInputs(props.columns, asList(inputs.labels), asList(inputs.filters))

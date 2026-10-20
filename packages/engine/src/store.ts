@@ -3,6 +3,8 @@ import type { AppModel } from './types.js'
 export interface ModelSummary {
   id: string
   name: string
+  /** When the model was last saved (or created), as an ISO 8601 date and time. */
+  updatedAt: string
 }
 
 /**
@@ -36,6 +38,15 @@ export interface ModelStore {
   delete(id: string): Promise<void>
 }
 
+/** A store the Worker runs on, which can also store a model under an id of its choosing (the home page's). */
+export interface ServerModelStore extends ModelStore {
+  /**
+   * Stores a model under this id and returns its revision: it replaces the stored model as `update` without
+   * `ifRevision` does, or creates it (revision 1) when there is none.
+   */
+  put(id: string, model: AppModel): Promise<number>
+}
+
 export class ModelNotFoundError extends Error {
   constructor(readonly id: string) {
     super(`Model "${id}" does not exist`)
@@ -59,24 +70,27 @@ export class ModelConflictError extends Error {
 const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
 /** An in-memory store, for tests and as a reference implementation of the contract. */
-export class MemoryModelStore implements ModelStore {
-  private readonly models = new Map<string, StoredModel>()
+export class MemoryModelStore implements ServerModelStore {
+  private readonly models = new Map<string, StoredModel & { updatedAt: number }>()
   private counter = 0
 
-  constructor(private readonly newId: () => string = () => `model-${++this.counter}`) {}
+  constructor(
+    private readonly newId: () => string = () => `model-${++this.counter}`,
+    private readonly now: () => number = Date.now,
+  ) {}
 
   async list(): Promise<ModelSummary[]> {
-    return [...this.models].map(([id, m]) => ({ id, name: m.model.name }))
+    return [...this.models].map(([id, m]) => ({ id, name: m.model.name, updatedAt: new Date(m.updatedAt).toISOString() }))
   }
 
   async get(id: string): Promise<StoredModel | null> {
     const stored = this.models.get(id)
-    return stored ? copy(stored) : null
+    return stored ? copy({ model: stored.model, revision: stored.revision }) : null
   }
 
   async create(model: AppModel): Promise<string> {
     const id = this.newId()
-    this.models.set(id, { model: { ...copy(model), id }, revision: 1 })
+    this.models.set(id, { model: { ...copy(model), id }, revision: 1, updatedAt: this.now() })
     return id
   }
 
@@ -85,7 +99,13 @@ export class MemoryModelStore implements ModelStore {
     if (!stored) throw new ModelNotFoundError(id)
     if (ifRevision !== undefined && ifRevision !== stored.revision) throw new ModelConflictError(id, stored.revision)
     const revision = stored.revision + 1
-    this.models.set(id, { model: { ...copy(model), id }, revision })
+    this.models.set(id, { model: { ...copy(model), id }, revision, updatedAt: this.now() })
+    return revision
+  }
+
+  async put(id: string, model: AppModel): Promise<number> {
+    const revision = (this.models.get(id)?.revision ?? 0) + 1
+    this.models.set(id, { model: { ...copy(model), id }, revision, updatedAt: this.now() })
     return revision
   }
 

@@ -9,7 +9,7 @@ isolateNetwork()
 test.use({ viewport: { width: 1280, height: 900 } })
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/models')
   await page.getByTestId('new-model').click()
   await expect(page.getByTestId('model-name')).toHaveValue('Untitled model')
 })

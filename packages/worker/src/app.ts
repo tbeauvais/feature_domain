@@ -1,8 +1,10 @@
-import { ModelConflictError, ModelNotFoundError, validateModel, type AppModel, type ModelStore } from '@feature-domain/engine'
+import { ModelConflictError, ModelNotFoundError, newModel, validateModel, type AppModel, type ServerModelStore } from '@feature-domain/engine'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { D1ModelStore, toJson } from './d1ModelStore'
 import type { Env } from './env'
+import { HOME_ID, homeModel } from './home'
+import { MODELS_API_SPEC } from './openapi'
 import { allowedOrigins, forward, PROXY_ERROR_HEADER, PROXY_LIMITS, ProxyError, readProxyRequest } from './proxy'
 
 /**
@@ -19,7 +21,7 @@ export const API_HEADERS = {
   'Referrer-Policy': 'no-referrer',
 }
 
-type AppEnv = { Bindings: Env; Variables: { store: ModelStore } }
+type AppEnv = { Bindings: Env; Variables: { store: ServerModelStore } }
 
 /**
  * The Worker's HTTP API. Every response under /api is JSON; errors are `{ error, problems? }`. `store` replaces the D1
@@ -31,7 +33,7 @@ type AppEnv = { Bindings: Env; Variables: { store: ModelStore } }
  *
  * POST /proxy fetches an address for a page (src/proxy.ts); `upstream` replaces the fetch it uses (tests).
  */
-export function createApp(store?: (env: Env) => ModelStore, upstream: typeof fetch = (...args) => fetch(...args)) {
+export function createApp(store?: (env: Env) => ServerModelStore, upstream: typeof fetch = (...args) => fetch(...args)) {
   const app = new Hono<AppEnv>()
   const api = new Hono<AppEnv>()
   const originsOf = originsCache()
@@ -51,10 +53,18 @@ export function createApp(store?: (env: Env) => ModelStore, upstream: typeof fet
     await next()
   })
 
-  api.get('/models', async (c) => c.json(await c.var.store.list(), 200, { 'Cache-Control': 'no-cache' }))
+  // The home page's model is left out: it is the page showing this list, opened by its "Edit home page" link.
+  api.get('/models', async (c) => {
+    const models = (await c.var.store.list()).filter((m) => m.id !== HOME_ID)
+    return c.json(
+      models.map(({ id, name, updatedAt }) => ({ id, name, updated_at: updatedAt })),
+      200,
+      { 'Cache-Control': 'no-cache' },
+    )
+  })
 
   api.post('/models', limit, async (c) => {
-    const model = await readModel(c.req.raw)
+    const model = await readModel(c.req.raw, true)
     if (model instanceof Response) return model
     const id = await c.var.store.create(model)
     // Every store creates models at revision 1 (the ModelStore contract checks it).
@@ -91,6 +101,16 @@ export function createApp(store?: (env: Env) => ModelStore, upstream: typeof fet
     return c.body(null, 204)
   })
 
+  api.get('/openapi.json', (c) => c.json(MODELS_API_SPEC))
+
+  // Puts the built-in home page back, over whatever is stored (a broken one) or in place of a deleted one. Only as
+  // application/json, like every other request that changes data, so a form on another site can't send it.
+  api.post('/home/reset', async (c) => {
+    if (!c.req.header('Content-Type')?.toLowerCase().startsWith('application/json')) return error(415, 'Send the request as application/json')
+    const revision = await c.var.store.put(HOME_ID, homeModel())
+    return c.body(null, 204, { ETag: etag(revision) })
+  })
+
   api.post('/proxy', proxyLimit, async (c) => {
     try {
       if (!c.req.header('Content-Type')?.toLowerCase().startsWith('application/json')) throw new ProxyError(400, 'Send the request as application/json')
@@ -113,6 +133,8 @@ export function createApp(store?: (env: Env) => ModelStore, upstream: typeof fet
   api.all('/models', () => error(405, 'Method not allowed', { allow: 'GET, POST' }))
   api.all('/models/:id', () => error(405, 'Method not allowed', { allow: 'GET, PUT, DELETE' }))
   api.all('/proxy', () => proxyError(405, 'Method not allowed', 'POST'))
+  api.all('/openapi.json', () => error(405, 'Method not allowed', { allow: 'GET' }))
+  api.all('/home/reset', () => error(405, 'Method not allowed', { allow: 'POST' }))
 
   app.route('/api/v1', api)
   app.all('/api/*', () => error(404, 'No such API endpoint'))
@@ -127,8 +149,11 @@ const tooLarge = () => error(413, `Models are limited to ${MAX_MODEL_BYTES} byte
 const limit = bodyLimit({ maxSize: MAX_MODEL_BYTES, onError: tooLarge })
 const bytes = (value: string) => new TextEncoder().encode(value).length
 
-/** The request's model, or the error response to send instead. */
-async function readModel(request: Request): Promise<AppModel | Response> {
+/**
+ * The request's model, or the error response to send instead. With `named`, a body that is only `{ name }` (what a
+ * form sends) starts a new model with one empty page.
+ */
+async function readModel(request: Request, named = false): Promise<AppModel | Response> {
   if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) {
     return error(415, 'Send the model as application/json')
   }
@@ -138,11 +163,24 @@ async function readModel(request: Request): Promise<AppModel | Response> {
   } catch {
     return error(400, 'The body is not valid JSON')
   }
+  if (named && isNameOnly(body)) {
+    if (typeof body.name !== 'string' || body.name.trim() === '') return error(400, 'The model is not valid', { problems: ['Give the model a name'] })
+    body = newModel(body.name)
+  }
   const problems = validateModel(body)
   if (problems.length > 0) return error(400, 'The model is not valid', { problems })
   const model = body as AppModel
   return bytes(toJson(model)) + bytes(model.name) > MAX_MODEL_BYTES ? tooLarge() : model
 }
+
+/** A body that names a model but holds none of one: no version or features. */
+const isNameOnly = (body: unknown): body is { name: unknown } =>
+  typeof body === 'object' &&
+  body !== null &&
+  !Array.isArray(body) &&
+  Object.hasOwn(body, 'name') &&
+  !Object.hasOwn(body, 'version') &&
+  !Object.hasOwn(body, 'features')
 
 const proxyLimit = bodyLimit({
   maxSize: PROXY_LIMITS.requestBytes,

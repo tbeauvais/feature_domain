@@ -1,4 +1,4 @@
 import { MemoryModelStore } from '../src'
-import { describeModelStore } from './store-contract'
+import { describeServerModelStore } from './store-contract'
 
-describeModelStore('MemoryModelStore', () => new MemoryModelStore())
+describeServerModelStore('MemoryModelStore', () => new MemoryModelStore())

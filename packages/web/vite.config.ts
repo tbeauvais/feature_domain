@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { defaultClientConditions } from 'vite'
 import { defineConfig } from 'vitest/config'
-import { vueCompilerOptions } from './vueCompilerOptions'
+import { vueCompilerOptions } from './vueCompilerOptions.ts'
 
 const worker = (path: string) => fileURLToPath(new URL(`../worker/${path}`, import.meta.url))
 

@@ -3,7 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { setModelStore } from '../src/services'
-import { SignedOutError } from '../src/stores/apiModelStore'
+import { HOME_ID, SignedOutError } from '../src/stores/apiModelStore'
 import ModelListView from '../src/views/ModelListView.vue'
 
 function list(store: MemoryModelStore) {
@@ -43,5 +43,17 @@ describe('the model list over the network', () => {
     await flushPromises()
     expect(w.get('[data-testid="create-error"]').text()).toBe('Could not create a model: offline.')
     expect(router.currentRoute.value.name).not.toBe('model')
+  })
+
+  it('offers Edit home page only when there is a home model to edit', async () => {
+    const store = new MemoryModelStore()
+    const links = async () => {
+      const { w } = list(store)
+      await flushPromises()
+      return w.findAll('nav a').map((a) => a.text())
+    }
+    expect(await links()).toEqual(['Home page'])
+    await store.put(HOME_ID, { version: 2, name: 'Home page', features: [] })
+    expect(await links()).toEqual(['Home page', 'Edit home page'])
   })
 })

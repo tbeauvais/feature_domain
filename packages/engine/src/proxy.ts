@@ -5,12 +5,13 @@ import { defaultRegistry } from './features/index.js'
 import type { FeatureRegistry } from './feature.js'
 import { generate } from './generate.js'
 import { asString } from './inputs.js'
+import { isModelsApiAddress } from './links.js'
 import type { AppModel } from './types.js'
 
 /**
  * The addresses of a model's data resources whose Fetch through is Server: their operations' addresses (with `{name}`
  * placeholders as written) and an API spec's Spec URL (Load spec fetches it). Resources that don't generate (disabled,
- * skipped) and sample-data operations give none. The proxy allows any address on the same origin as one of these.
+ * skipped), sample-data operations and the models API on this site (always fetched by the browser) give none. The proxy allows any address on the same origin as one of these.
  */
 export function proxyAddresses(model: AppModel, registry: FeatureRegistry = defaultRegistry): string[] {
   const result = generate(model, registry)
@@ -19,7 +20,8 @@ export function proxyAddresses(model: AppModel, registry: FeatureRegistry = defa
     if (!DATA_RESOURCE_TYPES.includes(instance.feature)) continue
     const exports = result.exports.get(instance.id)
     if (!isDataResourceExports(exports) || exports.fetchThrough !== 'server') continue
-    for (const operation of exports.operations) if (!operation.sample && operation.endPoint) addresses.add(operation.endPoint)
+    for (const operation of exports.operations)
+      if (!operation.sample && operation.endPoint && !isModelsApiAddress(operation.endPoint)) addresses.add(operation.endPoint)
     const specUrl = asString(instance.inputs.spec_url).trim()
     if (instance.feature === 'SwaggerDataResourceFeature' && specUrl) addresses.add(specUrl)
   }

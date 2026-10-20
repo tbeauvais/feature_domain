@@ -3,8 +3,9 @@ import { join } from 'node:path'
 import type { AppModel } from '@feature-domain/engine'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { SAMPLE_MODELS } from '../../web/src/data/sampleModels'
-import { seedSql, SEEDED_KEY } from '../scripts/seedSql'
+import { HOME_SEEDED_KEY, homeSeedSql, seedSql, SEEDED_KEY } from '../scripts/seedSql'
 import { D1ModelStore } from '../src/d1ModelStore'
+import { HOME_ID, homeModel } from '../src/home'
 import { localD1, wrangler, type LocalD1 } from './localD1'
 
 let d1: LocalD1
@@ -51,9 +52,28 @@ it('finishes a seed that stopped partway without storing a sample twice', async 
   expect(await d1.env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(SEEDED_KEY).first('value')).toBe('2')
 }, 60_000)
 
+it('seeds the home model once, alongside samples seeded before, and never over a stored one', async () => {
+  await clear()
+  seed(SAMPLE_MODELS)
+  const store = new D1ModelStore(d1.env.DB)
+  seed([], homeSeedSql(homeModel()))
+  expect(await store.get(HOME_ID)).toEqual({ model: { ...homeModel(), id: HOME_ID }, revision: 1 })
+  expect(await d1.env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(HOME_SEEDED_KEY).first('value')).toBe('1')
+
+  // A deleted home page stays deleted (the app offers Reset home page), and a changed one stays as it is.
+  await store.delete(HOME_ID)
+  seed([], homeSeedSql(homeModel()))
+  expect(await store.get(HOME_ID)).toBeNull()
+  await d1.env.DB.exec('DELETE FROM settings')
+  await store.put(HOME_ID, { version: 2, name: 'Mine', features: [] })
+  seed([], homeSeedSql(homeModel()))
+  expect((await store.get(HOME_ID))?.model.name).toBe('Mine')
+}, 60_000)
+
 it('keeps every statement within the size D1 runs on Cloudflare', () => {
   // D1 limits a SQL statement to 100,000 bytes on Cloudflare, but not locally.
-  for (const statement of seedSql(SAMPLE_MODELS, 2).split('\n')) expect(new TextEncoder().encode(statement).length).toBeLessThan(100_000)
+  for (const statement of (seedSql(SAMPLE_MODELS, 2) + homeSeedSql(homeModel())).split('\n'))
+    expect(new TextEncoder().encode(statement).length).toBeLessThan(100_000)
 })
 
 it('stores names and text holding quotes and semicolons as they are', async () => {
