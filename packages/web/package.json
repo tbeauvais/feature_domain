@@ -2,6 +2,7 @@
   "name": "@feature-domain/web",
   "version": "0.1.0",
   "private": true,
+  "license": "FSL-1.1-ALv2",
   "description": "Vue editor and renderer for feature-based application models",
   "type": "module",
   "scripts": {

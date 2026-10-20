@@ -167,4 +167,6 @@ A feature instance in the application model contains the following:
 The application metadata is used to publish information related to feature instances. The feature metadata can be used at generation time by other features to introspect information about the application under construction, and at design time to enhance the visual or feature input pages. The application metadata is transient.
 
 # License
-Released under the MIT license.
+Released under the [Functional Source License, Version 1.1, ALv2 Future License](LICENSE.md) (FSL-1.1-ALv2): you may use, change and share it for any purpose except offering a competing product or service, and each version also becomes available under the Apache License 2.0 two years after its release.
+
+Versions published before this change were released under the MIT license, and remain available under it.
