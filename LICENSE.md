@@ -6,7 +6,7 @@ FSL-1.1-ALv2
 
 ## Notice
 
-Copyright 2014-2026 Tom Beauvais
+Copyright 2014-2026 Thomas Beauvais
 
 ## Terms and Conditions
 
