@@ -2,6 +2,7 @@
 import type { InputDef, InputValue } from '@feature-domain/engine'
 import { computed, ref, watch } from 'vue'
 import ApiSpecField from './ApiSpecField.vue'
+import { canonicalWidths, columnPresets } from './columnPresets'
 import IllustrationGallery from './IllustrationGallery.vue'
 import PlaceSearchField from './PlaceSearchField.vue'
 
@@ -67,6 +68,10 @@ function onDraft(raw: string) {
   draft.value = raw
   emit('change', parse(raw))
 }
+// A Container's Column widths: the presets for its number of columns, and which one the stored widths are.
+const presets = computed(() => (props.def.control === 'column-widths' ? columnPresets(props.inputs?.columns) : []))
+const canonical = computed(() => (props.def.control === 'column-widths' ? canonicalWidths(current.value, props.inputs?.columns) : undefined))
+
 /** On leaving the field, show the value the model actually holds. */
 function settle() {
   draft.value = text.value
@@ -199,6 +204,33 @@ function settle() {
       :value="text"
       @input="emit('change', ($event.target as HTMLTextAreaElement).value)"
     />
+
+    <!-- Column widths: common layouts as buttons, and the shares typed (applied on leaving the field). -->
+    <template v-else-if="def.control === 'column-widths'">
+      <div v-if="presets.length > 0" role="group" :aria-label="`${def.label} presets`" class="flex flex-wrap gap-1">
+        <button
+          v-for="preset in presets"
+          :key="preset.value"
+          type="button"
+          class="rounded-md border px-2 py-0.5 text-xs"
+          :class="preset.value === canonical ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'"
+          :aria-pressed="preset.value === canonical"
+          :data-preset="preset.value || 'equal'"
+          @click="emit('change', preset.value)"
+        >
+          {{ preset.text }}
+        </button>
+      </div>
+      <input
+        :id="id"
+        type="text"
+        :class="field"
+        :placeholder="def.placeholder"
+        :aria-describedby="def.hint ? `${id}-hint` : undefined"
+        :value="text"
+        @change="emit('change', ($event.target as HTMLInputElement).value)"
+      />
+    </template>
 
     <!-- Committed on leaving the field (the change event) when each value would cost a request. -->
     <input

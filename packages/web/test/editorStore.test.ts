@@ -253,6 +253,34 @@ describe('editing with useDocumentStore', () => {
       expect(doc.canUndo).toBe(false)
     })
 
+    it('makes a gesture one step however long it takes, and separate gestures separate steps', async () => {
+      const doc = await open(model(page(), inst('ChartFeature', 'c', { height: 'medium' })))
+      doc.setInputs('c', { height: 'tall' }, 'g1')
+      await vi.advanceTimersByTimeAsync(UNDO_COALESCE_MS * 3)
+      doc.setInputs('c', { height: 'short' }, 'g1')
+      doc.setInputs('c', { height: 'tall' }, 'g2')
+      doc.undo()
+      expect(doc.model?.features[1]?.inputs.height).toBe('short')
+      doc.undo()
+      expect(doc.model?.features[1]?.inputs.height).toBe('medium')
+      expect(doc.canUndo).toBe(false)
+    })
+
+    it('takes back a cancelled gesture without a redo step, and nothing when it changed nothing', async () => {
+      const doc = await open(model(page(), inst('ChartFeature', 'c', { height: 'medium' })))
+      doc.setInputs('c', { name: 'Sales' })
+      doc.setInputs('c', { height: 'tall' }, 'g1')
+      doc.setInputs('c', { height: 'short' }, 'g1')
+      doc.cancelGesture('g1')
+      expect(doc.model?.features[1]?.inputs).toMatchObject({ name: 'Sales', height: 'medium' })
+      expect(doc.canRedo).toBe(false)
+      // A gesture that changed nothing (or another one) leaves the earlier edit alone.
+      doc.cancelGesture('g2')
+      doc.cancelGesture('g1')
+      expect(doc.model?.features[1]?.inputs.name).toBe('Sales')
+      expect(doc.canUndo).toBe(true)
+    })
+
     it('drops redo after a new edit, and forgets history when another model loads', async () => {
       const doc = await open(model(page()))
       doc.rename('a')

@@ -3,6 +3,10 @@ import { deepFreeze } from './helpers'
 import {
   ButtonFeature,
   ContainerFeature,
+  columnEdgeFraction,
+  formatColumnWidths,
+  moveColumnEdge,
+  parseColumnWidths,
   coreFeatures,
   DataResourceFeature,
   BANNER_HEIGHTS,
@@ -292,6 +296,67 @@ describe('ContainerFeature', () => {
 
   it('clamps columns to 12 and rows to at least 1', () => {
     expect(run(ContainerFeature, { columns: 40, rows: -2 }).out.node?.props).toMatchObject({ columns: 12, rows: 1 })
+  })
+
+  it('sizes columns by their Column widths shares, reduced', () => {
+    expect(run(ContainerFeature, { columns: 2, column_widths: '8, 4' }).out.node?.props).toEqual({ rows: 1, columns: 2, well: true, widths: [2, 1] })
+    // Equal shares, and stored containers without the input, keep equal columns (no widths at all).
+    expect(run(ContainerFeature, { columns: 3, column_widths: '2,2,2' }).out.node?.props).not.toHaveProperty('widths')
+    expect(runStored(ContainerFeature, { columns: 3 }).out.node?.props).toEqual({ rows: 1, columns: 3, well: true })
+  })
+
+  it('gives added columns the mean share and leaves out extra shares', () => {
+    expect(run(ContainerFeature, { columns: 3, column_widths: '8, 4' }).out.node?.props).toMatchObject({ widths: [4, 2, 3] })
+    expect(run(ContainerFeature, { columns: 2, column_widths: '3, 1, 5' }).out.node?.props).toMatchObject({ widths: [3, 1] })
+  })
+
+  it('warns about widths that are not whole numbers and uses equal columns', () => {
+    for (const bad of ['2, x', '1.5, 1', '0, 1', '-1, 2', '1,,2', '1001, 1']) {
+      const { out, report } = run(ContainerFeature, { columns: 2, column_widths: bad })
+      expect(out.node?.props, bad).not.toHaveProperty('widths')
+      expect(report, bad).toHaveBeenCalledWith('warning', expect.stringContaining('Column widths'))
+    }
+  })
+})
+
+describe('moveColumnEdge', () => {
+  it('snaps the edge to twelfths of the row and returns the smallest shares', () => {
+    expect(moveColumnEdge([1, 1], 1, 0.66)).toEqual([2, 1])
+    expect(moveColumnEdge([1, 1], 1, 0.7)).toEqual([2, 1])
+    expect(moveColumnEdge([1, 1], 1, 0.75)).toEqual([3, 1])
+    expect(moveColumnEdge([2, 1], 1, 0.5)).toEqual([1, 1])
+  })
+
+  it('changes only the two columns beside the edge', () => {
+    expect(moveColumnEdge([1, 1, 1], 2, 0.75)).toEqual([4, 5, 3])
+    // Five equal columns aren't twelfths; the others keep their widths exactly.
+    expect(moveColumnEdge([1, 1, 1, 1, 1], 1, 0.25)).toEqual([5, 3, 4, 4, 4])
+  })
+
+  it('keeps every column at least a twelfth wide', () => {
+    expect(moveColumnEdge([1, 1], 1, 1)).toEqual([11, 1])
+    expect(moveColumnEdge([1, 1], 1, -3)).toEqual([1, 11])
+    expect(moveColumnEdge([1, 1, 1], 1, 0.9)).toEqual([7, 1, 4])
+    // A column narrower than a twelfth: an edge between two such columns has nowhere to go.
+    expect(moveColumnEdge([1, 30], 1, 0.5)).toEqual([1, 1])
+    expect(moveColumnEdge([1, 1, 30], 1, 0.5)).toEqual([1, 1, 30])
+  })
+
+  it('leaves the shares as they are for an edge that does not exist or a position that is not a number', () => {
+    expect(moveColumnEdge([2, 1], 0, 0.5)).toEqual([2, 1])
+    expect(moveColumnEdge([2, 1], 2, 0.5)).toEqual([2, 1])
+    expect(moveColumnEdge([2, 1], 1, NaN)).toEqual([2, 1])
+  })
+
+  it('round-trips through the input and the edge position', () => {
+    const shares = parseColumnWidths('3, 1', 2)
+    expect(shares).toEqual([3, 1])
+    expect(columnEdgeFraction([3, 1], 1)).toBe(0.75)
+    expect(formatColumnWidths(moveColumnEdge([3, 1], 1, columnEdgeFraction([3, 1], 1) - 1 / 12))).toBe('2, 1')
+    expect(parseColumnWidths('', 2)).toBeUndefined()
+    // Equal shares are stored as no widths at all, so dragging an edge back to the middle leaves nothing behind.
+    expect(formatColumnWidths(moveColumnEdge([2, 1], 1, 0.5))).toBe('')
+    expect(formatColumnWidths([3, 3, 3])).toBe('')
   })
 })
 

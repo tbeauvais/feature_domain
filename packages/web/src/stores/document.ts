@@ -323,7 +323,8 @@ export const useDocumentStore = defineStore('document', () => {
   function apply(next: AppModel, key?: string): void {
     if (next === model.value || !model.value) return
     const now = Date.now()
-    const continuing = key !== undefined && key === lastKey && now - lastAt < UNDO_COALESCE_MS
+    // A gesture (a resize drag) is one step however long it takes; other edits of one thing merge while they are quick.
+    const continuing = key !== undefined && key === lastKey && (key.startsWith('gesture:') || now - lastAt < UNDO_COALESCE_MS)
     upgradeOnly = false
     if (!continuing) past.value = [...past.value.slice(-(UNDO_LIMIT - 1)), { model: model.value, selectedId: selectedId.value }]
     future.value = []
@@ -393,8 +394,17 @@ export const useDocumentStore = defineStore('document', () => {
     return added.id
   }
 
-  function setInputs(id: string, changes: Record<string, InputValue | undefined>): void {
-    apply(updateInputs(current(), id, changes), `inputs:${id}:${Object.keys(changes).sort().join(',')}`)
+  /**
+   * Changes a feature's inputs. Quick edits of the same inputs are one undo step; with `gesture` (a resize drag, one id
+   * per drag), every change it makes is one step, which `cancelGesture` can take back.
+   */
+  function setInputs(id: string, changes: Record<string, InputValue | undefined>, gesture?: string): void {
+    apply(updateInputs(current(), id, changes), gesture !== undefined ? `gesture:${gesture}` : `inputs:${id}:${Object.keys(changes).sort().join(',')}`)
+  }
+
+  /** Takes back what a gesture changed, if anything (Escape during a resize drag). */
+  function cancelGesture(gesture: string): void {
+    if (lastKey === `gesture:${gesture}`) retract()
   }
 
   /**
@@ -476,6 +486,7 @@ export const useDocumentStore = defineStore('document', () => {
     add,
     addAt,
     setInputs,
+    cancelGesture,
     editText,
     moveTo,
     remove,

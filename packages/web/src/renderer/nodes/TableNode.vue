@@ -5,6 +5,7 @@ import { badgeKey, badgeTints, cellContent, getPath, NUMERIC_FILTERS, parseFilte
 import SpotEmpty from '../illustrations/SpotEmpty.vue'
 import { NotSentFromEditor, useDataStore } from '../data'
 import { useTableRows } from '../rows'
+import { scrollFit } from '../tableFit'
 import { useTheme } from '../theme'
 import { opensNewTab } from '../urls'
 
@@ -115,8 +116,10 @@ const host = computed(() => {
   }
 })
 
-// A scrolling table shows this many rows before it scrolls; its header stays in view.
-const scrollStyle = computed(() => (props.node.props.scrollRows ? { '--table-rows': String(props.node.props.scrollRows) } : undefined))
+// A scrolling table shows this many rows before it scrolls; its header stays in view. The box is sized from the rows
+// as they render (`fit`, see `scrollFit`), and from an estimate of their height (document.css) until they have.
+const fit = ref<string | undefined>()
+const scrollStyle = computed(() => (props.node.props.scrollRows ? { '--table-rows': String(props.node.props.scrollRows), maxHeight: fit.value } : undefined))
 
 // The scroll box is a named, focusable region only while it really scrolls (not with fewer rows, at phone width, or
 // while loading), so keyboard users don't meet tab stops with nothing to scroll.
@@ -124,6 +127,7 @@ const wrap = ref<HTMLElement>()
 const overflows = ref(false)
 function measure() {
   const el = wrap.value
+  fit.value = el && props.node.props.scrollRows ? scrollFit(el, props.node.props.scrollRows) : undefined
   overflows.value = Boolean(props.node.props.scrollRows) && el !== undefined && el.scrollHeight > el.clientHeight
 }
 let observer: ResizeObserver | undefined

@@ -24,7 +24,19 @@ import { ThemeFeature } from './theme.js'
 export { ApiSpecFeature, MAX_SPEC_CHARS, MAX_SPEC_OPERATIONS, readApiSpec, type ReadSpec } from './api-spec.js'
 export { ButtonFeature } from './button.js'
 export { ChartFeature } from './chart.js'
-export { ContainerFeature, cellSlot, MAX_COLUMNS, MAX_ROWS } from './container.js'
+export {
+  ContainerFeature,
+  cellSlot,
+  columnEdgeFraction,
+  COLUMN_GRID,
+  formatColumnWidths,
+  MAX_COLUMNS,
+  MAX_COLUMN_SHARE,
+  MAX_ROWS,
+  moveColumnEdge,
+  parseColumnWidths,
+  reduceShares,
+} from './container.js'
 export {
   DataResourceFeature,
   DATA_RESOURCE_TYPES,

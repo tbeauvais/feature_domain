@@ -2,6 +2,7 @@
 import type { GenerateResult } from '@feature-domain/engine'
 import { computed } from 'vue'
 import { UNDO_KEYS } from './keys'
+import { resizeHintShown } from './resizeState'
 import { summarize } from './status'
 
 const props = defineProps<{ result: GenerateResult; problemsOpen: boolean }>()
@@ -54,6 +55,9 @@ const summary = computed(() => summarize(props.result))
     </button>
     <span data-testid="status-counts">{{ summary.countsLabel }}</span>
     <span class="flex-1" />
-    <span class="hidden sm:inline">Drag to move · {{ UNDO_KEYS }} undo · ? shortcuts</span>
+    <span v-if="resizeHintShown" class="hidden sm:inline" data-testid="resize-hint"
+      >Drag or use the arrow keys to resize · Shift: finer · Esc: put it back</span
+    >
+    <span v-else class="hidden sm:inline">Drag to move · {{ UNDO_KEYS }} undo · ? shortcuts</span>
   </footer>
 </template>

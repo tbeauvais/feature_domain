@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { nextTick, ref, watch } from 'vue'
+import { useRemeasure } from './useRemeasure'
 
 // Outlines the selected feature, or the text being edited in place (`editing`). It lives outside the generated page
 // (.fd-root), because the page is a hard CSS boundary where editor (Tailwind) styles have no effect; it is positioned
@@ -8,8 +9,7 @@ const props = defineProps<{ container: HTMLElement | null; selectedId: string | 
 
 const box = ref<{ top: number; left: number; width: number; height: number } | null>(null)
 
-let observer: ResizeObserver | undefined
-let observed: Element | null = null
+const { observe } = useRemeasure(() => props.container, measure)
 
 function measure() {
   const container = props.container
@@ -20,12 +20,7 @@ function measure() {
       : props.selectedId !== null
         ? container.querySelector(`[data-feature-id="${CSS.escape(props.selectedId)}"]`)
         : null
-  // Also watch the selected element itself: its size changes when content arrives later (table rows, images).
-  if (el !== observed) {
-    if (observed) observer?.unobserve(observed)
-    if (el) observer?.observe(el)
-    observed = el
-  }
+  observe(el)
   if (!container || !el) {
     box.value = null
     return
@@ -46,36 +41,6 @@ watch(
   () => void nextTick(measure),
   { immediate: true },
 )
-
-// Images finishing loading inside the page (load events don't bubble, so listen while capturing).
-const onLoad = () => measure()
-onMounted(() => {
-  window.addEventListener('resize', measure)
-  watch(
-    () => props.container,
-    (el, old) => {
-      old?.removeEventListener('load', onLoad, true)
-      el?.addEventListener('load', onLoad, true)
-    },
-    { immediate: true },
-  )
-  if (typeof ResizeObserver !== 'undefined') {
-    observer = new ResizeObserver(measure)
-    watch(
-      () => props.container,
-      (el) => {
-        observer?.disconnect()
-        if (el) observer?.observe(el)
-      },
-      { immediate: true },
-    )
-  }
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', measure)
-  props.container?.removeEventListener('load', onLoad, true)
-  observer?.disconnect()
-})
 </script>
 
 <template>
