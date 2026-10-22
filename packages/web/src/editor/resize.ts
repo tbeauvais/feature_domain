@@ -1,4 +1,4 @@
-import { clamp, NAMED_HEIGHTS, snapHeight, snapWidth, type Align, type Height, type HeightScale, type Width, type WidthScale } from '@feature-domain/engine'
+import { clamp, NAMED_HEIGHTS, snapHeight, snapWidth, type Align, type Height, type HeightScale, type Width, type PixelScale } from '@feature-domain/engine'
 
 // Pure mappings from a pointer position (or an arrow key) to an input value, for the resize handles on the canvas
 // (`ResizeHandles.vue`). Positions are in pixels in any one coordinate space; the caller measures the page.
@@ -155,13 +155,13 @@ export function heightBy(current: Height, by: number, scale: HeightScale, toName
  * room. `keep`: a stored width at least as wide as the room (or full), kept when the drag reaches the room, so a
  * narrow canvas never quietly narrows a wider setting.
  */
-export function limitWidthAt(px: number, room: number, scale: WidthScale, keep?: Width): Width {
+export function limitWidthAt(px: number, room: number, scale: PixelScale, keep?: Width): Width {
   if (px >= room - scale.step / 2) return keep === 'full' || (keep !== undefined && keep >= room) ? keep : 'full'
   return snapWidth(px, scale)
 }
 
 /** The width `by` arrow key presses make: steps of the scale, from `cap` when it is full, and full past `cap`. */
-export function limitWidthBy(current: Width, by: number, cap: number, scale: WidthScale): Width {
+export function limitWidthBy(current: Width, by: number, cap: number, scale: PixelScale): Width {
   const next = snapWidth(current === 'full' ? cap : current, scale) + by * scale.step
   return next > cap ? 'full' : snapWidth(next, scale)
 }

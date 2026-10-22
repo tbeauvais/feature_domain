@@ -175,6 +175,7 @@ function measure() {
     references.value = []
     ticks.value = null
     focused.value = hovered.value = null
+    editing.value = null
     return
   }
   const lookup = (id: string) => {
@@ -419,14 +420,17 @@ function startEdit(p: Placed) {
   })
 }
 
-/** Applies the typed value as one undo step; a value it can't read keeps the field open, marked. */
-function commitEdit(keepOnError: boolean) {
+/**
+ * Applies the typed value as one undo step. From the keyboard (Enter), a value it can't read keeps the field open,
+ * marked, and focus goes back to the pill; leaving the field (a click elsewhere) leaves focus where the click put it.
+ */
+function commitEdit(fromKeyboard: boolean) {
   const typing = editing.value
   if (!typing) return
   const p = find(typing.id)
   const changes = p?.handle.parse(typing.text)
   if (!p || !changes) {
-    if (keepOnError && p) {
+    if (fromKeyboard && p) {
       editing.value = { ...typing, invalid: true }
       return
     }
@@ -435,7 +439,7 @@ function commitEdit(keepOnError: boolean) {
   }
   editing.value = null
   if (change(target(p), changes)) announce(p.id)
-  refocus(p.id)
+  if (fromKeyboard) refocus(p.id)
 }
 
 function cancelEdit() {
@@ -521,7 +525,6 @@ const segment = (s: Segment) => {
       />
       <!-- Not interactive (it would catch clicks meant for the feature under it): it says why in a line beneath. -->
       <span
-        aria-hidden="true"
         class="absolute flex -translate-y-1/2 flex-col"
         :class="
           r.drawn.side === 'right'

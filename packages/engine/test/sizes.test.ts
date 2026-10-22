@@ -15,6 +15,7 @@ import {
   MAP_HEIGHT_SCALE,
   matchingPreset,
   MAX_WIDTH_SCALE,
+  MIN_HEIGHT_SCALE,
   readHeight,
   readWidth,
   snapWidth,
@@ -191,6 +192,18 @@ describe('content width', () => {
     expect(themed.page.props).not.toHaveProperty('contentWidth')
     expect(generated(theme, page({ theme: 't', content_width: '720' })).page.props.contentWidth).toBe('720px')
     expect(generated(page({ content_width: 'full' })).page.props.contentWidth).toBe('100%')
+  })
+
+  it("reads a Theme's blank content width as the default, without a warning", () => {
+    const blank = generated(inst('ThemeFeature', 't', { content_width: ' ' }, null), page({ theme: 't' }))
+    expect(blank.problems).toEqual([])
+    expect(blank.page.props.theme?.vars['--fd-content-width']).toBe('1120px')
+    expect(matchingPreset({ content_width: '' })?.id).toBe('warm-editorial')
+  })
+
+  it('reads full as no limit only where a size has one', () => {
+    expect(readWidth('full', MIN_HEIGHT_SCALE)).toBeUndefined()
+    expect(readWidth('none', MAX_WIDTH_SCALE)).toBe('full')
   })
 
   it('warns about widths that are neither pixels nor full', () => {

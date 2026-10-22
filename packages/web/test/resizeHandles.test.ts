@@ -254,6 +254,22 @@ describe('container max width', () => {
     expect(max.parse('half')).toBeUndefined()
   })
 
+  it('keeps a stored max width wider than this canvas unless made narrower', () => {
+    const max = handle(grid(900), 'ContainerFeature', { max_width: '1200', align: 'center' }, 'max-width')!
+    expect(max).toMatchObject({ text: '1200 px', note: '900 px here' })
+    expect(max.at(5000, 0, false)).toEqual({ max_width: '1200' })
+    expect(max.at(800, 0, false)).toEqual({ max_width: '700' })
+    expect(max.by(1, false)).toEqual({ max_width: '1210' })
+    expect(max.by(-1, false)).toEqual({ max_width: '1190' })
+    expect(max.by(1000, false)).toEqual({ max_width: '' })
+  })
+
+  it('puts the edge of a right-aligned container on its left, even while it fills', () => {
+    const max = handle(grid(900), 'ContainerFeature', { max_width: '', align: 'right' }, 'max-width')!
+    expect(max.edge.x).toBe(0)
+    expect(max.at(100, 0, false)).toEqual({ max_width: '800' })
+  })
+
   it('gives it a min height from its bottom edge, fitting its content again above what that needs', () => {
     // 200 px tall with its content (jsdom has no layout, so lifting the min height measures the same).
     const min = handle(grid(900), 'ContainerFeature', { min_height: '' }, 'min-height')!
@@ -317,6 +333,13 @@ describe('page content width', () => {
     expect(own.parse('full')).toEqual({ content_width: 'full' })
     expect(own.parse('960 px')).toEqual({ content_width: '960' })
     expect(own.parse('wide-ish')).toBeUndefined()
+  })
+
+  it('reads a theme whose content width is unreadable as the default, and still sets the theme', () => {
+    const broken = (id: string) => (id === 't' ? { feature: 'ThemeFeature', inputs: { content_width: 'wide' }, name: 'Harbor' } : undefined)
+    const w = resizeHandles(pageEl(), 'PageFeature', '1', { theme: 't', content_width: '' } as never, 'Page', broken).find((h) => h.key === 'content-width')!
+    expect(w).toMatchObject({ text: '1120 px', feature: 't' })
+    expect(w.at(750, 0, false)).toEqual({ content_width: '500' })
   })
 
   it('without a theme, sets the page’s own', () => {

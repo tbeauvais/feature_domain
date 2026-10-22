@@ -22,7 +22,6 @@ import {
   moveColumnEdge,
   parseColumnWidths,
   readHeight,
-  readPixels,
   readWidth,
   reduceShares,
   snapWidth,
@@ -341,8 +340,11 @@ function maxWidth(name: string, find: () => HTMLElement | null, inputs: Inputs):
   const rect = grid.getBoundingClientRect()
   const stored = asString(inputs.max_width).trim() === '' ? 'full' : readWidth(inputs.max_width, MAX_WIDTH_SCALE)
   const current: Width = stored ?? 'full'
-  const align = current === 'full' ? 'center' : asAlign(inputs.align, 'center')
+  // The stored alignment even while it fills, so the first frame of a drag already moves the edge as it will.
+  const align = asAlign(inputs.align, 'center')
   const cap = Math.max(MAX_WIDTH_SCALE.min, Math.floor(room(grid)))
+  // A stored width wider than this canvas can show stays unless made narrower (keys step from it, past the scale: fills).
+  const wide = current !== 'full' && current >= cap
   const set = (width: Width) => ({ max_width: width === 'full' ? '' : formatWidth(width) })
   return {
     key: 'max-width',
@@ -356,9 +358,9 @@ function maxWidth(name: string, find: () => HTMLElement | null, inputs: Inputs):
     max: cap,
     at(x) {
       const now = (find() ?? grid).getBoundingClientRect()
-      return set(limitWidthAt(widthAt(align, now, x), room(find() ?? grid), MAX_WIDTH_SCALE))
+      return set(limitWidthAt(widthAt(align, now, x), room(find() ?? grid), MAX_WIDTH_SCALE, current))
     },
-    by: (by) => set(limitWidthBy(current === 'full' ? 'full' : Math.min(current, cap), by, cap, MAX_WIDTH_SCALE)),
+    by: (by) => set(limitWidthBy(current, by, wide ? MAX_WIDTH_SCALE.max : cap, MAX_WIDTH_SCALE)),
     parse(text) {
       const t = text.trim().toLowerCase()
       if (t === '' || t === 'fills' || t === 'fill' || t === 'none' || t === 'full') return set('full')
@@ -390,8 +392,10 @@ function minHeight(name: string, find: () => HTMLElement | null, inputs: Inputs)
   const grid = find()
   if (!visible(grid)) return undefined
   const rect = grid.getBoundingClientRect()
-  const natural = naturalHeight(grid)
-  const stored = asString(inputs.min_height).trim() === '' ? undefined : readPixels(inputs.min_height, MIN_HEIGHT_SCALE)
+  const read = asString(inputs.min_height).trim() === '' ? undefined : readWidth(inputs.min_height, MIN_HEIGHT_SCALE)
+  const stored = typeof read === 'number' ? read : undefined
+  // Without a min height it is as tall as its content needs, so only a container with one lifts it to measure.
+  const natural = stored === undefined ? rect.height : naturalHeight(grid)
   const fits = (px: number) => px <= natural + MIN_HEIGHT_SCALE.step / 2
   const set = (px: number | undefined) => ({ min_height: px === undefined || fits(px) ? '' : String(snapWidth(px, MIN_HEIGHT_SCALE)) })
   const shown = Math.round(rect.height)
@@ -415,7 +419,7 @@ function minHeight(name: string, find: () => HTMLElement | null, inputs: Inputs)
       const t = text.trim().toLowerCase()
       if (t === '' || t === 'fits' || t === 'fit' || t === 'fits content' || t === 'none' || t === 'auto') return { min_height: '' }
       const px = typedNumber(t, 'px')
-      return px === undefined ? undefined : { min_height: String(readPixels(String(Math.round(px)), MIN_HEIGHT_SCALE)) }
+      return px === undefined ? undefined : { min_height: String(readWidth(String(Math.round(px)), MIN_HEIGHT_SCALE)) }
     },
     accepts: `Pixels (${MIN_HEIGHT_SCALE.min} to ${MIN_HEIGHT_SCALE.max}), or fits`,
     ticks: () => [{ at: (find() ?? grid).getBoundingClientRect().top + natural, label: 'Fits content' }],

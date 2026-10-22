@@ -9,6 +9,35 @@ function render(m: AppModel, fetchJson: FetchJson = async () => []) {
   return mount(DocumentView, { props: { root: generate(m).root }, global: { provide: { [FETCH_JSON as symbol]: fetchJson } } })
 }
 
+describe('container sizes', () => {
+  const gridStyle = (inputs: Record<string, string>) =>
+    (render(model(page(), inst('ContainerFeature', 'c', inputs))).get('[data-feature-id="c"]').element as HTMLElement).style
+
+  it('places a container with a max width left, centered or right, its padding counted', () => {
+    expect(gridStyle({ max_width: '600', align: 'right' })).toMatchObject({
+      maxWidth: '600px',
+      marginLeft: 'auto',
+      marginRight: '0px',
+      boxSizing: 'border-box',
+    })
+    expect(gridStyle({ max_width: '600', align: 'left' })).toMatchObject({ marginLeft: '0px', marginRight: 'auto' })
+    expect(gridStyle({ max_width: '600' })).toMatchObject({ marginLeft: 'auto', marginRight: 'auto' })
+  })
+
+  it('makes a container with a min height stretch its rows, or put them at the top or in the middle', () => {
+    expect(gridStyle({ min_height: '400' })).toMatchObject({ minHeight: '400px', alignContent: '', boxSizing: 'border-box' })
+    expect(gridStyle({ min_height: '400', vertical_align: 'top' })).toMatchObject({ alignContent: 'start' })
+    expect(gridStyle({ min_height: '400', vertical_align: 'center' })).toMatchObject({ alignContent: 'center' })
+    // Neither: none of these styles, as stored containers have.
+    expect(gridStyle({})).toMatchObject({ maxWidth: '', minHeight: '', boxSizing: '', marginLeft: '' })
+  })
+
+  it("gives a page's own content width to its padding", () => {
+    const w = render(model(page({ content_width: '720' })))
+    expect((w.get('[data-feature-id="1"]').element as HTMLElement).style.getPropertyValue('--fd-content-width')).toBe('720px')
+  })
+})
+
 describe('DocumentView', () => {
   it('renders the document tree with one element per node and model ids on feature and slot nodes', () => {
     const w = render(

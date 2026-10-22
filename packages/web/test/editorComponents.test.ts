@@ -187,6 +187,15 @@ describe('InputField sizes', () => {
     ).toBe('Standard')
   })
 
+  it('passes on a word a pixel size has no meaning for, so generation can say so', async () => {
+    const min = ContainerFeature.inputs.find((i) => i.name === 'min_height')!
+    const w = mount(InputField, { props: { def: min, value: '' } })
+    await w.get('input').setValue('full')
+    expect(lastChange(w)).toBe('full')
+    await w.get('input').setValue('400px')
+    expect(lastChange(w)).toBe('400')
+  })
+
   it("leaves a container's max width empty to fill the page", async () => {
     const max = ContainerFeature.inputs.find((i) => i.name === 'max_width')!
     const w = mount(InputField, { props: { def: max, value: '640' } })

@@ -1,7 +1,7 @@
 import type { FeatureDefinition } from '../feature.js'
 import { alignInput, asAlign, asBool, asInt, asOneOf, asString, clamp, disableInput, nameInput, type Inputs } from '../inputs.js'
 import { node } from '../nodes.js'
-import { MAX_WIDTH_SCALE, MIN_HEIGHT_SCALE, readPixels, readWidth } from '../sizes.js'
+import { MAX_WIDTH_SCALE, MIN_HEIGHT_SCALE, readWidth } from '../sizes.js'
 import type { Align } from '../types.js'
 
 export const MAX_COLUMNS = 12
@@ -114,8 +114,8 @@ export const ContainerFeature: FeatureDefinition = {
       default: '',
       placeholder: 'Fills the page',
       hint: 'The widest it gets; narrower screens still fit it. You can also drag its edge on the page.',
-      control: 'width',
-      widthScale: MAX_WIDTH_SCALE,
+      control: 'pixels',
+      pixelScale: MAX_WIDTH_SCALE,
       options: [{ value: '', text: 'Fills' }],
       commitOnBlur: true,
     },
@@ -127,8 +127,8 @@ export const ContainerFeature: FeatureDefinition = {
       default: '',
       placeholder: 'Fits its content',
       hint: 'The least it is tall; it still grows to fit its content. You can also drag its bottom edge on the page.',
-      control: 'width',
-      widthScale: MIN_HEIGHT_SCALE,
+      control: 'pixels',
+      pixelScale: MIN_HEIGHT_SCALE,
       options: [{ value: '', text: 'Fits content' }],
       commitOnBlur: true,
     },
@@ -178,8 +178,8 @@ export const ContainerFeature: FeatureDefinition = {
       }
     }
     if (asString(inputs.min_height).trim() !== '') {
-      const min = readPixels(inputs.min_height, MIN_HEIGHT_SCALE)
-      if (min === undefined) ctx.report('warning', `Min height "${asString(inputs.min_height)}" should be whole pixels such as 400; fitting the content`)
+      const min = readWidth(inputs.min_height, MIN_HEIGHT_SCALE)
+      if (typeof min !== 'number') ctx.report('warning', `Min height "${asString(inputs.min_height)}" should be whole pixels such as 400; fitting the content`)
       else {
         props.minHeight = min
         // Stretch (the default) lets the rows fill the extra height; top and center leave it below or around them.

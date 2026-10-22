@@ -139,6 +139,17 @@ test('types a size on its dimension, refusing what it cannot read', async ({ pag
   await expect.poll(async () => (await inputs('3'))?.column_widths).toBe('1, 3')
 })
 
+test('typing a size, then clicking elsewhere, applies it and leaves focus where the click put it', async ({ page }) => {
+  await select(page, '2')
+  await dim(page, 'banner_height').dblclick()
+  await page.getByTestId('dimension-input').fill('35')
+  const name = page.getByTestId('inspector').getByRole('textbox', { name: 'Name' })
+  await name.click()
+  await expect.poll(async () => (await inputs('2'))?.banner_height).toBe('35%')
+  await expect(page.getByTestId('dimension-input')).toHaveCount(0)
+  await expect(name).toBeFocused()
+})
+
 test('moves a focused dimension with the arrow keys', async ({ page }) => {
   await select(page, '2')
   await dim(page, 'banner_height').focus()

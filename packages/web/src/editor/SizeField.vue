@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { formatHeight, formatWidth, NAMED_HEIGHTS, readHeight, readWidth, snapHeight, type InputDef } from '@feature-domain/engine'
+import { formatHeight, formatWidth, heightText, NAMED_HEIGHTS, readHeight, readWidth, snapHeight, type InputDef } from '@feature-domain/engine'
 import { computed } from 'vue'
 
-// A size input: a Height (named heights as buttons beside a number field in the scale's unit) or a Width (named widths
-// as buttons beside a pixel field). Typed values apply when the field is left or on Enter, normalized ("28" -> "28%");
+// A size input: a Height (named heights as buttons beside a number field in the scale's unit) or a size in pixels
+// (named sizes as buttons beside a pixel field). Typed values apply when the field is left or on Enter, normalized ("28" -> "28%");
 // anything the engine can't read is passed on as typed, so generation says what is wrong with it.
 const props = defineProps<{ id: string; def: InputDef; value: string }>()
 const emit = defineEmits<{ change: [value: string] }>()
@@ -12,13 +12,13 @@ const height = computed(() => (props.def.heightScale ? readHeight(props.value, p
 
 const buttons = computed(() => {
   const scale = props.def.heightScale
-  if (scale) return NAMED_HEIGHTS.map((name) => ({ value: name, text: name[0]!.toUpperCase() + name.slice(1), on: height.value?.name === name }))
-  const width = props.def.widthScale ? readWidth(props.value, props.def.widthScale) : undefined
+  if (scale) return NAMED_HEIGHTS.map((name) => ({ value: name, text: heightText({ value: scale.named[name], name }, scale), on: height.value?.name === name }))
+  const width = props.def.pixelScale ? readWidth(props.value, props.def.pixelScale) : undefined
   const stored = props.value.trim() === '' ? '' : width === undefined ? undefined : formatWidth(width)
   return (props.def.options ?? []).map((o) => ({ value: o.value, text: o.text, on: o.value === stored }))
 })
 
-/** What the number field shows: the height's number (a named one's too), or the width as stored. */
+/** What the number field shows: the height's number (a named one's too), or the size as stored. */
 const shown = computed(() => {
   const scale = props.def.heightScale
   if (!scale) return props.value
@@ -37,7 +37,7 @@ function typed(raw: string) {
     emit('change', read ? formatHeight(read.name ? read : { value: snapHeight(read.value, scale) }, scale) : text)
     return
   }
-  const read = props.def.widthScale && text !== '' ? readWidth(text, props.def.widthScale) : undefined
+  const read = props.def.pixelScale && text !== '' ? readWidth(text, props.def.pixelScale) : undefined
   emit('change', read === undefined ? text : formatWidth(read))
 }
 </script>
@@ -63,7 +63,6 @@ function typed(raw: string) {
       <input
         :id="id"
         type="text"
-        inputmode="numeric"
         class="w-full min-w-0 rounded-md px-2 py-1 text-right text-sm tabular-nums focus:outline-none"
         :placeholder="def.placeholder"
         :aria-describedby="def.hint ? `${id}-hint` : undefined"

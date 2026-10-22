@@ -98,8 +98,8 @@ export const ThemeFeature: FeatureDefinition = {
       type: 'string',
       default: formatWidth(DEFAULT_THEME.contentWidth),
       hint: "How wide a page's content gets; narrower screens still fit it. A page can set its own.",
-      control: 'width',
-      widthScale: CONTENT_WIDTH_SCALE,
+      control: 'pixels',
+      pixelScale: CONTENT_WIDTH_SCALE,
       options: CONTENT_WIDTH_PRESETS.map((p) => ({ value: formatWidth(p.width), text: p.name })),
       commitOnBlur: true,
       group: 'Shape and space',
@@ -111,7 +111,8 @@ export const ThemeFeature: FeatureDefinition = {
 
   generate(inputs, ctx) {
     const raw: Record<string, unknown> = { ...inputs, baseSize: asInt(inputs.base_size, DEFAULT_THEME.baseSize), contentWidth: inputs.content_width }
-    if (readWidth(inputs.content_width, CONTENT_WIDTH_SCALE) === undefined) {
+    // Blank means the default, as on a Page or a Container.
+    if (asString(inputs.content_width).trim() !== '' && readWidth(inputs.content_width, CONTENT_WIDTH_SCALE) === undefined) {
       ctx.report(
         'warning',
         `Content width "${asString(inputs.content_width)}" should be whole pixels such as 960, or full; using ${formatWidth(DEFAULT_THEME.contentWidth)}`,
@@ -155,7 +156,7 @@ export function matchingPreset(inputs: Readonly<Record<string, InputValue>>): Th
     if (color !== '' && hexToOklch(color) === undefined) return undefined
   }
   if (present('base_size') && !Number.isFinite(Number(inputs.base_size))) return undefined
-  if (present('content_width') && readWidth(inputs.content_width, CONTENT_WIDTH_SCALE) === undefined) return undefined
+  if (asString(inputs.content_width).trim() !== '' && readWidth(inputs.content_width, CONTENT_WIDTH_SCALE) === undefined) return undefined
   const params = themeParams(inputs)
   return THEME_PRESETS.find((preset) => {
     const wanted = clampThemeParams(preset.params)

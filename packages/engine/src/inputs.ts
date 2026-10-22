@@ -1,4 +1,4 @@
-import type { HeightScale, WidthScale } from './sizes.js'
+import type { HeightScale, PixelScale } from './sizes.js'
 import type { Align, InputValue } from './types.js'
 
 export type InputType = 'string' | 'text' | 'boolean' | 'integer' | 'color' | 'list' | 'reference'
@@ -44,8 +44,8 @@ export interface InputDef {
   group?: string
   /** For `height` controls: the named heights and the numbers in between (a % of the width, or pixels). */
   heightScale?: HeightScale
-  /** For `width` controls: the pixels a width may take; `options` are named widths offered as buttons. */
-  widthScale?: WidthScale
+  /** For `pixels` controls: the pixels a size may take (and whether `full`); `options` are named sizes offered as buttons. */
+  pixelScale?: PixelScale
   /** For `reference` inputs: feature types the referenced instance may have. */
   accepts?: string[]
   /** For `reference` inputs: generation fails (the feature is skipped) when no instance is referenced. */

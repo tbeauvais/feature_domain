@@ -66,23 +66,25 @@ export function heightText(height: Height, scale: HeightScale): string {
 /** The ratio width / height a height in % of the width gives (an illustration's `aspect`). */
 export const aspectOf = (percent: number) => 100 / percent
 
-// Widths in pixels with a "no limit" value: a Container's Max width and a page's content width.
+// Sizes in whole pixels, some with a "no limit" value: a Container's Max width and Min height, a page's content width.
 
 /** A width: pixels, or `full` (no limit). */
 export type Width = number | 'full'
 
-export interface WidthScale {
+/** Whole pixels from `min` to `max` in steps of `step`; with `full`, also no limit (`full` or `none`). */
+export interface PixelScale {
   min: number
   max: number
   step: number
+  full?: boolean
 }
 
 /** Container min heights: from a strip to several screens. */
-export const MIN_HEIGHT_SCALE: WidthScale = { min: 40, max: 2000, step: 10 }
-/** Container max widths: from a narrow card to the widest content. */
-export const MAX_WIDTH_SCALE: WidthScale = { min: 240, max: 1600, step: 10 }
-/** Page content widths: how wide the content of a page gets. */
-export const CONTENT_WIDTH_SCALE: WidthScale = { min: 480, max: 1600, step: 10 }
+export const MIN_HEIGHT_SCALE: PixelScale = { min: 40, max: 2000, step: 10 }
+/** Container max widths: from a narrow card to the widest content, or filling the page. */
+export const MAX_WIDTH_SCALE: PixelScale = { min: 240, max: 1600, step: 10, full: true }
+/** Page content widths: how wide the content of a page gets, or the whole page. */
+export const CONTENT_WIDTH_SCALE: PixelScale = { min: 480, max: 1600, step: 10, full: true }
 /** The content width pages had before it could be set, and the theme default. */
 export const DEFAULT_CONTENT_WIDTH = 1120
 
@@ -94,23 +96,20 @@ export const CONTENT_WIDTH_PRESETS: readonly { name: string; width: Width }[] = 
   { name: 'Full', width: 'full' },
 ]
 
-/** A stored width: `full` (or `none`), or whole pixels ("960", "960px") kept in range; undefined for anything else. */
-export function readWidth(value: unknown, scale: WidthScale): Width | undefined {
+/**
+ * A stored size: whole pixels ("960", "960px") kept in range, or `full` (also `none`) when the scale has no limit;
+ * undefined for anything else.
+ */
+export function readWidth(value: unknown, scale: PixelScale): Width | undefined {
   const text = asString(value).trim().toLowerCase()
-  if (text === 'full' || text === 'none') return 'full'
+  if (text === 'full' || text === 'none') return scale.full ? 'full' : undefined
   const match = /^(\d+)\s*(px)?$/.exec(text)
   if (!match) return undefined
   return Math.min(scale.max, Math.max(scale.min, Number(match[1])))
 }
 
-/** Stored pixels without a "no limit" value (a Container's Min height): whole pixels ("400", "400px") kept in range. */
-export function readPixels(value: unknown, scale: WidthScale): number | undefined {
-  const match = /^(\d+)\s*(px)?$/.exec(asString(value).trim().toLowerCase())
-  return match ? Math.min(scale.max, Math.max(scale.min, Number(match[1]))) : undefined
-}
-
 /** A width snapped to the scale's step and range. */
-export const snapWidth = (px: number, scale: WidthScale) => Math.min(scale.max, Math.max(scale.min, Math.round(px / scale.step) * scale.step))
+export const snapWidth = (px: number, scale: PixelScale) => Math.min(scale.max, Math.max(scale.min, Math.round(px / scale.step) * scale.step))
 
 /** A width as stored: "full" or whole pixels. */
 export const formatWidth = (width: Width) => (width === 'full' ? 'full' : String(width))

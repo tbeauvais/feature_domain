@@ -116,7 +116,7 @@ function settle() {
     />
 
     <!-- Heights and widths: named sizes as buttons, and the number typed (applied on leaving the field). -->
-    <SizeField v-else-if="def.control === 'height' || def.control === 'width'" :id="id" :def="def" :value="text" @change="emit('change', $event)" />
+    <SizeField v-else-if="def.control === 'height' || def.control === 'pixels'" :id="id" :def="def" :value="text" @change="emit('change', $event)" />
 
     <select v-else-if="def.type === 'reference'" :id="id" :class="field" :value="text" @change="emit('change', ($event.target as HTMLSelectElement).value)">
       <option value="">None</option>
