@@ -1,11 +1,13 @@
-import { BANNER_HEIGHTS, CHART_HEIGHTS } from '@feature-domain/engine'
+import { BANNER_HEIGHT_SCALE, CHART_HEIGHT_SCALE, CONTENT_WIDTH_SCALE, MAX_WIDTH_SCALE } from '@feature-domain/engine'
 import { describe, expect, it } from 'vitest'
 import {
-  aspectHeights,
+  heightAt,
+  heightBy,
   imageWidthAt,
   imageWidthBy,
+  limitWidthAt,
+  limitWidthBy,
   nearestIndex,
-  nearestStep,
   percentWidthAt,
   percentWidthBy,
   scrollRowsAt,
@@ -13,34 +15,58 @@ import {
   scrollRowsBy,
   scrollRowsText,
   sharesText,
-  stepBy,
-  stepText,
   trackFraction,
 } from '../src/editor/resize'
 
-describe('height steps', () => {
-  it('picks the step nearest the dragged height', () => {
-    expect(nearestStep(CHART_HEIGHTS, 0)).toBe('short')
-    expect(nearestStep(CHART_HEIGHTS, 259)).toBe('short')
-    expect(nearestStep(CHART_HEIGHTS, 261)).toBe('medium')
-    expect(nearestStep(CHART_HEIGHTS, 351)).toBe('tall')
-    expect(nearestStep(CHART_HEIGHTS, 9000)).toBe('tall')
-  })
-
-  it('turns width / height shapes into heights at a width', () => {
+describe('heights', () => {
+  it('stick to a named height within 8 px of it, and take whole steps between', () => {
     // A 960 px banner: short 160, medium 240, tall 300.
-    expect(aspectHeights(BANNER_HEIGHTS, 960)).toEqual({ short: 160, medium: 240, tall: 300 })
-    expect(nearestStep(aspectHeights(BANNER_HEIGHTS, 960), 280)).toBe('tall')
-    expect(nearestStep(aspectHeights(BANNER_HEIGHTS, 960), 190)).toBe('short')
+    expect(heightAt(167, 960, BANNER_HEIGHT_SCALE)).toEqual({ value: 100 / 6, name: 'short' })
+    expect(heightAt(260, 960, BANNER_HEIGHT_SCALE)).toEqual({ value: 27 })
+    expect(heightAt(9000, 960, BANNER_HEIGHT_SCALE)).toEqual({ value: 60 })
+    expect(heightAt(0, 960, BANNER_HEIGHT_SCALE)).toEqual({ value: 10 })
+    expect(heightAt(285, 0, CHART_HEIGHT_SCALE)).toEqual({ value: 290 })
+    expect(heightAt(305, 0, CHART_HEIGHT_SCALE)).toEqual({ value: 300, name: 'medium' })
   })
 
-  it('steps with the arrow keys and stays at the ends', () => {
-    const order = ['short', 'medium', 'tall']
-    expect(stepBy(order, 'medium', 1)).toBe('tall')
-    expect(stepBy(order, 'tall', 1)).toBe('tall')
-    expect(stepBy(order, 'short', -1)).toBe('short')
-    // An unrecognized stored value counts as the first step.
-    expect(stepBy(order, 'huge', 1)).toBe('medium')
+  it('keep the current name a little further, so a boundary does not flicker', () => {
+    expect(heightAt(253, 960, BANNER_HEIGHT_SCALE)).toEqual({ value: 26 })
+    expect(heightAt(253, 960, BANNER_HEIGHT_SCALE, { value: 25, name: 'medium' })).toEqual({ value: 25, name: 'medium' })
+  })
+
+  it('step with the arrow keys from a named height to the whole step past it, or to the next name', () => {
+    const tall = { value: 31.25, name: 'tall' as const }
+    expect(heightBy(tall, 1, BANNER_HEIGHT_SCALE)).toEqual({ value: 32 })
+    expect(heightBy(tall, -1, BANNER_HEIGHT_SCALE)).toEqual({ value: 31 })
+    expect(heightBy({ value: 60 }, 5, BANNER_HEIGHT_SCALE)).toEqual({ value: 60 })
+    expect(heightBy({ value: 28 }, 1, BANNER_HEIGHT_SCALE, true)).toEqual(tall)
+    expect(heightBy({ value: 28 }, -1, BANNER_HEIGHT_SCALE, true)).toEqual({ value: 25, name: 'medium' })
+    expect(heightBy(tall, 1, BANNER_HEIGHT_SCALE, true)).toEqual(tall)
+    expect(heightBy({ value: 300, name: 'medium' }, 1, CHART_HEIGHT_SCALE)).toEqual({ value: 310 })
+  })
+})
+
+describe('widths with a limit', () => {
+  it('snap to the scale, and become full at the room', () => {
+    expect(limitWidthAt(643, 900, MAX_WIDTH_SCALE)).toBe(640)
+    expect(limitWidthAt(896, 900, MAX_WIDTH_SCALE)).toBe('full')
+    expect(limitWidthAt(100, 900, MAX_WIDTH_SCALE)).toBe(240)
+  })
+
+  it('keep a stored width wider than the room when the drag reaches it', () => {
+    expect(limitWidthAt(700, 676, CONTENT_WIDTH_SCALE, 1120)).toBe(1120)
+    expect(limitWidthAt(700, 676, CONTENT_WIDTH_SCALE, 'full')).toBe('full')
+    expect(limitWidthAt(700, 676, CONTENT_WIDTH_SCALE, 600)).toBe('full')
+    expect(limitWidthAt(600, 676, CONTENT_WIDTH_SCALE, 1120)).toBe(600)
+  })
+
+  it('step with the arrow keys, full past the cap', () => {
+    expect(limitWidthBy(640, 1, 900, MAX_WIDTH_SCALE)).toBe(650)
+    expect(limitWidthBy(900, 1, 900, MAX_WIDTH_SCALE)).toBe('full')
+    expect(limitWidthBy('full', -1, 900, MAX_WIDTH_SCALE)).toBe(890)
+    expect(limitWidthBy('full', 1, 900, MAX_WIDTH_SCALE)).toBe('full')
+    expect(limitWidthBy(1600, 1, 1600, CONTENT_WIDTH_SCALE)).toBe('full')
+    expect(limitWidthBy(480, -5, 1600, CONTENT_WIDTH_SCALE)).toBe(480)
   })
 })
 
@@ -93,8 +119,6 @@ describe('snapping', () => {
     expect(nearestIndex([220, 300], 262)).toBe(1)
     expect(nearestIndex([220, 300], 262, 0)).toBe(0)
     expect(nearestIndex([220, 300], 270, 0)).toBe(1)
-    expect(nearestStep(CHART_HEIGHTS, 262, 'short')).toBe('short')
-    expect(nearestStep(CHART_HEIGHTS, 280, 'short')).toBe('medium')
   })
 })
 
@@ -165,6 +189,5 @@ describe('table Scroll after', () => {
   it('says the value in words', () => {
     expect(scrollRowsText(0)).toBe('All rows')
     expect(scrollRowsText(8)).toBe('8 rows')
-    expect(stepText('tall')).toBe('Tall')
   })
 })

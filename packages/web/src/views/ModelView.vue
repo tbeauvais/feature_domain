@@ -9,6 +9,7 @@ import Palette from '../editor/Palette.vue'
 import DropIndicator from '../editor/DropIndicator.vue'
 import EmptyPageHint from '../editor/EmptyPageHint.vue'
 import ResizeHandles from '../editor/ResizeHandles.vue'
+import { DIMENSIONS_SHOWN, dimensionsShown } from '../editor/resizeState'
 import SelectionOverlay from '../editor/SelectionOverlay.vue'
 import ShortcutsDialog from '../editor/ShortcutsDialog.vue'
 import StatusBar from '../editor/StatusBar.vue'
@@ -444,6 +445,24 @@ async function deleteModel() {
                 {{ option.label }}
               </button>
             </div>
+            <div role="group" aria-label="Dimensions" class="inline-flex items-center gap-2 text-[13px] text-slate-600">
+              <span aria-hidden="true">Dimensions</span>
+              <div class="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white">
+                <button
+                  v-for="option in DIMENSIONS_SHOWN"
+                  :key="option"
+                  type="button"
+                  class="px-3 py-1.5"
+                  :class="dimensionsShown === option ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-50'"
+                  :aria-pressed="dimensionsShown === option"
+                  :aria-label="option === 'all' ? 'Show every feature\'s dimensions' : 'Show the selected feature\'s dimensions'"
+                  :data-testid="`dimensions-${option}`"
+                  @click="dimensionsShown = option"
+                >
+                  {{ option === 'all' ? 'All' : 'Selected' }}
+                </button>
+              </div>
+            </div>
             <span class="flex-1" />
             <span class="text-xs text-slate-600" data-testid="theme-summary">{{ themes }}</span>
           </div>
@@ -459,7 +478,7 @@ async function deleteModel() {
             >
               <DocumentView :key="id" :root="result.root" :model-id="id" editing />
               <SelectionOverlay :container="canvas" :selected-id="selectedId" :editing="inlineEdit?.element ?? null" :version="result" />
-              <ResizeHandles :container="canvas" :selected-id="selectedId" :version="result" :disabled="inlineEdit !== null" />
+              <ResizeHandles :container="canvas" :selected-id="selectedId" :version="result" :disabled="inlineEdit !== null" :all="dimensionsShown === 'all'" />
               <DropIndicator :container="canvas" />
               <EmptyPageHint :container="canvas" :root="result.root" />
             </div>

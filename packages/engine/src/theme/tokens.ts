@@ -1,4 +1,5 @@
 import { asInt, asString } from '../inputs.js'
+import { CONTENT_WIDTH_SCALE, DEFAULT_CONTENT_WIDTH, readWidth, widthCss, type Width } from '../sizes.js'
 import { fitContrast, hexToOklch, oklchToHex, type Oklch } from './color.js'
 
 // A theme has two layers:
@@ -34,6 +35,8 @@ export type ThemeParams = { [K in keyof Options]: ThemeChoice<K> } & {
   band: string
   /** Body text size in pixels. */
   baseSize: number
+  /** How wide a page's content gets: pixels, or `full`. */
+  contentWidth: Width
 }
 
 export const BASE_SIZE_RANGE = { min: 12, max: 22 } as const
@@ -45,6 +48,7 @@ export const DEFAULT_THEME: Readonly<ThemeParams> = Object.freeze({
   scheme: 'light',
   fonts: 'editorial',
   baseSize: 16,
+  contentWidth: DEFAULT_CONTENT_WIDTH,
   scale: 'major-third',
   radius: 'soft',
   density: 'comfortable',
@@ -61,6 +65,7 @@ export const NIGHT_GARDEN: Readonly<ThemeParams> = Object.freeze({
   scheme: 'dark',
   fonts: 'editorial',
   baseSize: 15,
+  contentWidth: DEFAULT_CONTENT_WIDTH,
   scale: 'minor-third',
   radius: 'small',
   density: 'compact',
@@ -95,6 +100,8 @@ export function clampThemeParams(raw: Readonly<Record<string, unknown>>): ThemeP
   if (raw.baseSize !== undefined) {
     out.baseSize = Math.min(BASE_SIZE_RANGE.max, Math.max(BASE_SIZE_RANGE.min, asInt(raw.baseSize, DEFAULT_THEME.baseSize)))
   }
+  const width = readWidth(raw.contentWidth, CONTENT_WIDTH_SCALE)
+  if (width !== undefined) out.contentWidth = width
   return out
 }
 
@@ -258,6 +265,7 @@ export function deriveTokens(input: Readonly<Record<string, unknown>> = DEFAULT_
     '--fd-display-weight': fonts.weight,
     '--fd-display-tracking': fonts.tracking,
     '--fd-size': `${p.baseSize}px`,
+    '--fd-content-width': widthCss(p.contentWidth),
     '--fd-size-small': `${Math.round(p.baseSize * 0.8125)}px`,
     '--fd-h1': `clamp(${size(3)}px, 9cqi, ${size(6)}px)`,
     '--fd-h2': `clamp(${size(3)}px, 6cqi, ${size(4)}px)`,

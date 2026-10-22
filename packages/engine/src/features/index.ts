@@ -23,7 +23,7 @@ import { ThemeFeature } from './theme.js'
 
 export { ApiSpecFeature, MAX_SPEC_CHARS, MAX_SPEC_OPERATIONS, readApiSpec, type ReadSpec } from './api-spec.js'
 export { ButtonFeature } from './button.js'
-export { ChartFeature } from './chart.js'
+export { ChartFeature, CHART_HEIGHT_SCALE } from './chart.js'
 export {
   ContainerFeature,
   cellSlot,
@@ -60,7 +60,7 @@ export { ImageWithParagraphFeature } from './image-with-paragraph.js'
 export { LinkFeature } from './link.js'
 export { ListGroupFeature } from './list-group.js'
 export { ListFeature } from './list.js'
-export { MapFeature, MAP_HEIGHTS, googleMapsUrl } from './map.js'
+export { MapFeature, MAP_HEIGHTS, MAP_HEIGHT_SCALE, googleMapsUrl } from './map.js'
 export { FORECAST_DAYS, OPEN_METEO_CREDIT, openMeteoUrl, readCoordinate, WEATHER_SHOW, WEATHER_UNITS, WeatherFeature, type WeatherUnits } from './weather.js'
 export { PageFeature } from './page.js'
 export { PanelFeature } from './panel.js'

@@ -144,7 +144,8 @@ export type TextPart = { text: string } | { path: string; filter?: string; bindi
 export interface NodeKinds {
   root: Record<string, never>
   /** `theme`: the tokens of the Theme the page references; absent means the default theme. */
-  page: { theme?: ThemeTokens }
+  /** `contentWidth`: the page's own content width (a CSS length), over its theme's. */
+  page: { theme?: ThemeTokens; contentWidth?: string }
   /**
    * Plain text. With `data`, its `{{path}}` values are filled in at runtime from a data resource's answer: `parts` is the
    * text split into literal runs and values (`path` read from the answer, shown through a table filter such as `date`).
@@ -159,8 +160,21 @@ export interface NodeKinds {
    * only), else the illustration's own shape.
    */
   illustration: { name: string; alt: string; width: string; align: Align; aspect?: number }
-  /** `widths`: relative column widths (shares), absent for equal columns. */
-  grid: { rows: number; columns: number; well: boolean; widths?: number[] }
+  /**
+   * `widths`: relative column widths (shares), absent for equal columns. `maxWidth`: the widest it gets in px, placed by
+   * `align`; absent: it fills the width. `minHeight`: the least it is tall in px (it still grows to fit), its rows filling
+   * the extra height unless `verticalAlign` puts them at the top or in the middle.
+   */
+  grid: {
+    rows: number
+    columns: number
+    well: boolean
+    widths?: number[]
+    maxWidth?: number
+    align?: Align
+    minHeight?: number
+    verticalAlign?: 'top' | 'center'
+  }
   'grid-cell': { row: number; column: number }
   /** `emphasis` is absent for normal. */
   panel: { heading: string; emphasis?: Exclude<PanelEmphasis, 'normal'> }

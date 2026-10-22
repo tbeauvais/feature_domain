@@ -1,5 +1,6 @@
 import type { FeatureDefinition } from '../feature.js'
 import { asInt, asString, nameInput, resolveInputs, type InputDef, type InputOption } from '../inputs.js'
+import { CONTENT_WIDTH_PRESETS, CONTENT_WIDTH_SCALE, formatWidth, readWidth } from '../sizes.js'
 import { hexToOklch } from '../theme/color.js'
 import type { InputValue } from '../types.js'
 import {
@@ -91,13 +92,32 @@ export const ThemeFeature: FeatureDefinition = {
     choice('radius', 'Corners', 'Shape and space'),
     choice('density', 'Spacing', 'Shape and space'),
     choice('shadow', 'Shadows', 'Shape and space'),
+    {
+      name: 'content_width',
+      label: 'Content width (px)',
+      type: 'string',
+      default: formatWidth(DEFAULT_THEME.contentWidth),
+      hint: "How wide a page's content gets; narrower screens still fit it. A page can set its own.",
+      control: 'pixels',
+      pixelScale: CONTENT_WIDTH_SCALE,
+      options: CONTENT_WIDTH_PRESETS.map((p) => ({ value: formatWidth(p.width), text: p.name })),
+      commitOnBlur: true,
+      group: 'Shape and space',
+    },
     choice('panel', 'Panels', 'Components'),
     choice('table', 'Tables', 'Components'),
     choice('well', 'Wells', 'Components'),
   ],
 
   generate(inputs, ctx) {
-    const raw: Record<string, unknown> = { ...inputs, baseSize: asInt(inputs.base_size, DEFAULT_THEME.baseSize) }
+    const raw: Record<string, unknown> = { ...inputs, baseSize: asInt(inputs.base_size, DEFAULT_THEME.baseSize), contentWidth: inputs.content_width }
+    // Blank means the default, as on a Page or a Container.
+    if (asString(inputs.content_width).trim() !== '' && readWidth(inputs.content_width, CONTENT_WIDTH_SCALE) === undefined) {
+      ctx.report(
+        'warning',
+        `Content width "${asString(inputs.content_width)}" should be whole pixels such as 960, or full; using ${formatWidth(DEFAULT_THEME.contentWidth)}`,
+      )
+    }
     for (const key of ['accent', 'band'] as const) {
       if (asString(inputs[key]).trim() !== '' && !/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.test(asString(inputs[key]).trim())) {
         ctx.report('warning', `${key === 'accent' ? 'Accent' : 'Band color'} "${asString(inputs[key])}" is not a hex color; using ${DEFAULT_THEME[key]}`)
@@ -113,14 +133,14 @@ export const ThemeFeature: FeatureDefinition = {
 
 /** A Theme's inputs for a set of settings (e.g. a built-in theme): every setting, so it replaces the current ones. */
 export function themeInputs(params: Readonly<ThemeParams>): Record<string, InputValue> {
-  const { baseSize, ...rest } = params
-  return { ...rest, base_size: baseSize }
+  const { baseSize, contentWidth, ...rest } = params
+  return { ...rest, base_size: baseSize, content_width: formatWidth(contentWidth) }
 }
 
 /** The settings a Theme's stored inputs mean, as generation reads them (missing ones default, invalid ones clamp). */
 export function themeParams(inputs: Readonly<Record<string, InputValue>>): ThemeParams {
   const resolved = resolveInputs(ThemeFeature.inputs, inputs)
-  return clampThemeParams({ ...resolved, baseSize: asInt(resolved.base_size, DEFAULT_THEME.baseSize) })
+  return clampThemeParams({ ...resolved, baseSize: asInt(resolved.base_size, DEFAULT_THEME.baseSize), contentWidth: resolved.content_width })
 }
 
 /** The built-in theme whose settings a Theme's inputs match exactly, if any. A stored value that is invalid (generation
@@ -136,6 +156,7 @@ export function matchingPreset(inputs: Readonly<Record<string, InputValue>>): Th
     if (color !== '' && hexToOklch(color) === undefined) return undefined
   }
   if (present('base_size') && !Number.isFinite(Number(inputs.base_size))) return undefined
+  if (asString(inputs.content_width).trim() !== '' && readWidth(inputs.content_width, CONTENT_WIDTH_SCALE) === undefined) return undefined
   const params = themeParams(inputs)
   return THEME_PRESETS.find((preset) => {
     const wanted = clampThemeParams(preset.params)

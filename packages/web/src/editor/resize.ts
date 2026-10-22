@@ -1,4 +1,4 @@
-import { clamp, type Align } from '@feature-domain/engine'
+import { clamp, NAMED_HEIGHTS, snapHeight, snapWidth, type Align, type Height, type HeightScale, type Width, type PixelScale } from '@feature-domain/engine'
 
 // Pure mappings from a pointer position (or an arrow key) to an input value, for the resize handles on the canvas
 // (`ResizeHandles.vue`). Positions are in pixels in any one coordinate space; the caller measures the page.
@@ -19,31 +19,6 @@ export function nearestIndex(positions: readonly number[], at: number, current =
     if (Math.abs(positions[current]! - at) <= Math.abs(positions[best]! - at) + SNAP_HYSTERESIS) return current
   }
   return best
-}
-
-/** The step whose height is nearest `height`, keeping `current` near a boundary. `heights` lists the steps in order. */
-export function nearestStep<T extends string>(heights: Readonly<Record<T, number>>, height: number, current?: T): T {
-  const steps = Object.keys(heights) as T[]
-  return steps[
-    nearestIndex(
-      steps.map((s) => heights[s]),
-      height,
-      current === undefined ? -1 : steps.indexOf(current),
-    )
-  ]!
-}
-
-/** The step `by` places after `current` in `order`, staying at the ends. */
-export function stepBy<T>(order: readonly T[], current: T, by: number): T {
-  const at = Math.max(0, order.indexOf(current))
-  return order[clamp(at + by, 0, order.length - 1)]!
-}
-
-/** Heights of shapes given as width / height (banner and map heights) at this width. */
-export function aspectHeights<T extends string>(aspects: Readonly<Record<T, number>>, width: number): Record<T, number> {
-  const out = {} as Record<T, number>
-  for (const step of Object.keys(aspects) as T[]) out[step] = width / aspects[step]
-  return out
 }
 
 /**
@@ -140,4 +115,53 @@ export function scrollRowsBy(current: number, by: number, rowCount: number): num
 
 export const scrollRowsText = (rows: number) => (rows === 0 ? 'All rows' : `${rows} rows`)
 export const sharesText = (shares: readonly number[]) => shares.join(' : ')
-export const stepText = (step: string) => step[0]!.toUpperCase() + step.slice(1)
+
+/** A drag sticks to a named height while the edge is within this many pixels of it. */
+export const DETENT = 8
+
+/** A height's size in pixels at this width (a % of the width, or pixels). */
+export const heightPx = (height: Height, scale: HeightScale, width: number) => (scale.unit === '%' ? (width * height.value) / 100 : height.value)
+
+/**
+ * The height when the bottom edge is dragged `px` below the top of something `width` wide: a named height while within
+ * `DETENT` of one (the current name keeps it a little further), else the nearest step of the scale.
+ */
+export function heightAt(px: number, width: number, scale: HeightScale, current?: Height): Height {
+  for (const name of NAMED_HEIGHTS) {
+    const reach = name === current?.name ? DETENT + SNAP_HYSTERESIS : DETENT
+    if (Math.abs(heightPx({ value: scale.named[name] }, scale, width) - px) <= reach) return { value: scale.named[name], name }
+  }
+  const value = scale.unit === '%' ? (width > 0 ? (px / width) * 100 : scale.named.medium) : px
+  return { value: snapHeight(value, scale) }
+}
+
+/**
+ * The height `by` arrow key presses make: that many steps of the scale (from a named height, to the whole step past
+ * it), or with `toNamed` the next named height that way (staying at the last one).
+ */
+export function heightBy(current: Height, by: number, scale: HeightScale, toNamed = false): Height {
+  if (toNamed) {
+    const names = by > 0 ? NAMED_HEIGHTS : [...NAMED_HEIGHTS].reverse()
+    const next = names.find((name) => (by > 0 ? scale.named[name] > current.value + 1e-9 : scale.named[name] < current.value - 1e-9))
+    return next ? { value: scale.named[next], name: next } : current
+  }
+  const steps = current.value / scale.step
+  const from = by > 0 ? Math.floor(steps + 1e-9) : Math.ceil(steps - 1e-9)
+  return { value: snapHeight((from + by) * scale.step, scale) }
+}
+
+/**
+ * A width dragged to `px` where `room` is the most it can show: snapped to the scale, or `full` once it reaches the
+ * room. `keep`: a stored width at least as wide as the room (or full), kept when the drag reaches the room, so a
+ * narrow canvas never quietly narrows a wider setting.
+ */
+export function limitWidthAt(px: number, room: number, scale: PixelScale, keep?: Width): Width {
+  if (px >= room - scale.step / 2) return keep === 'full' || (keep !== undefined && keep >= room) ? keep : 'full'
+  return snapWidth(px, scale)
+}
+
+/** The width `by` arrow key presses make: steps of the scale, from `cap` when it is full, and full past `cap`. */
+export function limitWidthBy(current: Width, by: number, cap: number, scale: PixelScale): Width {
+  const next = snapWidth(current === 'full' ? cap : current, scale) + by * scale.step
+  return next > cap ? 'full' : snapWidth(next, scale)
+}

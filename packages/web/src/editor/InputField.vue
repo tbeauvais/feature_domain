@@ -5,6 +5,7 @@ import ApiSpecField from './ApiSpecField.vue'
 import { canonicalWidths, columnPresets } from './columnPresets'
 import IllustrationGallery from './IllustrationGallery.vue'
 import PlaceSearchField from './PlaceSearchField.vue'
+import SizeField from './SizeField.vue'
 
 // One editor control for one feature input, chosen from the input's schema. Emits the new value, or undefined to
 // clear the input (it then falls back to its default).
@@ -113,6 +114,9 @@ function settle() {
       :vars="themeVars ?? {}"
       @change="emit('change', $event)"
     />
+
+    <!-- Heights and widths: named sizes as buttons, and the number typed (applied on leaving the field). -->
+    <SizeField v-else-if="def.control === 'height' || def.control === 'pixels'" :id="id" :def="def" :value="text" @change="emit('change', $event)" />
 
     <select v-else-if="def.type === 'reference'" :id="id" :class="field" :value="text" @change="emit('change', ($event.target as HTMLSelectElement).value)">
       <option value="">None</option>

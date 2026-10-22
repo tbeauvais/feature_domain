@@ -9,7 +9,7 @@ const shortcuts = [
   { keys: UNDO_KEYS, does: 'Undo' },
   { keys: REDO_KEYS, does: 'Redo' },
   { keys: 'Enter', does: 'Edit the selected feature’s text on the page' },
-  { keys: '← → ↑ ↓', does: 'Move a focused resize handle (with Shift: finer; Home / End: to the ends)' },
+  { keys: '← → ↑ ↓', does: 'Change a focused size on the canvas (with Shift: finer, or the next named height; Home / End: to the ends; Enter: type it)' },
   { keys: '?', does: 'Show these shortcuts' },
   { keys: 'Esc', does: 'Close this dialog' },
 ]
@@ -18,7 +18,7 @@ const tips = [
   'Click a feature on the page or in the tree to edit it in the inspector.',
   'Double-click text on the page to edit it there. Enter or clicking away keeps it, Esc puts it back. In a list or a text of paragraphs, Enter adds the next one.',
   'Move up, Move down and Location in the inspector move a feature without dragging.',
-  'A selected image, banner, map, chart, table, separator or container has handles on its edges: drag one to resize it. Esc while dragging puts it back.',
+  'A selected feature shows its sizes as dimensions: drag a dimension or the edge to change it, or double-click its value to type one. Esc puts it back. Dimensions: All shows every feature’s.',
 ]
 
 defineExpose({

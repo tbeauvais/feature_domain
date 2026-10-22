@@ -2,6 +2,8 @@
 // engine knows only their names and shapes; the renderer draws them, taking every color from the theme tokens, so a
 // change of accent or scheme recolors them.
 
+import { aspectScale } from './sizes.js'
+
 export type IllustrationKind = 'banner' | 'spot' | 'divider'
 
 export interface IllustrationInfo {
@@ -35,6 +37,8 @@ export const ILLUSTRATIONS = [
  */
 export const BANNER_HEIGHTS = { short: 6, medium: 4, tall: 16 / 5 } as const
 export type BannerHeight = keyof typeof BANNER_HEIGHTS
+/** Banner heights as a % of their width: the names, or any whole % from 10 to 60. */
+export const BANNER_HEIGHT_SCALE = aspectScale(BANNER_HEIGHTS, 10, 60)
 
 export type IllustrationId = (typeof ILLUSTRATIONS)[number]['id']
 

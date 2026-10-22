@@ -1,3 +1,4 @@
+import type { HeightScale, PixelScale } from './sizes.js'
 import type { Align, InputValue } from './types.js'
 
 export type InputType = 'string' | 'text' | 'boolean' | 'integer' | 'color' | 'list' | 'reference'
@@ -41,6 +42,10 @@ export interface InputDef {
   commitOnBlur?: boolean
   /** The inspector section the input sits in (inputs with the same group are shown together under it); none: the top. */
   group?: string
+  /** For `height` controls: the named heights and the numbers in between (a % of the width, or pixels). */
+  heightScale?: HeightScale
+  /** For `pixels` controls: the pixels a size may take (and whether `full`); `options` are named sizes offered as buttons. */
+  pixelScale?: PixelScale
   /** For `reference` inputs: feature types the referenced instance may have. */
   accepts?: string[]
   /** For `reference` inputs: generation fails (the feature is skipped) when no instance is referenced. */
@@ -167,6 +172,25 @@ export const alignInput = (defaultAlign: Align): InputDef => ({
     { value: 'center', text: 'Center' },
     { value: 'right', text: 'Right' },
   ],
+})
+
+/**
+ * A height chosen by name (short, medium, tall) or as a number in the scale's unit (`28%`, `260px`), shown as buttons
+ * for the names beside a number field. Stored heights are names, so its default is one.
+ */
+export const heightInput = (name: string, scale: HeightScale, extra: Partial<InputDef> = {}): InputDef => ({
+  name,
+  label: 'Height',
+  type: 'string',
+  default: 'medium',
+  control: 'height',
+  heightScale: scale,
+  hint:
+    scale.unit === '%'
+      ? `Short, medium, tall, or a % of the width from ${scale.min} to ${scale.max}.`
+      : `Short, medium, tall, or pixels from ${scale.min} to ${scale.max}.`,
+  commitOnBlur: true,
+  ...extra,
 })
 
 /** Options labeled by their value, capitalized: "accent" -> "Accent". */

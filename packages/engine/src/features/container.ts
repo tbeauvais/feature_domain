@@ -1,6 +1,8 @@
 import type { FeatureDefinition } from '../feature.js'
-import { asBool, asInt, asString, clamp, disableInput, nameInput, type Inputs } from '../inputs.js'
+import { alignInput, asAlign, asBool, asInt, asOneOf, asString, clamp, disableInput, nameInput, type Inputs } from '../inputs.js'
 import { node } from '../nodes.js'
+import { MAX_WIDTH_SCALE, MIN_HEIGHT_SCALE, readWidth } from '../sizes.js'
+import type { Align } from '../types.js'
 
 export const MAX_COLUMNS = 12
 export const MAX_ROWS = 50
@@ -105,6 +107,44 @@ export const ContainerFeature: FeatureDefinition = {
     },
     { name: 'rows', label: 'Rows', type: 'integer', default: 1, min: 1, max: MAX_ROWS, control: 'text-input' },
     { name: 'well', label: 'Add Well', type: 'boolean', default: true, control: 'checkbox-input' },
+    {
+      name: 'max_width',
+      label: 'Max width (px)',
+      type: 'string',
+      default: '',
+      placeholder: 'Fills the page',
+      hint: 'The widest it gets; narrower screens still fit it. You can also drag its edge on the page.',
+      control: 'pixels',
+      pixelScale: MAX_WIDTH_SCALE,
+      options: [{ value: '', text: 'Fills' }],
+      commitOnBlur: true,
+    },
+    { ...alignInput('center'), control: 'segmented', showWhen: { input: 'max_width', notEquals: '' } },
+    {
+      name: 'min_height',
+      label: 'Min height (px)',
+      type: 'string',
+      default: '',
+      placeholder: 'Fits its content',
+      hint: 'The least it is tall; it still grows to fit its content. You can also drag its bottom edge on the page.',
+      control: 'pixels',
+      pixelScale: MIN_HEIGHT_SCALE,
+      options: [{ value: '', text: 'Fits content' }],
+      commitOnBlur: true,
+    },
+    {
+      name: 'vertical_align',
+      label: 'Content',
+      type: 'string',
+      default: 'stretch',
+      control: 'segmented',
+      options: [
+        { value: 'top', text: 'Top' },
+        { value: 'center', text: 'Center' },
+        { value: 'stretch', text: 'Stretch' },
+      ],
+      showWhen: { input: 'min_height', notEquals: '' },
+    },
   ],
 
   slots: (inputs) => cells(inputs).map((c) => c.slot),
@@ -112,10 +152,41 @@ export const ContainerFeature: FeatureDefinition = {
   generate(inputs, ctx) {
     const { rows, columns } = dimensions(inputs)
     const children = cells(inputs).map((c) => node('grid-cell', ctx.nodeId(c.slot), { row: c.row, column: c.column }, { slot: c.slot }))
-    const props: { rows: number; columns: number; well: boolean; widths?: number[] } = { rows, columns, well: asBool(inputs.well) }
+    const props: {
+      rows: number
+      columns: number
+      well: boolean
+      widths?: number[]
+      maxWidth?: number
+      align?: Align
+      minHeight?: number
+      verticalAlign?: 'top' | 'center'
+    } = {
+      rows,
+      columns,
+      well: asBool(inputs.well),
+    }
     const widths = parseColumnWidths(inputs.column_widths, columns)
     if (widths === 'invalid') ctx.report('warning', `Column widths should be whole numbers such as "2, 1"; using equal columns`)
     else if (widths && widths.some((w) => w !== widths[0])) props.widths = reduceShares(widths)
+    if (asString(inputs.max_width).trim() !== '') {
+      const max = readWidth(inputs.max_width, MAX_WIDTH_SCALE)
+      if (max === undefined) ctx.report('warning', `Max width "${asString(inputs.max_width)}" should be whole pixels such as 640; filling the page`)
+      else if (max !== 'full') {
+        props.maxWidth = max
+        props.align = asAlign(inputs.align, 'center')
+      }
+    }
+    if (asString(inputs.min_height).trim() !== '') {
+      const min = readWidth(inputs.min_height, MIN_HEIGHT_SCALE)
+      if (typeof min !== 'number') ctx.report('warning', `Min height "${asString(inputs.min_height)}" should be whole pixels such as 400; fitting the content`)
+      else {
+        props.minHeight = min
+        // Stretch (the default) lets the rows fill the extra height; top and center leave it below or around them.
+        const valign = asOneOf(inputs.vertical_align, ['top', 'center', 'stretch'] as const, 'stretch')
+        if (valign !== 'stretch') props.verticalAlign = valign
+      }
+    }
     return { node: node('grid', ctx.nodeId(), props, { children }) }
   },
 }
