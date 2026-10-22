@@ -56,7 +56,7 @@ const summary = computed(() => summarize(props.result))
     <span data-testid="status-counts">{{ summary.countsLabel }}</span>
     <span class="flex-1" />
     <span v-if="resizeHintShown" class="hidden sm:inline" data-testid="resize-hint"
-      >Drag or use the arrow keys to resize · Shift: finer · Esc: put it back</span
+      >Drag a size or use the arrow keys · Shift: finer or the next named size · Double-click or Enter: type it · Esc: put it back</span
     >
     <span v-else class="hidden sm:inline">Drag to move · {{ UNDO_KEYS }} undo · ? shortcuts</span>
   </footer>

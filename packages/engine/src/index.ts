@@ -1,5 +1,6 @@
 export * from './types.js'
 export * from './inputs.js'
+export * from './sizes.js'
 export * from './feature.js'
 export * from './graph.js'
 export * from './nodes.js'

@@ -1,6 +1,7 @@
 import type { FeatureDefinition } from '../feature.js'
-import { BANNER_HEIGHTS, ILLUSTRATIONS, illustrationInfo, type BannerHeight } from '../illustrations.js'
-import { alignInput, asAlign, asBool, asString, disableInput, nameInput } from '../inputs.js'
+import { BANNER_HEIGHT_SCALE, ILLUSTRATIONS, illustrationInfo } from '../illustrations.js'
+import { alignInput, asAlign, asBool, asString, disableInput, heightInput, nameInput } from '../inputs.js'
+import { aspectOf, readHeight } from '../sizes.js'
 import { node } from '../nodes.js'
 
 const PICTURES = ILLUSTRATIONS.filter((i) => i.kind !== 'divider')
@@ -39,22 +40,12 @@ export const ImageFeature: FeatureDefinition = {
       options: PICTURES.map((i) => ({ value: i.id, text: i.name })),
       showWhen: { input: 'source', equals: 'illustration' },
     },
-    {
-      name: 'banner_height',
-      label: 'Height',
-      type: 'string',
-      default: 'medium',
-      control: 'segmented',
-      options: [
-        { value: 'short', text: 'Short' },
-        { value: 'medium', text: 'Medium' },
-        { value: 'tall', text: 'Tall' },
-      ],
+    heightInput('banner_height', BANNER_HEIGHT_SCALE, {
       showWhen: [
         { input: 'source', equals: 'illustration' },
         { input: 'illustration', equals: BANNERS },
       ],
-    },
+    }),
     {
       name: 'src',
       label: 'Image URL',
@@ -95,11 +86,11 @@ export const ImageFeature: FeatureDefinition = {
         width: responsive ? '' : asString(inputs.width),
         align,
       }
-      // Banners can be short, medium or tall; the height follows the width, so it suits every screen size.
+      // A banner's height is a share of its width (short, medium, tall or a %), so it keeps its shape on every screen.
       if (info?.kind === 'banner') {
-        const height = inputs.banner_height
-        // Own keys only: a stored "constructor" or "__proto__" must not reach Object's properties.
-        props.aspect = typeof height === 'string' && Object.hasOwn(BANNER_HEIGHTS, height) ? BANNER_HEIGHTS[height as BannerHeight] : BANNER_HEIGHTS.medium
+        const height = readHeight(inputs.banner_height, BANNER_HEIGHT_SCALE)
+        if (!height) ctx.report('warning', `Height "${asString(inputs.banner_height)}" should be short, medium, tall or a % of the width; using medium`)
+        props.aspect = aspectOf(height?.value ?? BANNER_HEIGHT_SCALE.named.medium)
       }
       return { node: node('illustration', ctx.nodeId(), props) }
     }

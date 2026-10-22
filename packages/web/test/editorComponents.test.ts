@@ -1,4 +1,4 @@
-import { generate, MemoryModelStore, type InputDef, type InputValue } from '@feature-domain/engine'
+import { BANNER_HEIGHT_SCALE, ContainerFeature, generate, MemoryModelStore, PageFeature, type InputDef, type InputValue } from '@feature-domain/engine'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -131,6 +131,70 @@ describe('InputField choices drawn as buttons', () => {
   it('says when the stored illustration is not in the gallery', () => {
     const gallery = def({ type: 'string', control: 'illustration-gallery', options: [{ value: 'spot/map', text: 'Map' }] })
     expect(mount(InputField, { props: { def: gallery, value: 'spot/gone' } }).text()).toContain('Missing: spot/gone')
+  })
+})
+
+describe('InputField sizes', () => {
+  const banner = def({ name: 'banner_height', label: 'Height', type: 'string', control: 'height', heightScale: BANNER_HEIGHT_SCALE, default: 'medium' })
+
+  it('offers the named heights beside the number, and stores a typed number with its unit', async () => {
+    const w = mount(InputField, { props: { def: banner, value: 'medium' } })
+    expect(w.findAll('button').map((b) => [b.text(), b.attributes('aria-pressed')])).toEqual([
+      ['Short', 'false'],
+      ['Medium', 'true'],
+      ['Tall', 'false'],
+    ])
+    const field = w.get<HTMLInputElement>('input#input-banner_height')
+    expect(field.element.value).toBe('25')
+    expect(w.text()).toContain('%')
+    await w.findAll('button')[2]!.trigger('click')
+    expect(lastChange(w)).toBe('tall')
+    await field.setValue('28.4')
+    expect(lastChange(w)).toBe('28%')
+    // A number that is a named height's stays a number, and anything else is passed on for generation to explain.
+    await field.setValue('25')
+    expect(lastChange(w)).toBe('25%')
+    await field.setValue('tall')
+    expect(lastChange(w)).toBe('tall')
+    await field.setValue('huge')
+    expect(lastChange(w)).toBe('huge')
+  })
+
+  it('marks no named height for a stored %', () => {
+    const w = mount(InputField, { props: { def: banner, value: '28%' } })
+    expect(w.findAll('[aria-pressed="true"]')).toHaveLength(0)
+    expect(w.get<HTMLInputElement>('input').element.value).toBe('28')
+  })
+
+  it("offers named widths, the page's own over its theme's", async () => {
+    const pageWidth = PageFeature.inputs.find((i) => i.name === 'content_width')!
+    const w = mount(InputField, { props: { def: pageWidth, value: '' } })
+    expect(w.findAll('button').map((b) => [b.text(), b.attributes('aria-pressed')])).toEqual([
+      ["Theme's", 'true'],
+      ['Narrow', 'false'],
+      ['Standard', 'false'],
+      ['Wide', 'false'],
+      ['Full', 'false'],
+    ])
+    await w.findAll('button')[2]!.trigger('click')
+    expect(lastChange(w)).toBe('960')
+    await w.get('input').setValue(' 900px ')
+    expect(lastChange(w)).toBe('900')
+    expect(
+      mount(InputField, { props: { def: pageWidth, value: '960px' } })
+        .get('[aria-pressed="true"]')
+        .text(),
+    ).toBe('Standard')
+  })
+
+  it("leaves a container's max width empty to fill the page", async () => {
+    const max = ContainerFeature.inputs.find((i) => i.name === 'max_width')!
+    const w = mount(InputField, { props: { def: max, value: '640' } })
+    expect(w.findAll('[aria-pressed="true"]')).toHaveLength(0)
+    await w.get('button').trigger('click')
+    expect(lastChange(w)).toBe('')
+    await w.get('input').setValue('')
+    expect(lastChange(w)).toBe('')
   })
 })
 
