@@ -42,13 +42,24 @@ test('the preview files a request into the Database table, which its table and c
   await expect(added).toContainText('Order printer toner')
   await expect(added).toContainText('Ana Ruiz')
   await expect(added).toContainText('urgent')
-  await expect(added).toContainText('open')
+  await expect(added.getByRole('combobox', { name: 'Status of “Order printer toner”' })).toHaveValue('open')
   await expect(added).toContainText('Nov 3, 2026')
   await expect(page.getByText('6 requests so far')).toBeVisible()
 
   // Stored by the Worker, not the browser: still there after a reload.
   await page.reload()
   await expect(table.locator('tbody tr')).toHaveCount(6)
+
+  // A status is changed in place, and kept.
+  const status = page.getByRole('combobox', { name: 'Status of “Order standing desk mats”' })
+  await expect(status).toHaveValue('open')
+  // Focus stays on the select while the rows reload (they stay on show).
+  await status.focus()
+  await status.selectOption('done')
+  await expect(page.locator('.fd-table-select[aria-busy]')).toHaveCount(0)
+  await expect(status).toBeFocused()
+  await page.reload()
+  await expect(page.getByRole('combobox', { name: 'Status of “Order standing desk mats”' })).toHaveValue('done')
 
   // Any row of a Database table can be deleted, after confirming.
   await table.getByRole('button', { name: 'Delete row 6' }).click()
@@ -67,6 +78,10 @@ test('the editor canvas shows the rows, and says a form would send from the prev
   await canvas.getByRole('button', { name: 'Send request' }).click()
   await expect(canvas.getByRole('alert')).toHaveText('Nothing is sent from the editor. Open the preview to try it.')
   await expect(canvas.locator('.fd-table-block tbody tr')).toHaveCount(5)
+  const status = canvas.getByRole('combobox', { name: 'Status of “Fix the kitchen dishwasher”' })
+  await status.selectOption('open')
+  await expect(canvas.locator('.fd-table-block [role="alert"]')).toHaveText('Nothing is changed from the editor. Open the preview to try it.')
+  await expect(status).toHaveValue('done')
 })
 
 test("the inspector edits a Database table's fields, saying what it can't take", async ({ page }) => {

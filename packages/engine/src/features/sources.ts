@@ -3,7 +3,7 @@
 import type { FeatureContext } from '../feature.js'
 import { isAppDataAddress, isModelsApiAddress } from '../links.js'
 import type { DataAction, DataSource, TableColumn } from '../types.js'
-import type { DataOperation, DataResourceExports, DataSchema } from './data-resource.js'
+import type { DataOperation, DataProperty, DataResourceExports, DataSchema } from './data-resource.js'
 
 /** A column per schema property, labeled by its description (without a closing period), else its name. */
 export function columnsOf(properties: NonNullable<DataSchema['properties']>): TableColumn[] {
@@ -11,24 +11,26 @@ export function columnsOf(properties: NonNullable<DataSchema['properties']>): Ta
 }
 
 /**
- * When the operation's response schema contains an array of objects, the table shows that array (`path`) with one
- * column per item property, labeled by its description. This mirrors the legacy Swagger-driven behavior.
+ * What a spec says an operation lists: the array of objects in its response (`path`, empty when the response is itself
+ * the list) and the properties each item has. This mirrors the legacy Swagger-driven behavior.
  */
-export function fromSchema(resource: DataResourceExports, operation: DataOperation): { path: string; columns: TableColumn[] } | undefined {
+export function listedRows(resource: DataResourceExports, operation: DataOperation): { path: string; properties: Record<string, DataProperty> } | undefined {
+  const item = (ref?: string) => (ref && Object.hasOwn(resource.schemas, ref) ? resource.schemas[ref]?.properties : undefined)
   const response = operation.responseType && Object.hasOwn(resource.schemas, operation.responseType) ? resource.schemas[operation.responseType] : undefined
   // The response is itself a list (OpenAPI often says so): the table shows the whole response.
-  if (response?.type === 'array' && response.items?.$ref) {
-    const item = Object.hasOwn(resource.schemas, response.items.$ref) ? resource.schemas[response.items.$ref] : undefined
-    if (item?.properties) return { path: '', columns: columnsOf(item.properties) }
-  }
+  const whole = response?.type === 'array' ? item(response.items?.$ref) : undefined
+  if (whole) return { path: '', properties: whole }
   for (const [key, property] of Object.entries(response?.properties ?? {})) {
-    if (property.type !== 'array' || !property.items?.$ref) continue
-    const item = Object.hasOwn(resource.schemas, property.items.$ref) ? resource.schemas[property.items.$ref] : undefined
-    if (!item?.properties) continue
-    const columns = columnsOf(item.properties)
-    return { path: key, columns }
+    const properties = property.type === 'array' ? item(property.items?.$ref) : undefined
+    if (properties) return { path: key, properties }
   }
   return undefined
+}
+
+/** The table a spec describes: what its operation lists (`listedRows`), one column per item property. */
+export function fromSchema(resource: DataResourceExports, operation: DataOperation): { path: string; columns: TableColumn[] } | undefined {
+  const listed = listedRows(resource, operation)
+  return listed && { path: listed.path, columns: columnsOf(listed.properties) }
 }
 
 /**
@@ -85,7 +87,12 @@ export function listSource(
   what: string,
   /** What the feature does with the answer, for its warnings: lists rows (a table, a chart) or reads values (a text). */
   reads: 'rows' | 'values' = 'rows',
-): { source?: DataSource; schemaColumns?: TableColumn[] } {
+): {
+  source?: DataSource
+  schemaColumns?: TableColumn[]
+  /** What a spec says each listed row holds (e.g. the options a field takes). */
+  rowProperties?: Record<string, DataProperty>
+} {
   const name = resource.resource || resourceId
   const operation = operationName ? resource.operations.find((o) => o.name === operationName) : defaultOperation(resource.operations, ['GET'])
   const verb = reads === 'rows' ? 'list rows from' : 'read values from'
@@ -98,19 +105,20 @@ export function listSource(
     ctx.report('warning', `"${operation.name}" adds rows; ${what} ${reads === 'rows' ? 'lists them' : 'reads values'} with the GET operation`)
     return {}
   }
-  const schema = fromSchema(resource, operation)
+  const listed = listedRows(resource, operation)
+  const schema = listed && { schemaColumns: columnsOf(listed.properties), rowProperties: listed.properties }
   if (operation.sample) {
     const source: DataSource = { feature: resourceId, resource: resource.resource, operation: operation.name, endPoint: '', rows: resource.sampleRows ?? [] }
-    return schema ? { source, schemaColumns: schema.columns } : { source }
+    return { source, ...schema }
   }
   if (!isAddressOf(resource, operation.endPoint)) {
     ctx.report('warning', `Operation "${operation.name}" of ${name} has no http(s) URL`)
     return {}
   }
   const source: DataSource = { feature: resourceId, resource: resource.resource, operation: operation.name, endPoint: operation.endPoint }
-  if (schema?.path) source.path = schema.path
+  if (listed?.path) source.path = listed.path
   if (viaProxy(resource, operation)) source.proxy = true
-  return schema ? { source, schemaColumns: schema.columns } : { source }
+  return { source, ...schema }
 }
 
 /** What a feature sends to an operation: its address, or the resource's sample rows. */

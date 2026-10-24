@@ -74,6 +74,57 @@ async function deleteRow(row: unknown, index: number) {
   }
 }
 
+// Changing a row in place: a column with options is a select per row, sent as that one field (the Change Operation).
+// The rows stay on show while they reload, so the select keeps keyboard focus; a change that fails is put back.
+const updateAction = computed(() => props.node.props.updateAction)
+/** The cells being sent (`<row index>:<field>`); each select is busy on its own, so other rows can change meanwhile. */
+const changing = ref(new Set<string>())
+const changeProblem = ref('')
+/** A cell's value as its select shows it. */
+const chosen = (row: unknown, field: string) => {
+  const value = getPath(row, field)
+  return value === undefined || value === null ? '' : String(value)
+}
+/** A picked option as the row holds that field: a number or yes/no stays one (options are text). */
+function typed(picked: string, before: unknown): unknown {
+  if (typeof before === 'number' && picked.trim() !== '' && Number.isFinite(Number(picked))) return Number(picked)
+  if (typeof before === 'boolean' && (picked === 'true' || picked === 'false')) return picked === 'true'
+  return picked
+}
+/**
+ * How a select names its row for screen readers: by its first column when that tells the rows apart (it isn't the
+ * column being changed, and no other row has the same), else by its number.
+ */
+const rowNames = computed(() => {
+  const first = columns.value[0]
+  const texts = rows.value.map((row) => (first && !first.options ? cellContent(row, first.field, first.filter).text.trim() : ''))
+  return texts.map((text, i) => (text && texts.indexOf(text) === texts.lastIndexOf(text) ? `“${text}”` : `row ${i + 1}`))
+})
+async function changeCell(row: unknown, index: number, field: string, event: Event) {
+  const select = event.target as HTMLSelectElement
+  const key = `${index}:${field}`
+  // One change of a cell at a time: a second while the first is sent is put back.
+  if (!updateAction.value || changing.value.has(key)) {
+    select.value = chosen(row, field)
+    return
+  }
+  changing.value = new Set(changing.value).add(key)
+  changeProblem.value = ''
+  try {
+    await store.update(updateAction.value, row, { [field]: typed(select.value, getPath(row, field)) })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    changeProblem.value = error instanceof NotSentFromEditor ? message : `Couldn't change the row: ${message}`
+  } finally {
+    const done = new Set(changing.value)
+    done.delete(key)
+    changing.value = done
+    // What is stored now (the reloaded row; the row as it was when the change failed), whether or not that differs
+    // from what the select is bound to, which Vue only writes when it changes.
+    select.value = chosen(rows.value[index] ?? row, field)
+  }
+}
+
 /**
  * Figures (numbers, dates) are right-aligned with tabular digits: by filter, or when every loaded value is a number
  * (so such a column's header moves right when its rows arrive).
@@ -178,7 +229,21 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
         <tbody v-else role="rowgroup">
           <tr v-for="(row, index) in rows" :key="index" role="row">
             <td v-for="(column, c) in columns" :key="column.field" role="cell" :data-label="column.label" :class="{ 'fd-num': numeric[c] }">
-              <template v-for="(cell, k) in [cellContent(row, column.field, column.filter)]" :key="k">
+              <select
+                v-if="updateAction && column.options"
+                class="fd-table-select"
+                :value="chosen(row, column.field)"
+                :aria-label="`${column.label} of ${rowNames[index]}`"
+                :aria-busy="changing.has(`${index}:${column.field}`) ? 'true' : undefined"
+                @change="changeCell(row, index, column.field, $event)"
+              >
+                <!-- A value the options no longer hold (or none) still shows, but can't be picked again. -->
+                <option v-if="!column.options.includes(chosen(row, column.field))" :value="chosen(row, column.field)" disabled>
+                  {{ chosen(row, column.field) || '—' }}
+                </option>
+                <option v-for="option in column.options" :key="option" :value="option">{{ option }}</option>
+              </select>
+              <template v-for="(cell, k) in updateAction && column.options ? [] : [cellContent(row, column.field, column.filter)]" :key="k">
                 <a
                   v-if="cell.href"
                   :href="cell.href"
@@ -219,6 +284,7 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
       <p class="fd-table-state-text">The data source returned an empty list.</p>
     </div>
     <p v-if="deleteProblem" class="fd-table-note fd-table-delete-problem" role="alert">{{ deleteProblem }}</p>
+    <p v-if="changeProblem" class="fd-table-note fd-table-delete-problem" role="alert">{{ changeProblem }}</p>
     <p v-if="!node.props.title && state.status === 'loaded' && rows.length > 0" class="fd-table-foot">{{ count }}</p>
   </section>
 </template>

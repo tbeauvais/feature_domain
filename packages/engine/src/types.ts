@@ -134,6 +134,8 @@ export interface TableColumn {
   label: string
   /** Display filter applied by the renderer, e.g. "uppercase", "date", "number" or "badge". */
   filter?: string
+  /** A column each row changes in place, picking one of these (sent with the table's `updateAction`). */
+  options?: string[]
 }
 
 /**
@@ -252,6 +254,8 @@ export interface NodeKinds {
     byPosition?: { labels: string[]; filters: string[] }
     /** Per-row delete action; `endPoint` may contain `{field}` placeholders filled from the row. */
     deleteAction?: DataAction
+    /** Changes one field of a row (a column with `options`), sent as the changed field alone; placeholders as for delete. */
+    updateAction?: DataAction
   }
 }
 

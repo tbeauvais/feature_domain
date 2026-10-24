@@ -176,6 +176,58 @@ describe('DatabaseTableFeature', () => {
     })
   })
 
+  it("lets a Table change a row's choice fields in place with PATCH, each column with its options", () => {
+    const table = (inputs: Record<string, InputValue>) => run({}, inst('TableFeature', 'x', { data_resource: 't', update_operation: 'PATCH rows', ...inputs }))
+    const every = table({})
+    expect(every.problems).toEqual([])
+    const props = (every.nodes[0] as DocNodeOf<'table'>).props
+    expect(props.updateAction).toEqual({ feature: 't', resource: 'Requests', operation: 'PATCH rows', method: 'PATCH', endPoint: 'tables/t/rows/{id}' })
+    expect(props.columns.filter((c) => c.options)).toEqual([{ field: 'priority', label: 'Priority', options: ['low', 'normal', 'high'] }])
+
+    const chosen = table({ fields: ['title', 'priority', 'urgent'], change_fields: ['priority'] })
+    expect((chosen.nodes[0] as DocNodeOf<'table'>).props.columns).toEqual([
+      { field: 'title', label: 'title' },
+      { field: 'priority', label: 'priority', options: ['low', 'normal', 'high'] },
+      { field: 'urgent', label: 'urgent' },
+    ])
+    expect(table({ change_fields: ['title', 'nope'] }).problems).toEqual([
+      'x: Changeable field "title" has no options to choose from',
+      'x: Changeable field "nope" is not a column of the table',
+    ])
+  })
+
+  it('changes rows only with a PATCH operation it has, and says why not', () => {
+    const put = run({}, inst('TableFeature', 'x', { data_resource: 't', update_operation: 'POST rows' }))
+    expect(put.problems).toEqual(['x: "POST rows" doesn\'t change part of a row; rows are changed with PATCH'])
+    expect((put.nodes[0] as DocNodeOf<'table'>).props.updateAction).toBeUndefined()
+    expect(run({}, inst('TableFeature', 'x', { data_resource: 't', update_operation: 'PATCH gone' })).problems).toEqual([
+      'x: Change operation "PATCH gone" is not provided by Requests',
+    ])
+    expect(run({ fields: ['title: text'] }, inst('TableFeature', 'x', { data_resource: 't', update_operation: 'PATCH rows' })).problems).toEqual([
+      'x: No column has options to choose from, so rows have nothing to change',
+    ])
+  })
+
+  it("doesn't change sample rows in place, nor rows whose columns are only known once they load", () => {
+    const spec = {
+      openapi: '3.0.3',
+      servers: [{ url: 'https://api.test' }],
+      paths: {
+        '/items': { get: { responses: { 200: { content: { 'application/json': { schema: { type: 'array', items: { type: 'object' } } } } } } } },
+        '/items/{id}': { patch: {} },
+      },
+    }
+    const sample = inst('SwaggerDataResourceFeature', 's', { name: 'Items', spec: JSON.stringify(spec), source: 'sample' }, null)
+    const onSample = generate(model(sample, page(), inst('TableFeature', 'x', { data_resource: 's', fields: ['name'], update_operation: 'PATCH /items/{id}' })))
+    expect(onSample.diagnostics.map((d) => d.message)).toContain(`"PATCH /items/{id}" is answered with sample rows, which can't be changed in place`)
+
+    const address = inst('SwaggerDataResourceFeature', 'a', { name: 'Items', spec: JSON.stringify(spec) }, null)
+    const later = generate(model(address, page(), inst('TableFeature', 'x', { data_resource: 'a', update_operation: 'PATCH /items/{id}' })))
+    expect(later.diagnostics.map((d) => d.message)).toEqual([
+      "The table's columns are only known once its rows load, so it has no column with options to change: list them in Fields",
+    ])
+  })
+
   it('feeds a Form: a field per table field, of the right kind, sending a new row', () => {
     const { nodes, problems } = run({}, inst('FormFeature', 'f', { data_resource: 't' }))
     expect(problems).toEqual([])

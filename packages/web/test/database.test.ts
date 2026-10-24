@@ -78,7 +78,142 @@ describe("a Database table's rows on a page", () => {
   })
 })
 
+describe("a Table changing a row's status in place", () => {
+  const rows = () => [
+    { id: '01ARYZ6S410000000000000000', title: 'Fix the door', status: 'open' },
+    { id: '01ARYZ6S410000000000000001', title: 'Order paper', status: 'later' },
+  ]
+  const tracker = () =>
+    model(
+      requests({ fields: ['title: text', 'status: choice open | done'] }),
+      page(),
+      inst('TableFeature', 't', { data_resource: '2', update_operation: 'PATCH rows' }),
+    )
+
+  it('shows a select per row, sends only the field changed, and keeps the rows on show while they reload', async () => {
+    let answer = rows()
+    let release!: () => void
+    const fetchJson = vi.fn<FetchJson>(async () => answer)
+    const send = vi.fn<SendRequest>(async () => {
+      answer = [{ ...rows()[0]!, status: 'done' }, rows()[1]!]
+      // The reload waits, to see what shows meanwhile.
+      fetchJson.mockImplementationOnce(() => new Promise((resolve) => (release = () => resolve(answer))))
+      return {}
+    })
+    const { w } = render(tracker(), { fetchJson, send })
+    await flushPromises()
+    const select = w.get('select[aria-label="Status of “Fix the door”"]')
+    expect((select.element as HTMLSelectElement).value).toBe('open')
+    expect(select.findAll('option').map((o) => o.text())).toEqual(['open', 'done'])
+    // A value the options don't hold shows, but can't be picked again.
+    const other = w.get('select[aria-label="Status of “Order paper”"]')
+    expect(other.findAll('option').map((o) => [o.text(), o.attributes('disabled') !== undefined])).toEqual([
+      ['later', true],
+      ['open', false],
+      ['done', false],
+    ])
+
+    await select.setValue('done')
+    await flushPromises()
+    expect(send).toHaveBeenCalledWith({ method: 'PATCH', url: '/api/v1/models/m%201/tables/2/rows/01ARYZ6S410000000000000000', body: { status: 'done' } })
+    expect(w.findAll('tbody tr')).toHaveLength(2)
+    expect(w.find('.fd-table-skeleton').exists()).toBe(false)
+    release()
+    await flushPromises()
+    expect((w.get('select[aria-label="Status of “Fix the door”"]').element as HTMLSelectElement).value).toBe('done')
+    w.unmount()
+  })
+
+  it('changes several rows at once, each select showing what is stored once its change is done', async () => {
+    const sent: unknown[] = []
+    let finish: (() => void)[] = []
+    const send = vi.fn<SendRequest>(async (request) => {
+      sent.push(request.body)
+      await new Promise<void>((resolve) => finish.push(resolve))
+      return {}
+    })
+    // The server keeps "open" for the first row (say, a rule), and takes the second row's change.
+    const fetchJson = vi.fn<FetchJson>(async () => (sent.length === 0 ? rows() : [rows()[0]!, { ...rows()[1]!, status: 'done' }]))
+    const { w } = render(tracker(), { fetchJson, send })
+    await flushPromises()
+    const first = w.get('select[aria-label="Status of “Fix the door”"]')
+    const second = w.get('select[aria-label="Status of “Order paper”"]')
+    await first.setValue('done')
+    await second.setValue('done')
+    // The first cell again while it is still sending: put back, not sent.
+    await first.setValue('open')
+    expect((first.element as HTMLSelectElement).value).toBe('open')
+    expect(sent).toEqual([{ status: 'done' }, { status: 'done' }])
+    expect(first.attributes('aria-busy')).toBe('true')
+    for (const done of finish) done()
+    finish = []
+    await flushPromises()
+    expect((first.element as HTMLSelectElement).value).toBe('open')
+    expect((second.element as HTMLSelectElement).value).toBe('done')
+    expect(first.attributes('aria-busy')).toBeUndefined()
+    w.unmount()
+  })
+
+  it('sends a number as a number, and names rows by number when their first column repeats', async () => {
+    const send = vi.fn<SendRequest>(async () => ({}))
+    const numbered = [
+      { id: '01ARYZ6S410000000000000000', title: 'Same', level: 1 },
+      { id: '01ARYZ6S410000000000000001', title: 'Same', level: 2 },
+    ]
+    const m = model(
+      requests({ fields: ['title: text', 'level: choice 1 | 2 | 3'] }),
+      page(),
+      inst('TableFeature', 't', { data_resource: '2', update_operation: 'PATCH rows' }),
+    )
+    const { w } = render(m, { fetchJson: vi.fn<FetchJson>(async () => numbered), send })
+    await flushPromises()
+    expect(w.findAll('select').map((sel) => sel.attributes('aria-label'))).toEqual(['Level of row 1', 'Level of row 2'])
+    await w.get('select[aria-label="Level of row 2"]').setValue('3')
+    await flushPromises()
+    expect(send.mock.lastCall![0].body).toEqual({ level: 3 })
+    w.unmount()
+  })
+
+  it('puts a change back when it fails, saying why', async () => {
+    const send = vi.fn<SendRequest>(async () => {
+      throw new Error('The row is not valid: status must be one of open, done')
+    })
+    const { w } = render(tracker(), { fetchJson: vi.fn<FetchJson>(async () => rows()), send })
+    await flushPromises()
+    const select = w.get('select[aria-label="Status of “Fix the door”"]')
+    await select.setValue('done')
+    await flushPromises()
+    expect((select.element as HTMLSelectElement).value).toBe('open')
+    expect(w.get('[role="alert"]').text()).toBe("Couldn't change the row: The row is not valid: status must be one of open, done")
+    w.unmount()
+  })
+
+  it('changes nothing from the editor canvas, and says so', async () => {
+    const send = vi.fn<SendRequest>()
+    const w = mount(DocumentView, {
+      props: { root: generate(tracker()).root, modelId: 'm', editing: true },
+      global: { provide: { [FETCH_JSON as symbol]: vi.fn<FetchJson>(async () => rows()), [SEND_REQUEST as symbol]: send } },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const select = w.get('select[aria-label="Status of “Fix the door”"]')
+    await select.setValue('done')
+    await flushPromises()
+    expect(send).not.toHaveBeenCalled()
+    expect((select.element as HTMLSelectElement).value).toBe('open')
+    expect(w.get('[role="alert"]').text()).toBe('Nothing is changed from the editor. Open the preview to try it.')
+    w.unmount()
+  })
+})
+
 describe('sending to a Database table', () => {
+  it("doesn't change sample rows in place", async () => {
+    const store = new DataStore(async () => [], 'm1')
+    await expect(
+      store.update({ feature: 's', resource: 'S', operation: 'PATCH', method: 'PATCH', endPoint: '', sample: true }, { id: 1 }, { status: 'done' }),
+    ).rejects.toThrow("Sample rows can't be changed in place")
+  })
+
   it('refuses query values, which its rows take none of, rather than send them elsewhere', async () => {
     const send = vi.fn<SendRequest>()
     const store = new DataStore(async () => [], 'm1', undefined, send)
