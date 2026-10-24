@@ -51,6 +51,12 @@ variable "hostname" {
   default     = "app.feature-domain.workers.dev"
 }
 
+variable "app_domain" {
+  description = "Where published apps answer, one subdomain each (<slug>.<app_domain>): a zone in this account, registered with Cloudflare Registrar. The Worker's APP_DOMAIN var"
+  type        = string
+  default     = "apprun.app"
+}
+
 variable "allowed_emails" {
   # No default: the list is personal data and the repo is public. Set TF_VAR_allowed_emails (a JSON list) in
   # ~/.config/feature-domain/cloudflare.env.
@@ -138,6 +144,56 @@ resource "cloudflare_zero_trust_access_application" "editor" {
   ]
 
   # Without it the editor and /api are open to anyone, and deploying never brings it back. Remove this block
+  # deliberately before Terraform may ever delete it.
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# ── Published apps ───────────────────────────────────────────────────────────
+# Each published app answers at <slug>.<app_domain>, served by the same Worker as the editor: a route on the
+# wildcard in packages/worker/wrangler.jsonc, deployed together with the Worker's split by host (until then nothing
+# answers there behind Access). Its own subdomain keeps every app on an origin of its own.
+data "cloudflare_zone" "apps" {
+  filter = {
+    name = var.app_domain
+    account = {
+      id = var.account_id
+    }
+  }
+}
+
+# A Workers route only runs for proxied hostnames, and Custom Domains don't take wildcards, so the wildcard needs a
+# DNS record. 100:: is the discard prefix: the Worker answers before any origin would be asked. The apex has no
+# record, so it serves nothing.
+resource "cloudflare_dns_record" "apps_wildcard" {
+  zone_id = data.cloudflare_zone.apps.zone_id
+  name    = "*.${var.app_domain}"
+  type    = "AAAA"
+  content = "100::"
+  proxied = true
+  ttl     = 1
+  comment = "Published apps: the Worker app answers on its *.${var.app_domain} route"
+}
+
+# Published apps sit behind the same allow list as the editor until apps have sign-in of their own: their forms
+# write rows, and nothing yet limits who may.
+resource "cloudflare_zero_trust_access_application" "apps" {
+  account_id                 = var.account_id
+  name                       = "Feature Domain published apps"
+  domain                     = "*.${var.app_domain}"
+  type                       = "self_hosted"
+  session_duration           = var.session_duration
+  same_site_cookie_attribute = "lax"
+
+  policies = [
+    {
+      id         = cloudflare_zero_trust_access_policy.editors.id
+      precedence = 1
+    }
+  ]
+
+  # Without it every published app is open to anyone, and deploying never brings it back. Remove this block
   # deliberately before Terraform may ever delete it.
   lifecycle {
     prevent_destroy = true

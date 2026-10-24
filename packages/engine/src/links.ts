@@ -66,10 +66,21 @@ export function modelRowsAddress(model: string, address: string): string {
   return `${MODELS_API_PATH}/${encodeURIComponent(model)}/${address}`
 }
 
+/** The API a published app reads and changes its own data through, on its own host (`<slug>.<app domain>`). */
+export const APP_API_PATH = '/api/v1/app'
+
 /**
- * Whether an address is one `modelRowsAddress` makes: the rows of one model's table (or one row), on this site. The
- * browser fetches it with the viewer's session, like the models API; a model id can't be "." or "..", or hold an
- * encoded dot or slash.
+ * A Database table's rows address (`isAppDataAddress`) as a published app fetches it: under the app's API on its own
+ * host, `/api/v1/app/tables/<key>/rows`, which serves the published version's live rows.
+ */
+export function appRowsAddress(address: string): string {
+  return `${APP_API_PATH}/${address}`
+}
+
+/**
+ * Whether an address is one `modelRowsAddress` makes: the rows of one model's draft table (or one row), on the
+ * builder's site. The browser fetches it with the viewer's session, like the models API; a model id can't be "." or
+ * "..", or hold an encoded dot or slash.
  */
 export function isModelRowsAddress(value: string): boolean {
   const prefix = `${MODELS_API_PATH}/`
@@ -80,4 +91,13 @@ export function isModelRowsAddress(value: string): boolean {
   const model = rest.slice(0, slash)
   if (/^\.{1,2}$/.test(model) || /%2e|%2f|%5c/i.test(model) || !/^[^/?#\\\s\p{Cc}]+$/u.test(model)) return false
   return isAppDataAddress(rest.slice(slash + 1))
+}
+
+/**
+ * Whether an address is one `appRowsAddress` makes: the published app's rows of one table (or one row), on the app's
+ * own host. Only a published app's page accepts it, as the builder's host doesn't serve the app API.
+ */
+export function isAppRowsAddress(value: string): boolean {
+  const prefix = `${APP_API_PATH}/`
+  return value.startsWith(prefix) && isAppDataAddress(value.slice(prefix.length))
 }

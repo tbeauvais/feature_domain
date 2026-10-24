@@ -6,6 +6,9 @@ Terraform for the Cloudflare pieces that outlive a deploy, in the project's own 
 - the D1 database `feature-domain` (protected from `terraform destroy`)
 - Cloudflare Access in front of `app.feature-domain.workers.dev`: an allow policy for `allowed_emails`, signed in
   with a one-time code by email or a Cloudflare login (team `feature-domain`)
+- published apps on `apprun.app` (registered with Cloudflare Registrar, so its zone is in this account): a proxied
+  wildcard DNS record, `*.apprun.app`, for the Worker's route, and Access on `*.apprun.app` with the same allow policy
+  (protected from destroy, like the editor's). The apex has no record and serves nothing
 
 Code is deployed by wrangler, not Terraform: `npm run deploy -w packages/web`.
 
@@ -15,7 +18,7 @@ Kept in `~/.config/feature-domain/cloudflare.env` (mode 600, never committed); `
 
 | Variable | What | Used by |
 | --- | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | API token: Workers Scripts, D1, Access: Apps and Policies, Access: Organizations, Identity Providers, and Groups, Workers R2 Storage (edit); Account Settings (read); this account only | the provider, wrangler |
+| `CLOUDFLARE_API_TOKEN` | API token: Workers Scripts, D1, Access: Apps and Policies, Access: Organizations, Identity Providers, and Groups, Workers R2 Storage (edit); Account Settings (read); this account only. Zone: Zone (read), DNS (edit), Workers Routes (edit); the `apprun.app` zone only | the provider, wrangler |
 | `CLOUDFLARE_ACCOUNT_ID` | the account above | wrangler |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | R2 key, Object Read & Write on `feature-domain-terraform-state` only | the state backend |
 | `TF_VAR_allowed_emails` | who may sign in, as a JSON list (`'["you@example.com"]'`); kept out of the public repo | the Access policy |

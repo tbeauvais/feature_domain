@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { isAppDataAddress, isDataAddress, isLinkAddress, isModelRowsAddress, isTableKey, modelRowsAddress, tableRowsAddress } from '../src'
+import {
+  appRowsAddress,
+  isAppDataAddress,
+  isDataAddress,
+  isLinkAddress,
+  isAppRowsAddress,
+  isModelRowsAddress,
+  isTableKey,
+  modelRowsAddress,
+  tableRowsAddress,
+} from '../src'
 
 describe('isAppDataAddress', () => {
   it("takes a Database table's rows, relative to the app, and one row by placeholder or id", () => {
@@ -86,7 +96,30 @@ describe('modelRowsAddress', () => {
       '/api/v1/models/abc/tables/2/rows/abc',
       'https://evil.example/api/v1/models/abc/tables/2/rows',
       '/api/v1/proxy/tables/2/rows',
+      appRowsAddress('tables/2/rows'),
     ])
       expect(isModelRowsAddress(bad), bad).toBe(false)
+  })
+})
+
+describe('appRowsAddress', () => {
+  it("puts a table's rows under the published app's API, and only those addresses count", () => {
+    expect(appRowsAddress('tables/2/rows/{id}')).toBe('/api/v1/app/tables/2/rows/{id}')
+    for (const ok of ['/api/v1/app/tables/2/rows', '/api/v1/app/tables/2/rows/01ARYZ6S410000000000000000', appRowsAddress('tables/9/rows')])
+      expect(isAppRowsAddress(ok), ok).toBe(true)
+    for (const bad of [
+      '/api/v1/app',
+      '/api/v1/app/',
+      '/api/v1/app/proxy',
+      '/api/v1/app/tables/2',
+      '/api/v1/app/../models/x/tables/2/rows',
+      '/api/v1/app/tables/%2e%2e/rows',
+      '/api/v1/app/tables/2/rows?x=1',
+      '/api/v1/app/models/x/tables/2/rows',
+      '/api/v1/apps/tables/2/rows',
+      'https://evil.example/api/v1/app/tables/2/rows',
+      modelRowsAddress('abc', 'tables/2/rows'),
+    ])
+      expect(isAppRowsAddress(bad), bad).toBe(false)
   })
 })
