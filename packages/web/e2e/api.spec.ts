@@ -24,6 +24,30 @@ test('stores, reads, updates and deletes models', async ({ request }) => {
   expect((await request.get(`/api/v1/models/${id}`)).status()).toBe(404)
 })
 
+test("keeps a Database table's rows, starting with its sample rows, and deletes them with the model", async ({ request }) => {
+  const table = {
+    feature: 'DatabaseTableFeature',
+    id: '2',
+    inputs: { name: 'Requests', fields: ['title: text, required', 'status: choice open | done, default open'], sample_rows: '[{"title": "Sample"}]' },
+  }
+  const { id } = (await (await request.post('/api/v1/models', { data: { ...model, features: [...model.features, table] } })).json()) as { id: string }
+  const rows = `/api/v1/models/${id}/tables/2/rows`
+  try {
+    const created = await request.post(rows, { data: { title: 'Added' } })
+    expect(created.status()).toBe(201)
+    const row = (await created.json()) as { id: string }
+    expect((await request.patch(`${rows}/${row.id}`, { data: { status: 'done' } })).status()).toBe(200)
+    expect(await (await request.get(rows)).json()).toEqual([
+      expect.objectContaining({ title: 'Sample', status: 'open' }),
+      expect.objectContaining({ id: row.id, title: 'Added', status: 'done' }),
+    ])
+    expect((await request.post(rows, { form: { title: 'From a form' } })).status()).toBe(415)
+  } finally {
+    await request.delete(`/api/v1/models/${id}`)
+  }
+  expect((await request.get(rows)).status()).toBe(404)
+})
+
 test('starts a model from a name, serves its OpenAPI spec, and resets the home page, which the list leaves out', async ({ request }) => {
   const created = await request.post('/api/v1/models', { data: { name: 'Named only' } })
   expect(created.status()).toBe(201)

@@ -1,11 +1,24 @@
-import { ModelConflictError, ModelNotFoundError, newModel, validateModel, type AppModel, type ServerModelStore } from '@feature-domain/engine'
-import { Hono } from 'hono'
+import {
+  databaseTableKeys,
+  databaseTables,
+  ModelConflictError,
+  ModelNotFoundError,
+  newModel,
+  RowLimitError,
+  validateModel,
+  type AppModel,
+  type RowStore,
+  type ServerModelStore,
+} from '@feature-domain/engine'
+import { Hono, type Context } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { D1ModelStore, toJson } from './d1ModelStore'
+import { D1RowStore } from './d1RowStore'
 import type { Env } from './env'
 import { HOME_ID, homeModel } from './home'
 import { MODELS_API_SPEC } from './openapi'
 import { allowedOrigins, forward, PROXY_ERROR_HEADER, PROXY_LIMITS, ProxyError, readProxyRequest } from './proxy'
+import { limitError, MAX_ROW_REQUEST_BYTES, readRow, rowIdOf, RowsError, tableOf } from './rows'
 
 /**
  * The largest model the API accepts: bytes of the request body, and of the row D1ModelStore stores (the JSON plus the
@@ -32,11 +45,27 @@ type AppEnv = { Bindings: Env; Variables: { store: ServerModelStore } }
  * as the ETag); PUT without it overwrites.
  *
  * POST /proxy fetches an address for a page (src/proxy.ts); `upstream` replaces the fetch it uses (tests).
+ *
+ * /models/:id/tables/:table/rows reads and writes a Database table's rows (src/rows.ts); `rows` replaces the D1 row
+ * store (tests).
  */
-export function createApp(store?: (env: Env) => ServerModelStore, upstream: typeof fetch = (...args) => fetch(...args)) {
+export function createApp(store?: (env: Env) => ServerModelStore, upstream: typeof fetch = (...args) => fetch(...args), rows?: (env: Env) => RowStore) {
   const app = new Hono<AppEnv>()
   const api = new Hono<AppEnv>()
-  const originsOf = originsCache()
+  const originsOf = revisionCache(allowedOrigins)
+  const tablesOf = revisionCache((model) => databaseTables(model))
+  // Rows live beside the models, in D1 unless a row store is given (tests).
+  const rowStoreOf = (c: Context<AppEnv>) => (rows ? rows(c.env) : new D1RowStore(c.env.DB))
+  // A Database table removed by a save takes its draft rows with it, so a table added later under the same instance id
+  // (the engine numbers new features after the highest id) starts empty. The save has landed by then, so a failure here
+  // is only logged (the next save tries again): answering it as an error would make the editor retry an old revision.
+  const forgetRemovedTables = async (c: Context<AppEnv>, id: string, model: AppModel) => {
+    try {
+      await rowStoreOf(c).keepTables(id, 'draft', databaseTableKeys(model))
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
   // API answers are data, never pages: nothing in them may run, load or be framed. (The app's pages get their policy
   // from packages/web/public/_headers.)
@@ -88,6 +117,7 @@ export function createApp(store?: (env: Env) => ServerModelStore, upstream: type
     let revision: number
     try {
       revision = await c.var.store.update(c.req.param('id'), model, ifRevision)
+      await forgetRemovedTables(c, c.req.param('id'), model)
     } catch (e) {
       if (e instanceof ModelNotFoundError) return notFound()
       if (e instanceof ModelConflictError) return error(412, 'The model was changed since this revision', { headers: { ETag: etag(e.revision) } })
@@ -97,7 +127,12 @@ export function createApp(store?: (env: Env) => ServerModelStore, upstream: type
   })
 
   api.delete('/models/:id', async (c) => {
-    await c.var.store.delete(c.req.param('id'))
+    const id = c.req.param('id')
+    await c.var.store.delete(id)
+    await rowStoreOf(c).deleteModel(id)
+    // A model stored again under this id (the home page's) starts at revision 1 again, so nothing cached for it holds.
+    originsOf.forget(id)
+    tablesOf.forget(id)
     return c.body(null, 204)
   })
 
@@ -107,7 +142,9 @@ export function createApp(store?: (env: Env) => ServerModelStore, upstream: type
   // application/json, like every other request that changes data, so a form on another site can't send it.
   api.post('/home/reset', async (c) => {
     if (!c.req.header('Content-Type')?.toLowerCase().startsWith('application/json')) return error(415, 'Send the request as application/json')
-    const revision = await c.var.store.put(HOME_ID, homeModel())
+    const model = homeModel()
+    const revision = await c.var.store.put(HOME_ID, model)
+    await forgetRemovedTables(c, HOME_ID, model)
     return c.body(null, 204, { ETag: etag(revision) })
   })
 
@@ -130,6 +167,62 @@ export function createApp(store?: (env: Env) => ServerModelStore, upstream: type
     }
   })
 
+  // A Database table's rows: the draft's, read and written by the editor's canvas and the preview. Only as
+  // application/json, so a form on another site can't send them.
+  const ROWS = '/models/:id/tables/:table/rows'
+  /** The table a rows request names, and the row store; `sample`: store its sample rows if they never were. */
+  const resolveTable = async (c: Context<AppEnv>, sample: boolean) => {
+    const rowStore = rowStoreOf(c)
+    return { ...(await tableOf(c.var.store, rowStore, tablesOf, c.req.param('id')!, c.req.param('table')!, sample)), rowStore }
+  }
+
+  api.get(ROWS, (c) =>
+    rowsAnswer(async () => {
+      const { ref, rowStore } = await resolveTable(c, true)
+      return c.json(await rowStore.list(ref), 200, { 'Cache-Control': 'no-store' })
+    }),
+  )
+
+  api.post(ROWS, rowLimit, (c) =>
+    rowsAnswer(async () => {
+      const { ref, table, rowStore } = await resolveTable(c, true)
+      const { row } = await readRow(c.req.raw, table, false)
+      const created = await rowStore.create(ref, row)
+      const location = `/api/v1/models/${encodeURIComponent(ref.model)}/tables/${ref.table}/rows/${created.id}`
+      return c.json(created, 201, { Location: location })
+    }),
+  )
+
+  api.get(`${ROWS}/:row`, (c) =>
+    rowsAnswer(async () => {
+      const { ref, rowStore } = await resolveTable(c, false)
+      const row = await rowStore.get(ref, rowIdOf(c.req.param('row')))
+      if (!row) throw new RowsError(404, 'No row with this id')
+      return c.json(row, 200, { 'Cache-Control': 'no-store' })
+    }),
+  )
+
+  api.patch(`${ROWS}/:row`, rowLimit, (c) =>
+    rowsAnswer(async () => {
+      const { ref, table, rowStore } = await resolveTable(c, false)
+      const id = rowIdOf(c.req.param('row'))
+      const { row, cleared } = await readRow(c.req.raw, table, true)
+      const changed = await rowStore.update(ref, id, row, cleared)
+      if (!changed) throw new RowsError(404, 'No row with this id')
+      return c.json(changed)
+    }),
+  )
+
+  api.delete(`${ROWS}/:row`, (c) =>
+    rowsAnswer(async () => {
+      const { ref, rowStore } = await resolveTable(c, false)
+      await rowStore.delete(ref, rowIdOf(c.req.param('row')))
+      return c.body(null, 204)
+    }),
+  )
+
+  api.all(ROWS, () => error(405, 'Method not allowed', { allow: 'GET, POST' }))
+  api.all(`${ROWS}/:row`, () => error(405, 'Method not allowed', { allow: 'GET, PATCH, DELETE' }))
   api.all('/models', () => error(405, 'Method not allowed', { allow: 'GET, POST' }))
   api.all('/models/:id', () => error(405, 'Method not allowed', { allow: 'GET, PUT, DELETE' }))
   api.all('/proxy', () => proxyError(405, 'Method not allowed', 'POST'))
@@ -192,24 +285,41 @@ function proxyError(status: number, message: string, allow?: string): Response {
   return error(status, message, { allow, headers: { [PROXY_ERROR_HEADER]: 'true' } })
 }
 
+const rowLimit = bodyLimit({ maxSize: MAX_ROW_REQUEST_BYTES, onError: () => error(413, `Rows are sent in at most ${MAX_ROW_REQUEST_BYTES} bytes`) })
+
+/** Runs a rows route, sending its `RowsError` (or a store's limit) as the error answer. */
+async function rowsAnswer(route: () => Promise<Response>): Promise<Response> {
+  try {
+    return await route()
+  } catch (e) {
+    const answer = e instanceof RowLimitError ? limitError(e) : e
+    if (answer instanceof RowsError) return error(answer.status, answer.message, answer.problems ? { problems: answer.problems } : {})
+    throw e
+  }
+}
+
 const MAX_CACHED_MODELS = 50
 
 /**
- * The allowed origins of a model revision, remembered so a page's requests don't regenerate the model every time. One
- * cache per app: another app's store may hold a different model under the same id and revision (tests' stores do).
+ * What `compute` makes of a model revision (the proxy's allowed origins, its Database tables), remembered so a page's
+ * requests don't regenerate the model every time. One cache per app: another app's store may hold a different model
+ * under the same id and revision (tests' stores do).
  */
-function originsCache(): (id: string, revision: number, model: AppModel) => Set<string> {
-  const origins = new Map<string, Set<string>>()
-  return (id, revision, model) => {
-    const key = `${revision}:${id}`
-    let allowed = origins.get(key)
-    if (!allowed) {
-      allowed = allowedOrigins(model)
-      if (origins.size >= MAX_CACHED_MODELS) origins.delete(origins.keys().next().value!)
-      origins.set(key, allowed)
-    }
-    return allowed
+function revisionCache<T>(compute: (model: AppModel) => T): ((id: string, revision: number, model: AppModel) => T) & { forget(id: string): void } {
+  const cache = new Map<string, T>()
+  const get = (id: string, revision: number, model: AppModel) => {
+    const key = JSON.stringify([id, revision])
+    if (cache.has(key)) return cache.get(key)!
+    const value = compute(model)
+    if (cache.size >= MAX_CACHED_MODELS) cache.delete(cache.keys().next().value!)
+    cache.set(key, value)
+    return value
   }
+  /** Drops what is cached for a model, e.g. once it is deleted (a model stored again under its id restarts at revision 1). */
+  const forget = (id: string) => {
+    for (const key of cache.keys()) if ((JSON.parse(key) as [string, number])[0] === id) cache.delete(key)
+  }
+  return Object.assign(get, { forget })
 }
 
 const notFound = () => error(404, 'No model with this id')

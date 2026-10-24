@@ -1,0 +1,46 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { describeRowStore } from '../../engine/test/row-store-contract'
+import { D1RowStore } from '../src/d1RowStore'
+import { localD1, type LocalD1 } from './localD1'
+
+let d1: LocalD1
+beforeAll(async () => {
+  d1 = await localD1()
+}, 60_000)
+afterAll(() => d1?.dispose())
+
+/** An empty database. */
+async function fresh(): Promise<void> {
+  await d1.env.DB.exec('DELETE FROM rows; DELETE FROM sampled_tables')
+}
+
+describeRowStore('D1RowStore', async () => {
+  await fresh()
+  return new D1RowStore(d1.env.DB)
+})
+
+describe('D1RowStore', () => {
+  const table = { model: 'm1', space: 'draft', table: '3' } as const
+
+  it('keeps the order rows were added in, even within one millisecond', async () => {
+    await fresh()
+    const ids = ['01ZZZZZZZZ0000000000000000', '01AAAAAAAA0000000000000000', '01MMMMMMMM0000000000000000']
+    const store = new D1RowStore(
+      d1.env.DB,
+      () => 1000,
+      () => ids.shift()!,
+    )
+    for (const title of ['First', 'Second', 'Third']) await store.create(table, { title })
+    expect((await store.list(table)).map((r) => r.title)).toEqual(['First', 'Second', 'Third'])
+  })
+
+  it('stores the values only, as JSON, and keeps changes to other fields made at the same time', async () => {
+    await fresh()
+    const store = new D1RowStore(d1.env.DB)
+    const row = await store.create(table, { title: 'A', status: 'open', hours: 1 })
+    const stored = await d1.env.DB.prepare('SELECT data FROM rows WHERE id = ?').bind(row.id).first<string>('data')
+    expect(JSON.parse(stored!)).toEqual({ title: 'A', status: 'open', hours: 1 })
+    await Promise.all([store.update(table, row.id, { status: 'done' }), store.update(table, row.id, { hours: 2 })])
+    expect(await store.get(table, row.id)).toMatchObject({ title: 'A', status: 'done', hours: 2 })
+  })
+})

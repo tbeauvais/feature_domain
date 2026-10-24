@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { WORKER_DIR } from '../scripts/wrangler'
 import { D1ModelStore } from '../src/d1ModelStore'
+import { D1RowStore } from '../src/d1RowStore'
 import { localD1, type LocalD1 } from './localD1'
 
 // Migrations run on Cloudflare's D1 before the new Worker is uploaded, so each must work on the rows already there.
@@ -39,4 +40,16 @@ it('starts models stored before revisions at revision 1, and saves count on from
     .bind('during', 'During', JSON.stringify({ version: 2, name: 'During', features: [] }), 2, 2)
     .run()
   expect((await store.get('during'))?.revision).toBe(1)
+})
+
+it('adds rows beside the models stored before, leaving them as they were', async () => {
+  await apply('0003_rows.sql')
+  const rows = new D1RowStore(d1.env.DB)
+  const table = { model: 'old', space: 'draft', table: '2' } as const
+  const row = await rows.create(table, { title: 'Kept' })
+  expect(await rows.list(table)).toEqual([row])
+  expect(await new D1ModelStore(d1.env.DB).get('old')).toMatchObject({ revision: 2 })
+  // Rows of an unknown space are refused, and so are sample marks.
+  await expect(rows.create({ ...table, space: 'other' as 'live' }, { title: 'x' })).rejects.toThrow(/CHECK/)
+  await expect(rows.storeSampleRows({ ...table, space: 'other' as 'live' }, [])).rejects.toThrow(/CHECK/)
 })
