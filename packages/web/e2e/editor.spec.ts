@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 import { isolateNetwork } from './network'
+import { SAMPLE_MODELS } from '../src/data/sampleModels'
 import { stored, storedId, store as storeModel } from './storage'
 
 // Editor flows on a fresh model. All external requests are blocked except a mocked GitHub API (and Open-Meteo, mocked in the test that uses it).
@@ -118,7 +119,7 @@ test('creates and deletes models', async ({ page }) => {
   await page.getByTestId('delete-model').click()
   await page.getByTestId('confirm-dialog').getByTestId('confirm-ok').click()
   await expect(page).toHaveURL('/')
-  await expect(page.getByTestId('home-page').getByRole('table').getByRole('link')).toHaveCount(6)
+  await expect(page.getByTestId('home-page').getByRole('table').getByRole('link')).toHaveCount(SAMPLE_MODELS.length)
 })
 
 test('typing into list and number fields keeps what you type', async ({ page }) => {
@@ -318,7 +319,7 @@ test('deleting a model with an unsaved edit goes straight back to the list', asy
   await page.getByTestId('confirm-dialog').getByTestId('confirm-ok').click()
   await expect(page).toHaveURL('/')
   await expect(page.getByTestId('confirm-dialog')).toHaveCount(0)
-  await expect(page.getByTestId('home-page').getByRole('table').getByRole('link')).toHaveCount(6)
+  await expect(page.getByTestId('home-page').getByRole('table').getByRole('link')).toHaveCount(SAMPLE_MODELS.length)
 })
 
 test('the editor and preview load nothing from other sites', async ({ page, context }) => {

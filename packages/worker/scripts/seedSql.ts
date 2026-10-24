@@ -9,23 +9,41 @@ export const SEEDED_KEY = 'samples-seeded'
 export const sampleId = (set: number, index: number) => `sample-${set}-${index + 1}`
 
 /**
+ * How many samples the first seeds stored together, under `SEEDED_KEY`. Each sample added since (Team requests) has a
+ * setting of its own, so a database seeded before it gets it once, and keeps it deleted once deleted.
+ */
+export const FIRST_SAMPLES = 6
+
+/** The settings row recording that a sample added after the first ones was seeded. */
+export const sampleSeededKey = (id: string) => `sample-seeded:${id}`
+
+/**
  * SQL that stores `models` (rows as D1ModelStore writes them, in this order) unless the database was seeded before,
  * then records the seeding. Running it again changes nothing, locally or on Cloudflare.
  *
- * Locally wrangler runs the file in one transaction; on Cloudflare it runs statement by statement. So the setting is
- * written first as `seeding` and set to `set` last: a seed that stopped partway is still `seeding`, and running it
- * again stores only the samples missing (by id).
+ * The first `together` samples share one setting. Locally wrangler runs the file in one transaction; on Cloudflare it
+ * runs statement by statement. So that setting is written first as `seeding` and set to `set` last: a seed that stopped
+ * partway is still `seeding`, and running it again stores only the samples missing (by id). Each later sample is stored
+ * unless its own setting says it was, then that setting is written.
  */
-export function seedSql(models: readonly AppModel[], set: number, now = Date.now()): string {
+export function seedSql(models: readonly AppModel[], set: number, now = Date.now(), together = FIRST_SAMPLES): string {
   const key = text(SEEDED_KEY)
   const seeding = `EXISTS (SELECT 1 FROM settings WHERE key = ${key} AND value = 'seeding')`
+  const row = (model: AppModel, i: number) => [text(sampleId(set, i)), text(model.name), text(toJson(model)), now, now].join(', ')
   return [
     `INSERT OR IGNORE INTO settings (key, value) VALUES (${key}, 'seeding');`,
-    ...models.map(
-      (model, i) =>
-        `INSERT OR IGNORE INTO models (id, name, model, created_at, updated_at) SELECT ${[text(sampleId(set, i)), text(model.name), text(toJson(model)), now, now].join(', ')} WHERE ${seeding};`,
-    ),
+    ...models
+      .slice(0, together)
+      .map((model, i) => `INSERT OR IGNORE INTO models (id, name, model, created_at, updated_at) SELECT ${row(model, i)} WHERE ${seeding};`),
     `UPDATE settings SET value = ${text(String(set))} WHERE key = ${key} AND value = 'seeding';`,
+    ...models.slice(together).flatMap((model, j) => {
+      const i = together + j
+      const own = text(sampleSeededKey(sampleId(set, i)))
+      return [
+        `INSERT OR IGNORE INTO models (id, name, model, created_at, updated_at) SELECT ${row(model, i)} WHERE NOT EXISTS (SELECT 1 FROM settings WHERE key = ${own});`,
+        `INSERT OR IGNORE INTO settings (key, value) VALUES (${own}, '1');`,
+      ]
+    }),
     '',
   ].join('\n')
 }

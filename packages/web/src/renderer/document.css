@@ -1153,6 +1153,34 @@ h6.fd-heading {
   border: 1px solid var(--fd-border);
   border-radius: var(--fd-radius-sm);
 }
+/* Several lines of text: room for a few, taller if pulled. */
+.fd-form-textarea {
+  min-height: calc(var(--fd-space) * 12);
+  padding: calc(var(--fd-space) * 1.25) calc(var(--fd-space) * 1.5);
+  line-height: 1.5;
+  resize: vertical;
+}
+/* A yes/no field: the checkbox before its label, on one line, any hint under both. */
+.fd-form-field[data-fd-field='check'] {
+  grid-template-columns: auto 1fr;
+  grid-template-areas: 'check label' 'hint hint';
+  align-items: center;
+  column-gap: var(--fd-space);
+}
+.fd-form-field[data-fd-field='check'] .fd-form-label {
+  grid-area: label;
+}
+.fd-form-field[data-fd-field='check'] .fd-form-hint {
+  grid-area: hint;
+}
+.fd-form-check {
+  grid-area: check;
+  width: 1.25em;
+  height: 1.25em;
+  margin: 0;
+  accent-color: var(--fd-accent);
+}
+.fd-form-check:focus-visible,
 .fd-form-input:focus-visible {
   outline: 2px solid var(--fd-accent);
   outline-offset: 1px;

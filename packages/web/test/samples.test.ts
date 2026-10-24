@@ -19,6 +19,7 @@ describe('sampleModels', () => {
       'Northwind sales',
       'Tom Beauvais · projects',
       'Shoreline JS meetup',
+      'Team requests',
     ])
   })
 

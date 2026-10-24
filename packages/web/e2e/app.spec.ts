@@ -54,6 +54,7 @@ test('lists the sample models', async ({ page }) => {
     'Northwind sales',
     'Tom Beauvais · projects',
     'Shoreline JS meetup',
+    'Team requests',
   ])
 })
 
@@ -356,6 +357,14 @@ const SAMPLES: { name: string; ready: (target: Page) => Promise<void> }[] = [
   },
   // A table, a form and a panel with a count and a map.
   { name: 'Shoreline JS meetup', ready: (target) => expect(target.locator('.fd-table-block tbody tr')).toHaveCount(5) },
+  // A Database table's rows (the Worker's), a form with a choice, a date and a text area, and a count.
+  {
+    name: 'Team requests',
+    ready: async (target) => {
+      await expect(target.locator('.fd-table-block tbody tr')).toHaveCount(5)
+      await expect(target.locator('.fd-text[aria-busy]')).toHaveCount(0)
+    },
+  },
 ]
 
 for (const sample of SAMPLES) {

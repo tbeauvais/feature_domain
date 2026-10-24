@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { AppModel } from '@feature-domain/engine'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { SAMPLE_MODELS } from '../../web/src/data/sampleModels'
-import { HOME_SEEDED_KEY, homeSeedSql, seedSql, SEEDED_KEY } from '../scripts/seedSql'
+import { FIRST_SAMPLES, HOME_SEEDED_KEY, homeSeedSql, seedSql, SEEDED_KEY } from '../scripts/seedSql'
 import { D1ModelStore } from '../src/d1ModelStore'
 import { HOME_ID, homeModel } from '../src/home'
 import { localD1, wrangler, type LocalD1 } from './localD1'
@@ -39,6 +39,40 @@ it('seeds the samples once, in order, as D1ModelStore reads them', async () => {
   seed(SAMPLE_MODELS)
   expect(await store.list()).toEqual(listed.slice(1))
 }, 60_000)
+
+it('adds a sample written after a database was seeded once, and keeps it deleted once deleted', async () => {
+  await clear()
+  // A database seeded with the first samples, before the later ones were written.
+  seed(SAMPLE_MODELS.slice(0, FIRST_SAMPLES))
+  const store = new D1ModelStore(d1.env.DB)
+  expect(await store.list()).toHaveLength(FIRST_SAMPLES)
+  const first = (await store.list())[0]!
+  await store.delete(first.id)
+
+  seed(SAMPLE_MODELS)
+  const names = (await store.list()).map((m) => m.name)
+  expect(names).toEqual(SAMPLE_MODELS.slice(1).map((m) => m.name))
+  const later = (await store.list()).at(-1)!
+  expect(later).toMatchObject({ id: `sample-2-${SAMPLE_MODELS.length}`, name: 'Team requests' })
+
+  await store.delete(later.id)
+  seed(SAMPLE_MODELS)
+  expect(await store.get(later.id)).toBeNull()
+}, 60_000)
+
+it('keeps every sample at its position, as databases remember seeded samples by it', () => {
+  // Only ever appended to: a sample moved would take another one's id, and its "seeded" setting with it.
+  expect(SAMPLE_MODELS.map((m) => m.name)).toEqual([
+    'Start here',
+    'Harbor Coffee',
+    'Ledgerly pricing',
+    'Northwind sales',
+    'Tom Beauvais · projects',
+    'Shoreline JS meetup',
+    'Team requests',
+  ])
+  expect(FIRST_SAMPLES).toBe(6)
+})
 
 it('finishes a seed that stopped partway without storing a sample twice', async () => {
   // On Cloudflare the file runs statement by statement, so a failure can leave some samples stored.
