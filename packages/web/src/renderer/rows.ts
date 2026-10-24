@@ -1,4 +1,4 @@
-import { isModelsApiAddress, type DataSource } from '@feature-domain/engine'
+import { isModelRowsAddress, isModelsApiAddress, type DataSource } from '@feature-domain/engine'
 import type { InjectionKey, Ref } from 'vue'
 import { useDataStore } from './data'
 import { getPath } from './filters'
@@ -18,8 +18,9 @@ export type FetchJson = (url: string, via?: Via) => Promise<unknown>
 export const FETCH_JSON: InjectionKey<FetchJson> = Symbol('fetchJson')
 
 export const browserFetchJson: FetchJson = async (url, via) => {
-  // The models API on this site is read with the viewer's session, never through the proxy.
-  if (isModelsApiAddress(url)) return readJson(await onThisSite(url, { headers: { Accept: 'application/json' } }))
+  // The models API on this site (and a model's Database table rows) is read with the viewer's session, never through
+  // the proxy.
+  if (isOnThisSite(url)) return readJson(await onThisSite(url, { headers: { Accept: 'application/json' } }))
   // Never fetch other relative or non-http URLs: an empty endpoint would otherwise load this app's own HTML.
   if (!isHttpUrl(url)) throw new Error(`Only http(s) URLs can be loaded, not "${url}"`)
   if (via) return readJson(await proxied({ method: 'GET', url }, via))
@@ -35,6 +36,9 @@ export const browserFetchJson: FetchJson = async (url, via) => {
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`.trim())
   return readJson(response)
 }
+
+/** The API on this site a page may use: the models API, or a Database table's rows under the page's own model. */
+const isOnThisSite = (url: string) => isModelsApiAddress(url) || isModelRowsAddress(url)
 
 /** The JSON a site answered with, or an error in words when it answered with something else (or nothing). */
 async function readJson(response: Response): Promise<unknown> {
@@ -125,12 +129,12 @@ export type SendRequest = (request: DataRequest, via?: Via) => Promise<unknown>
 
 /**
  * How forms and row deletes reach a data resource; tests provide a fake. Only http(s) addresses and the models API on
- * this site are ever sent to.
+ * this site (with a model's Database table rows) are ever sent to.
  */
 export const SEND_REQUEST: InjectionKey<SendRequest> = Symbol('sendRequest')
 
 export const browserSendRequest: SendRequest = async (request, via) => {
-  const onSite = isModelsApiAddress(request.url)
+  const onSite = isOnThisSite(request.url)
   if (!onSite && !isHttpUrl(request.url)) throw new Error(`Only http(s) URLs can be sent to, not "${request.url}"`)
   let response: Response
   if (onSite) {

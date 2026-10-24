@@ -57,3 +57,27 @@ export function isAppDataAddress(value: string): boolean {
   if (tables !== 'tables' || key === undefined || !isTableKey(key) || rows !== 'rows' || rest.length > 0) return false
   return row === undefined || row === '{id}' || isRowId(row)
 }
+
+/**
+ * A Database table's rows address (`isAppDataAddress`) as the page fetches it: under its own model on this site,
+ * `/api/v1/models/<model>/tables/<key>/rows`. Only the page's data store makes one, from its own model's id.
+ */
+export function modelRowsAddress(model: string, address: string): string {
+  return `${MODELS_API_PATH}/${encodeURIComponent(model)}/${address}`
+}
+
+/**
+ * Whether an address is one `modelRowsAddress` makes: the rows of one model's table (or one row), on this site. The
+ * browser fetches it with the viewer's session, like the models API; a model id can't be "." or "..", or hold an
+ * encoded dot or slash.
+ */
+export function isModelRowsAddress(value: string): boolean {
+  const prefix = `${MODELS_API_PATH}/`
+  if (!value.startsWith(prefix)) return false
+  const rest = value.slice(prefix.length)
+  const slash = rest.indexOf('/')
+  if (slash <= 0) return false
+  const model = rest.slice(0, slash)
+  if (/^\.{1,2}$/.test(model) || /%2e|%2f|%5c/i.test(model) || !/^[^/?#\\\s\p{Cc}]+$/u.test(model)) return false
+  return isAppDataAddress(rest.slice(slash + 1))
+}
