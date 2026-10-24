@@ -1,7 +1,7 @@
 // Where a data-reading feature (Table, Chart) gets its rows: the operation it lists, and what a spec says the rows hold.
 
 import type { FeatureContext } from '../feature.js'
-import { isModelsApiAddress } from '../links.js'
+import { isAppDataAddress, isModelsApiAddress } from '../links.js'
 import type { DataAction, DataSource, TableColumn } from '../types.js'
 import type { DataOperation, DataResourceExports, DataSchema } from './data-resource.js'
 
@@ -103,7 +103,7 @@ export function listSource(
     const source: DataSource = { feature: resourceId, resource: resource.resource, operation: operation.name, endPoint: '', rows: resource.sampleRows ?? [] }
     return schema ? { source, schemaColumns: schema.columns } : { source }
   }
-  if (!isDataAddress(operation.endPoint)) {
+  if (!isAddressOf(resource, operation.endPoint)) {
     ctx.report('warning', `Operation "${operation.name}" of ${name} has no http(s) URL`)
     return {}
   }
@@ -130,9 +130,20 @@ export function actionFor(resourceId: string, resource: DataResourceExports, ope
   return action
 }
 
-/** An address a page reads or sends data to: http(s), or the models API on this site (`isModelsApiAddress`). */
+/**
+ * An address a page reads or sends data to: http(s), the models API on this site (`isModelsApiAddress`), or a Database
+ * table's rows, relative to the app (`isAppDataAddress`).
+ */
 export function isDataAddress(endPoint: string): boolean {
-  return /^https?:\/\//i.test(endPoint) || isModelsApiAddress(endPoint)
+  return /^https?:\/\//i.test(endPoint) || isModelsApiAddress(endPoint) || isAppDataAddress(endPoint)
+}
+
+/**
+ * Whether a resource's operation can be reached at its address: a data address, where a Database table's rows (relative
+ * to the app) count only for the Database table itself, not as an address typed into another resource.
+ */
+export function isAddressOf(resource: DataResourceExports, endPoint: string): boolean {
+  return isAppDataAddress(endPoint) ? 'table' in resource : isDataAddress(endPoint)
 }
 
 /** Whether the proxy fetches an operation: its resource says Server, and it isn't on this site (always the browser's). */

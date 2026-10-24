@@ -1,5 +1,7 @@
 // Where a generated page's links may go: http(s) addresses, or paths on the site serving the page.
 
+import { isRowId } from './tables.js'
+
 /**
  * Whether an address can be a link: http(s), or a path on this site ("/models/7"). A path is refused if it holds
  * whitespace, control characters or backslashes, or starts with "//": browsers drop tabs and newlines and read "\" as
@@ -30,4 +32,28 @@ export function isModelsApiAddress(value: string): boolean {
   if (!match) return false
   const segment = match[1]
   return segment === undefined || !(/^\.{1,2}$/.test(segment) || /%2e/i.test(segment))
+}
+
+/**
+ * Whether a table key (a Database table's instance id) can be part of its rows' address: letters, digits, "_" and "-".
+ * Instance ids are counters ("12"), so a key outside these is a model edited by hand.
+ */
+export function isTableKey(key: string): boolean {
+  return /^[\w-]{1,64}$/.test(key)
+}
+
+/** The address of a Database table's rows, relative to the app (`tables/12/rows`), and of one row (`…/rows/{id}`). */
+export function tableRowsAddress(key: string, row?: string): string {
+  return row === undefined ? `tables/${key}/rows` : `tables/${key}/rows/${row}`
+}
+
+/**
+ * Whether a data address is a Database table's rows, relative to the app: `tables/<key>/rows`, or one row under it,
+ * named by a `{id}` placeholder (filled from a row) or a row id. Never a full path: the page's data store puts its own
+ * model in front (`/api/v1/models/<id>/`), so a page can only reach the rows of the model it shows.
+ */
+export function isAppDataAddress(value: string): boolean {
+  const [tables, key, rows, row, ...rest] = value.split('/')
+  if (tables !== 'tables' || key === undefined || !isTableKey(key) || rows !== 'rows' || rest.length > 0) return false
+  return row === undefined || row === '{id}' || isRowId(row)
 }

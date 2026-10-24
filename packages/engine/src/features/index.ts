@@ -3,6 +3,7 @@ import { ApiSpecFeature } from './api-spec.js'
 import { ButtonFeature } from './button.js'
 import { ChartFeature } from './chart.js'
 import { ContainerFeature } from './container.js'
+import { DatabaseTableFeature } from './database-table.js'
 import { DataResourceFeature } from './data-resource.js'
 import { FormFeature } from './form.js'
 import { HeaderFeature } from './header.js'
@@ -37,6 +38,7 @@ export {
   parseColumnWidths,
   reduceShares,
 } from './container.js'
+export { DatabaseTableFeature, isDatabaseTableExports, type DatabaseTableExports } from './database-table.js'
 export {
   DataResourceFeature,
   DATA_RESOURCE_TYPES,
@@ -50,6 +52,7 @@ export {
   pathname,
   type DataOperation,
   type DataParameter,
+  type DataProperty,
   type DataResourceExports,
   type DataSchema,
 } from './data-resource.js'
@@ -65,7 +68,7 @@ export { FORECAST_DAYS, OPEN_METEO_CREDIT, openMeteoUrl, readCoordinate, WEATHER
 export { PageFeature } from './page.js'
 export { PanelFeature } from './panel.js'
 export { SeparatorFeature } from './separator.js'
-export { columnsFromRows, defaultOperation, fieldLabel, withInputs } from './sources.js'
+export { columnsFromRows, defaultOperation, fieldLabel, isDataAddress, withInputs } from './sources.js'
 export { TableFeature } from './table.js'
 export { parseBindings, TextFeature } from './text.js'
 export { TextWithParagraphFeature } from './text-with-paragraph.js'
@@ -89,6 +92,7 @@ export const coreFeatures = [
   WeatherFeature,
   DataResourceFeature,
   ApiSpecFeature,
+  DatabaseTableFeature,
   TableFeature,
   ChartFeature,
   FormFeature,

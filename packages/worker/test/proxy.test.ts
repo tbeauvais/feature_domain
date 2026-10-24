@@ -247,7 +247,7 @@ describe('/api/v1/proxy', () => {
   it('refuses requests it cannot read, for models that do not exist', async () => {
     const cases: [Record<string, unknown>, number, string][] = [
       [{ model: 'missing', url: 'https://api.example.com/repos' }, 404, 'No model with this id'],
-      [{ method: 'PATCH', url: 'https://api.example.com/repos' }, 400, 'method must be one of'],
+      [{ method: 'TRACE', url: 'https://api.example.com/repos' }, 400, 'method must be one of'],
       [{ url: 'https://api.example.com/repos', body: { a: 1 } }, 400, 'A GET request has no body'],
       [{ method: 'POST', url: 'https://api.example.com/repos', body: { a: { nested: true } } }, 400, 'body values must be'],
       [{ method: 'POST', url: 'https://api.example.com/repos', body: [1] }, 400, 'body must be an object'],

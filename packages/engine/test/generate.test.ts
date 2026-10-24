@@ -242,7 +242,7 @@ describe('references', () => {
     )
     expect(r.diagnostics.map((d) => `${d.code}:${d.featureInstanceId}: ${d.message}`)).toEqual([
       'unresolved-reference:missing: Input "data_resource" references feature nope, which does not exist',
-      'unresolved-reference:wrong: Input "data_resource" must reference one of DataResourceFeature, SwaggerDataResourceFeature, not TextFeature',
+      'unresolved-reference:wrong: Input "data_resource" must reference one of DataResourceFeature, SwaggerDataResourceFeature, DatabaseTableFeature, not TextFeature',
       'unresolved-reference:empty: No Data Resource selected',
     ])
   })
