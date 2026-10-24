@@ -1,7 +1,7 @@
 import { inCell, inPage, inPanel, root, sample } from './build'
 
 // A small team's request tracker: requests kept in a Database table (the app's own rows, in D1), filed with a form,
-// listed in a table with their priority and status, and counted.
+// listed in a table with their priority and a status changed in place, and counted.
 const requests = [
   {
     title: 'Replace the dead monitor at desk 14',
@@ -101,9 +101,12 @@ export const requestTracker = sample('Team requests', (add) => {
       title: 'Requests',
       data_resource: table,
       delete_operation: 'DELETE rows',
+      // Each request's status is a select: the operations team moves it along as they work.
+      update_operation: 'PATCH rows',
+      change_fields: ['status'],
       fields: ['title', 'requested_by', 'priority', 'status', 'due', 'created_at'],
       labels: ['Request', 'From', 'Priority', 'Status', 'Needed by', 'Asked'],
-      filters: ['', '', 'badge', 'badge', 'date', 'date'],
+      filters: ['', '', 'badge', '', 'date', 'date'],
       scroll_rows: 10,
     },
     inPage(page),

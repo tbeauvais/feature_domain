@@ -156,9 +156,10 @@ export class DataStore {
     return { model: this.modelId }
   }
 
-  private async load(entry: Fetched): Promise<void> {
+  /** Fetches an address; `quiet` keeps what was loaded on show until the answer arrives (after a row is changed in place). */
+  private async load(entry: Fetched, quiet = false): Promise<void> {
     const current = ++entry.request
-    entry.state.value = { status: 'loading' }
+    if (!(quiet && entry.state.value.status === 'loaded')) entry.state.value = { status: 'loading' }
     try {
       const response = await (entry.proxy ? this.fetchJson(entry.address, this.via()) : this.fetchJson(this.resolve(entry.address)))
       if (current === entry.request) entry.state.value = { status: 'loaded', response }
@@ -288,9 +289,9 @@ export class DataStore {
     this.persist()
   }
 
-  /** Fetches again every address a data resource is read through (after it was changed). */
-  async reloadResource(resource: string): Promise<void> {
-    await Promise.all([...this.fetched.values()].filter((entry) => entry.features.has(resource)).map((entry) => this.load(entry)))
+  /** Fetches again every address a data resource is read through (after it was changed); `quiet` as for `load`. */
+  async reloadResource(resource: string, quiet = false): Promise<void> {
+    await Promise.all([...this.fetched.values()].filter((entry) => entry.features.has(resource)).map((entry) => this.load(entry, quiet)))
   }
 
   /**
@@ -352,6 +353,23 @@ export class DataStore {
     }
     await (action.proxy ? this.sendRequest(request, this.via()) : this.sendRequest(request))
     await this.reloadResource(action.feature)
+  }
+
+  /**
+   * Changes fields of a row in place (a table's select): sends only `changes` to the row's address (its placeholders
+   * filled from the row), then every reader of the resource reloads, keeping the rows on show meanwhile.
+   */
+  async update(action: DataAction, row: unknown, changes: Readonly<Record<string, unknown>>): Promise<void> {
+    if (action.sample) throw new Error("Sample rows can't be changed in place")
+    if (!this.live) throw new NotSentFromEditor('changed', hostOf(action.endPoint))
+    const request: DataRequest = {
+      method: action.method,
+      url: this.resolve(fillPath(action.endPoint, typeof row === 'object' && row !== null ? (row as Record<string, unknown>) : {})),
+      body: { ...changes },
+    }
+    if (action.requestType) request.requestType = action.requestType
+    await (action.proxy ? this.sendRequest(request, this.via()) : this.sendRequest(request))
+    await this.reloadResource(action.feature, true)
   }
 
   /** Follows rows added in another tab (e.g. the editor while this is the preview). Returns a function to stop. */

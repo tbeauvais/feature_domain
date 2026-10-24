@@ -1,8 +1,8 @@
-import type { FeatureDefinition } from '../feature.js'
 import { asInt, asList, asString, clamp, disableInput, nameInput } from '../inputs.js'
 import { node } from '../nodes.js'
+import type { FeatureContext, FeatureDefinition } from '../feature.js'
 import type { NodeKinds, TableColumn } from '../types.js'
-import { DATA_RESOURCE_TYPES, isDataResourceExports } from './data-resource.js'
+import { DATA_RESOURCE_TYPES, isDataResourceExports, type DataProperty } from './data-resource.js'
 import { actionFor, columnsFromRows, listSource, withInputs } from './sources.js'
 
 function fromInputs(fields: string[], labels: string[], filters: string[]): TableColumn[] {
@@ -33,6 +33,18 @@ export const TableFeature: FeatureDefinition = {
     },
     { name: 'operation', label: 'Operation', type: 'string', default: '', control: 'operation-select', methods: ['GET'] },
     { name: 'delete_operation', label: 'Delete Operation', type: 'string', default: '', control: 'operation-select', methods: ['DELETE'] },
+    // PATCH only: a PUT replaces the whole row, and the table sends the one field changed.
+    { name: 'update_operation', label: 'Change Operation', type: 'string', default: '', control: 'operation-select', methods: ['PATCH'] },
+    {
+      name: 'change_fields',
+      label: 'Changeable fields',
+      type: 'list',
+      default: [],
+      placeholder: 'Every column with options',
+      hint: 'Columns each row changes in place with a select of their options (e.g. a status), sent with the Change Operation',
+      control: 'list-input',
+      showWhen: { input: 'update_operation', notEquals: '' },
+    },
     { name: 'fields', label: 'Fields', type: 'list', default: [], control: 'list-input' },
     { name: 'labels', label: 'Labels', type: 'list', default: [], control: 'list-input' },
     { name: 'filters', label: 'Filters', type: 'list', default: [], control: 'list-input' },
@@ -76,6 +88,46 @@ export const TableFeature: FeatureDefinition = {
       else ctx.report('warning', `Delete operation "${deleteName}" is not provided by ${resource.resource || resolved.id}`)
     }
 
+    const updateName = asString(inputs.update_operation)
+    if (updateName) {
+      const update = resource.operations.find((o) => o.name === updateName)
+      if (!update) ctx.report('warning', `Change operation "${updateName}" is not provided by ${resource.resource || resolved.id}`)
+      else if (update.method !== 'PATCH') ctx.report('warning', `"${update.name}" doesn't change part of a row; rows are changed with PATCH`)
+      else if (update.sample) ctx.report('warning', `"${update.name}" is answered with sample rows, which can't be changed in place`)
+      else if (props.columns.length === 0)
+        ctx.report('warning', "The table's columns are only known once its rows load, so it has no column with options to change: list them in Fields")
+      else {
+        props.updateAction = actionFor(resolved.id, resource, update)
+        props.columns = changeable(props.columns, listed.rowProperties, asList(inputs.change_fields), ctx)
+      }
+    }
+
     return { node: node('table', ctx.nodeId(), props) }
   },
+}
+
+/**
+ * The columns with the options each changeable one takes, from what the rows hold (`enum`): the Changeable fields, else
+ * every column that has options. A listed field the table doesn't show, or that has no options, is a warning.
+ */
+function changeable(
+  columns: TableColumn[],
+  properties: Record<string, DataProperty> | undefined,
+  fields: string[],
+  ctx: Pick<FeatureContext, 'report'>,
+): TableColumn[] {
+  const optionsOf = (field: string) => {
+    const property = properties && Object.hasOwn(properties, field) ? properties[field] : undefined
+    return property?.enum && property.enum.length > 0 ? property.enum : undefined
+  }
+  for (const field of fields) {
+    if (!columns.some((c) => c.field === field)) ctx.report('warning', `Changeable field "${field}" is not a column of the table`)
+    else if (!optionsOf(field)) ctx.report('warning', `Changeable field "${field}" has no options to choose from`)
+  }
+  const out = columns.map((column) => {
+    const options = (fields.length === 0 || fields.includes(column.field)) && optionsOf(column.field)
+    return options ? { ...column, options: [...options] } : column
+  })
+  if (fields.length === 0 && !out.some((c) => c.options)) ctx.report('warning', 'No column has options to choose from, so rows have nothing to change')
+  return out
 }

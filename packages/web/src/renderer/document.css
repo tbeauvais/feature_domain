@@ -1239,6 +1239,27 @@ h6.fd-heading {
   font-size: var(--fd-size-small);
   cursor: pointer;
 }
+/* A cell changed in place: a quiet select the size of a badge. */
+.fd-table-select {
+  min-height: 32px;
+  max-width: 100%;
+  padding: 0 calc(var(--fd-space) * 0.75);
+  border: 1px solid var(--fd-border);
+  border-radius: var(--fd-radius-sm);
+  background: var(--fd-surface);
+  color: var(--fd-ink);
+  font: inherit;
+  font-size: var(--fd-size-small);
+  cursor: pointer;
+}
+.fd-table-select[aria-busy='true'] {
+  opacity: 0.6;
+  cursor: progress;
+}
+.fd-table-select:focus-visible {
+  outline: 2px solid var(--fd-accent);
+  outline-offset: 1px;
+}
 .fd-table-action-danger {
   color: var(--fd-danger);
   border-color: currentColor;
