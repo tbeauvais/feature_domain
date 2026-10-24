@@ -19,7 +19,13 @@ describe('paletteGroups', () => {
     const groups = paletteGroups()
     expect(groups.map((g) => g.label)).toEqual(['Layout', 'Text', 'Media and cards', 'Data and style'])
     const types = groups.flatMap((g) => g.items.map((i) => i.def.type))
-    expect(types.sort()).toEqual(coreFeatures.map((d) => d.type).sort())
+    // Database tables wait until their rows can be read on a page.
+    expect(types.sort()).toEqual(
+      coreFeatures
+        .map((d) => d.type)
+        .filter((t) => t !== 'DatabaseTableFeature')
+        .sort(),
+    )
     expect(groups[3]!.items.map((i) => i.label)).toEqual(['Data', 'API spec', 'Table', 'Chart', 'Form', 'Theme'])
   })
 

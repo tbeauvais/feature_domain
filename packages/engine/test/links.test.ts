@@ -1,5 +1,39 @@
 import { describe, expect, it } from 'vitest'
-import { isLinkAddress } from '../src'
+import { isAppDataAddress, isDataAddress, isLinkAddress, isTableKey, tableRowsAddress } from '../src'
+
+describe('isAppDataAddress', () => {
+  it("takes a Database table's rows, relative to the app, and one row by placeholder or id", () => {
+    for (const ok of ['tables/12/rows', 'tables/a_b-C/rows', 'tables/12/rows/{id}', 'tables/12/rows/01ARYZ6S410000000000000000', tableRowsAddress('7', '{id}')])
+      expect(isAppDataAddress(ok), ok).toBe(true)
+  })
+
+  it('refuses full paths (so a page reaches only its own model), other placeholders, and anything past a row', () => {
+    for (const bad of [
+      '/api/v1/models/other/tables/12/rows',
+      '/tables/12/rows',
+      './tables/12/rows',
+      'tables/../12/rows',
+      'tables/12/rows/',
+      'tables/12/rows/{name}',
+      'tables/12/rows/abc',
+      'tables/12/rows/01arYZ6S410000000000000000',
+      'tables/12/rows/01ARYZ6S410000000000000000/x',
+      'tables/12/rows?all=1',
+      'tables/%2e%2e/rows',
+      'tables/12/rows ',
+      `tables/${'a'.repeat(65)}/rows`,
+      'tables//rows',
+    ])
+      expect(isAppDataAddress(bad), bad).toBe(false)
+  })
+
+  it('is a data address, and only plain keys make one', () => {
+    expect(isDataAddress('tables/12/rows')).toBe(true)
+    expect(isTableKey('12')).toBe(true)
+    expect(isTableKey('a/b')).toBe(false)
+    expect(isTableKey('')).toBe(false)
+  })
+})
 
 describe('isLinkAddress', () => {
   it('takes http(s) addresses and paths on this site', () => {

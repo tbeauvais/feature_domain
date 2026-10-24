@@ -11,6 +11,12 @@ const GROUPS: { label: string; types: string[] }[] = [
   },
 ]
 
+/**
+ * Types not offered yet: a Database table's rows need the Worker's rows API and the page's data store to resolve its
+ * addresses, which come in the next two PRs of the Data Apps slice. Models holding one still show it in the tree.
+ */
+const NOT_YET = new Set(['DatabaseTableFeature'])
+
 /** Short palette labels where the feature's name is long. */
 const SHORT: Record<string, string> = { DataResourceFeature: 'Data' }
 
@@ -20,10 +26,10 @@ export interface PaletteGroup {
 }
 
 export function paletteGroups(defs: readonly FeatureDefinition[] = coreFeatures): PaletteGroup[] {
-  const byType = new Map(defs.map((d) => [d.type, d]))
+  const byType = new Map(defs.filter((d) => !NOT_YET.has(d.type)).map((d) => [d.type, d]))
   const listed = new Set(GROUPS.flatMap((g) => g.types))
   const groups = GROUPS.map((g) => ({ label: g.label, types: g.types.filter((t) => byType.has(t)) }))
-  const rest = defs.filter((d) => !listed.has(d.type)).map((d) => d.type)
+  const rest = [...byType.keys()].filter((t) => !listed.has(t))
   if (rest.length > 0) groups.push({ label: 'More', types: rest })
   return groups
     .filter((g) => g.types.length > 0)

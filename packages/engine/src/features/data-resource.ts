@@ -1,16 +1,27 @@
 import type { FeatureDefinition } from '../feature.js'
 import { asOneOf, asString, nameInput, type InputDef } from '../inputs.js'
 
-export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE'] as const
+export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const
 
 /** A schema in the JSON-Schema-like shape API specs use (references are by schema name). */
 export interface DataSchema {
   type?: string
   /** For an array schema: the item schema's name. */
   items?: { $ref?: string }
-  properties?: Record<string, { type?: string; description?: string; items?: { $ref?: string } }>
+  properties?: Record<string, DataProperty>
   /** Properties that must be given (e.g. in a request body). */
   required?: string[]
+}
+
+/** One property of a schema. `enum` and `format` say more about a string, as in JSON Schema. */
+export interface DataProperty {
+  type?: string
+  description?: string
+  items?: { $ref?: string }
+  /** The only values it takes (a Form shows them as a choice). */
+  enum?: string[]
+  /** What a string holds: `date` (YYYY-MM-DD), or `long-text` (text a Form gives a text area). */
+  format?: string
 }
 
 /** An operation's input, as a Form shows it: from the spec's parameters or its request body's properties. */
@@ -20,6 +31,12 @@ export interface DataParameter {
   type: string
   description: string
   required: boolean
+  /** The only values it takes. */
+  enum?: string[]
+  /** What a string holds, as for `DataProperty`. */
+  format?: string
+  /** The value it takes when none is given. */
+  default?: string | number | boolean
 }
 
 export interface DataOperation {
@@ -74,7 +91,7 @@ export function fetchThroughInput(showWhen?: InputDef['showWhen']): InputDef {
 export const viaServer = (inputs: Record<string, unknown>) => asOneOf(inputs.fetch_through, FETCH_THROUGH, 'browser') === 'server'
 
 /** The feature types whose exports are `DataResourceExports`. */
-export const DATA_RESOURCE_TYPES = ['DataResourceFeature', 'SwaggerDataResourceFeature']
+export const DATA_RESOURCE_TYPES = ['DataResourceFeature', 'SwaggerDataResourceFeature', 'DatabaseTableFeature']
 
 export function isDataResourceExports(value: unknown): value is DataResourceExports {
   const v = value as Partial<DataResourceExports> | undefined

@@ -128,6 +128,21 @@ describe('FormFeature', () => {
     })
   })
 
+  it('with a spec, its own fields keep what the spec says each takes (a number, required)', () => {
+    const { props } = formOf(pets, { operation: 'PUT /pets/{id}', fields: ['id', 'name', 'color'] })
+    expect(props.fields).toEqual([
+      // Its own fields still go in the body, as they did (the path placeholder is filled from them too).
+      { name: 'id', label: 'Id', type: 'text', required: true, in: 'body' },
+      { name: 'name', label: 'Name', type: 'text', required: false, in: 'body' },
+      { name: 'color', label: 'Color', type: 'text', required: false, in: 'body' },
+    ])
+    // Its own fields are labeled by the form, so the spec's descriptions ("What to call it") don't go under them.
+    expect(formOf(pets, { fields: ['age', 'name'] }).props.fields).toEqual([
+      { name: 'age', label: 'Age', type: 'number', required: false, in: 'body' },
+      { name: 'name', label: 'Name', type: 'text', required: false, in: 'body' },
+    ])
+  })
+
   it('opens an http(s) address or a path on this site after sending, else stays and says why', () => {
     expect(formOf(people, {}).props).not.toHaveProperty('open')
     expect(formOf(people, { open_after: ' /people/{id} ' })).toMatchObject({ props: { open: '/people/{id}' }, problems: [] })
@@ -142,7 +157,7 @@ describe('FormFeature', () => {
   })
 
   it("says what is wrong instead of sending somewhere it shouldn't", () => {
-    expect(formOf(people, { operation: 'GET rows' })).toMatchObject({ problems: ['"GET rows" doesn\'t take data; a form sends with POST or PUT'] })
+    expect(formOf(people, { operation: 'GET rows' })).toMatchObject({ problems: ['"GET rows" doesn\'t take data; a form sends with POST, PUT or PATCH'] })
     expect(formOf(people, { operation: 'GET rows' }).props).not.toHaveProperty('action')
     expect(formOf(people, { operation: 'POST /gone' }).problems).toEqual(['Operation "POST /gone" is not provided by People'])
     const readOnly = inst('DataResourceFeature', 'g', { name: 'Feed', resource: 'https://x.test/feed' }, null)

@@ -2,14 +2,38 @@ import type { FeatureDefinition } from '../feature.js'
 import { asList, asString, disableInput, nameInput } from '../inputs.js'
 import { isLinkAddress } from '../links.js'
 import { node } from '../nodes.js'
-import type { FormField, NodeKinds } from '../types.js'
-import { DATA_RESOURCE_TYPES, isDataResourceExports, type DataOperation, type DataResourceExports } from './data-resource.js'
-import { actionFor, defaultOperation, fieldLabel, isDataAddress } from './sources.js'
+import type { FormField, FormFieldType, NodeKinds } from '../types.js'
+import { DATA_RESOURCE_TYPES, isDataResourceExports, type DataOperation, type DataParameter, type DataResourceExports } from './data-resource.js'
+import { actionFor, defaultOperation, fieldLabel, isAddressOf } from './sources.js'
 
 /** At most this many fields are shown; a form longer than that wants splitting anyway. */
 export const MAX_FORM_FIELDS = 30
 
 const NUMBER_TYPES = ['integer', 'number', 'float', 'double', 'long']
+
+/** The methods that take data, so a form can send with them. */
+const SENDS = ['POST', 'PUT', 'PATCH']
+
+/**
+ * A field for one of the operation's inputs: what it takes, from its type, options and format. `hint`: the spec's
+ * description goes under it (not for a form's own Fields, which name and label their fields themselves).
+ */
+function fieldOf(p: DataParameter, label: string, hint = true): FormField {
+  const field: FormField = { name: p.name, label, type: fieldType(p), required: p.required, in: p.in === 'path' || p.in === 'query' ? p.in : 'body' }
+  if (field.type === 'choice') field.options = [...p.enum!]
+  if (p.default !== undefined) field.default = p.default
+  if (hint && p.description) field.hint = p.description
+  return field
+}
+
+function fieldType(p: DataParameter): FormFieldType {
+  if (p.enum && p.enum.length > 0) return 'choice'
+  if (p.type === 'boolean') return 'yes-no'
+  if (NUMBER_TYPES.includes(p.type)) return 'number'
+  if (p.format === 'date') return 'date'
+  if (p.format === 'long-text') return 'long-text'
+  return 'text'
+}
 
 /** The fields a form shows: its own list, else what the operation's spec says it takes, else the sample rows' keys. */
 function fieldsFor(names: string[], labels: string[], operation: DataOperation | undefined, resource: DataResourceExports, required: string[]): FormField[] {
@@ -17,21 +41,16 @@ function fieldsFor(names: string[], labels: string[], operation: DataOperation |
 }
 
 function fieldsFrom(names: string[], labels: string[], operation: DataOperation | undefined, resource: DataResourceExports): FormField[] {
-  if (names.length > 0) return names.map((name, i) => ({ name, label: labels[i] || fieldLabel(name), type: 'text', required: false, in: 'body' }))
   const parameters = (operation?.parameters ?? []).filter((p) => p.in !== 'header')
-  if (parameters.length > 0) {
-    return parameters.map((p, i) => {
-      const field: FormField = {
-        name: p.name,
-        label: labels[i] || fieldLabel(p.name),
-        type: NUMBER_TYPES.includes(p.type) ? 'number' : 'text',
-        required: p.required,
-        in: p.in === 'path' || p.in === 'query' ? p.in : 'body',
-      }
-      if (p.description) field.hint = p.description
-      return field
+  // Its own Fields take what the operation's input of that name takes (a number, a choice, required…), and plain text
+  // for the rest. Their values still go in the body, as they always have (a path placeholder is filled from them too).
+  if (names.length > 0)
+    return names.map((name, i) => {
+      const parameter = parameters.find((p) => p.name === name)
+      const label = labels[i] || fieldLabel(name)
+      return parameter ? { ...fieldOf(parameter, label, false), in: 'body' } : { name, label, type: 'text', required: false, in: 'body' }
     })
-  }
+  if (parameters.length > 0) return parameters.map((p, i) => fieldOf(p, labels[i] || fieldLabel(p.name)))
   const rows = operation?.sample ? (resource.sampleRows ?? []) : []
   const keys = [...new Set(rows.flatMap((row) => Object.keys(row)))].filter((k) => k.trim() !== '')
   return keys.map((name, i) => ({
@@ -58,7 +77,7 @@ export const FormFeature: FeatureDefinition = {
     disableInput,
     { name: 'title', label: 'Title', type: 'string', default: '', control: 'text-input' },
     { name: 'data_resource', label: 'Data Resource', type: 'reference', accepts: DATA_RESOURCE_TYPES, required: true, default: '', control: 'resource-select' },
-    { name: 'operation', label: 'Operation', type: 'string', default: '', control: 'operation-select', methods: ['POST', 'PUT'] },
+    { name: 'operation', label: 'Operation', type: 'string', default: '', control: 'operation-select', methods: ['POST', 'PUT', 'PATCH'] },
     { name: 'fields', label: 'Fields', type: 'list', default: [], placeholder: 'From the operation', control: 'list-input' },
     { name: 'labels', label: 'Labels', type: 'list', default: [], control: 'list-input' },
     // Beyond what the spec requires (a spec often marks nothing): these must be filled in before sending.
@@ -101,9 +120,9 @@ export const FormFeature: FeatureDefinition = {
     const operation = operationName ? resource.operations.find((o) => o.name === operationName) : defaultOperation(resource.operations, ['POST', 'PUT'])
     if (operationName && !operation) ctx.report('warning', `Operation "${operationName}" is not provided by ${name}`)
     else if (!operation) ctx.report('warning', `${name} has no POST or PUT operation to send to`)
-    else if (operation.method !== 'POST' && operation.method !== 'PUT')
-      ctx.report('warning', `"${operation.name}" doesn't take data; a form sends with POST or PUT`)
-    else if (!operation.sample && !isDataAddress(operation.endPoint)) ctx.report('warning', `Operation "${operation.name}" of ${name} has no http(s) URL`)
+    else if (!SENDS.includes(operation.method)) ctx.report('warning', `"${operation.name}" doesn't take data; a form sends with POST, PUT or PATCH`)
+    else if (!operation.sample && !isAddressOf(resource, operation.endPoint))
+      ctx.report('warning', `Operation "${operation.name}" of ${name} has no http(s) URL`)
     else props.action = actionFor(resolved.id, resource, operation)
 
     // Header parameters (e.g. an API key) can't be typed into a form, so a required one means the server will refuse.

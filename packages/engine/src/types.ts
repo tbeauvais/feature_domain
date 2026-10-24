@@ -104,14 +104,22 @@ export interface DataAction {
   sampleIds?: { field: string; after: number; text: boolean }
 }
 
-/** A Form input: a text or number field; `in` says where its value goes (path placeholder, query, or the body). */
+/** What a Form field takes: one line of text, a number, several lines, a date, one of its options, or yes or no. */
+export const FORM_FIELD_TYPES = ['text', 'number', 'long-text', 'date', 'choice', 'yes-no'] as const
+export type FormFieldType = (typeof FORM_FIELD_TYPES)[number]
+
+/** A Form input; `in` says where its value goes (path placeholder, query, or the body). */
 export interface FormField {
   name: string
   label: string
-  type: 'text' | 'number'
+  type: FormFieldType
   required: boolean
   hint?: string
   in: 'path' | 'query' | 'body'
+  /** A choice's options, in order. */
+  options?: string[]
+  /** What the field starts with. */
+  default?: string | number | boolean
 }
 
 /** What a Chart draws: slices of one whole, bars across, columns up, or a line. */
