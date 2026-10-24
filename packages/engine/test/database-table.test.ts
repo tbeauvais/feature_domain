@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { generate, isDatabaseTableExports, proxyAddresses, type DocNodeOf, type FeatureInstance, type InputValue } from '../src'
+import {
+  databaseTableKeys,
+  databaseTables,
+  generate,
+  isDatabaseTableExports,
+  proxyAddresses,
+  type DocNodeOf,
+  type FeatureInstance,
+  type InputValue,
+} from '../src'
 import { inst, model, page } from './helpers'
 
 const FIELDS = [
@@ -206,5 +215,28 @@ describe('DatabaseTableFeature', () => {
     expect(proxyAddresses(model(table(), page()))).toEqual([])
     const renamed = generate(model(table({ name: 'Tickets' }), page()))
     expect((renamed.exports.get('t') as { operations: { endPoint: string }[] }).operations[0]!.endPoint).toBe('tables/t/rows')
+  })
+})
+
+describe('databaseTables', () => {
+  it("lists the model's Database tables that generate, by key, with their fields and sample rows", () => {
+    const tables = databaseTables(
+      model(
+        table({ sample_rows: '[{"title": "One"}]' }),
+        table({ name: 'Other', fields: ['n: number'] }, 'u'),
+        table({}, 'a/b'),
+        inst('DataResourceFeature', 'r', {}, null),
+        page(),
+      ),
+    )
+    expect([...tables.keys()]).toEqual(['t', 'u'])
+    expect(tables.get('t')).toMatchObject({ key: 't', sampleRows: [{ title: 'One', priority: 'normal' }] })
+    expect(tables.get('u')?.schema.fields).toEqual([{ name: 'n', type: 'number', required: false }])
+  })
+})
+
+describe('databaseTableKeys', () => {
+  it('lists every Database table, also ones that do not generate', () => {
+    expect(databaseTableKeys(model(table(), table({}, 'a/b'), inst('DataResourceFeature', 'r', {}, null), page()))).toEqual(['t', 'a/b'])
   })
 })

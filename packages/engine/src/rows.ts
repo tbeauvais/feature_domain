@@ -59,6 +59,12 @@ export interface RowStore {
    * call, even after the rows were deleted, changes nothing and returns false.
    */
   storeSampleRows(table: TableRef, rows: readonly RowValues[]): Promise<boolean>
+  /**
+   * Deletes the rows of a model's tables in `space` whose keys aren't in `keys`, and forgets that they had their sample
+   * rows: a Database table removed from the model takes its rows with it, so one added later under the same instance id
+   * starts empty, with its own sample rows.
+   */
+  keepTables(model: string, space: RowSpace, keys: readonly string[]): Promise<void>
   /** Deletes every row of a model, in every space, and forgets which tables had their sample rows. */
   deleteModel(model: string): Promise<void>
 }
@@ -150,8 +156,17 @@ export class MemoryRowStore implements RowStore {
     return true
   }
 
+  async keepTables(model: string, space: RowSpace, keys: readonly string[]): Promise<void> {
+    this.forget(([m, s, table]) => m === model && s === space && !keys.includes(table!))
+  }
+
   async deleteModel(model: string): Promise<void> {
-    for (const [key, entry] of this.tables) if (entry.ref.model === model) this.tables.delete(key)
-    for (const key of this.sampled) if ((JSON.parse(key) as string[])[0] === model) this.sampled.delete(key)
+    this.forget(([m]) => m === model)
+  }
+
+  /** Deletes the rows and sample marks of the tables `drop` picks, by their [model, space, table]. */
+  private forget(drop: (ref: string[]) => boolean): void {
+    for (const key of this.tables.keys()) if (drop(JSON.parse(key) as string[])) this.tables.delete(key)
+    for (const key of this.sampled) if (drop(JSON.parse(key) as string[])) this.sampled.delete(key)
   }
 }

@@ -124,6 +124,26 @@ export function describeRowStore(name: string, create: () => RowStore | Promise<
       expect((await store.list(requests)).map((r) => r.title)).toEqual([first.title, 'Sample', later.title])
     })
 
+    it("keeps only the given tables of a model's space: the others lose their rows and sample marks", async () => {
+      const store = await create()
+      const removed = { ...requests, table: '4' }
+      await store.storeSampleRows(requests, [{ title: 'Kept' }])
+      await store.storeSampleRows(removed, [{ title: 'Removed' }])
+      const live = await store.create({ ...removed, space: 'live' }, { title: 'Live' })
+      const other = await store.create({ ...removed, model: 'm2' }, { title: 'Other model' })
+      await store.keepTables('m1', 'draft', ['3'])
+      expect(values(await store.list(requests))).toEqual([{ title: 'Kept' }])
+      expect(await store.list(removed)).toEqual([])
+      expect(await store.list({ ...removed, space: 'live' })).toEqual([live])
+      expect(await store.list({ ...removed, model: 'm2' })).toEqual([other])
+      // A table added again under the same key starts over, with its own sample rows.
+      expect(await store.storeSampleRows(removed, [{ title: 'New' }])).toBe(true)
+      expect(values(await store.list(removed))).toEqual([{ title: 'New' }])
+      expect(await store.storeSampleRows(requests, [{ title: 'Again' }])).toBe(false)
+      await store.keepTables('m1', 'draft', [])
+      expect(await store.list(requests)).toEqual([])
+    })
+
     it("deletes a model's rows in every space and table, and its sample marks, leaving other models'", async () => {
       const store = await create()
       await store.storeSampleRows(requests, [{ title: 'Sample' }])
