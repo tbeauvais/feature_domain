@@ -6,6 +6,7 @@ import { canonicalWidths, columnPresets } from './columnPresets'
 import IllustrationGallery from './IllustrationGallery.vue'
 import PlaceSearchField from './PlaceSearchField.vue'
 import SizeField from './SizeField.vue'
+import TableFieldsField from './TableFieldsField.vue'
 
 // One editor control for one feature input, chosen from the input's schema. Emits the new value, or undefined to
 // clear the input (it then falls back to its default).
@@ -37,7 +38,8 @@ const grouped = computed(
   () =>
     ((props.def.control === 'segmented' || props.def.control === 'illustration-gallery') && props.def.options !== undefined) ||
     props.def.control === 'api-spec' ||
-    props.def.control === 'place-search',
+    props.def.control === 'place-search' ||
+    props.def.control === 'table-fields',
 )
 
 const field = 'w-full rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-sky-500 focus:outline-none'
@@ -157,6 +159,14 @@ function settle() {
       />
       <input :id="id" type="text" :class="field" placeholder="none" :value="text" @input="emit('change', ($event.target as HTMLInputElement).value)" />
     </div>
+
+    <TableFieldsField
+      v-else-if="def.control === 'table-fields'"
+      :id="id"
+      :labelledby="`${id}-label`"
+      :value="Array.isArray(current) ? current.map(String) : []"
+      @change="emit('change', $event)"
+    />
 
     <textarea
       v-else-if="def.type === 'list'"

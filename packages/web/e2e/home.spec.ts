@@ -10,7 +10,7 @@ isolateNetwork()
 
 const home = (page: Page) => page.getByTestId('home-page')
 const models = (page: Page) => home(page).getByRole('table').getByRole('link')
-const SAMPLES = ['Start here', 'Harbor Coffee', 'Ledgerly pricing', 'Northwind sales', 'Tom Beauvais · projects', 'Shoreline JS meetup']
+const SAMPLES = ['Start here', 'Harbor Coffee', 'Ledgerly pricing', 'Northwind sales', 'Tom Beauvais · projects', 'Shoreline JS meetup', 'Team requests']
 
 test('lists the models, each opening in the editor in the same tab', async ({ page }) => {
   await page.goto('/')
@@ -38,7 +38,7 @@ test('starts a new model from its name and opens it', async ({ page }) => {
 test('deletes a model from its row, after asking', async ({ page }) => {
   await page.goto('/')
   const table = home(page).getByRole('table')
-  await expect(models(page)).toHaveCount(6)
+  await expect(models(page)).toHaveCount(SAMPLES.length)
   await table.getByRole('button', { name: 'Delete row 2' }).click()
   await expect(table.getByText('Delete this row?')).toBeVisible()
   await table.getByRole('button', { name: 'Delete', exact: true }).click()
@@ -56,7 +56,7 @@ test('Edit home page opens it in the editor, and its changes show on the home pa
   await expect(page.getByTestId('save-state')).toHaveText('Saved')
   await page.getByRole('link', { name: 'Feature Domain' }).click()
   await expect(home(page).getByRole('heading', { level: 1 })).toHaveText('Everything we build')
-  await expect(models(page)).toHaveCount(6)
+  await expect(models(page)).toHaveCount(SAMPLES.length)
 })
 
 test('shows the model list when the home page is gone, and Reset home page puts it back', async ({ page }) => {

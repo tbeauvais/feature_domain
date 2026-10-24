@@ -19,14 +19,8 @@ describe('paletteGroups', () => {
     const groups = paletteGroups()
     expect(groups.map((g) => g.label)).toEqual(['Layout', 'Text', 'Media and cards', 'Data and style'])
     const types = groups.flatMap((g) => g.items.map((i) => i.def.type))
-    // Database tables wait until their rows can be read on a page.
-    expect(types.sort()).toEqual(
-      coreFeatures
-        .map((d) => d.type)
-        .filter((t) => t !== 'DatabaseTableFeature')
-        .sort(),
-    )
-    expect(groups[3]!.items.map((i) => i.label)).toEqual(['Data', 'API spec', 'Table', 'Chart', 'Form', 'Theme'])
+    expect(types.sort()).toEqual(coreFeatures.map((d) => d.type).sort())
+    expect(groups[3]!.items.map((i) => i.label)).toEqual(['Data', 'Database table', 'API spec', 'Table', 'Chart', 'Form', 'Theme'])
   })
 
   it('puts feature types it does not know under More, so new features are never hidden', () => {

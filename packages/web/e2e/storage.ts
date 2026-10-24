@@ -1,4 +1,4 @@
-import { MemoryModelStore, type AppModel } from '@feature-domain/engine'
+import { MemoryModelStore, MemoryRowStore, type AppModel } from '@feature-domain/engine'
 import type { BrowserContext, Page, Route } from '@playwright/test'
 import { SAMPLE_SET, sampleModels } from '../src/data/samples'
 import { HOME_RESET_PATH } from '../src/stores/apiModelStore'
@@ -29,7 +29,9 @@ export async function serveModels(context: BrowserContext): Promise<void> {
   )
   for (const [i, sample] of sampleModels().entries()) await put(`sample-${SAMPLE_SET}-${i + 1}`, sample)
   upstream = () => Promise.reject(new TypeError('fetch failed'))
-  const app: WorkerApp = await workerApp(models, async (input, init = {}) => upstream(String(input), init))
+  // Database tables' rows, stamped at the same time, so their dates don't change a screenshot either.
+  const rows = new MemoryRowStore(() => SAVED_AT)
+  const app: WorkerApp = await workerApp(models, async (input, init = {}) => upstream(String(input), init), rows)
   await app.request(HOME_RESET_PATH, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
   const serve = async (route: Route) => {
     const request = route.request()

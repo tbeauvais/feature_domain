@@ -112,7 +112,7 @@ export const DatabaseTableFeature: FeatureDefinition = {
       initial: ['name: text, required', 'notes: long text'],
       placeholder: 'name: text, required',
       hint: 'One per line: name: type (text, long text, number, date, choice or yes/no), then "required" or "default …". A choice lists its options: status: choice open | done',
-      control: 'list-input',
+      control: 'table-fields',
     },
     {
       name: 'sample_rows',

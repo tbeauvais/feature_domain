@@ -1,5 +1,5 @@
 import type { DataAction, DataSource, FormField } from '@feature-domain/engine'
-import { MAX_SAMPLE_ROWS } from '@feature-domain/engine'
+import { isAppDataAddress, isModelRowsAddress, MAX_SAMPLE_ROWS, modelRowsAddress } from '@feature-domain/engine'
 import {
   computed,
   getCurrentScope,
@@ -139,6 +139,17 @@ export class DataStore {
     return entry
   }
 
+  /**
+   * The address to fetch or send to: a Database table's rows (relative to the app, `tables/2/rows`) go to this model's
+   * on this site, so a page only ever reaches its own model's rows; any other address as it is.
+   */
+  private resolve(address: string): string {
+    if (!address.startsWith('tables/')) return address
+    if (!isAppDataAddress(address)) throw new Error(`"${address}" isn't a Database table's rows`)
+    if (!this.modelId) throw new Error("A Database table's rows are kept with a saved model")
+    return modelRowsAddress(this.modelId, address)
+  }
+
   /** How to reach the proxy for this model; it fetches only the stored model's Server addresses. */
   private via(): Via {
     if (!this.modelId) throw new Error('Fetching through the server needs a saved model')
@@ -149,7 +160,7 @@ export class DataStore {
     const current = ++entry.request
     entry.state.value = { status: 'loading' }
     try {
-      const response = await (entry.proxy ? this.fetchJson(entry.address, this.via()) : this.fetchJson(entry.address))
+      const response = await (entry.proxy ? this.fetchJson(entry.address, this.via()) : this.fetchJson(this.resolve(entry.address)))
       if (current === entry.request) entry.state.value = { status: 'loaded', response }
     } catch (error) {
       if (current === entry.request) entry.state.value = { status: 'error', message: error instanceof Error ? error.message : String(error) }
@@ -310,6 +321,8 @@ export class DataStore {
     const query = Object.entries(values).filter(([k, v]) => where(k) === 'query' && v !== undefined && v !== '')
     if (query.length > 0)
       url += `${url.includes('?') ? '&' : '?'}${query.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&')}`
+    // After the query, so a Database table's rows (which take none) refuse one rather than send it elsewhere.
+    url = this.resolve(url)
     const request: DataRequest = { method: action.method, url, body }
     if (action.requestType) request.requestType = action.requestType
     const answer = await (action.proxy ? this.sendRequest(request, this.via()) : this.sendRequest(request))
@@ -335,7 +348,7 @@ export class DataStore {
     if (!this.live) throw new NotSentFromEditor('deleted', hostOf(action.endPoint))
     const request: DataRequest = {
       method: action.method,
-      url: fillPath(action.endPoint, typeof row === 'object' && row !== null ? (row as Record<string, unknown>) : {}),
+      url: this.resolve(fillPath(action.endPoint, typeof row === 'object' && row !== null ? (row as Record<string, unknown>) : {})),
     }
     await (action.proxy ? this.sendRequest(request, this.via()) : this.sendRequest(request))
     await this.reloadResource(action.feature)
@@ -399,9 +412,10 @@ export function forgetSampleRows(modelId: string, storage: SampleRowsStorage | u
 export const DATA_STORE: InjectionKey<DataStore> = Symbol('dataStore')
 
 /**
- * What to wait for before a request through the proxy, which fetches only the stored model's Server addresses: the
- * editor's pending save, so an address just typed (or a resource just switched to Server) is stored first. Resolves to
- * false when the edits could not be stored.
+ * What to wait for before a request the Worker answers from the stored model: one through the proxy, which fetches only
+ * the stored model's Server addresses, or to a Database table's rows, checked against the stored table's fields. The
+ * editor's pending save, so an address just typed (or a field just added) is stored first. Resolves to false when the
+ * edits could not be stored.
  */
 export const PROXY_READY: InjectionKey<() => Promise<boolean>> = Symbol('proxyReady')
 
@@ -417,10 +431,12 @@ export function provideDataStore(modelId?: string, live = true): DataStore {
   const fetchJson = inject(FETCH_JSON, browserFetchJson)
   const sendRequest = inject(SEND_REQUEST, browserSendRequest)
   const store = new DataStore(
-    ready ? async (url, via) => (via ? (await proxyReady(ready), fetchJson(url, via)) : fetchJson(url)) : fetchJson,
+    ready ? async (url, via) => (via || isModelRowsAddress(url) ? (await proxyReady(ready), fetchJson(url, via)) : fetchJson(url)) : fetchJson,
     modelId,
     storage,
-    ready ? async (request, via) => (via ? (await proxyReady(ready), sendRequest(request, via)) : sendRequest(request)) : sendRequest,
+    ready
+      ? async (request, via) => (via || isModelRowsAddress(request.url) ? (await proxyReady(ready), sendRequest(request, via)) : sendRequest(request))
+      : sendRequest,
     live,
   )
   provide(DATA_STORE, store)
