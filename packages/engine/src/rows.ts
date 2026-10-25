@@ -65,6 +65,14 @@ export interface RowStore {
    * starts empty, with its own sample rows.
    */
   keepTables(model: string, space: RowSpace, keys: readonly string[]): Promise<void>
+  /**
+   * Makes a model's `to` space a copy of its `from` space, in one step: `to` loses its rows and sample marks and gets
+   * `from`'s, with the same ids and times. A first publish copies the draft's rows to the app's this way when asked,
+   * marks included, so a sample row the draft deleted doesn't come back.
+   */
+  copySpace(model: string, from: RowSpace, to: RowSpace): Promise<void>
+  /** How many rows each of a model's tables holds in `space`, by table key; tables with none are left out. */
+  countRows(model: string, space: RowSpace): Promise<Record<string, number>>
   /** Deletes every row of a model, in every space, and forgets which tables had their sample rows. */
   deleteModel(model: string): Promise<void>
 }
@@ -158,6 +166,24 @@ export class MemoryRowStore implements RowStore {
 
   async keepTables(model: string, space: RowSpace, keys: readonly string[]): Promise<void> {
     this.forget(([m, s, table]) => m === model && s === space && !keys.includes(table!))
+  }
+
+  async copySpace(model: string, from: RowSpace, to: RowSpace): Promise<void> {
+    if (from === to) return
+    this.forget(([m, s]) => m === model && s === to)
+    for (const { ref, rows } of [...this.tables.values()])
+      if (ref.model === model && ref.space === from)
+        this.tables.set(tableKey({ ...ref, space: to }), { ref: { ...ref, space: to }, rows: new Map(copy([...rows])) })
+    for (const key of [...this.sampled]) {
+      const [m, s, table] = JSON.parse(key) as [string, RowSpace, string]
+      if (m === model && s === from) this.sampled.add(tableKey({ model, space: to, table }))
+    }
+  }
+
+  async countRows(model: string, space: RowSpace): Promise<Record<string, number>> {
+    const counts: Record<string, number> = {}
+    for (const { ref, rows } of this.tables.values()) if (ref.model === model && ref.space === space && rows.size > 0) counts[ref.table] = rows.size
+    return counts
   }
 
   async deleteModel(model: string): Promise<void> {

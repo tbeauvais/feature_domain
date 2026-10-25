@@ -132,6 +132,64 @@ test('serves pages and assets with a Content Security Policy, and keeps _headers
   expect(api['content-security-policy']).toBe("default-src 'none'; frame-ancestors 'none'")
 })
 
+test("publishes a model as an app on its own host, which reaches nothing of the builder's", async ({ request }) => {
+  const table = {
+    feature: 'DatabaseTableFeature',
+    id: '2',
+    inputs: { name: 'Requests', fields: ['title: text, required'], sample_rows: '[{"title": "Sample"}]' },
+  }
+  const created = await request.post('/api/v1/models', { data: { ...model, features: [...model.features, table] } })
+  const { id } = (await created.json()) as { id: string }
+  // Apps answer at <slug>.localhost in development; the request names that host, as a browser would.
+  const host = { Host: 'e2e-requests.localhost:4173' }
+  try {
+    const published = await request.post(`/api/v1/models/${id}/publish`, {
+      data: { slug: 'e2e-requests' },
+      headers: { 'If-Match': created.headers()['etag']! },
+    })
+    expect(published.status()).toBe(200)
+    expect(await published.json()).toMatchObject({ url: 'http://e2e-requests.localhost:4173/', version: 1 })
+
+    const page = await request.get('/', { headers: host })
+    expect(page.status()).toBe(200)
+    const html = await page.text()
+    expect(html).toContain('<main id="app">')
+    const script = /src="(\/assets\/[^"]+\.js)"/.exec(html)?.[1]
+    for (const path of ['/', '/models/7', script!]) {
+      const headers = (await request.get(path, { headers: host })).headers()
+      expect(headers['content-security-policy'], path).toContain("script-src 'self';")
+      expect(headers['x-content-type-options'], path).toBe('nosniff')
+    }
+    expect(await (await request.get('/api/v1/app', { headers: host })).json()).toMatchObject({ id, name: 'API round trip' })
+    expect(await (await request.get('/api/v1/app/tables/2/rows', { headers: host })).json()).toEqual([expect.objectContaining({ title: 'Sample' })])
+    expect((await request.get('/api/v1/models', { headers: host })).status()).toBe(404)
+    expect((await request.get('/', { headers: { Host: 'a.b.localhost:4173' } })).status()).toBe(404)
+  } finally {
+    await request.delete(`/api/v1/models/${id}`)
+  }
+  expect((await request.get('/api/v1/app', { headers: host })).status()).toBe(404)
+})
+
+test("shows a published app's page on its host, and says when nothing is published there", async ({ page, request }) => {
+  const created = await request.post('/api/v1/models', { data: { ...model, name: 'Corner bakery' } })
+  const { id } = (await created.json()) as { id: string }
+  const violations: string[] = []
+  page.on('console', (message) => {
+    if (isCspViolation(message)) violations.push(message.text())
+  })
+  try {
+    await request.post(`/api/v1/models/${id}/publish`, { data: { slug: 'e2e-bakery' }, headers: { 'If-Match': created.headers()['etag']! } })
+    await page.goto('http://e2e-bakery.localhost:4173/menu')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Corner bakery')
+    await expect(page).toHaveTitle('Corner bakery')
+    await page.goto('http://e2e-nothing.localhost:4173/')
+    await expect(page.getByText('Nothing is published at this address.')).toBeVisible()
+    expect(violations).toEqual([])
+  } finally {
+    await request.delete(`/api/v1/models/${id}`)
+  }
+})
+
 test('refuses scripts that are not the app’s own, and reports it as the e2e guard expects', async ({ page }) => {
   const reported = page.waitForEvent('console', isCspViolation)
   await page.goto('/preview.html')

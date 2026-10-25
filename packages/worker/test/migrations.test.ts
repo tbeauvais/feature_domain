@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { WORKER_DIR } from '../scripts/wrangler'
 import { D1ModelStore } from '../src/d1ModelStore'
+import { D1AppStore } from '../src/d1AppStore'
 import { D1RowStore } from '../src/d1RowStore'
 import { localD1, type LocalD1 } from './localD1'
 
@@ -52,4 +53,23 @@ it('adds rows beside the models stored before, leaving them as they were', async
   // Rows of an unknown space are refused, and so are sample marks.
   await expect(rows.create({ ...table, space: 'other' as 'live' }, { title: 'x' })).rejects.toThrow(/CHECK/)
   await expect(rows.storeSampleRows({ ...table, space: 'other' as 'live' }, [])).rejects.toThrow(/CHECK/)
+})
+
+it('adds published apps beside the models and rows stored before, leaving them as they were', async () => {
+  await apply('0004_apps.sql')
+  const apps = new D1AppStore(d1.env.DB)
+  expect(await apps.publish('old', 'old-app', { version: 2, name: 'Old', features: [] })).toMatchObject({ slug: 'old-app', version: 1 })
+  expect((await apps.bySlug('old-app'))?.model).toBe('old')
+  expect(await new D1ModelStore(d1.env.DB).get('old')).toMatchObject({ revision: 2 })
+  expect(await new D1RowStore(d1.env.DB).list({ model: 'old', space: 'draft', table: '2' })).toHaveLength(1)
+})
+
+it('adds publishing claims beside the apps published before, leaving them as they were', async () => {
+  await apply('0005_publishing.sql')
+  const apps = new D1AppStore(d1.env.DB)
+  const token = await apps.claim('old')
+  expect(token).toEqual(expect.any(String))
+  expect(await apps.claim('old')).toBeNull()
+  await apps.release('old', token!)
+  expect((await apps.bySlug('old-app'))?.model).toBe('old')
 })

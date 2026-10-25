@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { unstable_readConfig } from 'wrangler'
 import { expect, it } from 'vitest'
 import { WORKER_DIR } from '../scripts/wrangler'
+import { PAGE_HEADERS } from '../src/http'
 
 const config = unstable_readConfig({ config: join(WORKER_DIR, 'wrangler.jsonc') })
 const terraform = readFileSync(join(WORKER_DIR, '../../infrastructure/main.tf'), 'utf8')
@@ -16,6 +17,46 @@ it('is deployed where Terraform puts Access in front of it', () => {
   expect(config.workers_dev).toBe(true)
   // Preview URLs are hostnames of their own, which the Access application doesn't cover.
   expect(config.preview_urls).toBe(false)
+})
+
+it('answers published apps on the wildcard Terraform points at it, behind Access, and only runs first', () => {
+  const appDomain = /variable "app_domain" \{[^}]*default\s*=\s*"([^"]+)"/.exec(terraform)?.[1]
+  expect(appDomain).toBe('apprun.app')
+  // The route, the wildcard record and the Access application all name the same domain.
+  expect(config.routes).toEqual([{ pattern: `*.${appDomain}/*`, zone_name: appDomain }])
+  expect(terraform).toContain('name    = "*.${var.app_domain}"')
+  expect(terraform).toMatch(/resource "cloudflare_zero_trust_access_application" "apps" \{[^}]*domain\s*=\s*"\*\.\$\{var\.app_domain\}"/)
+  // The Worker tells the sites apart by these, so they must be the hosts Access protects.
+  const hostname = /variable "hostname" \{[^}]*default\s*=\s*"([^"]+)"/.exec(terraform)?.[1]
+  expect(config.vars).toEqual({ BUILDER_HOST: hostname, APP_DOMAIN: appDomain })
+  // Every request reaches the Worker first, so an app's host never gets the editor's pages from the assets.
+  expect(config.assets).toMatchObject({ binding: 'ASSETS', run_worker_first: true })
+})
+
+it('is at localhost in development, with apps at <slug>.localhost', () => {
+  const vars = Object.fromEntries(
+    readFileSync(join(WORKER_DIR, '.dev.vars'), 'utf8')
+      .split('\n')
+      .filter((line) => /^\w+=/.test(line))
+      .map((line) => line.split('=') as [string, string]),
+  )
+  expect(vars).toEqual({ BUILDER_HOST: 'localhost', APP_DOMAIN: 'localhost' })
+})
+
+it("sets the same security headers on the pages it passes on as public/_headers does on Cloudflare's own", () => {
+  const file = readFileSync(join(WORKER_DIR, '../web/public/_headers'), 'utf8')
+  const rules = file.slice(file.indexOf('/*\n'))
+  const headers = Object.fromEntries(
+    rules
+      .split('\n')
+      .slice(1)
+      .filter((line) => /^\s+[\w-]+:/.test(line))
+      .map((line) => {
+        const at = line.indexOf(':')
+        return [line.slice(0, at).trim(), line.slice(at + 1).trim()]
+      }),
+  )
+  expect(headers).toEqual(PAGE_HEADERS)
 })
 
 it('is built from the engine source', () => {

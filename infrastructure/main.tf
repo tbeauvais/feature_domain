@@ -152,8 +152,8 @@ resource "cloudflare_zero_trust_access_application" "editor" {
 
 # ── Published apps ───────────────────────────────────────────────────────────
 # Each published app answers at <slug>.<app_domain>, served by the same Worker as the editor: a route on the
-# wildcard in packages/worker/wrangler.jsonc, deployed together with the Worker's split by host (until then nothing
-# answers there behind Access). Its own subdomain keeps every app on an origin of its own.
+# wildcard in packages/worker/wrangler.jsonc, whose APP_DOMAIN var names this domain (the Worker picks the site by
+# host). Its own subdomain keeps every app on an origin of its own.
 data "cloudflare_zone" "apps" {
   filter = {
     name = var.app_domain

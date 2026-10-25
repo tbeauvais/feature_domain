@@ -1,6 +1,7 @@
 import { MAX_TABLE_ROWS, MemoryModelStore, MemoryRowStore, sampleRowId, type AppModel, type FeatureInstance } from '@feature-domain/engine'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { API_HEADERS, createApp } from '../src/app'
+import { MemoryAppStore } from '../src/apps'
 import { localD1, type LocalD1 } from './localD1'
 
 const json = (body: unknown, method = 'POST'): RequestInit => ({
@@ -205,11 +206,8 @@ describe("with stores of its own (the web tests' in-process API)", () => {
   it('deletes the rows with their model', async () => {
     const models = new MemoryModelStore()
     const rowStore = new MemoryRowStore()
-    const own = createApp(
-      () => models,
-      undefined,
-      () => rowStore,
-    )
+    const apps = new MemoryAppStore()
+    const own = createApp({ store: () => models, rows: () => rowStore, apps: () => apps })
     const id = await models.create(modelWith(requests()))
     const rows = `/api/v1/models/${id}/tables/2/rows`
     expect(await (await own.request(rows)).json()).toHaveLength(2)
@@ -220,12 +218,9 @@ describe("with stores of its own (the web tests' in-process API)", () => {
   it("answers a save that landed as saved, though removing a dropped table's rows failed", async () => {
     const models = new MemoryModelStore()
     const rowStore = new MemoryRowStore()
+    const apps = new MemoryAppStore()
     rowStore.keepTables = () => Promise.reject(new Error('D1 is down'))
-    const own = createApp(
-      () => models,
-      undefined,
-      () => rowStore,
-    )
+    const own = createApp({ store: () => models, rows: () => rowStore, apps: () => apps })
     const id = await models.create(modelWith(requests()))
     const saved = await own.request(`/api/v1/models/${id}`, json(modelWith(), 'PUT'))
     expect(saved.status).toBe(204)

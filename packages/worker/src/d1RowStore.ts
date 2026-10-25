@@ -136,6 +136,33 @@ export class D1RowStore implements RowStore {
     ])
   }
 
+  async copySpace(model: string, from: RowSpace, to: RowSpace): Promise<void> {
+    if (from === to) return
+    // One batch (a transaction): `to` is cleared, then gets `from`'s rows and sample marks as they are.
+    const space = 'model_id = ? AND space = ?'
+    await this.db.batch([
+      this.db.prepare(`DELETE FROM rows WHERE ${space}`).bind(model, to),
+      this.db.prepare(`DELETE FROM sampled_tables WHERE ${space}`).bind(model, to),
+      this.db
+        .prepare(
+          `INSERT INTO rows (model_id, space, table_key, id, data, created_at, updated_at)
+           SELECT model_id, ?, table_key, id, data, created_at, updated_at FROM rows WHERE ${space} ORDER BY created_at, rowid`,
+        )
+        .bind(to, model, from),
+      this.db
+        .prepare(`INSERT INTO sampled_tables (model_id, space, table_key, token) SELECT model_id, ?, table_key, token FROM sampled_tables WHERE ${space}`)
+        .bind(to, model, from),
+    ])
+  }
+
+  async countRows(model: string, space: RowSpace): Promise<Record<string, number>> {
+    const { results } = await this.db
+      .prepare('SELECT table_key, count(*) AS n FROM rows WHERE model_id = ? AND space = ? GROUP BY table_key')
+      .bind(model, space)
+      .all<{ table_key: string; n: number }>()
+    return Object.fromEntries(results.map((r) => [r.table_key, r.n]))
+  }
+
   async deleteModel(model: string): Promise<void> {
     await this.db.batch([
       this.db.prepare('DELETE FROM rows WHERE model_id = ?').bind(model),
