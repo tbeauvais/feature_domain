@@ -1,7 +1,7 @@
 import { MemoryModelStore, MemoryRowStore, sampleRowId, type AppModel, type FeatureInstance } from '@feature-domain/engine'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { API_HEADERS, createApp } from '../src/app'
-import { PAGE_HEADERS } from '../src/http'
+import { PAGE_HEADERS, pageHeaders } from '../src/http'
 import type { Env } from '../src/env'
 import { MemoryAppStore } from '../src/apps'
 import { D1RowStore } from '../src/d1RowStore'
@@ -41,7 +41,7 @@ const modelWith = (...features: FeatureInstance[]): AppModel => ({
 const ASSETS = {
   fetch: async (input: RequestInfo | URL) => {
     const path = new URL(input instanceof Request ? input.url : input).pathname
-    if (path === '/app.html') return new Response('<title>App</title>', { headers: { 'Content-Type': 'text/html' } })
+    if (path === '/app.html') return new Response('<title>App</title>', { headers: { 'Content-Type': 'text/html', ETag: '"app-html"' } })
     if (path === '/assets/app-1.js') return new Response('export {}', { headers: { 'Content-Type': 'text/javascript' } })
     if (path === '/favicon.svg') return new Response('<svg/>', { headers: { 'Content-Type': 'image/svg+xml' } })
     return new Response('<title>Editor</title>', { headers: { 'Content-Type': 'text/html' } })
@@ -55,7 +55,9 @@ beforeAll(async () => {
   env = { ...d1.env, ASSETS }
 }, 60_000)
 afterAll(() => d1?.dispose())
-beforeEach(() => d1.env.DB.exec('DELETE FROM models; DELETE FROM rows; DELETE FROM sampled_tables; DELETE FROM apps; DELETE FROM versions'))
+beforeEach(() =>
+  d1.env.DB.exec('DELETE FROM models; DELETE FROM rows; DELETE FROM sampled_tables; DELETE FROM apps; DELETE FROM versions; DELETE FROM publishing'),
+)
 
 const app = createApp()
 const request = (url: string, init?: RequestInit) => app.request(url.startsWith('/') ? `${BUILDER}${url}` : url, init, env)
@@ -251,16 +253,78 @@ describe('POST /api/v1/models/:id/publish', () => {
 })
 
 describe('a first publish', () => {
-  it('makes version 1 once, when two are sent at once', async () => {
+  it('publishes a model one request at a time, and serves a first publish only once its rows are set up', async () => {
+    // On the real D1 stores, with the rows' copy held until the test lets it go on.
+    const rows = new D1RowStore(d1.env.DB)
+    const own = createApp({ rows: () => rows })
     const { id, revision } = await store()
-    const answers = await Promise.all([publish(id, revision, { slug: 'requests' }), publish(id, revision, { slug: 'requests', copyDraftRows: true })])
-    expect(answers.map((a) => a.status).sort()).toEqual([200, 409])
-    const lost = answers.find((a) => a.status === 409)!
-    expect(await lost.json()).toEqual({ error: 'The model was published meanwhile', problems: ['Look at its publication again before publishing'] })
-    expect(await (await request(`/api/v1/models/${id}/publication`)).json()).toMatchObject({ published: { version: 1 }, latest: { version: 1 } })
+    const copy = rows.copySpace.bind(rows)
+    let resume!: () => void
+    let reached!: () => void
+    const atCopy = new Promise<void>((resolve) => (reached = resolve))
+    rows.copySpace = async (...args) => {
+      reached()
+      await new Promise<void>((resolve) => (resume = resolve))
+      return copy(...args)
+    }
+    const send = (body: object) => own.request(`/api/v1/models/${id}/publish`, json(body, 'POST', { 'If-Match': revision }), env)
+    const first = send({ slug: 'requests', copyDraftRows: true })
+    await atCopy
+    // Meanwhile the app isn't served, and another publish or an unpublish waits its turn.
+    expect((await own.request(`${at('requests')}/api/v1/app`, undefined, env)).status).toBe(404)
+    const second = await send({ slug: 'requests' })
+    expect(second.status).toBe(409)
+    expect(await second.json()).toEqual({ error: "The model's app is being changed", problems: ['Try again in a moment'] })
+    expect((await own.request(`/api/v1/models/${id}/publication`, { method: 'DELETE' }, env)).status).toBe(409)
+    resume()
+    expect(await (await first).json()).toMatchObject({ version: 1 })
+    expect((await own.request(`${at('requests')}/api/v1/app`, undefined, env)).status).toBe(200)
+    // Once it is done, the next one goes ahead.
+    expect(await (await send({ slug: 'requests' })).json()).toMatchObject({ version: 2 })
   })
 
-  it("takes version 1 down again when the app's rows can't be set up, so trying again can still copy them", async () => {
+  it('takes down what a publish stored for a model deleted meanwhile', async () => {
+    const rows = new D1RowStore(d1.env.DB)
+    const own = createApp({ rows: () => rows })
+    const { id, revision } = await store()
+    const keep = rows.keepTables.bind(rows)
+    let resume!: () => void
+    let reached!: () => void
+    const atReset = new Promise<void>((resolve) => (reached = resolve))
+    rows.keepTables = async (...args) => {
+      reached()
+      await new Promise<void>((resolve) => (resume = resolve))
+      return keep(...args)
+    }
+    const publishing = own.request(`/api/v1/models/${id}/publish`, json({ slug: 'requests' }, 'POST', { 'If-Match': revision }), env)
+    await atReset
+    // Deleting never waits for a publish.
+    expect((await own.request(`/api/v1/models/${id}`, { method: 'DELETE' }, env)).status).toBe(204)
+    resume()
+    expect((await publishing).status).toBe(404)
+    expect((await own.request(`${at('requests')}/api/v1/app`, undefined, env)).status).toBe(404)
+    expect(await d1.env.DB.prepare('SELECT count(*) AS n FROM versions').first<number>('n')).toBe(0)
+  })
+
+  it('stores nothing for a publish whose claim was taken over', async () => {
+    const models = new MemoryModelStore()
+    const apps = new MemoryAppStore()
+    const own = createApp({ store: () => models, rows: () => new MemoryRowStore(), apps: () => apps })
+    const id = await models.create(modelWith(requests()))
+    const claim = apps.claim.bind(apps)
+    // The claim is taken over the moment it is made.
+    apps.claim = async (model) => {
+      const token = await claim(model)
+      await apps.release(model, token!)
+      await claim(model)
+      return token
+    }
+    const answer = await own.request(`/api/v1/models/${id}/publish`, json({ slug: 'requests' }, 'POST', { 'If-Match': '"1"' }))
+    expect(answer.status).toBe(409)
+    expect(await apps.latest(id)).toBeNull()
+  })
+
+  it("publishes nothing when the app's rows can't be set up, so trying again can still copy them", async () => {
     const models = new MemoryModelStore()
     const rows = new MemoryRowStore()
     const apps = new MemoryAppStore()
@@ -272,12 +336,6 @@ describe('a first publish', () => {
     expect((await send()).status).toBe(500)
     expect(await apps.latest(id)).toBeNull()
     expect(await apps.bySlug('requests')).toBeNull()
-    // Should taking it down fail too, the answer is still the 500 about the rows.
-    const takeDown = apps.deleteModel.bind(apps)
-    apps.deleteModel = () => Promise.reject(new Error('D1 is still down'))
-    expect((await send()).status).toBe(500)
-    apps.deleteModel = takeDown
-    await apps.deleteModel(id)
     rows.copySpace = copy
     expect(await (await send()).json()).toMatchObject({ version: 1 })
   })
@@ -339,9 +397,13 @@ describe("an app's host", () => {
       expect(page.status, path).toBe(200)
       expect(await page.text(), path).toBe('<title>App</title>')
     }
+    expect((await request(`${at('requests')}/`)).headers.get('ETag')).toBe('"app-html"')
     const none = await request(`${at('nothing-here')}/`)
     expect(none.status).toBe(404)
     expect(await none.text()).toBe('<title>App</title>')
+    // Kept by no cache, nor with a validator whose 304 would keep the 404 once an app is published there.
+    expect(none.headers.get('ETag')).toBeNull()
+    expect(none.headers.get('Cache-Control')).toBe('no-store')
     // Even to a browser revalidating the page it kept while the app was published.
     expect((await request(`${at('nothing-here')}/`, { headers: { 'If-None-Match': '"app-html"' } })).status).toBe(404)
     expect((await request(`${at('requests')}/`, { method: 'POST' })).status).toBe(405)
@@ -427,6 +489,12 @@ describe('hosts', () => {
       const headers = (await request(url)).headers
       for (const [name, value] of Object.entries(PAGE_HEADERS)) expect(headers.get(name), `${url} ${name}`).toBe(value)
     }
+  })
+
+  it("leaves the CSP off on Vite's development server, whose pages carry inline styles", () => {
+    expect(pageHeaders()).toEqual(PAGE_HEADERS)
+    const { 'Content-Security-Policy': _csp, ...others } = PAGE_HEADERS
+    expect(pageHeaders(true)).toEqual(others)
   })
 
   it('answers nothing on any other host', async () => {

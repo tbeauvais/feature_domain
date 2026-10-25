@@ -2,6 +2,7 @@
 
 import type { AppModel } from '@feature-domain/engine'
 import type { Hono } from 'hono'
+import type {} from './env'
 
 /** Security headers on every /api response, errors included. */
 export const API_HEADERS = {
@@ -24,10 +25,20 @@ export const PAGE_HEADERS = {
   'Cross-Origin-Opener-Policy': 'same-origin',
 }
 
-/** An answer from the assets (or a page of the Worker's own) with `PAGE_HEADERS` set, whatever it carried. */
+/**
+ * The page headers to set. On Vite's development server (`import.meta.hot`, which every build leaves undefined, whatever
+ * its mode) pages carry inline styles and scripts the CSP refuses, so there they get none, as before the Worker ran first.
+ */
+export function pageHeaders(devServer = import.meta.hot !== undefined): Record<string, string> {
+  if (!devServer) return PAGE_HEADERS
+  const { 'Content-Security-Policy': _csp, ...others } = PAGE_HEADERS
+  return others
+}
+
+/** An answer from the assets (or a page of the Worker's own) with `pageHeaders()` set, whatever it carried. */
 export function withPageHeaders(response: Response, status = response.status): Response {
   const out = new Response(response.body, { status, statusText: status === response.status ? response.statusText : '', headers: response.headers })
-  for (const [name, value] of Object.entries(PAGE_HEADERS)) out.headers.set(name, value)
+  for (const [name, value] of Object.entries(pageHeaders())) out.headers.set(name, value)
   return out
 }
 
@@ -125,7 +136,7 @@ export function mountApi<A extends Hono<any>>(app: A, api: A): void {
   app.onError((err, c) => {
     console.error(err)
     const answer = error(500, 'Something went wrong on the server')
-    const headers = new URL(c.req.url).pathname.startsWith('/api/') ? API_HEADERS : PAGE_HEADERS
+    const headers = new URL(c.req.url).pathname.startsWith('/api/') ? API_HEADERS : pageHeaders()
     for (const [name, value] of Object.entries(headers)) answer.headers.set(name, value)
     return answer
   })

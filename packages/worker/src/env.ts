@@ -8,3 +8,10 @@ export interface Env {
   /** The builder's hostname: app.feature-domain.workers.dev (localhost in development). */
   BUILDER_HOST: string
 }
+
+declare global {
+  interface ImportMeta {
+    /** Vite's hot module API: set only by Vite's development server (builds replace it with undefined, in any mode). */
+    readonly hot?: unknown
+  }
+}

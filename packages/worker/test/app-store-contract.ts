@@ -3,11 +3,11 @@
 
 import type { AppModel } from '@feature-domain/engine'
 import { describe, expect, it } from 'vitest'
-import { AlreadyPublishedError, SlugTakenError, type AppStore } from '../src/apps'
+import { AlreadyPublishedError, ClaimLostError, PUBLISHING_CLAIM_MS, SlugTakenError, type AppStore } from '../src/apps'
 
 const model = (name: string): AppModel => ({ version: 2, name, features: [] })
 
-export function describeAppStore(name: string, create: () => AppStore | Promise<AppStore>) {
+export function describeAppStore(name: string, create: (now?: () => number) => AppStore | Promise<AppStore>) {
   describe(`${name} (AppStore contract)`, () => {
     it('starts with nothing published', async () => {
       const store = await create()
@@ -92,6 +92,44 @@ export function describeAppStore(name: string, create: () => AppStore | Promise<
       expect((await store.latest('m1'))?.number).toBe(1)
       await store.publish('m2', 'requests', model('B'))
       expect(await store.publish('m1', 'requests-2', model('A again'))).toMatchObject({ version: 2 })
+    })
+
+    it("lets one request at a time claim a model's publishing, taking over a claim held too long", async () => {
+      let now = 1_000_000
+      const store = await create(() => now)
+      const token = await store.claim('m1')
+      expect(token).toEqual(expect.any(String))
+      expect(await store.claim('m1')).toBeNull()
+      // Other models' publishing is apart.
+      const other = await store.claim('m2')
+      expect(other).toEqual(expect.any(String))
+      await store.release('m1', token!)
+      const again = await store.claim('m1')
+      expect(again).toEqual(expect.any(String))
+      expect(again).not.toBe(token)
+      // A claim never released (its request died) is taken over once too old; its token then releases nothing.
+      now += PUBLISHING_CLAIM_MS - 1
+      expect(await store.claim('m1')).toBeNull()
+      now += 1
+      const taken = await store.claim('m1')
+      expect(taken).toEqual(expect.any(String))
+      await store.release('m1', again!)
+      expect(await store.claim('m1')).toBeNull()
+      await store.release('m1', taken!)
+      expect(await store.claim('m1')).toEqual(expect.any(String))
+    })
+
+    it('publishes with a claim only while it holds', async () => {
+      const store = await create()
+      const token = await store.claim('m1')
+      expect(await store.publish('m1', 'requests', model('A'), { first: true, claim: token! })).toMatchObject({ version: 1 })
+      expect(await store.publish('m1', 'requests', model('B'), { claim: token! })).toMatchObject({ version: 2 })
+      await store.release('m1', token!)
+      await expect(store.publish('m1', 'other', model('C'), { claim: token! })).rejects.toThrow(ClaimLostError)
+      await expect(store.publish('m2', 'other', model('C'), { first: true, claim: token! })).rejects.toThrow(ClaimLostError)
+      expect(await store.publication('m1')).toMatchObject({ slug: 'requests', version: 2 })
+      expect(await store.latest('m2')).toBeNull()
+      expect(await store.publication('m2')).toBeNull()
     })
 
     it("deletes a model's app and versions, leaving other models'", async () => {

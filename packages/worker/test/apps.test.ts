@@ -4,7 +4,7 @@ import { D1AppStore } from '../src/d1AppStore'
 import { describeAppStore } from './app-store-contract'
 import { localD1, type LocalD1 } from './localD1'
 
-describeAppStore('MemoryAppStore', () => new MemoryAppStore())
+describeAppStore('MemoryAppStore', (now) => new MemoryAppStore(now))
 
 let d1: LocalD1
 beforeAll(async () => {
@@ -12,7 +12,7 @@ beforeAll(async () => {
 }, 60_000)
 afterAll(() => d1?.dispose())
 
-describeAppStore('D1AppStore', async () => {
-  await d1.env.DB.exec('DELETE FROM apps; DELETE FROM versions')
-  return new D1AppStore(d1.env.DB)
+describeAppStore('D1AppStore', async (now) => {
+  await d1.env.DB.exec('DELETE FROM apps; DELETE FROM versions; DELETE FROM publishing')
+  return new D1AppStore(d1.env.DB, now)
 })

@@ -127,7 +127,12 @@ export function createAppHost(deps: AppHostDeps) {
     const headers = new Headers({ Accept: 'text/html', 'Sec-Fetch-Dest': 'document' })
     if (c.var.published) for (const name of ['If-None-Match', 'If-Modified-Since']) if (c.req.header(name)) headers.set(name, c.req.header(name)!)
     const page = await c.env.ASSETS.fetch(new Request(new URL('/app.html', c.req.url), { method: c.req.method, headers }))
-    return withPageHeaders(page, c.var.published || !page.ok ? page.status : 404)
+    if (c.var.published || !page.ok) return withPageHeaders(page)
+    // Nor kept with a validator: revalidated once the app is published, the unchanged page's 304 would keep the 404.
+    const missing = withPageHeaders(page, 404)
+    for (const name of ['ETag', 'Last-Modified']) missing.headers.delete(name)
+    missing.headers.set('Cache-Control', 'no-store')
+    return missing
   })
   app.all('*', () => withPageHeaders(new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, HEAD' } })))
 

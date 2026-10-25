@@ -63,3 +63,13 @@ it('adds published apps beside the models and rows stored before, leaving them a
   expect(await new D1ModelStore(d1.env.DB).get('old')).toMatchObject({ revision: 2 })
   expect(await new D1RowStore(d1.env.DB).list({ model: 'old', space: 'draft', table: '2' })).toHaveLength(1)
 })
+
+it('adds publishing claims beside the apps published before, leaving them as they were', async () => {
+  await apply('0005_publishing.sql')
+  const apps = new D1AppStore(d1.env.DB)
+  const token = await apps.claim('old')
+  expect(token).toEqual(expect.any(String))
+  expect(await apps.claim('old')).toBeNull()
+  await apps.release('old', token!)
+  expect((await apps.bySlug('old-app'))?.model).toBe('old')
+})

@@ -14,7 +14,7 @@ import {
 import { Hono, type Context } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { createAppHost } from './appHost'
-import { AlreadyPublishedError, SlugTakenError, type AppStore } from './apps'
+import { AlreadyPublishedError, ClaimLostError, SlugTakenError, type AppStore } from './apps'
 import { D1AppStore } from './d1AppStore'
 import { D1ModelStore, toJson } from './d1ModelStore'
 import { D1RowStore } from './d1RowStore'
@@ -138,10 +138,13 @@ export function createApp(options: AppOptions = {}) {
     // Its rows, app and versions go with it.
     api.delete('/models/:id', async (c) => {
       const id = c.req.param('id')
-      // Its app first: should a later step fail, nothing is left serving a model that is gone.
-      await appStoreOf(c.env).deleteModel(id)
+      const apps = appStoreOf(c.env)
+      // Its app first: should a later step fail, nothing is left serving a model that is gone. And once more at the end,
+      // for a publish that stored a version meanwhile (one storing it later finds the model gone and takes it down).
+      await apps.deleteModel(id)
       await c.var.store.delete(id)
       await rowStore(c).deleteModel(id)
+      await apps.deleteModel(id)
       // A model stored again under this id (the home page's) starts at revision 1 again, so nothing cached for it holds.
       originsOf.forget(id)
       tablesOf.forget(id)
@@ -204,6 +207,27 @@ export function createApp(options: AppOptions = {}) {
       if (ifRevision === undefined) return error(428, 'Name the revision to publish in If-Match, as the ETag gave it')
       const body = await readPublish(c.req.raw)
       if (body instanceof Response) return body
+      return withClaim(c, id, (claim) => publish(c, id, ifRevision, body, claim))
+    })
+
+    /**
+     * Runs `act` holding the model's publishing claim, so one request at a time publishes or unpublishes a model: a
+     * publish reads the app's versions and live rows, then changes them, and must not act on what another is changing.
+     */
+    const withClaim = async (c: Context<AppEnv>, id: string, act: (claim: string) => Promise<Response>): Promise<Response> => {
+      const apps = appStoreOf(c.env)
+      const claim = await apps.claim(id)
+      if (claim === null) return beingChanged()
+      try {
+        return await act(claim)
+      } finally {
+        // What the request did is its answer; a claim not released only holds until it is too old.
+        await apps.release(id, claim).catch((e: unknown) => console.error(e))
+      }
+    }
+
+    /** A publish, once the request holds the model's claim. */
+    const publish = async (c: Context<AppEnv>, id: string, ifRevision: number, body: PublishRequest, claim: string): Promise<Response> => {
       const stored = await c.var.store.get(id)
       if (!stored) return notFound()
       if (stored.revision !== ifRevision) return error(412, 'The model was changed since this revision', { headers: { ETag: etag(stored.revision) } })
@@ -235,39 +259,38 @@ export function createApp(options: AppOptions = {}) {
 
       if (body.copyDraftRows && latest) return error(400, "The draft's rows are copied only when a model is first published")
 
-      let publication
-      // A first publish must make version 1: of two at once (a double click, two tabs), only one does.
+      // A first publish starts the app's rows afresh before the app is served, so no visitor's row is lost to it: a copy
+      // of the draft's, or none (each table then starts with its sample rows), whatever an earlier try left there.
       const first = !latest
+      if (first) await (body.copyDraftRows ? rows.copySpace(id, 'draft', 'live') : rows.keepTables(id, 'live', []))
+      let publication
       try {
-        publication = await apps.publish(id, slug, draft, { first })
+        // Only while the claim holds: one taken over (a publish past PUBLISHING_CLAIM_MS) stores nothing.
+        publication = await apps.publish(id, slug, draft, { first, claim })
       } catch (e) {
         if (e instanceof SlugTakenError) return error(409, 'Another app has this address', { problems: [`"${slug}" is taken: choose another address name`] })
         if (e instanceof AlreadyPublishedError)
           return error(409, 'The model was published meanwhile', { problems: ['Look at its publication again before publishing'] })
+        if (e instanceof ClaimLostError) return beingChanged()
         throw e
       }
-      // The first publish starts the app's rows afresh: a copy of the draft's, or none (each table then starts with its
-      // sample rows), whatever was left there. Should that fail, version 1 is taken down again, so trying again is a
-      // first publish still and can copy.
-      if (first) {
-        try {
-          await (body.copyDraftRows ? rows.copySpace(id, 'draft', 'live') : rows.keepTables(id, 'live', []))
-        } catch (e) {
-          // The reset's error is what the 500 is about; one taking the app down too is only logged.
-          await apps.deleteModel(id).catch((rollback: unknown) => console.error(rollback))
-          throw e
-        }
-        return c.json(publicationJson(publication, c.req.url, hostsFor(c.env)))
+      // Deleted meanwhile (deleting doesn't wait for a publish): nothing may serve it.
+      if (!(await c.var.store.get(id))) {
+        await apps.deleteModel(id)
+        await rows.deleteModel(id)
+        return notFound()
       }
       // The new version is live, so the removed tables' rows can go (a table added later under the same id starts
       // empty). Like a save's, a failure is only logged: the next publish tries again.
-      try {
-        await rows.keepTables(id, 'live', [...kept])
-      } catch (e) {
-        console.error(e)
+      if (!first) {
+        try {
+          await rows.keepTables(id, 'live', [...kept])
+        } catch (e) {
+          console.error(e)
+        }
       }
       return c.json(publicationJson(publication, c.req.url, hostsFor(c.env)))
-    })
+    }
 
     // Where the model is published (null when it isn't), its newest version (the one a publish is compared with) and
     // how many rows the app keeps in each of that version's tables, for the Publish dialog.
@@ -296,8 +319,10 @@ export function createApp(options: AppOptions = {}) {
     api.delete('/models/:id/publication', async (c) => {
       const id = c.req.param('id')
       if (!(await c.var.store.get(id))) return notFound()
-      await appStoreOf(c.env).unpublish(id)
-      return c.body(null, 204)
+      return withClaim(c, id, async () => {
+        await appStoreOf(c.env).unpublish(id)
+        return c.body(null, 204)
+      })
     })
 
     api.all('/models', () => error(405, 'Method not allowed', { allow: 'GET, POST' }))
@@ -308,7 +333,6 @@ export function createApp(options: AppOptions = {}) {
     api.all('/openapi.json', () => error(405, 'Method not allowed', { allow: 'GET' }))
     api.all('/home/reset', () => error(405, 'Method not allowed', { allow: 'POST' }))
 
-    // (The pages get their policy from packages/web/public/_headers.)
     mountApi(app, api)
     // Everything else is the editor's static assets (unknown paths get index.html: its routes are client-side).
     app.all('*', async (c) => (c.env?.ASSETS ? withPageHeaders(await c.env.ASSETS.fetch(c.req.raw)) : c.notFound()))
@@ -403,3 +427,5 @@ const PUBLISH_REQUEST_BYTES = 16_384
 const publishLimit = bodyLimit({ maxSize: PUBLISH_REQUEST_BYTES, onError: () => error(413, `Publish requests are limited to ${PUBLISH_REQUEST_BYTES} bytes`) })
 
 const notFound = () => error(404, 'No model with this id')
+/** Another request is publishing or unpublishing the model (it holds the claim). */
+const beingChanged = () => error(409, "The model's app is being changed", { problems: ['Try again in a moment'] })
