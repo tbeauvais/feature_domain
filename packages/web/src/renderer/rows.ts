@@ -1,16 +1,16 @@
-import { isModelRowsAddress, isModelsApiAddress, type DataSource } from '@feature-domain/engine'
+import { isAppRowsAddress, isModelRowsAddress, isModelsApiAddress, type DataSource } from '@feature-domain/engine'
 import type { InjectionKey, Ref } from 'vue'
+import { isSignInAnswer } from '../lib/signIn'
 import { useDataStore } from './data'
 import { getPath } from './filters'
 import { isHttpUrl } from './urls'
 
 /**
- * Sends a request through the Worker's /api/v1/proxy instead of from the browser (a resource whose Fetch through is
- * Server), for sites that don't let other pages read them. The proxy fetches only the stored model's Server addresses.
+ * Sends a request through the Worker's proxy instead of from the browser (a resource whose Fetch through is Server), for
+ * sites that don't let other pages read them: the builder's /api/v1/proxy for a model, which fetches only the stored
+ * model's Server addresses, or a published app's own /api/v1/app/proxy (`app`), only its published version's.
  */
-export interface Via {
-  model: string
-}
+export type Via = { model: string; app?: never } | { app: true; model?: never }
 
 export type FetchJson = (url: string, via?: Via) => Promise<unknown>
 
@@ -37,8 +37,19 @@ export const browserFetchJson: FetchJson = async (url, via) => {
   return readJson(response)
 }
 
-/** The API on this site a page may use: the models API, or a Database table's rows under the page's own model. */
-const isOnThisSite = (url: string) => isModelsApiAddress(url) || isModelRowsAddress(url)
+/** Whether this page is a published app's (app.html, on the app's host), which `servePublishedApp` says once at start. */
+let publishedAppPage = false
+
+/** Says this page is a published app's: the fetchers then reach the app's rows on this site, and nothing of the builder's. */
+export function servePublishedApp(on = true): void {
+  publishedAppPage = on
+}
+
+/**
+ * The API on this site a page may use, with the viewer's session: on the builder's site the models API, or a Database
+ * table's rows under the page's own model; on a published app's host only the app's rows.
+ */
+const isOnThisSite = (url: string) => (publishedAppPage ? isAppRowsAddress(url) : isModelsApiAddress(url) || isModelRowsAddress(url))
 
 /** The JSON a site answered with, or an error in words when it answered with something else (or nothing). */
 async function readJson(response: Response): Promise<unknown> {
@@ -62,7 +73,7 @@ async function onThisSite(url: string, init: RequestInit): Promise<Response> {
       cause: error,
     })
   }
-  if (response.type === 'opaqueredirect' || isHtml(response)) throw new Error('Your sign-in has expired; reload the page to sign in again')
+  if (isSignInAnswer(response)) throw new Error('Your sign-in has expired; reload the page to sign in again')
   if (!response.ok) {
     const answer = (await response.json().catch(() => ({}))) as { error?: unknown; problems?: unknown }
     const problems = Array.isArray(answer.problems) ? answer.problems.filter((p) => typeof p === 'string') : []
@@ -72,8 +83,9 @@ async function onThisSite(url: string, init: RequestInit): Promise<Response> {
   return response
 }
 
-/** The path of the Worker's proxy, on this site. */
+/** The path of the Worker's proxy, on the builder's site; a published app's is its own (`APP_PROXY_PATH`). */
 export const PROXY_PATH = '/api/v1/proxy'
+export const APP_PROXY_PATH = '/api/v1/app/proxy'
 
 /**
  * How long a request through the proxy may take: the proxy's own limit (10 s) plus the way there and back. Requests to
@@ -88,10 +100,11 @@ const PROXY_TIMEOUT_MS = 20_000
 async function proxied(request: DataRequest, via: Via): Promise<Response> {
   let response: Response
   try {
-    response = await fetch(PROXY_PATH, {
+    response = await fetch(via.app ? APP_PROXY_PATH : PROXY_PATH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ model: via.model, ...request }),
+      // An app's proxy knows its model from the host, and refuses one named.
+      body: JSON.stringify(via.app ? request : { model: via.model, ...request }),
       // An expired Cloudflare Access session answers with a redirect to its sign-in page.
       redirect: 'manual',
       signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
@@ -101,21 +114,19 @@ async function proxied(request: DataRequest, via: Via): Promise<Response> {
       cause: error,
     })
   }
-  // A page that isn't the site's answer (marked by the proxy) is Access's sign-in page; the site's own pages are its errors.
-  const signInPage = response.headers.get(PROXY_ANSWER_HEADER) !== 'site' && isHtml(response)
-  if (response.type === 'opaqueredirect' || signInPage) throw new Error('Your sign-in has expired; reload the page to sign in again')
-  if (response.headers.get(PROXY_ERROR_HEADER)) {
+  // The site's answers (marked by the proxy) are its own, HTML errors included; anything else may be Access's.
+  const site = response.headers.get(PROXY_ANSWER_HEADER) === 'site'
+  if (!site && isSignInAnswer(response)) throw new Error('Your sign-in has expired; reload the page to sign in again')
+  if (!site && !response.ok) {
+    // The proxy's own refusals, or the Worker's (an app no longer published there): its message.
     const answer = (await response.json().catch(() => ({}))) as { error?: unknown }
-    throw new Error(typeof answer.error === 'string' ? answer.error : `The server refused it (${response.status})`)
+    throw new Error(typeof answer.error === 'string' ? answer.error : `${response.status} ${response.statusText}`.trim())
   }
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`.trim())
   return response
 }
 
-const isHtml = (response: Response) => !!response.headers.get('Content-Type')?.toLowerCase().startsWith('text/html')
-
-/** Mark the proxy's own errors and the site's answers it passes on (packages/worker/src/proxy.ts). */
-const PROXY_ERROR_HEADER = 'X-Proxy-Error'
+/** Marks the site's answers the proxy passes on (packages/worker/src/proxy.ts); its own errors carry X-Proxy-Error. */
 const PROXY_ANSWER_HEADER = 'X-Proxy-Answer'
 
 /** A request that changes data (a Form's submit, a row's delete). The body goes as JSON unless `requestType` says a form. */

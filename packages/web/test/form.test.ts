@@ -527,7 +527,7 @@ describe('DataStore changes', () => {
       sampleIds: { field: 'id', after: 5, text: false },
     }
     const del = { ...action, operation: 'DELETE rows', method: 'DELETE', sampleIds: undefined }
-    const store = new DataStore(async () => [], 'm1', storage)
+    const store = new DataStore(async () => [], { model: 'm1' }, storage)
     const rows = (s: DataStore) =>
       (s.rows({ value: { feature: 's', resource: 'Sales', operation: 'GET', endPoint: '', rows: [] } } as never).value as { rows: { id: number }[] }).rows
     await store.send(action, { name: 'Bob' }, [])
@@ -536,7 +536,7 @@ describe('DataStore changes', () => {
     expect(rows(store).map((r) => r.id)).toEqual([7])
     await store.delete(del, rows(store)[0])
     // A new page load remembers the last id given, though no added row is left.
-    const next = new DataStore(async () => [], 'm1', storage)
+    const next = new DataStore(async () => [], { model: 'm1' }, storage)
     await next.send(action, { name: 'Cy' }, [])
     expect(rows(next).map((r) => r.id)).toEqual([8])
   })
@@ -567,7 +567,7 @@ describe('DataStore changes', () => {
 
   it('follows rows added in another tab', () => {
     const storage = new MemoryStorage()
-    const store = new DataStore(async () => [], 'm1', storage)
+    const store = new DataStore(async () => [], { model: 'm1' }, storage)
     const stop = store.follow()
     storage.setItem('feature-domain:sample-rows:m1', JSON.stringify({ r: [{ name: 'From the editor' }] }))
     window.dispatchEvent(new StorageEvent('storage', { key: 'feature-domain:sample-rows:m1' }))

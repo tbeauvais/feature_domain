@@ -1,11 +1,11 @@
 import { generate, type AppModel, type InputValue } from '@feature-domain/engine'
 import { flushPromises, mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, provide } from 'vue'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { defineComponent, effectScope, h, provide, ref } from 'vue'
 import TableFieldsField from '../src/editor/TableFieldsField.vue'
 import { DataStore, PROXY_READY } from '../src/renderer/data'
 import DocumentView from '../src/renderer/DocumentView.vue'
-import { browserFetchJson, browserSendRequest, FETCH_JSON, SEND_REQUEST, type FetchJson, type SendRequest } from '../src/renderer/rows'
+import { browserFetchJson, browserSendRequest, FETCH_JSON, SEND_REQUEST, servePublishedApp, type FetchJson, type SendRequest } from '../src/renderer/rows'
 import { inst, model, page } from './helpers'
 
 // A Database table's rows on a page: fetched and sent at the page's own model on this site, after the pending save.
@@ -206,9 +206,23 @@ describe("a Table changing a row's status in place", () => {
   })
 })
 
+describe("a published app's Database tables", () => {
+  it("read and change the app's live rows, under its own API rather than its model's", async () => {
+    const fetchJson = vi.fn<FetchJson>(async () => [])
+    const send = vi.fn<SendRequest>(async () => ({ id: '01HZY3V8N3Q6B2D9K7M4T5W1XA' }))
+    const store = new DataStore(fetchJson, { model: 'm1', app: true }, undefined, send)
+    const source = { feature: '3', resource: 'Requests', operation: 'GET rows', method: 'GET', endPoint: 'tables/2/rows' }
+    effectScope().run(() => store.rows(ref(source)))
+    await flushPromises()
+    await store.send({ ...source, operation: 'POST rows', method: 'POST' }, { title: 'x' }, [])
+    expect(fetchJson.mock.calls[0]).toEqual(['/api/v1/app/tables/2/rows'])
+    expect(send.mock.calls[0]![0]).toEqual({ method: 'POST', url: '/api/v1/app/tables/2/rows', body: { title: 'x' } })
+  })
+})
+
 describe('sending to a Database table', () => {
   it("doesn't change sample rows in place", async () => {
-    const store = new DataStore(async () => [], 'm1')
+    const store = new DataStore(async () => [], { model: 'm1' })
     await expect(
       store.update({ feature: 's', resource: 'S', operation: 'PATCH', method: 'PATCH', endPoint: '', sample: true }, { id: 1 }, { status: 'done' }),
     ).rejects.toThrow("Sample rows can't be changed in place")
@@ -216,7 +230,7 @@ describe('sending to a Database table', () => {
 
   it('refuses query values, which its rows take none of, rather than send them elsewhere', async () => {
     const send = vi.fn<SendRequest>()
-    const store = new DataStore(async () => [], 'm1', undefined, send)
+    const store = new DataStore(async () => [], { model: 'm1' }, undefined, send)
     const action = { feature: '2', resource: 'Requests', operation: 'POST rows', method: 'POST', endPoint: 'tables/2/rows' }
     await expect(store.send(action, { q: 'x' }, [{ name: 'q', label: 'Q', type: 'text', required: false, in: 'query' }])).rejects.toThrow(
       `"tables/2/rows?q=x" isn't a Database table's rows`,
@@ -227,6 +241,25 @@ describe('sending to a Database table', () => {
 
 describe('the browser fetchers', () => {
   afterEach(() => vi.unstubAllGlobals())
+
+  it("reach a published app's live rows on its own host, and its own proxy, which takes no model", async () => {
+    const fetchSpy = vi.fn(async () => new Response('[]', { headers: { 'Content-Type': 'application/json' } }))
+    vi.stubGlobal('fetch', fetchSpy)
+    // Nothing of the app's on the builder's site.
+    await expect(browserFetchJson('/api/v1/app/tables/2/rows')).rejects.toThrow('Only http(s) URLs can be loaded')
+    servePublishedApp()
+    onTestFinished(() => servePublishedApp(false))
+    // Nor anything of the builder's on an app's host.
+    await expect(browserFetchJson('/api/v1/models/m1/tables/2/rows')).rejects.toThrow('Only http(s) URLs can be loaded')
+    await expect(browserFetchJson('/api/v1/models')).rejects.toThrow('Only http(s) URLs can be loaded')
+    expect(await browserFetchJson('/api/v1/app/tables/2/rows')).toEqual([])
+    await browserSendRequest({ method: 'PATCH', url: '/api/v1/app/tables/2/rows/01HZY3V8N3Q6B2D9K7M4T5W1XA', body: { status: 'done' } })
+    expect(fetchSpy).toHaveBeenLastCalledWith('/api/v1/app/tables/2/rows/01HZY3V8N3Q6B2D9K7M4T5W1XA', expect.objectContaining({ method: 'PATCH' }))
+    await browserFetchJson('https://api.test/repos', { app: true })
+    expect(fetchSpy).toHaveBeenLastCalledWith('/api/v1/app/proxy', expect.objectContaining({ body: '{"method":"GET","url":"https://api.test/repos"}' }))
+    // Nothing else under the app's API is reached.
+    await expect(browserFetchJson('/api/v1/app/proxy')).rejects.toThrow('Only http(s) URLs can be loaded')
+  })
 
   it("reach a model's rows on this site with the viewer's session, and refuse a rows address that isn't one", async () => {
     const fetchSpy = vi.fn(async () => new Response('[]', { headers: { 'Content-Type': 'application/json' } }))

@@ -61,6 +61,13 @@ describe('requests through the proxy', () => {
 
   it("says why the proxy refused, the site's error status, or that the sign-in expired", async () => {
     stub(() => Response.json({ error: 'It isn’t one of this model’s addresses' }, { status: 403, headers: { 'X-Proxy-Error': 'true' } }))
+    // The Worker's own refusal, unmarked (an app no longer published there): its message, not a bare status.
+    stub(() => Response.json({ error: 'No app is published at this address' }, { status: 404 }))
+    await expect(browserFetchJson('https://api.test/repos', { app: true })).rejects.toThrow('No app is published at this address')
+    // Cloudflare's own error page in front of the proxy is a failure, not a sign-in.
+    stub(() => new Response('<html>', { status: 502, headers: { 'Content-Type': 'text/html' } }))
+    await expect(browserFetchJson('https://api.test/repos', { model: 'm1' })).rejects.toThrow(/^502$/)
+    stub(() => Response.json({ error: 'It isn’t one of this model’s addresses' }, { status: 403, headers: { 'X-Proxy-Error': 'true' } }))
     await expect(browserFetchJson('https://api.test/repos', { model: 'm1' })).rejects.toThrow('It isn’t one of this model’s addresses')
     stub(() => new Response('nope', { status: 500, statusText: 'Server Error' }))
     await expect(browserSendRequest({ method: 'DELETE', url: 'https://api.test/repos/1' }, { model: 'm1' })).rejects.toThrow('500 Server Error')
@@ -101,7 +108,7 @@ describe('requests through the proxy', () => {
 describe('DataStore through the proxy', () => {
   it("fetches a Server source through the proxy for its model, apart from the browser's fetch of the same address", async () => {
     const fetchJson = vi.fn<FetchJson>(async (_, via) => [{ via: via?.model ?? 'browser' }])
-    const store = new DataStore(fetchJson, 'm1')
+    const store = new DataStore(fetchJson, { model: 'm1' })
     const scope = effectScope()
     const [server, browser] = scope.run(() => [store.rows(ref(source(true))), store.rows(ref(source(false)))])!
     await flushPromises()
@@ -117,7 +124,7 @@ describe('DataStore through the proxy', () => {
 
   it('sends and deletes through the proxy for a Server action', async () => {
     const sendRequest = vi.fn<SendRequest>(async () => undefined)
-    const store = new DataStore(async () => [], 'm1', undefined, sendRequest)
+    const store = new DataStore(async () => [], { model: 'm1' }, undefined, sendRequest)
     await store.send(action(true), { name: 'Ada' }, [])
     await store.delete({ ...action(true), method: 'DELETE', endPoint: 'https://api.test/repos/{id}' }, { id: 7 })
     await store.send(action(false), { name: 'Bo' }, [])
@@ -126,6 +133,21 @@ describe('DataStore through the proxy', () => {
       [{ method: 'DELETE', url: 'https://api.test/repos/7' }, { model: 'm1' }],
       [{ method: 'POST', url: 'https://api.test/repos', body: { name: 'Bo' } }],
     ])
+  })
+
+  it("fetches and sends through a published app's own proxy, naming no model", async () => {
+    const fetchJson = vi.fn<FetchJson>(async () => [])
+    const sendRequest = vi.fn<SendRequest>(async () => undefined)
+    const store = new DataStore(fetchJson, { model: 'm1', app: true }, undefined, sendRequest)
+    effectScope().run(() => store.rows(ref(source(true))))
+    await flushPromises()
+    await store.send(action(true), { name: 'Ada' }, [])
+    // Read, then read again once the send changed the resource.
+    expect(fetchJson.mock.calls).toEqual([
+      ['https://api.test/repos', { app: true }],
+      ['https://api.test/repos', { app: true }],
+    ])
+    expect(sendRequest.mock.calls).toEqual([[{ method: 'POST', url: 'https://api.test/repos', body: { name: 'Ada' } }, { app: true }]])
   })
 
   it('needs a model to fetch through the proxy', async () => {

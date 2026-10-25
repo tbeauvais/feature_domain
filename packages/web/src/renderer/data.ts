@@ -1,5 +1,5 @@
 import type { DataAction, DataSource, FormField } from '@feature-domain/engine'
-import { isAppDataAddress, isModelRowsAddress, MAX_SAMPLE_ROWS, modelRowsAddress } from '@feature-domain/engine'
+import { appRowsAddress, isAppDataAddress, isModelRowsAddress, MAX_SAMPLE_ROWS, modelRowsAddress } from '@feature-domain/engine'
 import {
   computed,
   getCurrentScope,
@@ -69,6 +69,15 @@ export class NotSentFromEditor extends Error {
   }
 }
 
+/**
+ * Whose data a page reads: a model's (in the editor and the preview, its draft's rows and the builder's proxy), or with
+ * `app`, the published app's on its own host (its live rows and its own proxy).
+ */
+export interface DataSite {
+  model: string
+  app?: boolean
+}
+
 export class DataStore {
   private readonly fetched = new Map<string, Fetched>()
   /** Rows added to each sample-data resource (by instance id). */
@@ -79,7 +88,7 @@ export class DataStore {
   /** `live`: send forms and row deletes to their addresses (the preview); the editor doesn't (sample data still changes). */
   constructor(
     private readonly fetchJson: FetchJson,
-    private readonly modelId?: string,
+    private readonly site?: DataSite,
     private readonly storage?: SampleRowsStorage,
     private readonly sendRequest: SendRequest = browserSendRequest,
     readonly live = true,
@@ -94,7 +103,7 @@ export class DataStore {
   }
 
   private get storageKey(): string | undefined {
-    return this.modelId && this.storage ? `${STORAGE_PREFIX}${this.modelId}` : undefined
+    return this.site && this.storage ? `${STORAGE_PREFIX}${this.site.model}` : undefined
   }
 
   /** What a model's storage holds: `{ rows, lastIds }`, or (stored before ids were remembered) the rows alone. */
@@ -141,19 +150,19 @@ export class DataStore {
 
   /**
    * The address to fetch or send to: a Database table's rows (relative to the app, `tables/2/rows`) go to this model's
-   * on this site, so a page only ever reaches its own model's rows; any other address as it is.
+   * on this site, or the published app's, so a page only ever reaches its own rows; any other address as it is.
    */
   private resolve(address: string): string {
     if (!address.startsWith('tables/')) return address
     if (!isAppDataAddress(address)) throw new Error(`"${address}" isn't a Database table's rows`)
-    if (!this.modelId) throw new Error("A Database table's rows are kept with a saved model")
-    return modelRowsAddress(this.modelId, address)
+    if (!this.site) throw new Error("A Database table's rows are kept with a saved model")
+    return this.site.app ? appRowsAddress(address) : modelRowsAddress(this.site.model, address)
   }
 
-  /** How to reach the proxy for this model; it fetches only the stored model's Server addresses. */
+  /** How to reach the proxy for this model or app; it fetches only the stored model's (or published version's) Server addresses. */
   private via(): Via {
-    if (!this.modelId) throw new Error('Fetching through the server needs a saved model')
-    return { model: this.modelId }
+    if (!this.site) throw new Error('Fetching through the server needs a saved model')
+    return this.site.app ? { app: true } : { model: this.site.model }
   }
 
   /** Fetches an address; `quiet` keeps what was loaded on show until the answer arrives (after a row is changed in place). */
@@ -443,14 +452,14 @@ export async function proxyReady(ready: () => Promise<boolean>): Promise<void> {
 }
 
 /** Creates the document's data store and provides it to every node inside; `live` as for DataStore. */
-export function provideDataStore(modelId?: string, live = true): DataStore {
+export function provideDataStore(site?: DataSite, live = true): DataStore {
   const storage = typeof window !== 'undefined' ? safeLocalStorage() : undefined
   const ready = inject(PROXY_READY, undefined)
   const fetchJson = inject(FETCH_JSON, browserFetchJson)
   const sendRequest = inject(SEND_REQUEST, browserSendRequest)
   const store = new DataStore(
     ready ? async (url, via) => (via || isModelRowsAddress(url) ? (await proxyReady(ready), fetchJson(url, via)) : fetchJson(url)) : fetchJson,
-    modelId,
+    site,
     storage,
     ready
       ? async (request, via) => (via || isModelRowsAddress(request.url) ? (await proxyReady(ready), sendRequest(request, via)) : sendRequest(request))

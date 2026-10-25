@@ -104,7 +104,7 @@ describe('DataStore', () => {
   it('serves sample rows with any added since, fetching nothing, and keeps added rows per model', async () => {
     const fetchJson = vi.fn<FetchJson>()
     const storage = new MemoryStorage()
-    const store = new DataStore(fetchJson, 'm1', storage)
+    const store = new DataStore(fetchJson, { model: 'm1' }, storage)
     const people = reader(store, sample([{ name: 'Ada' }]))
     expect(people.value).toEqual({ status: 'loaded', rows: [{ name: 'Ada' }] })
     store.addSampleRow('s', { name: 'Grace' })
@@ -114,8 +114,10 @@ describe('DataStore', () => {
     expect(fetchJson).not.toHaveBeenCalled()
 
     // The same model in a new page load keeps the added row; another model doesn't see it.
-    expect(reader(new DataStore(fetchJson, 'm1', storage), sample([{ name: 'Ada' }])).value).toMatchObject({ rows: [{ name: 'Ada' }, { name: 'Grace' }] })
-    expect(reader(new DataStore(fetchJson, 'm2', storage), sample([{ name: 'Ada' }])).value).toMatchObject({ rows: [{ name: 'Ada' }] })
+    expect(reader(new DataStore(fetchJson, { model: 'm1' }, storage), sample([{ name: 'Ada' }])).value).toMatchObject({
+      rows: [{ name: 'Ada' }, { name: 'Grace' }],
+    })
+    expect(reader(new DataStore(fetchJson, { model: 'm2' }, storage), sample([{ name: 'Ada' }])).value).toMatchObject({ rows: [{ name: 'Ada' }] })
 
     store.clearAddedRows('s')
     expect(people.value).toMatchObject({ rows: [{ name: 'Ada' }] })
@@ -133,9 +135,9 @@ describe('DataStore', () => {
     const storage = new MemoryStorage()
     for (const junk of ['not json', '[1,2]', '{"s": "x"}', '{"__proto__": [{"x": 1}]}', '{"s": [1, null, {"name": "ok"}]}']) {
       storage.setItem('feature-domain:sample-rows:m1', junk)
-      expect(() => reader(new DataStore(async () => [], 'm1', storage), sample([]))).not.toThrow()
+      expect(() => reader(new DataStore(async () => [], { model: 'm1' }, storage), sample([]))).not.toThrow()
     }
-    expect(reader(new DataStore(async () => [], 'm1', storage), sample([])).value).toEqual({ status: 'loaded', rows: [{ name: 'ok' }] })
+    expect(reader(new DataStore(async () => [], { model: 'm1' }, storage), sample([])).value).toEqual({ status: 'loaded', rows: [{ name: 'ok' }] })
   })
 })
 
