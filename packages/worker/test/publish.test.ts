@@ -244,6 +244,8 @@ describe('POST /api/v1/models/:id/publish', () => {
     await publish(id, revision, { slug: 'requests' })
     // Rows a failed cleanup left behind, of a table no version has now.
     await new D1RowStore(d1.env.DB).create({ model: id, space: 'live', table: '9' }, { title: 'Left behind' })
+    // The Publish dialog sees it, with its rows, as it sees the newest version's tables.
+    expect(await (await request(`/api/v1/models/${id}/publication`)).json()).toMatchObject({ live_rows: { '2': 0, '9': 1 } })
     const unconfirmed = await publish(id, revision)
     expect(unconfirmed.status).toBe(409)
     expect(((await unconfirmed.json()) as { problems: string[] }).problems).toEqual(['Confirm removing "9" (9) and its rows'])
@@ -345,13 +347,14 @@ describe('/api/v1/models/:id/publication', () => {
   it('says where a model is published, its newest version, and the rows the app keeps', async () => {
     const { id, revision } = await store()
     const never = await request(`/api/v1/models/${id}/publication`)
-    expect(await never.json()).toEqual({ published: null, latest: null, live_rows: {} })
+    expect(await never.json()).toEqual({ published: null, url_template: 'http://{slug}.localhost/', latest: null, live_rows: {} })
     await publish(id, revision, { slug: 'requests' })
     await request(`${at('requests')}/api/v1/app/tables/2/rows`, json({ title: 'Filed' }))
     const answer = await request(`/api/v1/models/${id}/publication`)
     expect(answer.headers.get('Cache-Control')).toBe('no-store')
     expect(await answer.json()).toEqual({
       published: { slug: 'requests', url: 'http://requests.localhost/', version: 1, published_at: expect.any(String) },
+      url_template: 'http://{slug}.localhost/',
       latest: { version: 1, published_at: expect.any(String), model: { ...modelWith(requests()), id } },
       live_rows: { '2': 3 },
     })

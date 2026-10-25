@@ -15,6 +15,7 @@ export function validateModel(value: unknown): string[] {
   if (value.version !== 2) problems.push(`Unsupported model version ${JSON.stringify(value.version)}`)
   if (typeof value.name !== 'string') problems.push('Model name is not a string')
   if (value.id !== undefined && typeof value.id !== 'string') problems.push('Model id is not a string')
+  if (value.lastId !== undefined && !(Number.isSafeInteger(value.lastId) && (value.lastId as number) >= 0)) problems.push('Model lastId is not a whole number')
   if (!Array.isArray(value.features)) return [...problems, 'Model has no features list']
 
   value.features.forEach((f: unknown, i) => {

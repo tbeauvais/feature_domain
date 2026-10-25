@@ -1,5 +1,6 @@
 import {
   addFeature,
+  keepLastId,
   defaultRegistry,
   editText as editTextIn,
   insertTextAfter,
@@ -71,6 +72,8 @@ export const useDocumentStore = defineStore('document', () => {
   let theirRevision: number | undefined
   /** The revision of the model as stored, which the next save is made from. */
   let revision: number | undefined
+  /** Ids the model's published app has, which a new feature never takes (`reserveIds`). */
+  let usedIds: readonly string[] = []
   /** Bumped when another model loads or pending saves are dropped, so a save still in flight is ignored when it ends. */
   let session = 0
   /** The model on screen is only the editor's upgrade of the stored one (no user edit yet), so a conflict is no loss. */
@@ -97,6 +100,7 @@ export const useDocumentStore = defineStore('document', () => {
     await flush()
     session++
     revision = undefined
+    usedIds = []
     upgradeOnly = false
     leaving = false
     modelId.value = id
@@ -163,7 +167,8 @@ export const useDocumentStore = defineStore('document', () => {
       return true
     }
     if (stored.revision <= (revision ?? 0) || validateModel(stored.model).length > 0) return false
-    model.value = migrate(stored.model).model
+    // Ids given out here stay given out, whatever the save from elsewhere remembers (`lastId`).
+    model.value = keepLastId(migrate(stored.model).model, model.value)
     revision = stored.revision
     past.value = []
     future.value = []
@@ -281,8 +286,11 @@ export const useDocumentStore = defineStore('document', () => {
   /** In a conflict: drops the edits made here and shows the model as someone else saved it. */
   async function loadTheirs(): Promise<void> {
     if (modelId.value === null) return
+    const mine = model.value
     discard()
     await load(modelId.value)
+    // Their model, still never giving out an id given out here (`lastId`).
+    if (model.value) model.value = keepLastId(model.value, mine)
   }
 
   /** In a conflict: saves the model as it is here over what someone else saved. */
@@ -334,7 +342,8 @@ export const useDocumentStore = defineStore('document', () => {
   }
 
   function restore(entry: HistoryEntry): void {
-    setModel(entry.model)
+    // Ids given out since stay given out (`lastId`): undoing an added table and adding another must not reuse its id.
+    setModel(keepLastId(entry.model, model.value))
     selectedId.value = entry.selectedId !== null && entry.model.features.some((f) => f.id === entry.selectedId) ? entry.selectedId : null
     lastKey = undefined
   }
@@ -380,7 +389,7 @@ export const useDocumentStore = defineStore('document', () => {
    */
   function add(featureType: string): string {
     const target = result.value ? paletteTarget(current(), result.value, selectedId.value, featureType) : undefined
-    const added = addFeature(current(), featureType, target)
+    const added = addFeature(current(), featureType, target, { usedIds })
     apply(featureType === 'ThemeFeature' ? useThemeOnUnthemedPages(added.model, added.id) : added.model)
     selectedId.value = added.id
     return added.id
@@ -388,7 +397,7 @@ export const useDocumentStore = defineStore('document', () => {
 
   /** Adds a feature at a specific place (a palette drop) and selects it. */
   function addAt(featureType: string, target: PlacementTarget): string {
-    const added = addFeature(current(), featureType, target, result.value ? { result: result.value } : {})
+    const added = addFeature(current(), featureType, target, result.value ? { result: result.value, usedIds } : { usedIds })
     apply(added.model)
     selectedId.value = added.id
     return added.id
@@ -461,6 +470,19 @@ export const useDocumentStore = defineStore('document', () => {
     apply({ ...current(), name }, 'rename')
   }
 
+  /**
+   * Ids a new feature must not take for this model besides those it gave out itself (`lastId`): its published app's, for
+   * a model from before `lastId` whose removed table's id the app still keeps rows under.
+   */
+  function reserveIds(id: string, ids: readonly string[]): void {
+    if (modelId.value === id) usedIds = ids
+  }
+
+  /** The revision the last save stored (or the load read): what is on the server, once `flush` says it is saved. */
+  function savedRevision(): number | undefined {
+    return revision
+  }
+
   return {
     modelId,
     model,
@@ -493,6 +515,8 @@ export const useDocumentStore = defineStore('document', () => {
     applyThemePreset,
     useThemeOnPages,
     rename,
+    reserveIds,
+    savedRevision,
     canUndo,
     canRedo,
     undo,

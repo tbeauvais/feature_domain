@@ -6,7 +6,7 @@ import { defaultRegistry } from './features/index.js'
 import type { FeatureRegistry } from './feature.js'
 import { generate } from './generate.js'
 import { isModelsApiAddress, isSitePath } from './links.js'
-import type { TableField } from './tables.js'
+import { TYPE_WORDS, type TableField } from './tables.js'
 import type { AppModel, DataAction, DataSource, DocNode } from './types.js'
 
 /** A slug is one DNS label: this long, of lowercase letters, digits and single hyphens, not starting or ending with one. */
@@ -165,5 +165,38 @@ function addressesOf(node: DocNode): [BuilderAddress['kind'], string][] {
       return data(node.props.data?.source)
     default:
       return []
+  }
+}
+
+/**
+ * A schema change in words, for the Publish dialog: what it does to the app's stored rows (`table` is the table's name).
+ * A removed table is asked about on its own, with its row count.
+ */
+export function schemaChangeText(change: SchemaChange, table: string): string {
+  switch (change.kind) {
+    case 'removed-table':
+      return `“${table}” is removed, and the app’s rows in it are deleted.`
+    case 'removed-field':
+      return `“${table}”: “${change.field}” is removed. The app’s rows keep their values for it, unseen.`
+    case 'changed-type':
+      return `“${table}”: “${change.field}” changes from ${TYPE_WORDS[change.from]} to ${TYPE_WORDS[change.to]}. The app’s rows keep the values they have.`
+    case 'newly-required':
+      return `“${table}”: “${change.field}” becomes required. The app’s rows without it keep it empty until they are changed.`
+    case 'removed-options':
+      return `“${table}”: “${change.field}” no longer offers ${change.options.map((o) => `“${o}”`).join(', ')}. The app’s rows that have them keep them.`
+  }
+}
+
+/** A builder address in words, for the Publish dialog (`feature` is the feature's name). */
+export function builderAddressText(found: BuilderAddress, feature: string): string {
+  switch (found.kind) {
+    case 'link':
+      return `${feature} links to ${found.address}, which shows the app again on the app’s address.`
+    case 'then-open':
+      return `${feature} opens ${found.address} after sending, which shows the app again on the app’s address.`
+    case 'data-link':
+      return `${feature} links its rows to ${found.address}, which shows the app again on the app’s address.`
+    case 'data':
+      return `${feature} reads ${found.address}, the builder’s models, which the app can’t reach.`
   }
 }

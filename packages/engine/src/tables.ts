@@ -6,7 +6,14 @@ export const FIELD_TYPES = ['text', 'long-text', 'number', 'date', 'choice', 'ye
 export type FieldType = (typeof FIELD_TYPES)[number]
 
 /** How each type is written in the Fields input ("long text", "yes/no"). */
-const TYPE_WORDS: Record<FieldType, string> = { text: 'text', 'long-text': 'long text', number: 'number', date: 'date', choice: 'choice', 'yes-no': 'yes/no' }
+export const TYPE_WORDS: Record<FieldType, string> = {
+  text: 'text',
+  'long-text': 'long text',
+  number: 'number',
+  date: 'date',
+  choice: 'choice',
+  'yes-no': 'yes/no',
+}
 
 export type FieldValue = string | number | boolean
 
