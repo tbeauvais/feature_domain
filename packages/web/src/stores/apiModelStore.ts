@@ -1,4 +1,5 @@
 import { ModelConflictError, ModelNotFoundError, type AppModel, type ModelStore, type ModelSummary, type StoredModel } from '@feature-domain/engine'
+import { isSignInAnswer } from '../lib/signIn'
 
 /** The Worker's model API (packages/worker/src/app.ts). */
 export const MODELS_PATH = '/api/v1/models'
@@ -126,7 +127,7 @@ export class ApiModelStore implements ModelStore {
     } finally {
       clearTimeout(timer)
     }
-    if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) throw new SignedOutError()
+    if (isSignInAnswer(response)) throw new SignedOutError()
     return response
   }
 

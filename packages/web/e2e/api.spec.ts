@@ -171,7 +171,8 @@ test("publishes a model as an app on its own host, which reaches nothing of the 
 })
 
 test("shows a published app's page on its host, and says when nothing is published there", async ({ page, request }) => {
-  const created = await request.post('/api/v1/models', { data: { ...model, name: 'Corner bakery' } })
+  const header = { feature: 'HeaderFeature', id: '2', inputs: { text: 'Fresh bread daily' }, placement: { parent: '1', slot: 'content' } }
+  const created = await request.post('/api/v1/models', { data: { ...model, name: 'Corner bakery', features: [...model.features, header] } })
   const { id } = (await created.json()) as { id: string }
   const violations: string[] = []
   page.on('console', (message) => {
@@ -180,7 +181,8 @@ test("shows a published app's page on its host, and says when nothing is publish
   try {
     await request.post(`/api/v1/models/${id}/publish`, { data: { slug: 'e2e-bakery' }, headers: { 'If-Match': created.headers()['etag']! } })
     await page.goto('http://e2e-bakery.localhost:4173/menu')
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Corner bakery')
+    // The published version, rendered (the real Worker and D1 behind the app's API).
+    await expect(page.locator('.fd-root').getByRole('heading', { name: 'Fresh bread daily' })).toBeVisible()
     await expect(page).toHaveTitle('Corner bakery')
     await page.goto('http://e2e-nothing.localhost:4173/')
     await expect(page.getByText('Nothing is published at this address.')).toBeVisible()

@@ -9,6 +9,7 @@ import { workerApp, type WorkerApp } from '../test/workerApp'
 // edits); e2e/api.spec.ts and e2e/sync.spec.ts test the real Worker and D1.
 
 let models: MemoryModelStore
+let app: WorkerApp | undefined
 /** Answers what the Worker's proxy fetches from other sites; nothing is reachable unless a test says so (`answerProxy`). */
 let upstream: (url: string, init: RequestInit) => Response | Promise<Response>
 /** The id the next stored model gets (MemoryModelStore makes up its own otherwise). */
@@ -31,13 +32,14 @@ export async function serveModels(context: BrowserContext): Promise<void> {
   upstream = () => Promise.reject(new TypeError('fetch failed'))
   // Database tables' rows, stamped at the same time, so their dates don't change a screenshot either.
   const rows = new MemoryRowStore(() => SAVED_AT)
-  const app: WorkerApp = await workerApp(models, async (input, init = {}) => upstream(String(input), init), rows)
-  await app.request(HOME_RESET_PATH, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+  const worker = await workerApp(models, async (input, init = {}) => upstream(String(input), init), rows)
+  app = worker
+  await worker.request(HOME_RESET_PATH, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
   const serve = async (route: Route) => {
     const request = route.request()
     const url = new URL(request.url())
     // The whole address, so the Worker picks the site by host: the builder, or a published app at <slug>.localhost.
-    const response = await app.request(url.href, {
+    const response = await worker.request(url.href, {
       method: request.method(),
       headers: request.headers(),
       body: request.postDataBuffer() as BodyInit | null,
@@ -84,6 +86,23 @@ export async function changeStored(id: string, change: (model: AppModel) => void
   const model = await stored(id)
   change(model)
   await models.update(id, model)
+}
+
+/** Publishes a stored model's current revision as the editor's Publish dialog would; returns the Worker's answer. */
+export async function publishStored(
+  id: string,
+  body: { slug?: string; copyDraftRows?: boolean; removeTables?: string[] },
+): Promise<{ url: string; version: number }> {
+  if (!app) throw new Error("publishStored needs the test's own model API (isolateNetwork without realModels)")
+  const found = await models.get(id)
+  if (!found) throw new Error(`No stored model ${id}`)
+  const response = await app.request(`http://localhost/api/v1/models/${encodeURIComponent(id)}/publish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'If-Match': `"${found.revision}"` },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) throw new Error(`Publishing ${id} failed: ${response.status} ${await response.text()}`)
+  return (await response.json()) as { url: string; version: number }
 }
 
 /** The id of the only stored model named `name`. */
