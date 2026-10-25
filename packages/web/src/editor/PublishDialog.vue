@@ -6,6 +6,7 @@ import {
   databaseTables,
   diffSchemas,
   featureName,
+  generate,
   ModelConflictError,
   schemaChangeText,
   slugProblem,
@@ -13,14 +14,15 @@ import {
   type AppModel,
 } from '@feature-domain/engine'
 import { computed, ref } from 'vue'
-import { ApiError, type Publication } from '../stores/apiModelStore'
+import { ApiError, type Publication, type VersionSummary } from '../stores/apiModelStore'
 import { useDocumentStore } from '../stores/document'
 import { usePublicationStore } from '../stores/publication'
 
 /**
  * Publishes the draft as the app's next version, at <slug>.<app domain>: the address, what the publish does to the
  * app's stored rows (tables it removes are confirmed one by one, with their row counts), what only works in the
- * builder, and on a first publish whether the app starts with the draft's rows. A native <dialog>, like the shortcuts.
+ * builder, and on a first publish whether the app starts with the draft's rows. Its list of versions publishes an
+ * earlier one again instead (rolling back), checked the same way. A native <dialog>, like the shortcuts.
  */
 const document = useDocumentStore()
 const publication = usePublicationStore()
@@ -37,9 +39,21 @@ const askingUnpublish = ref(false)
 const shown = ref(false)
 /** The address name was typed, so reading the publication again doesn't replace it. */
 const slugTyped = ref(false)
+/** The model's versions, newest first. */
+const versionList = ref<VersionSummary[]>([])
+/** An earlier version to publish again, in place of the draft; null for the draft. */
+const source = ref<{ version: number; model: AppModel } | null>(null)
+const picking = ref<number | null>(null)
+/**
+ * Bumped by each choice (the dialog opening, a version chosen, Publish the draft instead), so a version still being
+ * read for an earlier choice is never chosen.
+ */
+let choice = 0
 
 const info = computed(() => publication.info)
 const draft = computed(() => document.model)
+/** What would be published: the draft, or the earlier version chosen. */
+const target = computed(() => source.value?.model ?? draft.value)
 const published = computed(() => info.value?.published ?? null)
 const latest = computed(() => info.value?.latest ?? null)
 
@@ -56,7 +70,7 @@ const nameIn = (model: AppModel, id: string) => featureName(model, id) ?? id
  */
 const removedTables = computed(() => {
   if (!ready.value || !latest.value) return []
-  const kept = new Set(databaseTableKeys(draft.value!))
+  const kept = new Set(databaseTableKeys(target.value!))
   return Object.entries(info.value!.liveRows)
     .filter(([key]) => !kept.has(key))
     .map(([key, rows]) => ({ key, name: nameIn(latest.value!.model, key), rows }))
@@ -65,21 +79,33 @@ const removedTables = computed(() => {
 const latestTables = computed(() => (shown.value && latest.value ? databaseTables(latest.value.model) : undefined))
 const otherChanges = computed(() =>
   ready.value && latestTables.value
-    ? diffSchemas(latestTables.value, draft.value!)
+    ? diffSchemas(latestTables.value, target.value!)
         .filter((c) => c.kind !== 'removed-table')
-        .map((c) => schemaChangeText(c, nameIn(draft.value!, c.table)))
+        .map((c) => schemaChangeText(c, nameIn(target.value!, c.table)))
     : [],
 )
-const builderOnly = computed(() => (ready.value ? builderAddresses(draft.value!).map((a) => builderAddressText(a, nameIn(draft.value!, a.feature))) : []))
+const builderOnly = computed(() => (ready.value ? builderAddresses(target.value!).map((a) => builderAddressText(a, nameIn(target.value!, a.feature))) : []))
 
-/** The draft's errors, which the Worker refuses to publish: said here first. */
-const errors = computed(() =>
-  shown.value ? [...new Set((document.result?.diagnostics ?? []).filter((d) => d.severity === 'error').map((d) => d.message))] : [],
-)
+/**
+ * The errors the Worker refuses to publish, said here first: the draft's (as the editor generates it), or an earlier
+ * version's as the engine generates it now.
+ */
+const errors = computed(() => {
+  if (!shown.value) return []
+  const diagnostics = source.value ? generate(source.value.model).diagnostics : (document.result?.diagnostics ?? [])
+  return [...new Set(diagnostics.filter((d) => d.severity === 'error').map((d) => d.message))]
+})
 
 const ready = computed(() => shown.value && publication.status === 'ready' && !!info.value && !!draft.value)
 const canPublish = computed(
-  () => ready.value && !problem.value && !busy.value && errors.value.length === 0 && removedTables.value.every((t) => confirmed.value.has(t.key)),
+  () =>
+    ready.value &&
+    !problem.value &&
+    !busy.value &&
+    // A version still being read: what Publish would send isn't settled yet.
+    picking.value === null &&
+    errors.value.length === 0 &&
+    removedTables.value.every((t) => confirmed.value.has(t.key)),
 )
 
 function toggle(key: string, on: boolean) {
@@ -94,6 +120,43 @@ const defaultSlug = () => publication.info?.published?.slug ?? suggestSlug(docum
 async function refresh() {
   if (document.modelId) await publication.load(document.modelId)
   if (!slugTyped.value) slug.value = defaultSlug()
+  await readVersions()
+}
+
+/** Chooses an earlier version to publish again, reading its model (versions never change). */
+async function pick(version: number) {
+  const at = ++choice
+  picking.value = version
+  failure.value = null
+  try {
+    const model = await publication.version(version)
+    if (at !== choice) return
+    if (!model) throw new Error(`Version ${version} is gone`)
+    source.value = { version, model }
+    confirmed.value = new Set()
+  } catch (e) {
+    if (at === choice) failed(e)
+  } finally {
+    if (at === choice) picking.value = null
+  }
+}
+
+/** Reads the versions list again (after a publish made a new one). */
+async function readVersions() {
+  try {
+    versionList.value = publication.info?.latest ? await publication.versions() : []
+  } catch {
+    // The list is only for publishing an earlier version again; publishing the draft doesn't need it.
+    versionList.value = []
+  }
+}
+
+function backToDraft() {
+  choice++
+  picking.value = null
+  source.value = null
+  confirmed.value = new Set()
+  failure.value = null
 }
 
 async function open() {
@@ -102,6 +165,10 @@ async function open() {
   askingUnpublish.value = false
   copyDraftRows.value = false
   confirmed.value = new Set()
+  source.value = null
+  picking.value = null
+  choice++
+  versionList.value = []
   slugTyped.value = false
   slug.value = defaultSlug()
   shown.value = true
@@ -121,11 +188,12 @@ async function publish() {
   busy.value = true
   failure.value = null
   try {
-    done.value = await publication.publish({
-      slug: slug.value,
-      ...(latest.value ? {} : { copyDraftRows: copyDraftRows.value }),
-      removeTables: removedTables.value.map((t) => t.key),
-    })
+    const removeTables = removedTables.value.map((t) => t.key)
+    done.value = source.value
+      ? await publication.republish(source.value.version, { slug: slug.value, removeTables })
+      : await publication.publish({ slug: slug.value, ...(latest.value ? {} : { copyDraftRows: copyDraftRows.value }), removeTables })
+    source.value = null
+    await readVersions()
   } catch (e) {
     failed(e)
   } finally {
@@ -160,7 +228,9 @@ defineExpose({ open, isOpen: () => dialog.value?.open === true })
     @close="shown = false"
   >
     <div class="max-h-[85vh] space-y-4 overflow-y-auto p-5 text-sm">
-      <h2 id="publish-heading" class="text-base font-semibold">Publish {{ draft?.name }}</h2>
+      <h2 id="publish-heading" class="text-base font-semibold">
+        {{ source ? `Publish version ${source.version} again` : `Publish ${draft?.name ?? ''}` }}
+      </h2>
 
       <template v-if="done">
         <p role="status">
@@ -212,7 +282,7 @@ defineExpose({ open, isOpen: () => dialog.value?.open === true })
         </div>
 
         <fieldset v-if="removedTables.length > 0" class="space-y-2 rounded-md border border-red-200 bg-red-50 p-3">
-          <legend class="px-1 font-medium text-red-800">Tables the draft removes</legend>
+          <legend class="px-1 font-medium text-red-800">Tables {{ source ? `version ${source.version}` : 'the draft' }} removes</legend>
           <label v-for="t in removedTables" :key="t.key" class="flex items-start gap-2">
             <input type="checkbox" class="mt-0.5" :checked="confirmed.has(t.key)" @change="toggle(t.key, ($event.target as HTMLInputElement).checked)" />
             <span>Delete “{{ t.name }}” and the app’s {{ t.rows }} {{ t.rows === 1 ? 'row' : 'rows' }} in it</span>
@@ -233,10 +303,37 @@ defineExpose({ open, isOpen: () => dialog.value?.open === true })
           </ul>
         </div>
 
+        <div v-if="source" class="flex items-start justify-between gap-3 rounded-md border border-sky-200 bg-sky-50 p-3" data-testid="publish-source">
+          <p>Publishing version {{ source.version }} ({{ source.model.name }}) again, as version {{ (latest?.version ?? 0) + 1 }}. The draft stays as it is.</p>
+          <button type="button" class="shrink-0 underline" @click="backToDraft">Publish the draft instead</button>
+        </div>
+
         <label v-if="!latest" class="flex items-start gap-2">
           <input v-model="copyDraftRows" type="checkbox" class="mt-0.5" />
           <span>Start the app with the draft’s rows (else each table starts with its sample rows)</span>
         </label>
+
+        <div v-if="versionList.length > 0" class="space-y-1">
+          <h3 class="font-medium">Versions</h3>
+          <ul class="divide-y divide-slate-200 rounded-md border border-slate-200" aria-label="Versions">
+            <li v-for="v in versionList" :key="v.version" class="flex items-center gap-2 px-3 py-1.5">
+              <span class="font-medium">v{{ v.version }}</span>
+              <span class="min-w-0 flex-1 truncate text-slate-600">{{ v.name }} · {{ date(v.publishedAt) }}</span>
+              <span v-if="published?.version === v.version" class="rounded bg-green-50 px-1.5 text-xs font-medium text-green-800">Live</span>
+              <span v-else-if="source?.version === v.version" class="text-xs text-sky-800">Chosen</span>
+              <button
+                v-else
+                type="button"
+                class="rounded px-1.5 text-sky-700 hover:bg-sky-50 disabled:opacity-50"
+                :disabled="picking !== null || busy"
+                :aria-label="`Publish version ${v.version} again`"
+                @click="pick(v.version)"
+              >
+                {{ picking === v.version ? 'Reading…' : 'Publish again…' }}
+              </button>
+            </li>
+          </ul>
+        </div>
 
         <div v-if="askingUnpublish" class="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3" role="group" aria-label="Unpublish">
           <p>Take the app offline? Its address is freed. Its versions and rows stay for when it is published again.</p>
@@ -282,7 +379,7 @@ defineExpose({ open, isOpen: () => dialog.value?.open === true })
           :disabled="!canPublish"
           @click="publish"
         >
-          {{ busy ? 'Publishing…' : latest ? `Publish version ${latest.version + 1}` : 'Publish' }}
+          {{ busy ? 'Publishing…' : source ? `Publish version ${source.version} again` : latest ? `Publish version ${latest.version + 1}` : 'Publish' }}
         </button>
       </div>
     </div>

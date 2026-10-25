@@ -62,6 +62,13 @@ export interface PublishRequest {
   removeTables?: string[]
 }
 
+/** One of a model's versions in its list. */
+export interface VersionSummary {
+  version: number
+  publishedAt: string
+  name: string
+}
+
 /** Publishing a model as an app (the Worker's /models/:id/publish and /publication); tests provide a fake. */
 export interface Publishing {
   /** Null when the model doesn't exist. */
@@ -69,6 +76,12 @@ export interface Publishing {
   /** Publishes the stored draft at `revision`: a 412 `ModelConflictError` when it changed since. */
   publish(id: string, revision: number, request: PublishRequest): Promise<Publication>
   unpublish(id: string): Promise<void>
+  /** The model's versions, newest first. */
+  versions(id: string): Promise<VersionSummary[]>
+  /** One version's model, or null when there is no such version. */
+  version(id: string, version: number): Promise<AppModel | null>
+  /** Publishes an earlier version again, as the app's next version (rolling back); the draft stays as it is. */
+  republish(id: string, version: number, request: Omit<PublishRequest, 'copyDraftRows'>): Promise<Publication>
 }
 
 /**
@@ -186,6 +199,31 @@ export class ApiModelStore implements ModelStore, Publishing {
 
   async unpublish(id: string): Promise<void> {
     await this.ok(await this.request(`${path(id)}/publication`, { method: 'DELETE' }))
+  }
+
+  async versions(id: string): Promise<VersionSummary[]> {
+    const body = await this.json(await this.request(`${path(id)}/versions`))
+    if (!Array.isArray(body) || !body.every((v) => isRecord(v) && hasVersionFields(v) && typeof v.name === 'string')) throw unexpected()
+    return (body as Record<string, unknown>[]).map((v) => ({ version: v.version as number, publishedAt: v.published_at as string, name: v.name as string }))
+  }
+
+  async version(id: string, version: number): Promise<AppModel | null> {
+    const response = await this.request(`${path(id)}/versions/${version}`)
+    if (response.status === 404) return null
+    const body = await this.json(response)
+    if (!isRecord(body) || !isVersion(body)) throw unexpected()
+    return body.model as AppModel
+  }
+
+  async republish(id: string, version: number, request: Omit<PublishRequest, 'copyDraftRows'>): Promise<Publication> {
+    const response = await this.request(`${path(id)}/versions/${version}/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    })
+    const published = publicationOf(await this.json(response))
+    if (!published) throw unexpected()
+    return published
   }
 
   private async request(url: string, init: RequestInit = {}): Promise<Response> {

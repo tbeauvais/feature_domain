@@ -227,17 +227,24 @@ export function createApp(options: AppOptions = {}) {
       }
     }
 
-    /** A publish, once the request holds the model's claim. */
+    /** A publish of the draft, once the request holds the model's claim. */
     const publish = async (c: Context<AppEnv>, id: string, ifRevision: number, body: PublishRequest, claim: string): Promise<Response> => {
       const stored = await c.var.store.get(id)
       if (!stored) return notFound()
       if (stored.revision !== ifRevision) return error(412, 'The model was changed since this revision', { headers: { ETag: etag(stored.revision) } })
-      const draft = stored.model
-      const problems = generate(draft)
+      return release(c, id, stored.model, body, claim)
+    }
+
+    /**
+     * Makes `app` (the draft, or an earlier version published again) the app's next version: the address, the tables it
+     * removes (each confirmed), the live rows of a first publish, and afterwards the removed tables' rows.
+     */
+    const release = async (c: Context<AppEnv>, id: string, app: AppModel, body: PublishRequest, claim: string): Promise<Response> => {
+      // Generated as the engine does now: an earlier version that no longer generates cleanly isn't published either.
+      const problems = generate(app)
         .diagnostics.filter((d) => d.severity === 'error')
         .map((d) => d.message)
       if (problems.length > 0) return error(400, 'The model has problems to fix before it can be published', { problems })
-
       const apps = appStoreOf(c.env)
       const rows = rowStoreOf(c.env)
       const [current, latest] = await Promise.all([apps.publication(id), apps.latest(id)])
@@ -246,9 +253,9 @@ export function createApp(options: AppOptions = {}) {
       const wrong = slugProblem(slug)
       if (wrong) return error(400, 'The address name is not valid', { problems: [wrong] })
 
-      // Tables of the app the draft no longer holds lose their live rows (`keepTables` below): the newest version's, and
-      // any other the app still keeps rows in. Only when the request names each one.
-      const kept = new Set(databaseTableKeys(draft))
+      // Tables of the app the new version no longer holds lose their live rows (`keepTables` below): the newest
+      // version's, and any other the app still keeps rows in. Only when the request names each one.
+      const kept = new Set(databaseTableKeys(app))
       const live = latest
         ? new Set([...tablesOf(id, `live:${latest.number}`, latest.model).keys(), ...Object.keys(await rows.countRows(id, 'live'))])
         : new Set<string>()
@@ -267,7 +274,7 @@ export function createApp(options: AppOptions = {}) {
       let publication
       try {
         // Only while the claim holds: one taken over (a publish past PUBLISHING_CLAIM_MS) stores nothing.
-        publication = await apps.publish(id, slug, draft, { first, claim })
+        publication = await apps.publish(id, slug, app, { first, claim })
       } catch (e) {
         if (e instanceof SlugTakenError) return error(409, 'Another app has this address', { problems: [`"${slug}" is taken: choose another address name`] })
         if (e instanceof AlreadyPublishedError)
@@ -292,6 +299,45 @@ export function createApp(options: AppOptions = {}) {
       }
       return c.json(publicationJson(publication, c.req.url, hostsFor(c.env)))
     }
+
+    // The model's versions, newest first, for the Publish dialog's list (their models only one at a time, below).
+    api.get('/models/:id/versions', async (c) => {
+      const id = c.req.param('id')
+      if (!(await c.var.store.get(id))) return notFound()
+      const versions = await appStoreOf(c.env).versions(id)
+      return c.json(
+        versions.map((v) => ({ version: v.number, published_at: v.publishedAt, name: v.name })),
+        200,
+        { 'Cache-Control': 'no-store' },
+      )
+    })
+
+    // One version as it was published (versions never change).
+    api.get('/models/:id/versions/:version', async (c) => {
+      const id = c.req.param('id')
+      const number = versionNumber(c.req.param('version'))
+      const stored = number === undefined ? null : await appStoreOf(c.env).version(id, number)
+      if (!stored) return error(404, 'No such version of this model')
+      return c.json({ version: stored.number, published_at: stored.publishedAt, model: stored.model }, 200, { 'Cache-Control': 'no-store' })
+    })
+
+    // Rolling back: an earlier version published again, as the app's next version (versions never change). The draft
+    // stays as it is.
+    api.post('/models/:id/versions/:version/publish', publishLimit, async (c) => {
+      const id = c.req.param('id')
+      if (!sendsJson(c.req.raw)) return error(415, 'Send the request as application/json')
+      const number = versionNumber(c.req.param('version'))
+      if (number === undefined) return error(404, 'No such version of this model')
+      const body = await readPublish(c.req.raw)
+      if (body instanceof Response) return body
+      if (body.copyDraftRows) return error(400, "The draft's rows are copied only when a model is first published")
+      return withClaim(c, id, async (claim) => {
+        if (!(await c.var.store.get(id))) return notFound()
+        const stored = await appStoreOf(c.env).version(id, number)
+        if (!stored) return error(404, 'No such version of this model')
+        return release(c, id, stored.model, body, claim)
+      })
+    })
 
     // Where the model is published (null when it isn't), where it would be, its newest version (the one a publish is
     // compared with) and how many rows the app keeps in each table a publish could remove, for the Publish dialog.
@@ -335,6 +381,9 @@ export function createApp(options: AppOptions = {}) {
     api.all('/models/:id', () => error(405, 'Method not allowed', { allow: 'GET, PUT, DELETE' }))
     api.all('/models/:id/publish', () => error(405, 'Method not allowed', { allow: 'POST' }))
     api.all('/models/:id/publication', () => error(405, 'Method not allowed', { allow: 'GET, DELETE' }))
+    api.all('/models/:id/versions', () => error(405, 'Method not allowed', { allow: 'GET' }))
+    api.all('/models/:id/versions/:version', () => error(405, 'Method not allowed', { allow: 'GET' }))
+    api.all('/models/:id/versions/:version/publish', () => error(405, 'Method not allowed', { allow: 'POST' }))
     api.all('/proxy', () => proxyError(405, 'Method not allowed', 'POST'))
     api.all('/openapi.json', () => error(405, 'Method not allowed', { allow: 'GET' }))
     api.all('/home/reset', () => error(405, 'Method not allowed', { allow: 'POST' }))
@@ -378,6 +427,11 @@ async function readPublish(request: Request): Promise<PublishRequest | Response>
   if (typeof copyDraftRows !== 'boolean') return bad('copyDraftRows must be true or false')
   if (!Array.isArray(removeTables) || !removeTables.every((key) => typeof key === 'string')) return bad('removeTables must be a list of table ids')
   return slug === undefined ? { copyDraftRows, removeTables } : { slug, copyDraftRows, removeTables }
+}
+
+/** A version number as a path names it (`3`), or undefined for anything else. */
+function versionNumber(text: string | undefined): number | undefined {
+  return text !== undefined && /^[1-9][0-9]{0,8}$/.test(text) ? Number(text) : undefined
 }
 
 /** A Database table's name in a model, else its id. */

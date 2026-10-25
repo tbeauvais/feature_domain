@@ -9,6 +9,13 @@ export interface Publication {
   publishedAt: string
 }
 
+/** A version in a model's list: its number, when it was published, and the model's name then. */
+export interface VersionSummary {
+  number: number
+  publishedAt: string
+  name: string
+}
+
 /** One version of a model as it was published: never changed afterwards. */
 export interface AppVersion {
   number: number
@@ -58,6 +65,8 @@ export interface AppStore {
   bySlug(slug: string): Promise<{ model: string; version: number } | null>
   /** One of the model's versions, or null. Versions never change, so what it gives can be kept. */
   version(model: string, number: number): Promise<AppVersion | null>
+  /** The model's versions, newest first, without their models (a name that isn't text is empty). */
+  versions(model: string): Promise<VersionSummary[]>
   /** The model's newest version, published or not now (unpublished), or null when it never was. */
   latest(model: string): Promise<AppVersion | null>
   /**
@@ -77,7 +86,7 @@ const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
 /** An in-memory store, for tests and as the reference implementation of the contract. */
 export class MemoryAppStore implements AppStore {
-  private readonly versions = new Map<string, AppVersion[]>()
+  private readonly versionsOf = new Map<string, AppVersion[]>()
   private readonly apps = new Map<string, Publication>()
   private readonly claims = new Map<string, { token: string; since: number }>()
 
@@ -106,24 +115,30 @@ export class MemoryAppStore implements AppStore {
   }
 
   async version(model: string, number: number): Promise<AppVersion | null> {
-    const version = this.versions.get(model)?.find((v) => v.number === number)
+    const version = this.versionsOf.get(model)?.find((v) => v.number === number)
     return version ? copy(version) : null
   }
 
+  async versions(model: string): Promise<VersionSummary[]> {
+    return (this.versionsOf.get(model) ?? [])
+      .map((v) => ({ number: v.number, publishedAt: v.publishedAt, name: typeof v.model.name === 'string' ? v.model.name : '' }))
+      .reverse()
+  }
+
   async latest(model: string): Promise<AppVersion | null> {
-    const version = this.versions.get(model)?.at(-1)
+    const version = this.versionsOf.get(model)?.at(-1)
     return version ? copy(version) : null
   }
 
   async publish(model: string, slug: string, app: AppModel, { first = false, claim }: { first?: boolean; claim?: string } = {}): Promise<Publication> {
     if (claim !== undefined && this.claims.get(model)?.token !== claim) throw new ClaimLostError(model)
-    const versions = this.versions.get(model) ?? []
+    const versions = this.versionsOf.get(model) ?? []
     if (first && versions.length > 0) throw new AlreadyPublishedError(model)
     for (const [other, published] of this.apps) if (other !== model && published.slug === slug) throw new SlugTakenError(slug)
     const publishedAt = new Date(this.now()).toISOString()
     const { id: _id, ...stored } = copy(app)
     versions.push({ number: versions.length + 1, model: { ...stored, id: model }, publishedAt })
-    this.versions.set(model, versions)
+    this.versionsOf.set(model, versions)
     const publication = { slug, version: versions.length, publishedAt }
     this.apps.set(model, publication)
     return { ...publication }
@@ -135,6 +150,6 @@ export class MemoryAppStore implements AppStore {
 
   async deleteModel(model: string): Promise<void> {
     this.apps.delete(model)
-    this.versions.delete(model)
+    this.versionsOf.delete(model)
   }
 }

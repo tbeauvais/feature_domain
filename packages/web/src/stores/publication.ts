@@ -2,7 +2,7 @@ import type { AppModel } from '@feature-domain/engine'
 import { defineStore } from 'pinia'
 import { ref, shallowRef, watch } from 'vue'
 import { publishing } from '../services'
-import type { Publication, PublicationInfo, PublishRequest } from './apiModelStore'
+import type { Publication, PublicationInfo, PublishRequest, VersionSummary } from './apiModelStore'
 import { useDocumentStore } from './document'
 
 /** How long after the last edit the draft is compared with the published version again. */
@@ -82,6 +82,27 @@ export const usePublicationStore = defineStore('publication', () => {
     }
   }
 
+  /** Publishes an earlier version again as the next one (rolling back), and reads the publication again. */
+  async function republish(version: number, request: Omit<PublishRequest, 'copyDraftRows'>): Promise<Publication> {
+    const id = modelId.value
+    if (id === null) throw new Error('No model is open')
+    try {
+      return await publishing().republish(id, version, request)
+    } finally {
+      if (modelId.value === id) await load(id)
+    }
+  }
+
+  /** One of the open model's versions as it was published, or null when there is no such version. */
+  async function version(number: number): Promise<AppModel | null> {
+    return modelId.value === null ? null : publishing().version(modelId.value, number)
+  }
+
+  /** The open model's versions, newest first (read when asked: the dialog's list). */
+  async function versions(): Promise<VersionSummary[]> {
+    return modelId.value === null ? [] : publishing().versions(modelId.value)
+  }
+
   /** Takes the app offline; its versions and rows stay. */
   async function unpublish(): Promise<void> {
     const id = modelId.value
@@ -94,7 +115,7 @@ export const usePublicationStore = defineStore('publication', () => {
     }
   }
 
-  return { modelId, info, status, error, changed, load, publish, unpublish }
+  return { modelId, info, status, error, changed, load, publish, republish, versions, version, unpublish }
 })
 
 /**
