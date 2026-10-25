@@ -374,6 +374,8 @@ for (const sample of SAMPLES) {
     const editor = await context.newPage()
     await editor.goto(`/models/${encodeURIComponent(id)}`)
     await sample.ready(editor)
+    // Widths in `ch` follow the font: measure once the web fonts are in, not the fallback.
+    await editor.evaluate(() => document.fonts.ready)
     expect(await hasTailwindReset(editor)).toBe(true)
     // Generated pages size themselves from the document's width (container queries), so render the preview's
     // document at exactly the editor canvas's width.
@@ -381,6 +383,7 @@ for (const sample of SAMPLES) {
 
     await page.goto(`/preview.html?model=${encodeURIComponent(id)}`)
     await sample.ready(page)
+    await page.evaluate(() => document.fonts.ready)
     await page.locator('#app').evaluate((el, w) => ((el as HTMLElement).style.width = `${w}px`), width)
     expect(await page.locator('.fd-root').evaluate((el) => el.getBoundingClientRect().width)).toBe(width)
     expect(await hasTailwindReset(page)).toBe(false)

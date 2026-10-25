@@ -1,6 +1,8 @@
-# Security headers for the editor, the preview and every built asset. Cloudflare's static assets apply this file, and
-# so does `vite preview` (the e2e tests fail on any policy violation); `vite dev` doesn't, so hot reloading still works.
-# /api answers come from the Worker, which sets its own (packages/worker/src/app.ts).
+# Security headers for the editor, the preview, published apps' page and every built asset. The Worker sets the same
+# ones itself (packages/worker/src/http.ts, PAGE_HEADERS; a test checks they match), since it answers every request
+# first and Cloudflare applies this file only to assets it serves itself. `vite preview` applies it too (the e2e tests
+# fail on any policy violation); `vite dev` doesn't, so hot reloading still works. /api answers get their own
+# (packages/worker/src/http.ts, API_HEADERS).
 #
 # style-src has no 'unsafe-inline': Vue sets style bindings through the DOM, which the policy allows, but it would turn
 # large static templates (the illustrations' `style="fill: var(…)"`) into HTML strings, whose style attributes it

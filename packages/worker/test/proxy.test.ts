@@ -36,7 +36,9 @@ const upstream: typeof fetch = async (input, init = {}) => {
   return answer(String(input), init)
 }
 
-const app = () => createApp(() => store, upstream)
+/** The deployed hosts, so the proxy refuses the platform's own as it does on Cloudflare. */
+const HOSTS = { builder: 'app.feature-domain.workers.dev', apps: 'apprun.app' }
+const app = () => createApp({ store: () => store, upstream, hosts: HOSTS })
 const proxy = (request: Record<string, unknown>, headers: Record<string, string> = {}) =>
   app().request('https://app.feature-domain.workers.dev/api/v1/proxy', {
     method: 'POST',
@@ -155,6 +157,9 @@ describe('/api/v1/proxy', () => {
     expect(await errorOf(await proxy({ url: 'https://printer.local/x' }))).toBe('Local names are never fetched')
     expect(await errorOf(await proxy({ url: 'https://localhost./x' }))).toBe('Names ending in a dot are never fetched')
     expect(await errorOf(await proxy({ url: 'https://app.feature-domain.workers.dev/x' }))).toBe('This site is never fetched')
+    // Nor any of the platform's own sites: a page can't reach a published app's rows through it.
+    for (const url of ['https://requests.apprun.app/api/v1/app/tables/2/rows', 'https://apprun.app/x', 'https://a.b.apprun.app/x'])
+      expect(await errorOf(await proxy({ url })), url).toBe("This platform's own sites are never fetched")
     for (const url of ['ftp://api.example.com/x', 'https://user:pass@api.example.com/repos', 'not an address']) {
       expect((await proxy({ url })).status, url).toBe(400)
     }
@@ -183,6 +188,7 @@ describe('/api/v1/proxy', () => {
       'http://api.example.com/repos',
       'http://127.0.0.1/',
       'https://localhost/',
+      'https://requests.apprun.app/api/v1/app',
     ]) {
       answer = () => new Response(null, { status: 307, headers: { Location: location } })
       const refused = await proxy({ url: 'https://api.example.com/repos' })
@@ -291,8 +297,8 @@ describe('/api/v1/proxy', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: id, method: 'GET', url }),
       })
-    const first = createApp(() => store, upstream)
-    const second = createApp(() => other, upstream)
+    const first = createApp({ store: () => store, upstream, hosts: HOSTS })
+    const second = createApp({ store: () => other, upstream, hosts: HOSTS })
     expect((await request(first, 'https://api.example.com/repos')).status).toBe(200)
     expect((await request(second, 'https://other.example.com/rows')).status).toBe(200)
     expect((await request(second, 'https://api.example.com/repos')).status).toBe(403)

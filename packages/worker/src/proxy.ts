@@ -1,4 +1,7 @@
 import { HTTP_METHODS, proxyAddresses, type AppModel } from '@feature-domain/engine'
+import { bodyLimit } from 'hono/body-limit'
+import { isPlatformHost, type Hosts } from './hosts'
+import { error, sendsJson } from './http'
 
 // /api/v1/proxy: fetches an address for a page, for sites that don't let other pages read them. Never an open proxy:
 // only addresses on the origins of the model's own Server resources (the engine's proxyAddresses), on public hosts.
@@ -20,9 +23,12 @@ export const PROXY_ANSWER_HEADER = 'X-Proxy-Answer'
 
 const USER_AGENT = 'feature-domain-proxy (+https://github.com/tbeauvais/feature_domain)'
 
-/** What a page asks the proxy for: the same shape as the web app's DataRequest, plus the model it comes from. */
+/**
+ * What a page asks the proxy for: the same shape as the web app's DataRequest, plus the model it comes from (on the
+ * builder; a published app's model is the one its host serves, never what the page says).
+ */
 export interface ProxyRequest {
-  model: string
+  model?: string
   method: (typeof HTTP_METHODS)[number]
   url: string
   body?: Record<string, string | number | boolean | null>
@@ -39,16 +45,21 @@ export class ProxyError extends Error {
   }
 }
 
-/** The request the page sent, or a 400 saying what is wrong with it. */
-export function readProxyRequest(value: unknown): ProxyRequest {
+/**
+ * The request the page sent, or a 400 saying what is wrong with it. With `model` false (a published app's proxy), a
+ * model in it is refused rather than read.
+ */
+export function readProxyRequest(value: unknown, { model: named = true } = {}): ProxyRequest {
   const bad = (message: string) => new ProxyError(400, message)
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw bad('Send { model, method, url, body?, requestType? }')
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw bad(`Send { ${named ? 'model, ' : ''}method, url, body?, requestType? }`)
   const { model, method, url, body, requestType } = value as Record<string, unknown>
-  if (typeof model !== 'string' || model === '') throw bad('model must be the id of a model')
+  if (named && (typeof model !== 'string' || model === '')) throw bad('model must be the id of a model')
+  if (!named && model !== undefined) throw bad("An app's proxy fetches for the app itself: send no model")
   if (typeof method !== 'string' || !(HTTP_METHODS as readonly string[]).includes(method)) throw bad(`method must be one of ${HTTP_METHODS.join(', ')}`)
   if (typeof url !== 'string') throw bad('url must be an address')
   if (requestType !== undefined && requestType !== 'form' && requestType !== 'multipart') throw bad('requestType must be "form" or "multipart"')
-  const request: ProxyRequest = { model, method: method as ProxyRequest['method'], url }
+  const request: ProxyRequest = { method: method as ProxyRequest['method'], url }
+  if (named) request.model = model as string
   if (requestType) request.requestType = requestType
   if (body !== undefined) {
     if (method === 'GET') throw bad('A GET request has no body')
@@ -60,21 +71,31 @@ export function readProxyRequest(value: unknown): ProxyRequest {
   return request
 }
 
-/** Hosts the proxy never fetches from: addresses, names that only mean something on a local network, and this site. */
-function refusedHost(hostname: string, self: string): string | undefined {
+/** Where the proxy is answering: the page's own host, and the platform's (the builder and every app). */
+export interface ProxySite {
+  self: string
+  hosts: Hosts
+}
+
+/**
+ * Hosts the proxy never fetches from: addresses, names that only mean something on a local network, this site, and the
+ * platform's own hosts, so a page can't reach the builder or another app through it.
+ */
+function refusedHost(hostname: string, { self, hosts }: ProxySite): string | undefined {
   // `localhost.` is localhost: a trailing dot would slip past the checks below.
   if (hostname.endsWith('.')) return 'Names ending in a dot are'
   if (hostname.startsWith('[') || /^\d+(\.\d+){3}$/.test(hostname)) return 'IP addresses are'
   if (!hostname.includes('.') || /\.(localhost|local|internal|home\.arpa|localdomain)$/.test(hostname)) return 'Local names are'
   if (hostname === self) return 'This site is'
+  if (isPlatformHost(hostname, hosts)) return "This platform's own sites are"
   return undefined
 }
 
 /**
  * The address as a URL when the proxy may fetch it: http(s) on the default port, no user name or password, a public
- * host other than this site's, on the origin of one of `allowed` (the model's Server addresses).
+ * host other than this site's and the platform's, on the origin of one of `allowed` (the model's Server addresses).
  */
-export function checkTarget(address: string, allowed: ReadonlySet<string>, self: string): URL {
+export function checkTarget(address: string, allowed: ReadonlySet<string>, site: ProxySite): URL {
   let url: URL
   try {
     url = new URL(address)
@@ -84,7 +105,7 @@ export function checkTarget(address: string, allowed: ReadonlySet<string>, self:
   if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new ProxyError(400, 'Only http(s) addresses can be fetched')
   if (url.username || url.password) throw new ProxyError(400, 'Addresses with a user name or password are not fetched')
   if (url.port) throw new ProxyError(403, `Only the standard port is fetched, not ${url.port}`)
-  const refused = refusedHost(url.hostname, self)
+  const refused = refusedHost(url.hostname, site)
   if (refused) throw new ProxyError(403, `${refused} never fetched`)
   if (!allowed.has(url.origin)) throw new ProxyError(403, "It isn't one of this model's addresses fetched through the server")
   return url
@@ -123,8 +144,8 @@ const REDIRECTS = new Set([301, 302, 303, 307, 308])
  * its Content-Type and its body, at most PROXY_LIMITS.responseBytes. Nothing from the page's own request (cookies,
  * Cloudflare Access's headers) is sent on.
  */
-export async function forward(request: ProxyRequest, allowed: ReadonlySet<string>, self: string, upstream: typeof fetch): Promise<Response> {
-  let url = checkTarget(request.url, allowed, self)
+export async function forward(request: ProxyRequest, allowed: ReadonlySet<string>, site: ProxySite, upstream: typeof fetch): Promise<Response> {
+  let url = checkTarget(request.url, allowed, site)
   let method: string = request.method
   let { body, type } = encode(request)
   const signal = AbortSignal.timeout(PROXY_LIMITS.timeoutMs)
@@ -139,7 +160,7 @@ export async function forward(request: ProxyRequest, allowed: ReadonlySet<string
       if (hop >= PROXY_LIMITS.redirects) throw new ProxyError(502, `The site redirected more than ${PROXY_LIMITS.redirects} times`)
       let next: URL
       try {
-        next = checkTarget(new URL(location, url).href, allowed, self)
+        next = checkTarget(new URL(location, url).href, allowed, site)
       } catch (e) {
         throw new ProxyError(502, `The site redirected somewhere the proxy doesn't fetch (${e instanceof Error ? e.message : String(e)})`)
       }
@@ -192,4 +213,43 @@ async function passOn(response: Response): Promise<Response> {
     at += chunk.byteLength
   }
   return new Response(bytes, { status: response.status, headers })
+}
+
+/** A proxy error: marked, so the page can tell it from the site's own answers. */
+export function proxyError(status: number, message: string, allow?: string): Response {
+  return error(status, message, { allow, headers: { [PROXY_ERROR_HEADER]: 'true' } })
+}
+
+/** The largest request the proxy reads (a 413 past it). */
+export const proxyLimit = bodyLimit({
+  maxSize: PROXY_LIMITS.requestBytes,
+  onError: () => proxyError(413, `Requests through the proxy are limited to ${PROXY_LIMITS.requestBytes} bytes`),
+})
+
+/**
+ * Answers a proxy request, the builder's or an app's: JSON only (so a form on another site can't send one), read with
+ * `readProxyRequest` (`named`: whether it names its model), fetched if `allowedFor` (the model's Server origins; it may
+ * throw a `ProxyError`) allows it, from `site`. Its own errors are marked.
+ */
+export async function answerProxy(
+  request: Request,
+  named: boolean,
+  allowedFor: (request: ProxyRequest) => Promise<ReadonlySet<string>>,
+  site: ProxySite,
+  upstream: typeof fetch,
+): Promise<Response> {
+  try {
+    if (!sendsJson(request)) throw new ProxyError(400, 'Send the request as application/json')
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      throw new ProxyError(400, 'The body is not valid JSON')
+    }
+    const read = readProxyRequest(body, { model: named })
+    return await forward(read, await allowedFor(read), site, upstream)
+  } catch (e) {
+    if (e instanceof ProxyError) return proxyError(e.status, e.message)
+    throw e
+  }
 }

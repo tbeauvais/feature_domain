@@ -242,7 +242,7 @@ describe('the API', () => {
   it('answers failures with a JSON 500 that reveals nothing', async () => {
     const failing = new MemoryModelStore()
     failing.list = () => Promise.reject(new Error('secret detail'))
-    const response = await createApp(() => failing).request('/api/v1/models', undefined, d1.env)
+    const response = await createApp({ store: () => failing }).request('/api/v1/models', undefined, d1.env)
     expect(response.status).toBe(500)
     expect(await response.text()).not.toContain('secret')
   })
@@ -262,7 +262,7 @@ describe('the API', () => {
       await request('/api/v1/models/missing'),
       await request('/api/v1/models', { method: 'PATCH' }),
       await request('/api/nope'),
-      await createApp(() => failing).request('/api/v1/models', undefined, d1.env),
+      await createApp({ store: () => failing }).request('/api/v1/models', undefined, d1.env),
     ]
     expect(responses.map((r) => r.status)).toEqual([200, 201, 304, 204, 412, 204, 404, 405, 404, 500])
     for (const response of responses) {

@@ -8,7 +8,7 @@ const APP_ASSETS = new Set(['stylesheet', 'font', 'script'])
 export const isCspViolation = (message: ConsoleMessage) => message.type() === 'error' && message.text().includes('Content Security Policy')
 
 /**
- * Keeps every request on localhost: `handle` may fulfill some (e.g. mock the GitHub API); the rest are aborted. Aborting
+ * Keeps every request on localhost (and its subdomains, where apps are published): `handle` may fulfill some (e.g. mock the GitHub API); the rest are aborted. Aborting
  * alone would hide a regression (a CDN font just falls back), so an aborted stylesheet, font or script fails the test.
  * The model API is the test's own (`serveModels`), unless `realModels` sends it to the Worker and its D1 database. Any
  * Content Security Policy violation fails the test too.
@@ -26,7 +26,8 @@ export function isolateNetwork(handle?: (route: Route, url: URL) => Promise<void
     })
     await page.context().route('**/*', async (route) => {
       const url = new URL(route.request().url())
-      if (url.hostname === 'localhost') return route.continue()
+      // The builder, and published apps at <slug>.localhost (browsers resolve every *.localhost to this machine).
+      if (url.hostname === 'localhost' || url.hostname.endsWith('.localhost')) return route.continue()
       const handled = handle?.(route, url)
       if (handled) return handled
       if (APP_ASSETS.has(route.request().resourceType())) blockedAssets.push(url.href)

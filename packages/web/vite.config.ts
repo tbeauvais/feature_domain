@@ -35,12 +35,14 @@ export default defineConfig({
     app: { resolve: { conditions: ['@feature-domain/source'] } },
     client: {
       build: {
-        // Two pages: the editor (index.html, with Tailwind) and the standalone preview (preview.html, without it), so
-        // generated pages look the same in the preview as on a published site. (The Worker is built separately.)
+        // Three pages: the editor (index.html, with Tailwind), the standalone preview (preview.html, without it), so
+        // generated pages look the same in the preview as on a published site, and a published app's page (app.html,
+        // which the Worker serves on an app's host). (The Worker is built separately.)
         rollupOptions: {
           input: {
             main: fileURLToPath(new URL('./index.html', import.meta.url)),
             preview: fileURLToPath(new URL('./preview.html', import.meta.url)),
+            app: fileURLToPath(new URL('./app.html', import.meta.url)),
           },
         },
       },

@@ -9,18 +9,18 @@ export interface WorkerApp {
 }
 
 const APP = `${import.meta.dirname}/../../worker/src/app.ts`
+const APPS = `${import.meta.dirname}/../../worker/src/apps.ts`
 
 /**
  * `upstream` answers the requests its proxy sends to other sites (by default, the real fetch); `rows` keeps Database
- * tables' rows (by default, a fresh one in memory, beside the caller's model store).
+ * tables' rows (by default, a fresh one in memory, beside the caller's model store), and published apps are kept in
+ * memory too. The builder is at localhost, and apps at <slug>.localhost.
  */
 export async function workerApp(store: ServerModelStore, upstream?: typeof fetch, rows: RowStore = new MemoryRowStore()): Promise<WorkerApp> {
   const { createApp } = (await import(/* @vite-ignore */ APP)) as {
-    createApp(store: () => ServerModelStore, upstream: typeof fetch | undefined, rows: () => RowStore): WorkerApp
+    createApp(options: { store: () => ServerModelStore; upstream?: typeof fetch; rows: () => RowStore; apps: () => unknown }): WorkerApp
   }
-  return createApp(
-    () => store,
-    upstream,
-    () => rows,
-  )
+  const { MemoryAppStore } = (await import(/* @vite-ignore */ APPS)) as { MemoryAppStore: new (now?: () => number) => unknown }
+  const apps = new MemoryAppStore()
+  return createApp({ store: () => store, upstream, rows: () => rows, apps: () => apps })
 }

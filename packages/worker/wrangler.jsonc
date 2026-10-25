@@ -10,13 +10,24 @@
   // (a hostname per uploaded version) are off: Access covers only the main hostname.
   "workers_dev": true,
   "preview_urls": false,
+  // Published apps, at <slug>.apprun.app: infrastructure/ makes the wildcard DNS record and puts Access in front.
+  "routes": [{ "pattern": "*.apprun.app/*", "zone_name": "apprun.app" }],
+  "vars": {
+    // Which site a request is for (src/hosts.ts): the builder's host, or an app under this domain. Anything else gets a
+    // 404. packages/worker/.dev.vars sets both to localhost in development.
+    "BUILDER_HOST": "app.feature-domain.workers.dev",
+    "APP_DOMAIN": "apprun.app",
+  },
   "assets": {
-    // Editor routes (/models/:id) are client-side, so unknown paths get index.html. API paths always reach the Worker.
+    // The Worker answers every request first, so an app's host never gets the editor: it passes the builder's
+    // non-API requests to the assets (env.ASSETS), and serves app.html on an app's.
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    // Editor routes (/models/:id) are client-side, so unknown paths get index.html.
     "not_found_handling": "single-page-application",
     // Files are served at their own paths: the editor links to /preview.html?model=…, as `vite dev` serves it, so no
     // redirect to /preview.
     "html_handling": "none",
-    "run_worker_first": ["/api/*"],
   },
   "d1_databases": [
     {

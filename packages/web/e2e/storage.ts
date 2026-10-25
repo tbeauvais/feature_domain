@@ -36,7 +36,8 @@ export async function serveModels(context: BrowserContext): Promise<void> {
   const serve = async (route: Route) => {
     const request = route.request()
     const url = new URL(request.url())
-    const response = await app.request(url.pathname + url.search, {
+    // The whole address, so the Worker picks the site by host: the builder, or a published app at <slug>.localhost.
+    const response = await app.request(url.href, {
       method: request.method(),
       headers: request.headers(),
       body: request.postDataBuffer() as BodyInit | null,

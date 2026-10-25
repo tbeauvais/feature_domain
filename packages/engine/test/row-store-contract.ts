@@ -144,6 +144,49 @@ export function describeRowStore(name: string, create: () => RowStore | Promise<
       expect(await store.list(requests)).toEqual([])
     })
 
+    it("copies a model's space over another: its rows with their ids and times, and its sample marks", async () => {
+      const store = await create()
+      const live = { ...requests, space: 'live' as const }
+      await store.storeSampleRows(requests, [{ title: 'Sample' }, { title: 'Deleted sample' }])
+      const drafted = await store.list(requests)
+      await store.delete(requests, drafted[1]!.id)
+      const added = await store.create({ ...requests, table: '4' }, { title: 'Other table' })
+      await store.create(live, { title: 'Replaced' })
+      await store.storeSampleRows({ ...live, table: '9' }, [{ title: 'Replaced too' }])
+      const otherModel = await store.create({ ...live, model: 'm2' }, { title: 'Other model' })
+      await store.copySpace('m1', 'draft', 'live')
+      expect(await store.list(live)).toEqual([drafted[0]])
+      expect(await store.list({ ...live, table: '4' })).toEqual([added])
+      expect(await store.list({ ...live, table: '9' })).toEqual([])
+      expect(await store.list({ ...live, model: 'm2' })).toEqual([otherModel])
+      // The draft's sample marks came along, so the deleted sample row doesn't come back; table 9 starts over.
+      expect(await store.storeSampleRows(live, [{ title: 'Sample' }, { title: 'Deleted sample' }])).toBe(false)
+      expect(await store.list(live)).toEqual([drafted[0]])
+      expect(await store.storeSampleRows({ ...live, table: '9' }, [{ title: 'New' }])).toBe(true)
+      // The copies are rows of their own: the draft's stay as they were.
+      await store.update(live, drafted[0]!.id, { title: 'Changed live' })
+      expect(await store.list(requests)).toEqual([drafted[0]])
+      // Copying a space onto itself changes nothing; copying an empty one empties the other.
+      await store.copySpace('m1', 'live', 'live')
+      expect(values(await store.list(live))).toEqual([{ title: 'Changed live' }])
+      await store.create({ ...live, model: 'm3' }, { title: 'Gone' })
+      await store.copySpace('m3', 'draft', 'live')
+      expect(await store.list({ ...live, model: 'm3' })).toEqual([])
+    })
+
+    it("counts a model's rows per table in one space", async () => {
+      const store = await create()
+      expect(await store.countRows('m1', 'draft')).toEqual({})
+      await store.storeSampleRows(requests, [{ title: 'A' }, { title: 'B' }])
+      await store.create({ ...requests, table: '4' }, { title: 'C' })
+      const emptied = await store.create({ ...requests, table: '5' }, { title: 'D' })
+      await store.delete({ ...requests, table: '5' }, emptied.id)
+      await store.create({ ...requests, space: 'live' }, { title: 'Live' })
+      await store.create({ ...requests, model: 'm2' }, { title: 'Other' })
+      expect(await store.countRows('m1', 'draft')).toEqual({ '3': 2, '4': 1 })
+      expect(await store.countRows('m1', 'live')).toEqual({ '3': 1 })
+    })
+
     it("deletes a model's rows in every space and table, and its sample marks, leaving other models'", async () => {
       const store = await create()
       await store.storeSampleRows(requests, [{ title: 'Sample' }])
