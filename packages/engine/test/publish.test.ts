@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { builderAddresses, databaseTables, diffSchemas, MAX_SLUG_LENGTH, RESERVED_SLUGS, slugProblem, suggestSlug } from '../src'
+import {
+  builderAddresses,
+  builderAddressText,
+  databaseTables,
+  diffSchemas,
+  MAX_SLUG_LENGTH,
+  RESERVED_SLUGS,
+  schemaChangeText,
+  slugProblem,
+  suggestSlug,
+} from '../src'
 import { inst, model, page } from './helpers'
 
 describe('slugProblem', () => {
@@ -176,5 +186,29 @@ describe('builderAddresses', () => {
         ),
       ),
     ).toEqual([])
+  })
+})
+
+describe('schemaChangeText and builderAddressText', () => {
+  it('say what a publish does to the app’s rows, and what only works in the builder', () => {
+    expect(schemaChangeText({ kind: 'removed-table', table: '2' }, 'Requests')).toBe('“Requests” is removed, and the app’s rows in it are deleted.')
+    expect(schemaChangeText({ kind: 'removed-field', table: '2', field: 'due' }, 'Requests')).toBe(
+      '“Requests”: “due” is removed. The app’s rows keep their values for it, unseen.',
+    )
+    expect(schemaChangeText({ kind: 'changed-type', table: '2', field: 'due', from: 'long-text', to: 'yes-no' }, 'Requests')).toBe(
+      '“Requests”: “due” changes from long text to yes/no. The app’s rows keep the values they have.',
+    )
+    expect(schemaChangeText({ kind: 'newly-required', table: '2', field: 'due' }, 'Requests')).toContain('becomes required')
+    expect(schemaChangeText({ kind: 'removed-options', table: '2', field: 'status', options: ['open', 'done'] }, 'Requests')).toBe(
+      '“Requests”: “status” no longer offers “open”, “done”. The app’s rows that have them keep them.',
+    )
+    expect(builderAddressText({ feature: '3', kind: 'link', address: '/models/7' }, 'Back link')).toBe(
+      'Back link links to /models/7, which shows the app again on the app’s address.',
+    )
+    expect(builderAddressText({ feature: '3', kind: 'data', address: '/api/v1/models' }, 'Models')).toBe(
+      'Models reads /api/v1/models, the builder’s models, which the app can’t reach.',
+    )
+    expect(builderAddressText({ feature: '3', kind: 'then-open', address: '/models/{id}' }, 'Form')).toContain('after sending')
+    expect(builderAddressText({ feature: '3', kind: 'data-link', address: '/models/{id}' }, 'Table')).toContain('links its rows')
   })
 })

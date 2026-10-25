@@ -1,5 +1,5 @@
 import type { ModelStore } from '@feature-domain/engine'
-import { ApiModelStore } from './stores/apiModelStore'
+import { ApiModelStore, type Publishing } from './stores/apiModelStore'
 
 let store: ModelStore | undefined
 
@@ -23,4 +23,16 @@ export function homeReset(): () => Promise<void> {
 
 export function setHomeReset(next: () => Promise<void>): void {
   resetHome = next
+}
+
+let publishingApi: Publishing | undefined
+
+/** Publishing models as apps: the Worker's API (`ApiModelStore`) unless tests replace it with `setPublishing`. */
+export function publishing(): Publishing {
+  publishingApi ??= new ApiModelStore()
+  return publishingApi
+}
+
+export function setPublishing(next: Publishing): void {
+  publishingApi = next
 }

@@ -23,15 +23,52 @@ export const KEEPALIVE_MAX_BYTES = 60_000
  */
 export const REQUEST_TIMEOUT_MS = 30_000
 
-/** A request the API refused or failed, with the message it gave. */
+/** A request the API refused or failed, with the message it gave and the problems it listed (in words). */
 export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly problems: string[] = [],
   ) {
     super(message)
     this.name = 'ApiError'
   }
+}
+
+/** Where a model is published, and which version it serves since when. */
+export interface Publication {
+  slug: string
+  url: string
+  version: number
+  publishedAt: string
+}
+
+/** What the Publish dialog needs to know about a model's app. */
+export interface PublicationInfo {
+  /** Where it is published, or null when it isn't (never, or unpublished). */
+  published: Publication | null
+  /** Where an address name would put it: `{slug}` stands for the name. */
+  urlTemplate: string
+  /** Its newest version, which a publish is compared with; null when it was never published. */
+  latest: { version: number; publishedAt: string; model: AppModel } | null
+  /** How many rows the app keeps in each of the newest version's tables. */
+  liveRows: Record<string, number>
+}
+
+/** What a publish asks for: the address (else the app's current one), the draft's rows on a first one, and the tables it removes. */
+export interface PublishRequest {
+  slug?: string
+  copyDraftRows?: boolean
+  removeTables?: string[]
+}
+
+/** Publishing a model as an app (the Worker's /models/:id/publish and /publication); tests provide a fake. */
+export interface Publishing {
+  /** Null when the model doesn't exist. */
+  publication(id: string): Promise<PublicationInfo | null>
+  /** Publishes the stored draft at `revision`: a 412 `ModelConflictError` when it changed since. */
+  publish(id: string, revision: number, request: PublishRequest): Promise<Publication>
+  unpublish(id: string): Promise<void>
 }
 
 /**
@@ -58,7 +95,7 @@ export function revisionOf(etag: string | null): number | undefined {
  * Models stored by the Worker (D1), through its HTTP API. Every response is checked before it is used: anything but
  * the JSON the API sends becomes an error, never a model (the document store also validates every model it loads).
  */
-export class ApiModelStore implements ModelStore {
+export class ApiModelStore implements ModelStore, Publishing {
   constructor(private readonly fetch: typeof globalThis.fetch = (...args) => globalThis.fetch(...args)) {}
 
   async list(): Promise<ModelSummary[]> {
@@ -110,6 +147,47 @@ export class ApiModelStore implements ModelStore {
     await this.ok(await this.request(HOME_RESET_PATH, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }))
   }
 
+  async publication(id: string): Promise<PublicationInfo | null> {
+    const response = await this.request(`${path(id)}/publication`)
+    if (response.status === 404) return null
+    const body = await this.json(response)
+    if (!isRecord(body) || typeof body.url_template !== 'string' || !isRecord(body.live_rows)) throw unexpected()
+    const published = body.published === null ? null : publicationOf(body.published)
+    const latest = body.latest
+    if (published === undefined || (latest !== null && !(isRecord(latest) && isVersion(latest)))) throw unexpected()
+    const liveRows: Record<string, number> = {}
+    for (const [key, count] of Object.entries(body.live_rows)) {
+      if (!Number.isSafeInteger(count)) throw unexpected()
+      liveRows[key] = count as number
+    }
+    return {
+      published,
+      urlTemplate: body.url_template,
+      latest: latest && { version: latest.version as number, publishedAt: latest.published_at as string, model: latest.model as AppModel },
+      liveRows,
+    }
+  }
+
+  async publish(id: string, revision: number, request: PublishRequest): Promise<Publication> {
+    const response = await this.request(`${path(id)}/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'If-Match': `"${revision}"` },
+      body: JSON.stringify(request),
+    })
+    if (response.status === 412) {
+      const stored = revisionOf(response.headers.get('ETag'))
+      if (stored === undefined) throw unexpected()
+      throw new ModelConflictError(id, stored)
+    }
+    const published = publicationOf(await this.json(response))
+    if (!published) throw unexpected()
+    return published
+  }
+
+  async unpublish(id: string): Promise<void> {
+    await this.ok(await this.request(`${path(id)}/publication`, { method: 'DELETE' }))
+  }
+
   private async request(url: string, init: RequestInit = {}): Promise<Response> {
     // `manual`: an expired Access session answers with a redirect to its sign-in page, which must not be followed.
     const controller = new AbortController()
@@ -135,11 +213,13 @@ export class ApiModelStore implements ModelStore {
   private async ok(response: Response): Promise<void> {
     if (response.ok) return
     let message = `the server answered ${response.status}`
+    let problems: string[] = []
     if (isJson(response)) {
       const body: unknown = await response.json().catch(() => undefined)
-      if (typeof body === 'object' && body !== null && typeof (body as { error?: unknown }).error === 'string') message = (body as { error: string }).error
+      if (isRecord(body) && typeof body.error === 'string') message = body.error
+      if (isRecord(body) && Array.isArray(body.problems)) problems = body.problems.filter((p): p is string => typeof p === 'string')
     }
-    throw new ApiError(response.status, message)
+    throw new ApiError(response.status, message, problems)
   }
 
   /** The response's JSON, which each caller checks. */
@@ -166,6 +246,17 @@ const isSummary = (m: unknown): m is ListedModel =>
   typeof (m as ListedModel).id === 'string' &&
   typeof (m as ListedModel).name === 'string' &&
   typeof (m as ListedModel).updated_at === 'string'
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+/** A version number and when it was published, as the API sends them. */
+const hasVersionFields = (v: Record<string, unknown>) => Number.isSafeInteger(v.version) && typeof v.published_at === 'string'
+const isVersion = (v: Record<string, unknown>) => hasVersionFields(v) && isRecord(v.model) && Array.isArray(v.model.features)
+
+/** A publication as the API sends it, or undefined when it isn't one. */
+function publicationOf(value: unknown): Publication | undefined {
+  if (!isRecord(value) || typeof value.slug !== 'string' || typeof value.url !== 'string' || !hasVersionFields(value)) return undefined
+  return { slug: value.slug, url: value.url, version: value.version as number, publishedAt: value.published_at as string }
+}
+
 const path = (id: string) => `${MODELS_PATH}/${encodeURIComponent(id)}`
 const send = (model: AppModel) => ({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(model) })
 const isJson = (response: Response) => response.headers.get('Content-Type')?.toLowerCase().startsWith('application/json') ?? false

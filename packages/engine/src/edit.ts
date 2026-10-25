@@ -35,10 +35,13 @@ export function newModel(name = ''): AppModel {
   }
 }
 
-/** The next free instance id, legacy style: the highest numeric id + 1. */
-export function nextInstanceId(model: AppModel): string {
-  const numbers = model.features.map((f) => Number(f.id)).filter((n) => Number.isInteger(n) && n >= 0)
-  return String(numbers.length === 0 ? 1 : Math.max(...numbers) + 1)
+/**
+ * The next free instance id, legacy style: one past the highest numeric id the model has, or ever gave out (`lastId`),
+ * or that is `used` elsewhere (a published app's), so a removed feature's id isn't given out again.
+ */
+export function nextInstanceId(model: AppModel, used: Iterable<string> = []): string {
+  const numbers = [...model.features.map((f) => f.id), ...used].map(Number).filter((n) => Number.isInteger(n) && n >= 0)
+  return String(Math.max(0, model.lastId ?? 0, ...numbers) + 1)
 }
 
 /** Instance ids placed (transitively) inside `id`, in model order. */
@@ -180,18 +183,36 @@ export function insertFeature(
   return normalizeOrder({ ...model, features }, options)
 }
 
-/** Adds a new instance of `featureType` with default inputs and the next free id. Returns the model and the new id. */
+/**
+ * Adds a new instance of `featureType` with default inputs and the next free id (past `usedIds` too: a published app's,
+ * for models from before `lastId`), which the model remembers (`lastId`, which `removeFeature` keeps too):
+ * a new Database table must never take a removed one's id, or a published app would show the removed one's rows.
+ * Returns the model and the new id.
+ */
 export function addFeature(
   model: AppModel,
   featureType: string,
   target: PlacementTarget | undefined,
-  options: EditOptions & { result?: GenerateResult } = {},
+  options: EditOptions & { result?: GenerateResult; usedIds?: Iterable<string> } = {},
 ): { model: AppModel; id: string } {
   const registry = options.registry ?? defaultRegistry
   const def = registry.get(featureType)
   if (!def) throw new EditError(`Unknown feature type "${featureType}"`)
-  const id = nextInstanceId(model)
-  return { model: insertFeature(model, createFeatureInstance(def, id), target, options), id }
+  const id = nextInstanceId(model, options.usedIds)
+  const added = insertFeature(model, createFeatureInstance(def, id), target, options)
+  return { model: { ...added, lastId: Number(id) }, id }
+}
+
+/** A model that keeps the higher `lastId` of the two (an undo must not let a removed feature's id be given out again). */
+export function keepLastId(model: AppModel, before: AppModel | null | undefined): AppModel {
+  const last = Math.max(model.lastId ?? 0, before?.lastId ?? 0)
+  return last > (model.lastId ?? 0) ? { ...model, lastId: last } : model
+}
+
+/** A feature's name in a model, or undefined when it has none (or isn't there). */
+export function featureName(model: AppModel, id: string): string | undefined {
+  const name = model.features.find((f) => f.id === id)?.inputs.name
+  return typeof name === 'string' && name.trim() !== '' ? name : undefined
 }
 
 /** Moves a placed feature (and everything inside it) to another slot or position. Throws EditError when `canPlace` would refuse. */
@@ -229,7 +250,9 @@ export function removeFeature(model: AppModel, id: string, options: EditOptions 
     .filter((f) => !gone.has(f.id))
     .map((f) => ({ id: f.id, references: dependenciesOf(f, registry).filter((dep) => gone.has(dep)) }))
     .filter((b) => b.references.length > 0)
-  return { model: { ...model, features }, removed: model.features.map((f) => f.id).filter((fid) => gone.has(fid)), brokenReferences }
+  // The ids removed are never given out again (a model from before `lastId` gets one here).
+  const lastId = Number(nextInstanceId(model)) - 1
+  return { model: { ...model, features, lastId }, removed: model.features.map((f) => f.id).filter((fid) => gone.has(fid)), brokenReferences }
 }
 
 function clearReferencesTo(instance: FeatureInstance, gone: Set<string>, registry: FeatureRegistry): FeatureInstance {

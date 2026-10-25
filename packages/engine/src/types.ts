@@ -34,6 +34,11 @@ export interface AppModel {
   id?: string
   name: string
   features: FeatureInstance[]
+  /**
+   * The highest numeric instance id the model ever gave out (`addFeature` keeps it), so a removed feature's id is never
+   * given to a new one: a published app keeps a Database table's rows by its id. Absent in models from before it.
+   */
+  lastId?: number
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

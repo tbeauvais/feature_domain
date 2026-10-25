@@ -11,6 +11,7 @@ import EmptyPageHint from '../editor/EmptyPageHint.vue'
 import ResizeHandles from '../editor/ResizeHandles.vue'
 import { DIMENSIONS_SHOWN, dimensionsShown } from '../editor/resizeState'
 import SelectionOverlay from '../editor/SelectionOverlay.vue'
+import PublishDialog from '../editor/PublishDialog.vue'
 import ShortcutsDialog from '../editor/ShortcutsDialog.vue'
 import StatusBar from '../editor/StatusBar.vue'
 import { REDO_KEYS, UNDO_KEYS } from '../editor/keys'
@@ -22,7 +23,9 @@ import { forgetSampleRows, PROXY_READY } from '../renderer/data'
 import DocumentView from '../renderer/DocumentView.vue'
 import { modelStore } from '../services'
 import { confirmAction, pendingConfirm } from '../editor/confirm'
+import { HOME_ID } from '../stores/apiModelStore'
 import { useDocumentStore } from '../stores/document'
+import { usePublicationStore } from '../stores/publication'
 import { useModelUpdates } from '../stores/modelUpdates'
 import DiagnosticsList from './DiagnosticsList.vue'
 
@@ -48,6 +51,10 @@ function isTextEntry(target: EventTarget | null): boolean {
 }
 
 const shortcuts = ref<InstanceType<typeof ShortcutsDialog> | null>(null)
+const publishDialog = ref<InstanceType<typeof PublishDialog> | null>(null)
+// The home page is the builder's own, so it is never published.
+const publishable = computed(() => props.id !== HOME_ID)
+const publication = usePublicationStore()
 
 /**
  * Where Enter edits the selected feature's text: nothing else focused, the page on the canvas (not its fields), or the
@@ -66,7 +73,7 @@ function editsOnEnter(target: EventTarget | null): boolean {
  * text fields and while a confirmation dialog is open.
  */
 function onKeydown(event: KeyboardEvent) {
-  if (pendingConfirm.value !== null || shortcuts.value?.isOpen() || isTextEntry(event.target)) return
+  if (pendingConfirm.value !== null || shortcuts.value?.isOpen() || publishDialog.value?.isOpen() || isTextEntry(event.target)) return
   if (event.key === 'Enter' && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && editsOnEnter(event.target)) {
     if (textEditing.editSelected()) event.preventDefault()
     return
@@ -99,7 +106,11 @@ const saveLabel = {
 store.editing = true
 watch(
   () => props.id,
-  (id) => store.load(id),
+  async (id) => {
+    await store.load(id)
+    // Where it is published (for the top bar), once it is loaded; this also reserves its app's ids for new features.
+    if (id !== HOME_ID && store.modelId === id && store.status === 'ready') await publication.load(id)
+  },
   { immediate: true },
 )
 
@@ -239,6 +250,14 @@ async function deleteModel() {
           </svg>
           <span data-testid="save-state">{{ saveLabel[saveState] }}</span>
         </span>
+        <span v-if="publishable && publication.modelId === id && publication.info" class="text-[13px] text-slate-600" data-testid="publish-state">
+          <template v-if="publication.info.published">
+            <a :href="publication.info.published.url" target="_blank" rel="noopener" class="text-sky-700 hover:underline"
+              >Published v{{ publication.info.published.version }}</a
+            ><template v-if="publication.changed"> · unpublished changes</template>
+          </template>
+          <template v-else-if="publication.info.latest">Not published</template>
+        </span>
         <span class="flex-1" />
         <div class="flex gap-1">
           <button
@@ -323,6 +342,15 @@ async function deleteModel() {
           </svg>
           Preview
         </a>
+        <button
+          v-if="publishable && status === 'ready'"
+          type="button"
+          class="h-9 rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          data-testid="open-publish"
+          @click="publishDialog?.open()"
+        >
+          Publish…
+        </button>
         <button
           type="button"
           class="grid size-9 place-items-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-700"
@@ -505,5 +533,6 @@ async function deleteModel() {
       <StatusBar :result="result" :problems-open="problemsOpen" @toggle-problems="problemsOpen = !problemsOpen" />
     </template>
     <ShortcutsDialog ref="shortcuts" />
+    <PublishDialog v-if="publishable" ref="publishDialog" />
   </div>
 </template>

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   addFeature,
+  featureName,
+  keepLastId,
   canPlace,
   coreFeatures,
   descendantsOf,
@@ -29,6 +31,36 @@ describe('nextInstanceId', () => {
   it('is the highest numeric id + 1, ignoring non-numeric ids', () => {
     expect(nextInstanceId(model())).toBe('1')
     expect(nextInstanceId(model(page(), inst('TextFeature', '41'), inst('TextFeature', 'x9'), inst('TextFeature', '7')))).toBe('42')
+  })
+
+  it("never gives out an id again: one past the model's lastId too", () => {
+    expect(nextInstanceId({ ...model(page(), inst('TextFeature', '4')), lastId: 9 })).toBe('10')
+    expect(nextInstanceId({ ...model(page(), inst('TextFeature', '4')), lastId: 2 })).toBe('5')
+    expect(nextInstanceId(model(page(), inst('TextFeature', '4')), ['1', '9', 'x'])).toBe('10')
+    expect(addFeature(model(page()), 'DatabaseTableFeature', undefined, { usedIds: ['5'] })).toMatchObject({ id: '6', model: { lastId: 6 } })
+  })
+
+  it("gives a Database table added after a removed one a new id, so it never gets a published app's rows for the removed one", () => {
+    const added = addFeature(model(page(), inst('TextFeature', '4')), 'DatabaseTableFeature', undefined)
+    expect(added).toMatchObject({ id: '5', model: { lastId: 5 } })
+    const removed = removeFeature(added.model, '5').model
+    expect(removed.lastId).toBe(5)
+    expect(addFeature(removed, 'DatabaseTableFeature', undefined).id).toBe('6')
+    // A model from before lastId remembers its highest id once it removes one.
+    const older = removeFeature(model(page(), inst('TextFeature', '4'), inst('DatabaseTableFeature', '5', {}, null)), '5').model
+    expect(older.lastId).toBe(5)
+    expect(addFeature(older, 'DatabaseTableFeature', undefined).id).toBe('6')
+  })
+
+  it('keeps the higher lastId across an undo, and names features', () => {
+    const before = { ...model(page()), lastId: 7 }
+    expect(keepLastId(model(page()), before).lastId).toBe(7)
+    expect(keepLastId({ ...model(page()), lastId: 9 }, before).lastId).toBe(9)
+    const same = { ...model(page()), lastId: 7 }
+    expect(keepLastId(same, before)).toBe(same)
+    expect(featureName(model(page({ name: 'Home' })), '1')).toBe('Home')
+    expect(featureName(model(page({ name: ' ' })), '1')).toBeUndefined()
+    expect(featureName(model(page()), '9')).toBeUndefined()
   })
 })
 

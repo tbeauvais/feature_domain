@@ -12,6 +12,11 @@ describe('validateModel', () => {
     expect(isAppModel(migrate([{ feature: 'PageFeature', id: 1, inputs: { page_location: { target: '#content_section' } } }]).model)).toBe(true)
   })
 
+  it('takes a lastId that is a whole number', () => {
+    expect(validateModel({ ...model(page()), lastId: 12 })).toEqual([])
+    for (const lastId of [-1, 1.5, '3', null]) expect(validateModel({ ...model(page()), lastId })).toEqual(['Model lastId is not a whole number'])
+  })
+
   it('describes every structural problem', () => {
     expect(validateModel(null)).toEqual(['Model is not an object'])
     expect(validateModel({ version: 2, name: 'Malformed' })).toEqual(['Model has no features list'])

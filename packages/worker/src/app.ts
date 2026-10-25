@@ -1,6 +1,7 @@
 import {
   databaseTableKeys,
   databaseTables,
+  featureName,
   generate,
   ModelConflictError,
   ModelNotFoundError,
@@ -292,21 +293,26 @@ export function createApp(options: AppOptions = {}) {
       return c.json(publicationJson(publication, c.req.url, hostsFor(c.env)))
     }
 
-    // Where the model is published (null when it isn't), its newest version (the one a publish is compared with) and
-    // how many rows the app keeps in each of that version's tables, for the Publish dialog.
+    // Where the model is published (null when it isn't), where it would be, its newest version (the one a publish is
+    // compared with) and how many rows the app keeps in each table a publish could remove, for the Publish dialog.
     api.get('/models/:id/publication', async (c) => {
       const id = c.req.param('id')
       if (!(await c.var.store.get(id))) return notFound()
       const apps = appStoreOf(c.env)
       const [current, latest] = await Promise.all([apps.publication(id), apps.latest(id)])
+      // Every table a publish asks about removing (as `publish` works it out): the newest version's, and any other the
+      // app still keeps rows in.
       const counts: Record<string, number> = {}
       if (latest) {
         const stored = await rowStoreOf(c.env).countRows(id, 'live')
         for (const key of tablesOf(id, `live:${latest.number}`, latest.model).keys()) counts[key] = stored[key] ?? 0
+        for (const [key, count] of Object.entries(stored)) counts[key] = count
       }
       return c.json(
         {
           published: current ? publicationJson(current, c.req.url, hostsFor(c.env)) : null,
+          // Where an address name would put the app, `{slug}` standing for it, for the dialog to show before publishing.
+          url_template: appUrl('{slug}', c.req.url, hostsFor(c.env)),
           latest: latest ? { version: latest.number, published_at: latest.publishedAt, model: latest.model } : null,
           live_rows: counts,
         },
@@ -375,10 +381,7 @@ async function readPublish(request: Request): Promise<PublishRequest | Response>
 }
 
 /** A Database table's name in a model, else its id. */
-function tableName(model: AppModel, key: string): string {
-  const name = model.features.find((f) => f.id === key)?.inputs.name
-  return typeof name === 'string' && name.trim() !== '' ? name : key
-}
+const tableName = (model: AppModel, key: string) => featureName(model, key) ?? key
 
 const publicationJson = (p: { slug: string; version: number; publishedAt: string }, requestUrl: string, hosts: Hosts) => ({
   slug: p.slug,
