@@ -41,6 +41,21 @@ describe('ApiModelStore publishing', () => {
     expect(await api.publication(id)).toMatchObject({ published: null, latest: { version: 1 } })
   })
 
+  it('lists versions, reads one, and publishes an earlier one again', async () => {
+    const id = await api.create(model(page(), requests()))
+    await api.publish(id, 1, { slug: 'requests' })
+    await api.update(id, { ...model(page(), requests()), name: 'Changed' })
+    await api.publish(id, 2, {})
+    expect(await api.versions(id)).toEqual([
+      { version: 2, publishedAt: expect.any(String), name: 'Changed' },
+      { version: 1, publishedAt: expect.any(String), name: 'test' },
+    ])
+    expect(await api.version(id, 1)).toMatchObject({ name: 'test' })
+    expect(await api.version(id, 7)).toBeNull()
+    expect(await api.republish(id, 1, {})).toMatchObject({ slug: 'requests', version: 3 })
+    expect((await api.publication(id))?.latest?.model.name).toBe('test')
+  })
+
   it("keeps the Worker's problems with its refusals", async () => {
     const first = await api.create(model(page()))
     const second = await api.create(model(page()))
@@ -99,6 +114,7 @@ describe('reading the publication', () => {
     const read = api.publication.bind(api)
     let first = true
     setPublishing({
+      ...{ versions: api.versions.bind(api), version: api.version.bind(api), republish: api.republish.bind(api) },
       publication: async (m) => {
         const answer = await read(m)
         if (first) {
@@ -163,6 +179,30 @@ describe('ids a new feature never takes', () => {
 })
 
 describe('PublishDialog', () => {
+  it('never chooses a version still being read when the dialog opened again', async () => {
+    HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
+      this.open = true
+    }
+    const id = await models.create(model(page(), requests()))
+    await api.publish(id, 1, { slug: 'requests' })
+    await models.update(id, { ...model(page(), requests()), name: 'Changed' })
+    await api.publish(id, 2, {})
+    const document = useDocumentStore()
+    document.editing = true
+    await document.load(id)
+    const w = mount(PublishDialog, { attachTo: window.document.body })
+    const vm = w.vm as unknown as { open(): Promise<void> }
+    await vm.open()
+    await flushPromises()
+    await w.get('button[aria-label="Publish version 1 again"]').trigger('click')
+    await vm.open()
+    await flushPromises()
+    expect(w.find('[data-testid="publish-source"]').exists()).toBe(false)
+    expect(w.text()).toContain('Publish version 3')
+    expect(w.get('button[aria-label="Publish version 1 again"]').attributes('disabled')).toBeUndefined()
+    w.unmount()
+  })
+
   it('says when the model no longer exists', async () => {
     HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
       this.open = true

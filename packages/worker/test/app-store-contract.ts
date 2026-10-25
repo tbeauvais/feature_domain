@@ -31,6 +31,11 @@ export function describeAppStore(name: string, create: (now?: () => number) => A
       expect(await store.version('m1', 3)).toBeNull()
       expect(await store.version('m2', 1)).toBeNull()
       expect((await store.latest('m1'))?.model.name).toBe('Second')
+      expect(await store.versions('m1')).toEqual([
+        { number: 2, publishedAt: second.publishedAt, name: 'Second' },
+        { number: 1, publishedAt: first.publishedAt, name: 'First' },
+      ])
+      expect(await store.versions('m2')).toEqual([])
     })
 
     it('stores the model given, which the caller can change afterwards', async () => {

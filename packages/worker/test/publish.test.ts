@@ -383,6 +383,69 @@ describe('/api/v1/models/:id/publication', () => {
   })
 })
 
+describe('versions', () => {
+  it('lists them newest first, reads one, and publishes an earlier one again as the next version', async () => {
+    const { id, revision } = await store()
+    await publish(id, revision, { slug: 'requests' })
+    const renamed = await save(id, { ...modelWith(requests()), name: 'Office requests' }, revision)
+    await publish(id, renamed)
+    const list = await request(`/api/v1/models/${id}/versions`)
+    expect(list.headers.get('Cache-Control')).toBe('no-store')
+    expect(await list.json()).toEqual([
+      { version: 2, published_at: expect.any(String), name: 'Office requests' },
+      { version: 1, published_at: expect.any(String), name: 'Team requests' },
+    ])
+    expect(await (await request(`/api/v1/models/${id}/versions/1`)).json()).toEqual({
+      version: 1,
+      published_at: expect.any(String),
+      model: { ...modelWith(requests()), id },
+    })
+    for (const path of ['3', '0', 'x', '01']) expect((await request(`/api/v1/models/${id}/versions/${path}`)).status, path).toBe(404)
+
+    // Rolling back: version 1 again, as version 3; the draft stays as it is, and the app keeps its rows.
+    await request(`${at('requests')}/api/v1/app/tables/2/rows`, json({ title: 'Filed' }))
+    const again = await request(`/api/v1/models/${id}/versions/1/publish`, json({}))
+    expect(await again.json()).toMatchObject({ slug: 'requests', version: 3 })
+    expect(await (await request(`${at('requests')}/api/v1/app`)).json()).toMatchObject({ name: 'Team requests' })
+    expect(await (await request(`/api/v1/models/${id}`)).json()).toMatchObject({ name: 'Office requests' })
+    expect(await titles(`${at('requests')}/api/v1/app/tables/2/rows`)).toContain('Filed')
+    expect((await request(`/api/v1/models/${id}/versions/9/publish`, json({}))).status).toBe(404)
+    expect((await request(`/api/v1/models/${id}/versions/x/publish`, json({}))).status).toBe(404)
+    expect((await request(`/api/v1/models/${id}/versions/1/publish`, json({ copyDraftRows: true }))).status).toBe(400)
+    expect((await request(`/api/v1/models/${id}/versions/1/publish`, { method: 'POST', body: '{}' })).status).toBe(415)
+    expect((await request(`/api/v1/models/missing/versions`)).status).toBe(404)
+  })
+
+  it("refuses an earlier version that doesn't generate cleanly any more, as it refuses a draft", async () => {
+    const apps = new MemoryAppStore()
+    const own = createApp({ apps: () => apps })
+    const { id } = await store()
+    // A version stored with a problem the engine reports now (a reference to a feature that isn't there).
+    await apps.publish(
+      id,
+      'requests',
+      modelWith(requests(), { feature: 'TableFeature', id: '3', inputs: { data_resource: '9' }, placement: { parent: '1', slot: 'content' } }),
+    )
+    await apps.publish(id, 'requests', modelWith(requests()))
+    const refused = await own.request(`/api/v1/models/${id}/versions/1/publish`, json({}), env)
+    expect(refused.status).toBe(400)
+    expect(await refused.json()).toMatchObject({ error: 'The model has problems to fix before it can be published' })
+  })
+
+  it('asks before an earlier version removes a table the app keeps rows in', async () => {
+    const { id, revision } = await store(modelWith())
+    await publish(id, revision, { slug: 'requests' })
+    const added = await save(id, modelWith(requests()), revision)
+    await publish(id, added)
+    await request(`${at('requests')}/api/v1/app/tables/2/rows`, json({ title: 'Filed' }))
+    const unconfirmed = await request(`/api/v1/models/${id}/versions/1/publish`, json({}))
+    expect(unconfirmed.status).toBe(409)
+    expect(((await unconfirmed.json()) as { problems: string[] }).problems).toEqual(['Confirm removing "Requests" (2) and its rows'])
+    expect(await (await request(`/api/v1/models/${id}/versions/1/publish`, json({ removeTables: ['2'] }))).json()).toMatchObject({ version: 3 })
+    expect(await new D1RowStore(d1.env.DB).countRows(id, 'live')).toEqual({})
+  })
+})
+
 describe("an app's host", () => {
   it('serves the app page for every page path, and a 404 one where nothing is published', async () => {
     const { id, revision } = await store()

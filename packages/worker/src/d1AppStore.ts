@@ -1,5 +1,14 @@
 import type { AppModel } from '@feature-domain/engine'
-import { AlreadyPublishedError, ClaimLostError, PUBLISHING_CLAIM_MS, SlugTakenError, type AppStore, type AppVersion, type Publication } from './apps'
+import {
+  AlreadyPublishedError,
+  ClaimLostError,
+  PUBLISHING_CLAIM_MS,
+  SlugTakenError,
+  type AppStore,
+  type AppVersion,
+  type Publication,
+  type VersionSummary,
+} from './apps'
 import { toJson } from './d1ModelStore'
 
 interface VersionRecord {
@@ -60,6 +69,14 @@ export class D1AppStore implements AppStore {
       .bind(model, number)
       .first<VersionRecord>()
     return row ? toVersion(model, row) : null
+  }
+
+  async versions(model: string): Promise<VersionSummary[]> {
+    const { results } = await this.db
+      .prepare("SELECT number, published_at, json_extract(model, '$.name') AS name FROM versions WHERE model_id = ? ORDER BY number DESC")
+      .bind(model)
+      .all<{ number: number; published_at: number; name: unknown }>()
+    return results.map((r) => ({ number: r.number, publishedAt: new Date(r.published_at).toISOString(), name: typeof r.name === 'string' ? r.name : '' }))
   }
 
   async latest(model: string): Promise<AppVersion | null> {
