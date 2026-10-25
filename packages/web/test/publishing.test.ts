@@ -88,6 +88,38 @@ describe('usePublicationStore', () => {
   })
 })
 
+describe('reading the publication', () => {
+  it('counts only the newest read, so a slow earlier one never undoes it', async () => {
+    const id = await models.create(model(page(), requests()))
+    const document = useDocumentStore()
+    document.editing = true
+    await document.load(id)
+    let release!: () => void
+    const slow = new Promise<void>((resolve) => (release = resolve))
+    const read = api.publication.bind(api)
+    let first = true
+    setPublishing({
+      publication: async (m) => {
+        const answer = await read(m)
+        if (first) {
+          first = false
+          await slow
+        }
+        return answer
+      },
+      publish: api.publish.bind(api),
+      unpublish: api.unpublish.bind(api),
+    })
+    const publication = usePublicationStore()
+    const stale = publication.load(id)
+    await publication.publish({ slug: 'requests' })
+    expect(publication.info?.published?.version).toBe(1)
+    release()
+    await stale
+    expect(publication.info?.published?.version).toBe(1)
+  })
+})
+
 describe('ids a new feature never takes', () => {
   it("passes over a published app's ids in a model from before lastId", async () => {
     // Published with table 2, which the draft then lost in a session before models remembered their ids.
@@ -98,6 +130,18 @@ describe('ids a new feature never takes', () => {
     document.editing = true
     await document.load(id)
     await usePublicationStore().load(id)
+    expect(document.add('DatabaseTableFeature')).toBe('3')
+  })
+
+  it("keeps the published app's ids through Load their version", async () => {
+    const id = await models.create(model(page(), requests()))
+    await api.publish(id, 1, { slug: 'requests' })
+    await models.update(id, model(page()))
+    const document = useDocumentStore()
+    document.editing = true
+    await document.load(id)
+    await usePublicationStore().load(id)
+    await document.loadTheirs()
     expect(document.add('DatabaseTableFeature')).toBe('3')
   })
 

@@ -37,6 +37,9 @@ export const usePublicationStore = defineStore('publication', () => {
     },
   )
 
+  /** Bumped by each read, so only the newest one's answer counts (a slow earlier read never undoes a later one). */
+  let reading = 0
+
   /** Reads the model's publication (again), and reserves its app's ids for new features (`reserveIds`). */
   async function load(id: string): Promise<void> {
     if (modelId.value !== id) {
@@ -45,18 +48,19 @@ export const usePublicationStore = defineStore('publication', () => {
       latestJson = undefined
       changed.value = false
     }
+    const read = ++reading
     status.value = 'loading'
     error.value = ''
     try {
-      const read = await publishing().publication(id)
-      if (modelId.value !== id) return
-      info.value = read
-      latestJson = read?.latest ? canonical(read.latest.model) : undefined
+      const answer = await publishing().publication(id)
+      if (read !== reading) return
+      info.value = answer
+      latestJson = answer?.latest ? canonical(answer.latest.model) : undefined
       status.value = 'ready'
-      if (read) useDocumentStore().reserveIds(id, [...(read.latest?.model.features.map((f) => f.id) ?? []), ...Object.keys(read.liveRows)])
+      if (answer) useDocumentStore().reserveIds(id, [...(answer.latest?.model.features.map((f) => f.id) ?? []), ...Object.keys(answer.liveRows)])
       compare()
     } catch (e) {
-      if (modelId.value !== id) return
+      if (read !== reading) return
       status.value = 'error'
       error.value = e instanceof Error ? e.message : String(e)
     }

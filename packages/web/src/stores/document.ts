@@ -287,9 +287,12 @@ export const useDocumentStore = defineStore('document', () => {
   async function loadTheirs(): Promise<void> {
     if (modelId.value === null) return
     const mine = model.value
+    const reserved = usedIds
+    const id = modelId.value
     discard()
-    await load(modelId.value)
-    // Their model, still never giving out an id given out here (`lastId`).
+    await load(id)
+    // Their model, still never giving out an id given out here (`lastId`), nor its published app's (the same model's).
+    if (modelId.value === id) usedIds = reserved
     if (model.value) model.value = keepLastId(model.value, mine)
   }
 
