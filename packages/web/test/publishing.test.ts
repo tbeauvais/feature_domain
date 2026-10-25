@@ -203,6 +203,61 @@ describe('PublishDialog', () => {
     w.unmount()
   })
 
+  it('waits for a version being read before publishing, and lets the draft win over a read still going', async () => {
+    HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
+      this.open = true
+    }
+    const id = await models.create(model(page(), requests()))
+    await api.publish(id, 1, { slug: 'requests' })
+    await models.update(id, { ...model(page(), requests()), name: 'Changed' })
+    await api.publish(id, 2, {})
+    await models.update(id, { ...model(page(), requests()), name: 'Third' })
+    await api.publish(id, 3, {})
+    await models.update(id, { ...model(page(), requests()), name: 'Draft' })
+    // Version reads held until the test lets each go.
+    const held: (() => void)[] = []
+    setPublishing({
+      publication: api.publication.bind(api),
+      publish: api.publish.bind(api),
+      unpublish: api.unpublish.bind(api),
+      versions: api.versions.bind(api),
+      republish: api.republish.bind(api),
+      version: async (m, n) => {
+        await new Promise<void>((resolve) => held.push(resolve))
+        return api.version(m, n)
+      },
+    })
+    const document = useDocumentStore()
+    document.editing = true
+    await document.load(id)
+    const w = mount(PublishDialog, { attachTo: window.document.body })
+    await (w.vm as unknown as { open(): Promise<void> }).open()
+    await flushPromises()
+    const publishButton = () => w.findAll('button').find((b) => /^Publish (version|the|$)/.test(b.text()) && b.text() !== 'Publish the draft instead')!
+    expect(publishButton().attributes('disabled')).toBeUndefined()
+
+    // While version 1 is read, Publish waits.
+    await w.get('button[aria-label="Publish version 1 again"]').trigger('click')
+    expect(w.text()).toContain('Reading…')
+    expect(publishButton().attributes('disabled')).toBeDefined()
+    held.shift()!()
+    await flushPromises()
+    expect(w.get('[data-testid="publish-source"]').text()).toContain('Publishing version 1')
+
+    // Back to the draft while another read is going: the draft stays chosen when it lands.
+    await w.get('button[aria-label="Publish version 2 again"]').trigger('click')
+    await w
+      .findAll('button')
+      .find((b) => b.text() === 'Publish the draft instead')!
+      .trigger('click')
+    held.shift()!()
+    await flushPromises()
+    expect(w.find('[data-testid="publish-source"]').exists()).toBe(false)
+    expect(publishButton().text()).toBe('Publish version 4')
+    expect(publishButton().attributes('disabled')).toBeUndefined()
+    w.unmount()
+  })
+
   it('says when the model no longer exists', async () => {
     HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
       this.open = true

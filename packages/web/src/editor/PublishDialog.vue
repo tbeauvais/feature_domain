@@ -44,8 +44,11 @@ const versionList = ref<VersionSummary[]>([])
 /** An earlier version to publish again, in place of the draft; null for the draft. */
 const source = ref<{ version: number; model: AppModel } | null>(null)
 const picking = ref<number | null>(null)
-/** Bumped each time the dialog opens, so a version still being read for an earlier opening is never chosen. */
-let opening = 0
+/**
+ * Bumped by each choice (the dialog opening, a version chosen, Publish the draft instead), so a version still being
+ * read for an earlier choice is never chosen.
+ */
+let choice = 0
 
 const info = computed(() => publication.info)
 const draft = computed(() => document.model)
@@ -95,7 +98,14 @@ const errors = computed(() => {
 
 const ready = computed(() => shown.value && publication.status === 'ready' && !!info.value && !!draft.value)
 const canPublish = computed(
-  () => ready.value && !problem.value && !busy.value && errors.value.length === 0 && removedTables.value.every((t) => confirmed.value.has(t.key)),
+  () =>
+    ready.value &&
+    !problem.value &&
+    !busy.value &&
+    // A version still being read: what Publish would send isn't settled yet.
+    picking.value === null &&
+    errors.value.length === 0 &&
+    removedTables.value.every((t) => confirmed.value.has(t.key)),
 )
 
 function toggle(key: string, on: boolean) {
@@ -115,19 +125,19 @@ async function refresh() {
 
 /** Chooses an earlier version to publish again, reading its model (versions never change). */
 async function pick(version: number) {
-  const at = opening
+  const at = ++choice
   picking.value = version
   failure.value = null
   try {
     const model = await publication.version(version)
-    if (at !== opening) return
+    if (at !== choice) return
     if (!model) throw new Error(`Version ${version} is gone`)
     source.value = { version, model }
     confirmed.value = new Set()
   } catch (e) {
-    if (at === opening) failed(e)
+    if (at === choice) failed(e)
   } finally {
-    if (at === opening) picking.value = null
+    if (at === choice) picking.value = null
   }
 }
 
@@ -142,6 +152,8 @@ async function readVersions() {
 }
 
 function backToDraft() {
+  choice++
+  picking.value = null
   source.value = null
   confirmed.value = new Set()
   failure.value = null
@@ -155,7 +167,7 @@ async function open() {
   confirmed.value = new Set()
   source.value = null
   picking.value = null
-  opening++
+  choice++
   versionList.value = []
   slugTyped.value = false
   slug.value = defaultSlug()
