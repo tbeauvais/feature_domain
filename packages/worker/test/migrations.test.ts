@@ -5,6 +5,7 @@ import { WORKER_DIR } from '../scripts/wrangler'
 import { D1ModelStore } from '../src/d1ModelStore'
 import { D1AppStore } from '../src/d1AppStore'
 import { D1RowStore } from '../src/d1RowStore'
+import { D1AuthTables } from '../src/auth/store'
 import { localD1, type LocalD1 } from './localD1'
 
 // Migrations run on Cloudflare's D1 before the new Worker is uploaded, so each must work on the rows already there.
@@ -72,4 +73,15 @@ it('adds publishing claims beside the apps published before, leaving them as the
   expect(await apps.claim('old')).toBeNull()
   await apps.release('old', token!)
   expect((await apps.bySlug('old-app'))?.model).toBe('old')
+})
+
+it('adds sign-in tables beside the apps published before, leaving them as they were', async () => {
+  await apply('0006_app_auth.sql')
+  const tables = new D1AuthTables(d1.env.DB)
+  expect(await tables.get('old')).toBeNull()
+  const made = await tables.ensure('old')
+  expect(await tables.get('old')).toEqual(made)
+  expect((await new D1AppStore(d1.env.DB).bySlug('old-app'))?.model).toBe('old')
+  expect(await new D1ModelStore(d1.env.DB).get('old')).toMatchObject({ revision: 2 })
+  expect(await new D1RowStore(d1.env.DB).list({ model: 'old', space: 'draft', table: '2' })).toHaveLength(1)
 })

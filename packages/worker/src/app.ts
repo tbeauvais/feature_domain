@@ -15,6 +15,8 @@ import {
 import { Hono, type Context } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { createAppHost } from './appHost'
+import { hasSignIn } from './auth/signIn'
+import { D1AuthTables, type AuthTables } from './auth/store'
 import { AlreadyPublishedError, ClaimLostError, SlugTakenError, type AppStore } from './apps'
 import { D1AppStore } from './d1AppStore'
 import { D1ModelStore, toJson } from './d1ModelStore'
@@ -47,6 +49,10 @@ export interface AppOptions {
   apps?: (env: Env) => AppStore
   /** The builder's host and the apps' domain, else the BUILDER_HOST and APP_DOMAIN vars. */
   hosts?: Hosts
+  /** Published apps' sign-in tables (src/auth/store.ts). */
+  authTables?: (env: Env) => AuthTables
+  /** Whether a version to publish has sign-in, so its app gets auth tables (else a Sign-in feature in it). */
+  signIn?: (model: AppModel) => boolean
 }
 
 /**
@@ -66,6 +72,8 @@ export function createApp(options: AppOptions = {}) {
   const rowStoreOf = (env: Env) => (options.rows ? options.rows(env) : new D1RowStore(env.DB))
   const appStoreOf = (env: Env) => (options.apps ? options.apps(env) : new D1AppStore(env.DB))
   const hostsFor = (env: Env | undefined) => options.hosts ?? hostsOf(env)
+  const authTablesOf = (env: Env) => (options.authTables ? options.authTables(env) : new D1AuthTables(env.DB))
+  const signIn = options.signIn ?? hasSignIn
   const originsOf = versionCache(allowedOrigins)
   const tablesOf = versionCache((model) => databaseTables(model))
   const builder = createBuilder()
@@ -136,7 +144,7 @@ export function createApp(options: AppOptions = {}) {
       return c.body(null, 204, { ETag: etag(revision) })
     })
 
-    // Its rows, app and versions go with it.
+    // Its rows, app, versions and sign-in tables go with it.
     api.delete('/models/:id', async (c) => {
       const id = c.req.param('id')
       const apps = appStoreOf(c.env)
@@ -149,6 +157,13 @@ export function createApp(options: AppOptions = {}) {
       // A model stored again under this id (the home page's) starts at revision 1 again, so nothing cached for it holds.
       originsOf.forget(id)
       tablesOf.forget(id)
+      // Last, and only logged on failure: the model is gone, and nothing serves the tables. db:upgrade-apps drops what's
+      // left of a model's tables.
+      try {
+        await authTablesOf(c.env).drop(id)
+      } catch (e) {
+        console.error(e)
+      }
       return c.body(null, 204)
     })
 
@@ -271,11 +286,16 @@ export function createApp(options: AppOptions = {}) {
       // of the draft's, or none (each table then starts with its sample rows), whatever an earlier try left there.
       const first = !latest
       if (first) await (body.copyDraftRows ? rows.copySpace(id, 'draft', 'live') : rows.keepTables(id, 'live', []))
+      // An app with sign-in gets its auth tables before it is served: created, or brought up to date. Never dropped here
+      // (an earlier version without sign-in published again keeps them, and its accounts, for a later one with it).
+      if (signIn(app)) await authTablesOf(c.env).ensure(id)
       let publication
       try {
         // Only while the claim holds: one taken over (a publish past PUBLISHING_CLAIM_MS) stores nothing.
         publication = await apps.publish(id, slug, app, { first, claim })
       } catch (e) {
+        // Its auth tables may have been made for a model deleted meanwhile: nothing will serve them.
+        if (!(await c.var.store.get(id))) await authTablesOf(c.env).drop(id)
         if (e instanceof SlugTakenError) return error(409, 'Another app has this address', { problems: [`"${slug}" is taken: choose another address name`] })
         if (e instanceof AlreadyPublishedError)
           return error(409, 'The model was published meanwhile', { problems: ['Look at its publication again before publishing'] })
@@ -286,6 +306,7 @@ export function createApp(options: AppOptions = {}) {
       if (!(await c.var.store.get(id))) {
         await apps.deleteModel(id)
         await rows.deleteModel(id)
+        await authTablesOf(c.env).drop(id)
         return notFound()
       }
       // The new version is live, so the removed tables' rows can go (a table added later under the same id starts

@@ -11,11 +11,13 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx --conditions=@feature-domain/source scripts/seed.ts",
+    "db:upgrade-apps": "tsx --conditions=@feature-domain/source scripts/upgradeApps.ts",
     "db:setup": "npm run db:migrate && npm run db:seed",
     "db:reset": "rm -rf .wrangler/state && npm run db:setup"
   },
   "dependencies": {
     "@feature-domain/engine": "0.1.0",
+    "better-auth": "1.7.14",
     "hono": "^4.13.13"
   },
   "devDependencies": {

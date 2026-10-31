@@ -2,6 +2,7 @@ import { MAX_TABLE_ROWS, MemoryModelStore, MemoryRowStore, sampleRowId, type App
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { API_HEADERS, createApp } from '../src/app'
 import { MemoryAppStore } from '../src/apps'
+import { MemoryAuthTables } from '../src/auth/store'
 import { localD1, type LocalD1 } from './localD1'
 
 const json = (body: unknown, method = 'POST'): RequestInit => ({
@@ -207,7 +208,8 @@ describe("with stores of its own (the web tests' in-process API)", () => {
     const models = new MemoryModelStore()
     const rowStore = new MemoryRowStore()
     const apps = new MemoryAppStore()
-    const own = createApp({ store: () => models, rows: () => rowStore, apps: () => apps })
+    const authTables = new MemoryAuthTables()
+    const own = createApp({ store: () => models, rows: () => rowStore, apps: () => apps, authTables: () => authTables })
     const id = await models.create(modelWith(requests()))
     const rows = `/api/v1/models/${id}/tables/2/rows`
     expect(await (await own.request(rows)).json()).toHaveLength(2)
@@ -219,8 +221,9 @@ describe("with stores of its own (the web tests' in-process API)", () => {
     const models = new MemoryModelStore()
     const rowStore = new MemoryRowStore()
     const apps = new MemoryAppStore()
+    const authTables = new MemoryAuthTables()
     rowStore.keepTables = () => Promise.reject(new Error('D1 is down'))
-    const own = createApp({ store: () => models, rows: () => rowStore, apps: () => apps })
+    const own = createApp({ store: () => models, rows: () => rowStore, apps: () => apps, authTables: () => authTables })
     const id = await models.create(modelWith(requests()))
     const saved = await own.request(`/api/v1/models/${id}`, json(modelWith(), 'PUT'))
     expect(saved.status).toBe(204)
