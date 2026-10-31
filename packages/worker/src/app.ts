@@ -15,6 +15,8 @@ import {
 import { Hono, type Context } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { createAppHost } from './appHost'
+import { CloudflareMailer, type Mailer } from './auth/mailer'
+import { appSignIn } from './auth/route'
 import { hasSignIn } from './auth/signIn'
 import { D1AuthTables, type AuthTables } from './auth/store'
 import { AlreadyPublishedError, ClaimLostError, SlugTakenError, type AppStore } from './apps'
@@ -53,6 +55,8 @@ export interface AppOptions {
   authTables?: (env: Env) => AuthTables
   /** Whether a version to publish has sign-in, so its app gets auth tables (else a Sign-in feature in it). */
   signIn?: (model: AppModel) => boolean
+  /** Sends sign-in codes (tests); else Cloudflare Email Sending on the EMAIL binding, from MAIL_FROM. */
+  mailer?: (env: Env) => Mailer | undefined
 }
 
 /**
@@ -74,10 +78,22 @@ export function createApp(options: AppOptions = {}) {
   const hostsFor = (env: Env | undefined) => options.hosts ?? hostsOf(env)
   const authTablesOf = (env: Env) => (options.authTables ? options.authTables(env) : new D1AuthTables(env.DB))
   const signIn = options.signIn ?? hasSignIn
+  const mailerOf = options.mailer ?? ((env: Env) => (env?.EMAIL && env.MAIL_FROM ? new CloudflareMailer(env.EMAIL, env.MAIL_FROM) : undefined))
+  const signInOf = versionCache((model) => appSignIn(model, signIn))
   const originsOf = versionCache(allowedOrigins)
   const tablesOf = versionCache((model) => databaseTables(model))
   const builder = createBuilder()
-  const appHost = createAppHost({ apps: appStoreOf, rows: rowStoreOf, hosts: hostsFor, upstream, tablesOf, originsOf })
+  const appHost = createAppHost({
+    apps: appStoreOf,
+    rows: rowStoreOf,
+    hosts: hostsFor,
+    upstream,
+    tablesOf,
+    originsOf,
+    signInOf,
+    authTables: authTablesOf,
+    mailer: mailerOf,
+  })
 
   function createBuilder() {
     const app = new Hono<AppEnv>()
@@ -157,6 +173,7 @@ export function createApp(options: AppOptions = {}) {
       // A model stored again under this id (the home page's) starts at revision 1 again, so nothing cached for it holds.
       originsOf.forget(id)
       tablesOf.forget(id)
+      signInOf.forget(id)
       // Last, and only logged on failure: the model is gone, and nothing serves the tables. db:upgrade-apps drops what's
       // left of a model's tables.
       try {

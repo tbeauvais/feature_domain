@@ -1,30 +1,10 @@
-// Better Auth for one published app: its own tables, its own secret, its exact address. Built per request, so nothing of
-// one app's configuration can serve another. (The app host mounts it in the next step; the schema-drift test reads its
-// configuration now.)
+// Better Auth for one published app: its own tables, its own secret, its exact address. Built per request (src/auth/
+// route.ts), so nothing of one app's configuration can serve another.
 
 import { betterAuth, type BetterAuthOptions } from 'better-auth'
 import { emailOTP } from 'better-auth/plugins/email-otp'
+import type { Mailer } from './mailer'
 import { authTables } from './tables'
-
-/** One email to send. */
-export interface Mail {
-  to: string
-  subject: string
-  text: string
-}
-
-/** Sends email: Cloudflare Email Sending in production, a list in tests. */
-export interface Mailer {
-  send(mail: Mail): Promise<void>
-}
-
-/** A mailer that keeps what it sends (tests and local development). */
-export class MemoryMailer implements Mailer {
-  readonly sent: Mail[] = []
-  async send(mail: Mail) {
-    this.sent.push(mail)
-  }
-}
 
 /** The app's own secret: HKDF-SHA-256 of the platform's secret, with the app's key as its info. */
 export async function appSecret(platformSecret: string, key: string): Promise<string> {
@@ -45,7 +25,13 @@ export interface AuthForOptions {
   secret: string
   /** The app's address, exactly: https://<slug>.apprun.app (http://<slug>.localhost:5173 in development). */
   baseURL: string
+  /** The app's name, which its emails come from. */
+  appName: string
   mailer: Mailer
+  /** Whether people without an account may make one by signing in (else only existing accounts get a code). */
+  signUp?: boolean
+  /** Whether an address may sign in at all (listed emails and domains); others get no email, and the same answer. */
+  allows?: (email: string) => boolean
   /** Keeps work going after the response (the request's ctx.waitUntil). */
   waitUntil: (promise: Promise<unknown>) => void
   /** Turns on the signed session cookie cache. */
@@ -53,6 +39,22 @@ export interface AuthForOptions {
 }
 
 export const AUTH_BASE_PATH = '/api/v1/app/auth'
+
+/** The longest app name an email shows. */
+export const MAX_MAIL_NAME = 60
+
+/**
+ * The app's name as its emails show it: one line of printable text, at most MAX_MAIL_NAME characters, never empty.
+ * (Models can be named anything, newlines included; a mail header can't hold those.)
+ */
+export function mailName(name: string): string {
+  const line = name
+    .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const cut = [...line].slice(0, MAX_MAIL_NAME).join('').trim()
+  return cut || 'An app'
+}
 
 export const authFor = (options: AuthForOptions) => betterAuth(authConfig(options))
 
@@ -67,11 +69,14 @@ export function authConfig(options: AuthForOptions) {
     basePath: AUTH_BASE_PATH,
     trustedOrigins: [new URL(options.baseURL).origin],
     telemetry: { enabled: false },
-    user: { modelName: t.user },
+    // Delete my account: Better Auth asks for a recent sign-in (a day, its default freshAge) before deleting.
+    user: { modelName: t.user, deleteUser: { enabled: true } },
     session: { modelName: t.session, cookieCache: { enabled: options.cookieCache ?? false, maxAge: 300 } },
     account: { modelName: t.account },
     verification: { modelName: t.verification },
-    rateLimit: { enabled: true, storage: 'database', modelName: t.rateLimit },
+    // Kept in the app's own table, so every isolate counts alike. Only what can send mail or guess codes is limited:
+    // otherwise each session read would cost two more D1 statements.
+    rateLimit: { enabled: true, storage: 'database', modelName: t.rateLimit, customRules: { '/get-session': false, '/sign-out': false } },
     advanced: {
       // Off: by default every new instance introspects the whole database (sqlite_master, then every table's columns)
       // and auth requests wait for it. Built per request, over thousands of apps' tables, that would be every request.
@@ -88,11 +93,25 @@ export function authConfig(options: AuthForOptions) {
         otpLength: 6,
         expiresIn: 300,
         allowedAttempts: 3,
+        // An unknown address then gets no code, the same answer, and "invalid code" on signing in, as for a wrong code.
+        disableSignUp: options.signUp === false,
         // Better Auth runs this through the background-task handler (ctx.waitUntil), so the answer doesn't wait for the
-        // mail. The button's link carries the code after `#`, which browsers never send, so no server log holds it.
+        // mail, nor shows whether one was sent. The button's link carries the code after `#`, which browsers never send,
+        // so no server log holds it.
+        // Every email says which address it is for and that it comes through the platform, so an app named after another
+        // brand can't pass for it.
         async sendVerificationOTP({ email, otp }) {
+          if (options.allows && !options.allows(email)) return
+          const name = mailName(options.appName)
+          const host = new URL(options.baseURL).host
+          const platform = host.slice(host.indexOf('.') + 1)
           const button = `${options.baseURL}/sign-in?email=${encodeURIComponent(email)}#code=${otp}`
-          await options.mailer.send({ to: email, subject: 'Your sign-in code', text: `Your code is ${otp}. Or sign in here: ${button}` })
+          await options.mailer.send({
+            to: email,
+            fromName: `${name} via ${platform}`,
+            subject: `Your sign-in code for ${name} (${host})`,
+            text: `Your code for signing in to ${name} at ${host} is ${otp}. It works for 5 minutes.\n\nOr sign in with this link: ${button}\n\nIf you didn't ask to sign in, you can ignore this email. ${name} is an app published on ${platform}.`,
+          })
         },
       }),
     ],

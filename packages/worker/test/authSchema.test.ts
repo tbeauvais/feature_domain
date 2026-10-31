@@ -5,7 +5,8 @@
 import { DatabaseSync } from 'node:sqlite'
 import { getMigrations } from 'better-auth/db/migration'
 import { describe, expect, it } from 'vitest'
-import { authConfig, MemoryMailer } from '../src/auth/authFor'
+import { authConfig } from '../src/auth/authFor'
+import { MemoryMailer } from '../src/auth/mailer'
 import { AUTH_SCHEMA_STEPS, authTables } from '../src/auth/tables'
 
 const KEY = '0123456789abcdef0123456789abcdef'
@@ -19,6 +20,7 @@ async function missing(statements: string[]) {
     key: KEY,
     secret: '9f8e7d6c5b4a39281706f5e4d3c2b1a09f8e7d6c5b4a39281706f5e4d3c2b1a0',
     baseURL: 'https://meetup.apprun.app',
+    appName: 'Shoreline meetup',
     mailer: new MemoryMailer(),
     waitUntil: () => {},
   })

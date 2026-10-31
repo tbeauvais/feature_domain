@@ -7,6 +7,12 @@ export interface Env {
   APP_DOMAIN: string
   /** The builder's hostname: app.feature-domain.workers.dev (localhost in development). */
   BUILDER_HOST: string
+  /** The platform's secret, from which each published app's sign-in secret is derived (a Worker secret). */
+  AUTH_SECRET?: string
+  /** Cloudflare Email Sending, for sign-in codes (wrangler.jsonc `send_email`). */
+  EMAIL?: SendEmail
+  /** The address sign-in codes come from (under each app's name): sign-in@apprun.app. */
+  MAIL_FROM?: string
 }
 
 declare global {
