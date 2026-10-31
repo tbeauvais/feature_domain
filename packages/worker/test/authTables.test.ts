@@ -120,6 +120,30 @@ describe('the tables', () => {
     for (const table of await authTableNames()) expect(table).not.toContain(key)
   })
 
+  it('upgrades the tables under the key the app has now, when it was dropped and made again since it was read', async () => {
+    const old = await store.ensure('model-again')
+    await store.drop('model-again')
+    const now = await store.ensure('model-again')
+    const upgrading = new D1AuthTables(db, [...AUTH_SCHEMA_STEPS, (t) => [`CREATE TABLE "${t.user}_extra" (id text)`]])
+    let first = true
+    upgrading.get = async (modelId) => (first ? ((first = false), old) : D1AuthTables.prototype.get.call(upgrading, modelId))
+    expect(await upgrading.ensure('model-again')).toEqual({ key: now.key, schemaVersion: AUTH_SCHEMA_STEPS.length + 1 })
+    const names = await authTableNames()
+    expect(names).toContain(`${authTables(now.key).user}_extra`)
+    for (const table of names) expect(table).not.toContain(old.key)
+  })
+
+  it('keeps an app made again under a new key when a drop that read the old one runs late', async () => {
+    const old = await store.ensure('model-again')
+    await store.drop('model-again')
+    const now = await store.ensure('model-again')
+    const dropping = new D1AuthTables(db)
+    dropping.get = async () => old
+    await dropping.drop('model-again')
+    expect(await store.get('model-again')).toEqual(now)
+    expect(await authTableNames()).toEqual(tablesOf(authTables(now.key)).sort())
+  })
+
   it('throws a failing step at once, without running it again', async () => {
     await store.ensure('model-bad')
     let batches = 0

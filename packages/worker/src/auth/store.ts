@@ -79,12 +79,13 @@ export class D1AuthTables implements AuthTables {
       const key = current?.key ?? newAuthKey()
       const from = current?.schemaVersion ?? 0
       const ddl = this.steps.slice(from).flatMap((step) => step(authTables(key)).map((sql) => this.db.prepare(sql)))
-      // The record goes first, so the DDL runs only once it holds. An upgrade's UPDATE names the version it read; should
-      // the row have changed since (dropped, or upgraded by another request), the next statement fails the batch (a NULL
-      // key), so none of it is kept: no tables are added for an app that has none, nor steps applied twice.
+      // The record goes first, so the DDL runs only once it holds. An upgrade's UPDATE names the key and version it read;
+      // should the row have changed since (dropped, upgraded by another request, or dropped and made again under a new
+      // key), the next statement fails the batch (a NULL key), so none of it is kept: no tables are added for an app that
+      // has none or under a key no longer its own, nor steps applied twice.
       const record = current
         ? [
-            this.db.prepare('UPDATE app_auth SET schema_version = ? WHERE model_id = ? AND schema_version = ?').bind(newest, modelId, from),
+            this.db.prepare('UPDATE app_auth SET schema_version = ? WHERE model_id = ? AND key = ? AND schema_version = ?').bind(newest, modelId, key, from),
             this.db.prepare('INSERT INTO app_auth (model_id, key, schema_version) SELECT NULL, NULL, NULL WHERE changes() = 0'),
           ]
         : [this.db.prepare('INSERT INTO app_auth (model_id, key, schema_version) VALUES (?, ?, ?)').bind(modelId, key, newest)]
@@ -140,9 +141,13 @@ export class D1AuthTables implements AuthTables {
     return report
   }
 
+  /**
+   * Drops one key's tables, and the model's record only while it still names that key: one made again under a new key
+   * since it was read (a publish, meanwhile) keeps its record and tables.
+   */
   private async dropKey(key: string, modelId?: string): Promise<void> {
     const drops = tablesOf(authTables(key)).map((table) => this.db.prepare(`DROP TABLE IF EXISTS "${table}"`))
-    const forget = modelId === undefined ? [] : [this.db.prepare('DELETE FROM app_auth WHERE model_id = ?').bind(modelId)]
+    const forget = modelId === undefined ? [] : [this.db.prepare('DELETE FROM app_auth WHERE model_id = ? AND key = ?').bind(modelId, key)]
     await this.db.batch([...drops, ...forget])
   }
 }
