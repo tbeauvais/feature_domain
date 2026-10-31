@@ -18,7 +18,7 @@ Kept in `~/.config/feature-domain/cloudflare.env` (mode 600, never committed); `
 
 | Variable | What | Used by |
 | --- | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | API token: Workers Scripts, D1, Access: Apps and Policies, Access: Organizations, Identity Providers, and Groups, Workers R2 Storage (edit); Account Settings (read); this account only. Zone: Zone (read), DNS (edit), Workers Routes (edit), Zone Settings (edit, for Always Use HTTPS); the `apprun.app` zone only | the provider, wrangler |
+| `CLOUDFLARE_API_TOKEN` | API token: Workers Scripts, D1, Access: Apps and Policies, Access: Organizations, Identity Providers, and Groups, Workers R2 Storage (edit); Account Settings (read); this account only. Zone: Zone (read), DNS (edit), Workers Routes (edit); the `apprun.app` zone only | the provider, wrangler |
 | `CLOUDFLARE_ACCOUNT_ID` | the account above | wrangler |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | R2 key, Object Read & Write on `feature-domain-terraform-state` only | the state backend |
 | `TF_VAR_allowed_emails` | who may sign in, as a JSON list (`'["you@example.com"]'`); kept out of the public repo | the Access policy |

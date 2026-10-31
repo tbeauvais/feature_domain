@@ -176,14 +176,6 @@ resource "cloudflare_dns_record" "apps_wildcard" {
   comment = "Published apps: the Worker app answers on its *.${var.app_domain} route"
 }
 
-# Apps are https only: Cloudflare sends plain http to https before the Worker sees it (the Worker redirects too, and
-# sends HSTS), so a session cookie is never set over http.
-resource "cloudflare_zone_setting" "apps_always_use_https" {
-  zone_id    = data.cloudflare_zone.apps.zone_id
-  setting_id = "always_use_https"
-  value      = "on"
-}
-
 # Published apps sit behind the same allow list as the editor until apps have sign-in of their own: their forms
 # write rows, and nothing yet limits who may.
 resource "cloudflare_zero_trust_access_application" "apps" {

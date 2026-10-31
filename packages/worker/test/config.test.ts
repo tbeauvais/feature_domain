@@ -33,6 +33,11 @@ it('answers published apps on the wildcard Terraform points at it, behind Access
   expect(config.assets).toMatchObject({ binding: 'ASSETS', run_worker_first: true })
 })
 
+it("leaves https to the Worker's 308: the zone's Always Use HTTPS would answer a POST with a 301 first", () => {
+  // Browsers follow a 301 after a POST with a GET and no body, so a sign-in or a new row would turn into a read.
+  expect(terraform).not.toContain('always_use_https')
+})
+
 it('is at localhost in development, with apps at <slug>.localhost', () => {
   const vars = Object.fromEntries(
     readFileSync(join(WORKER_DIR, '.dev.vars'), 'utf8')
