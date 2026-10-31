@@ -15,6 +15,8 @@ import {
 import { Hono, type Context } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { createAppHost } from './appHost'
+import { MemoryMailer, type Mailer } from './auth/authFor'
+import { dropAuthTables, ensureAuthTables } from './auth/store'
 import { AlreadyPublishedError, ClaimLostError, SlugTakenError, type AppStore } from './apps'
 import { D1AppStore } from './d1AppStore'
 import { D1ModelStore, toJson } from './d1ModelStore'
@@ -47,6 +49,13 @@ export interface AppOptions {
   apps?: (env: Env) => AppStore
   /** The builder's host and the apps' domain, else the BUILDER_HOST and APP_DOMAIN vars. */
   hosts?: Hosts
+  /**
+   * Spike: whether a version to publish has sign-in (later: a Sign-in feature in it), so its app gets auth tables.
+   * None by default.
+   */
+  signIn?: (model: AppModel) => boolean
+  /** Sends sign-in codes (spike: kept in memory by default). */
+  mailer?: (env: Env) => Mailer
 }
 
 /**
@@ -69,7 +78,10 @@ export function createApp(options: AppOptions = {}) {
   const originsOf = versionCache(allowedOrigins)
   const tablesOf = versionCache((model) => databaseTables(model))
   const builder = createBuilder()
-  const appHost = createAppHost({ apps: appStoreOf, rows: rowStoreOf, hosts: hostsFor, upstream, tablesOf, originsOf })
+  const signIn = options.signIn ?? (() => false)
+  const memoryMailer = new MemoryMailer()
+  const mailerOf = options.mailer ?? (() => memoryMailer)
+  const appHost = createAppHost({ apps: appStoreOf, rows: rowStoreOf, hosts: hostsFor, upstream, tablesOf, originsOf, mailer: mailerOf })
 
   function createBuilder() {
     const app = new Hono<AppEnv>()
@@ -145,6 +157,7 @@ export function createApp(options: AppOptions = {}) {
       await apps.deleteModel(id)
       await c.var.store.delete(id)
       await rowStore(c).deleteModel(id)
+      if (c.env?.DB) await dropAuthTables(c.env.DB, id)
       await apps.deleteModel(id)
       // A model stored again under this id (the home page's) starts at revision 1 again, so nothing cached for it holds.
       originsOf.forget(id)
@@ -271,6 +284,8 @@ export function createApp(options: AppOptions = {}) {
       // of the draft's, or none (each table then starts with its sample rows), whatever an earlier try left there.
       const first = !latest
       if (first) await (body.copyDraftRows ? rows.copySpace(id, 'draft', 'live') : rows.keepTables(id, 'live', []))
+      // An app with sign-in gets its auth tables before it is served: created, or brought up to date. Never dropped here.
+      if (signIn(app)) await ensureAuthTables(c.env.DB, id)
       let publication
       try {
         // Only while the claim holds: one taken over (a publish past PUBLISHING_CLAIM_MS) stores nothing.
@@ -286,6 +301,7 @@ export function createApp(options: AppOptions = {}) {
       if (!(await c.var.store.get(id))) {
         await apps.deleteModel(id)
         await rows.deleteModel(id)
+        if (c.env?.DB) await dropAuthTables(c.env.DB, id)
         return notFound()
       }
       // The new version is live, so the removed tables' rows can go (a table added later under the same id starts

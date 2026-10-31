@@ -7,6 +7,8 @@ export interface Env {
   APP_DOMAIN: string
   /** The builder's hostname: app.feature-domain.workers.dev (localhost in development). */
   BUILDER_HOST: string
+  /** The platform's secret, from which each app's Better Auth secret is derived (a Worker secret; spike: optional). */
+  AUTH_SECRET?: string
 }
 
 declare global {

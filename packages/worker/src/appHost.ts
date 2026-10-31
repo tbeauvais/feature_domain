@@ -5,6 +5,8 @@
 import { databaseTables, type AppModel, type RowStore } from '@feature-domain/engine'
 import { Hono, type Context } from 'hono'
 import type { AppStore } from './apps'
+import { appSecret, authFor, type Mailer } from './auth/authFor'
+import { appAuth } from './auth/store'
 import type { Env } from './env'
 import { siteOf, type Hosts } from './hosts'
 import { error, mountApi, noneMatch, withPageHeaders, type versionCache } from './http'
@@ -19,6 +21,7 @@ export interface AppHostDeps {
   upstream: typeof fetch
   tablesOf: ReturnType<typeof versionCache<ReturnType<typeof databaseTables>>>
   originsOf: ReturnType<typeof versionCache<ReturnType<typeof allowedOrigins>>>
+  mailer: (env: Env) => Mailer
 }
 
 /** The app a request's host serves: its model and the number of its published version. */
@@ -111,6 +114,24 @@ export function createAppHost(deps: AppHostDeps) {
         modelOf(c, (message) => new ProxyError(404, message)),
       )
     return answerProxy(c.req.raw, false, origins, site, deps.upstream)
+  })
+
+  // Sign-in (spike): Better Auth for the app the host names, on its own tables, with its own secret, at its exact
+  // address. An app without auth tables (published without sign-in) has none.
+  api.on(['GET', 'POST'], '/app/auth/*', async (c) => {
+    const { model } = published(c)
+    const auth = await appAuth(c.env.DB, model)
+    if (!auth || !c.env.AUTH_SECRET) return error(404, 'This app has no sign-in')
+    let waitUntil: (promise: Promise<unknown>) => void = (promise) => void promise
+    try {
+      const ctx = c.executionCtx
+      waitUntil = (promise) => ctx.waitUntil(promise)
+    } catch {
+      // No execution context (tests): the work runs without being waited for.
+    }
+    const origin = new URL(c.req.url).origin
+    const secret = await appSecret(c.env.AUTH_SECRET, auth.key)
+    return authFor({ db: c.env.DB, key: auth.key, secret, baseURL: origin, mailer: deps.mailer(c.env), waitUntil }).handler(c.req.raw)
   })
 
   api.all('/app', () => error(405, 'Method not allowed', { allow: 'GET' }))

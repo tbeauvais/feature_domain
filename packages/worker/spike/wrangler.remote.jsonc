@@ -1,0 +1,15 @@
+// Spike only: the temporary D1 database on Cloudflare the scale test used (deleted 2026-10-31; create one to rerun).
+{
+  "name": "auth-spike-remote",
+  "main": "./worker.ts",
+  "compatibility_date": "2026-10-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fd-auth-spike-scale",
+      "database_id": "3644494f-1d7b-4c0b-8db8-491f208c5d75",
+      "migrations_dir": "../migrations",
+      "remote": true,
+    },
+  ],
+}
