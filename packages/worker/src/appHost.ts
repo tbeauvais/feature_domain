@@ -28,6 +28,12 @@ export interface AppHostDeps {
   mailer: (env: Env) => Mailer | undefined
 }
 
+/**
+ * HSTS for an app's host: browsers then never ask it over http again for a year (its own subdomains too). Not
+ * preloaded: that would bind every name under the domain to https for good.
+ */
+export const APP_HSTS = 'max-age=31536000; includeSubDomains'
+
 /** The app a request's host serves: its model and the number of its published version. */
 type Published = { model: string; version: number }
 const NOTHING_PUBLISHED = 'No app is published at this address'
@@ -36,6 +42,22 @@ type AppHostEnv = { Bindings: Env; Variables: { published: Published | undefined
 export function createAppHost(deps: AppHostDeps) {
   const app = new Hono<AppHostEnv>()
   const api = new Hono<AppHostEnv>()
+
+  // Apps are https only (outside development, where they are http://<slug>.localhost): plain http is sent to the same
+  // address over https (308 keeps the method), so no session cookie is ever set without Secure, and every answer
+  // carries HSTS.
+  app.use(async (c, next) => {
+    if (deps.hosts(c.env).apps === 'localhost') return next()
+    const url = new URL(c.req.url)
+    if (url.protocol !== 'https:') {
+      url.protocol = 'https:'
+      return withPageHeaders(new Response(null, { status: 308, headers: { Location: url.toString() } }))
+    }
+    await next()
+    const answer = new Response(c.res.body, c.res)
+    answer.headers.set('Strict-Transport-Security', APP_HSTS)
+    c.res = answer
+  })
 
   /**
    * The published version's model, read from the store each time it is needed: only to answer /api/v1/app, or when

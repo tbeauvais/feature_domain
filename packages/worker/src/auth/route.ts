@@ -5,7 +5,7 @@
 import type { AppModel } from '@feature-domain/engine'
 import type { Context, Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
-import { error } from '../http'
+import { error, sendsJson } from '../http'
 import { appSecret, AUTH_BASE_PATH, authFor } from './authFor'
 import type { Mailer } from './mailer'
 import { hasSignIn } from './signIn'
@@ -139,11 +139,18 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
     const methods = AUTH_ENDPOINTS[path]
     if (!methods) return error(404, 'No such API endpoint')
     if (!methods.includes(c.req.method)) return error(405, 'Method not allowed', { allow: methods.join(', ') })
+    // Changes come only from the app's own page, as JSON. Better Auth checks the Origin only once a cookie is sent, and
+    // reads form bodies too, so another site could otherwise sign a visitor in to an account of its own (login CSRF):
+    // a cross-site form or no-cors fetch can send neither a same-origin Origin nor application/json.
+    if (c.req.method !== 'GET') {
+      if (c.req.header('Origin') !== new URL(c.req.url).origin) return error(403, "Sign-in is only sent from the app's own pages")
+      if (!sendsJson(c.req.raw)) return error(415, 'Send the request as application/json')
+    }
     const sending = path === '/email-otp/send-verification-otp'
     const app = await authOf(c, sending)
     if (app instanceof Response) return app
     // Only sign-in codes: the plugin's other kinds (verifying an address, resetting a password) aren't offered. A body
-    // that isn't JSON goes on to Better Auth, which says what is wrong with it.
+    // that doesn't parse goes on to Better Auth, which says what is wrong with it.
     const type = sending ? await readType(c.req.raw) : undefined
     if (type !== undefined && type !== 'sign-in') return error(400, 'Only sign-in codes are sent', { problems: ['Ask for type "sign-in"'] })
     return withoutTokens(await app.auth.handler(c.req.raw))

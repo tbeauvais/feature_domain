@@ -353,3 +353,115 @@ describe('who may sign in (the Sign-in feature sets these)', () => {
     expect(club.sent.sent.map((m) => m.to)).toEqual(['ann@club.example'])
   })
 })
+
+describe('only from the app’s own pages', () => {
+  it('refuses a change from another site, or with no Origin, or not as JSON (no login CSRF)', async () => {
+    await published('Shoreline meetup with sign-in', 'meetup')
+    const body = JSON.stringify({ email: 'ann@example.com', type: 'sign-in' })
+    const path = '/email-otp/send-verification-otp'
+    expect((await auth('meetup', path, { method: 'POST', body, headers: { Origin: 'https://evil.example' } })).status).toBe(403)
+    expect((await auth('meetup', path, { method: 'POST', body, headers: { Origin: origin('tracker') } })).status).toBe(403)
+    const noOrigin = await request(`${origin('meetup')}/api/v1/app/auth${path}`, { method: 'POST', body, headers: { 'Content-Type': 'application/json' } })
+    expect(noOrigin.status).toBe(403)
+    // A cross-site form's body: also how a form-encoded `type` would get past the sign-in-codes-only check.
+    const form = await auth('meetup', path, {
+      method: 'POST',
+      body: 'email=ann%40example.com&type=forget-password',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    })
+    expect(form.status).toBe(415)
+    expect(mailer.sent).toEqual([])
+  })
+
+  it('refuses signing in or out from another site, keeping the session', async () => {
+    await published('Shoreline meetup with sign-in', 'meetup')
+    const { cookie } = await signInAt('meetup', 'ann@example.com')
+    expect((await auth('meetup', '/sign-out', { method: 'POST', body: '{}', headers: { Origin: 'https://evil.example' } }, cookie)).status).toBe(403)
+    expect((await auth('meetup', '/delete-user', { method: 'POST', body: '{}', headers: { Origin: 'https://evil.example' } }, cookie)).status).toBe(403)
+    expect((await sessionAt('meetup', cookie))?.user.email).toBe('ann@example.com')
+    const attacker = await auth('meetup', '/sign-in/email-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'eve@example.com', otp: '123456' }),
+      headers: { Origin: 'https://evil.example' },
+    })
+    expect(attacker.status).toBe(403)
+    expect(attacker.headers.getSetCookie()).toEqual([])
+  })
+})
+
+describe('over https, as deployed', () => {
+  const HOSTS = { builder: 'app.feature-domain.workers.dev', apps: 'apprun.app' }
+  const at = (slug: string) => `https://${slug}.apprun.app`
+
+  async function publishedHere(name: string, slug: string) {
+    app = createApp({ signIn, mailer: () => mailer, hosts: HOSTS })
+    const stored = await request(`https://${HOSTS.builder}/api/v1/models`, post(model(name)))
+    const id = ((await stored.json()) as { id: string }).id
+    const answer = await request(`https://${HOSTS.builder}/api/v1/models/${id}/publish`, post({ slug }, { 'If-Match': stored.headers.get('ETag')! }))
+    expect(answer.status).toBe(200)
+  }
+  const call = (slug: string, path: string, body?: unknown, cookie?: string) =>
+    request(`${at(slug)}/api/v1/app/auth${path}`, {
+      method: body === undefined ? 'GET' : 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: at(slug), 'cf-connecting-ip': IP, ...(cookie ? { Cookie: cookie } : {}) },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    })
+
+  it('sends plain http to https, keeping the method, and every answer carries HSTS', async () => {
+    await publishedHere('Shoreline meetup with sign-in', 'meetup')
+    const plain = await request('http://meetup.apprun.app/api/v1/app/auth/sign-out?x=1', { method: 'POST' })
+    expect(plain.status).toBe(308)
+    expect(plain.headers.get('Location')).toBe('https://meetup.apprun.app/api/v1/app/auth/sign-out?x=1')
+    expect(plain.headers.getSetCookie()).toEqual([])
+    const secure = await call('meetup', '/get-session')
+    expect(secure.headers.get('Strict-Transport-Security')).toBe('max-age=31536000; includeSubDomains')
+    expect((await request(`${at('meetup')}/api/v1/app`)).headers.get('Strict-Transport-Security')).toBe('max-age=31536000; includeSubDomains')
+  })
+
+  it('signs in with __Host- cookies: Secure, HttpOnly, SameSite=Lax, Path=/, no Domain', async () => {
+    await publishedHere('Shoreline meetup with sign-in', 'meetup')
+    expect((await call('meetup', '/email-otp/send-verification-otp', { email: 'ann@example.com', type: 'sign-in' })).status).toBe(200)
+    await Promise.all(tasks)
+    const signed = await call('meetup', '/sign-in/email-otp', { email: 'ann@example.com', otp: lastCode() })
+    expect(signed.status).toBe(200)
+    const cookies = signed.headers.getSetCookie()
+    const token = cookies.find((c) => c.startsWith('__Host-fd.session_token='))
+    expect(token).toBeDefined()
+    for (const attribute of [/; Secure/i, /; HttpOnly/i, /; SameSite=Lax/i, /; Path=\//i]) expect(token).toMatch(attribute)
+    expect(token).not.toMatch(/Domain=/i)
+    const cookie = cookies.map((c) => c.split(';')[0]).join('; ')
+    expect(((await (await call('meetup', '/get-session', undefined, cookie)).json()) as { user: { email: string } }).user.email).toBe('ann@example.com')
+  })
+})
+
+describe('the account’s safeguards', () => {
+  it('deletes an account only after a recent sign-in', async () => {
+    const { id } = await published('Shoreline meetup with sign-in', 'meetup')
+    const { cookie } = await signInAt('meetup', 'ann@example.com')
+    const { key } = (await tables().get(id))!
+    // Signed in two days ago (Better Auth asks for one within a day).
+    const twoDaysAgo = Date.now() - 2 * 86_400_000
+    await db
+      .prepare(`UPDATE "${authTables(key).session}" SET createdAt = ?, updatedAt = ?`)
+      .bind(twoDaysAgo, twoDaysAgo)
+      .run()
+    const refused = await auth('meetup', '/delete-user', { method: 'POST', body: '{}' }, cookie)
+    expect(refused.status).not.toBe(200)
+    expect(await db.prepare(`SELECT count(*) AS n FROM "${authTables(key).user}"`).first('n')).toBe(1)
+  })
+
+  it('spends a code after three wrong tries', async () => {
+    await published('Shoreline meetup with sign-in', 'meetup')
+    await askCode('meetup', 'ann@example.com')
+    await Promise.all(tasks)
+    const code = lastCode()!
+    const wrong = code === '000000' ? '111111' : '000000'
+    // From different addresses, so only the code's own limit applies (the rate limit counts per IP).
+    const tryCode = (otp: string, ip: string) =>
+      auth('meetup', '/sign-in/email-otp', { method: 'POST', body: JSON.stringify({ email: 'ann@example.com', otp }), headers: { 'cf-connecting-ip': ip } })
+    for (const ip of ['198.51.100.1', '198.51.100.2', '198.51.100.3']) expect((await tryCode(wrong, ip)).status).toBe(400)
+    const late = await tryCode(code, '198.51.100.4')
+    expect(late.status).not.toBe(200)
+    expect(late.headers.getSetCookie()).toEqual([])
+  })
+})
