@@ -2,6 +2,7 @@
 // route.ts), so nothing of one app's configuration can serve another.
 
 import { betterAuth, type BetterAuthOptions } from 'better-auth'
+import { APIError, createAuthMiddleware } from 'better-auth/api'
 import { emailOTP } from 'better-auth/plugins/email-otp'
 import type { Mailer } from './mailer'
 import { authTables } from './tables'
@@ -39,6 +40,9 @@ export interface AuthForOptions {
 }
 
 export const AUTH_BASE_PATH = '/api/v1/app/auth'
+
+/** Better Auth's answer to a wrong code (the email-code plugin's INVALID_OTP), given to a refused address too. */
+const INVALID_OTP = { code: 'INVALID_OTP', message: 'Invalid OTP' }
 
 /** The longest app name an email shows. */
 export const MAX_MAIL_NAME = 60
@@ -87,6 +91,14 @@ export function authConfig(options: AuthForOptions) {
       // __Host- names on https: host-only (no Domain), Path=/ and Secure, so no other site can set them. Better Auth
       // would otherwise use __Secure-, which a sibling subdomain could still set. Plain names over http (development).
       ...(https ? { cookiePrefix: '__Host-fd', useSecureCookies: false, defaultCookieAttributes: { secure: true } } : { cookiePrefix: 'fd' }),
+    },
+    // An address the app no longer allows can't use a code it was sent while it did: refused as a wrong code would be.
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== '/sign-in/email-otp' || !options.allows) return
+        const email = (ctx.body as { email?: unknown } | undefined)?.email
+        if (typeof email !== 'string' || !options.allows(email)) throw APIError.from('BAD_REQUEST', INVALID_OTP)
+      }),
     },
     plugins: [
       emailOTP({

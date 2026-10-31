@@ -58,6 +58,14 @@ describe.each([
     expect(await tables.get('model-a')).toBeNull()
     expect(await tables.get('model-b')).not.toBeNull()
   })
+
+  it('upgrades only an app that has tables, never making them', async () => {
+    const tables = make()
+    expect(await tables.upgrade('model-none')).toBeNull()
+    expect(await tables.get('model-none')).toBeNull()
+    const made = await tables.ensure('model-some')
+    expect(await tables.upgrade('model-some')).toEqual(made)
+  })
 })
 
 describe('the tables', () => {

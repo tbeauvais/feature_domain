@@ -171,6 +171,9 @@ describe('what an app answers', () => {
     for (const path of ['/sign-up/email', '/list-sessions', '/update-user', '/change-email', '/ok', '/email-otp/check-verification-otp'])
       expect((await auth('meetup', path, { method: 'POST', body: '{}' })).status, path).toBe(404)
     expect((await auth('meetup', '/sign-out')).status).toBe(405)
+    const put = await auth('meetup', '/sign-out', { method: 'PUT', body: '{}' })
+    expect(put.status).toBe(405)
+    expect(put.headers.get('Allow')).toBe('POST')
     expect((await auth('meetup', '/get-session', { method: 'POST', body: '{}' })).status).toBe(405)
   })
 
@@ -220,6 +223,21 @@ describe('what an app answers', () => {
     app = createApp({ signIn, mailer: () => undefined })
     expect((await askCode('meetup', 'ann@example.com')).status).toBe(503)
     expect((await auth('meetup', '/get-session')).status).toBe(200)
+  })
+
+  it('gives no tables back to an app deleted while its tables were being upgraded', async () => {
+    const { id } = await published('Shoreline meetup with sign-in', 'meetup')
+    const real = tables()
+    const stale = (await real.get(id))!
+    // Read as outdated just before the model's deletion dropped its tables.
+    await real.drop(id)
+    const racing = new D1AuthTables(db)
+    let first = true
+    racing.get = async (modelId) => (first ? ((first = false), { ...stale, schemaVersion: 0 }) : D1AuthTables.prototype.get.call(racing, modelId))
+    app = createApp({ signIn, mailer: () => mailer, authTables: () => racing })
+    expect((await auth('meetup', '/get-session')).status).toBe(404)
+    expect(await real.get(id)).toBeNull()
+    expect(await authTableNames()).toEqual([])
   })
 
   it('brings outdated tables up to date when the app is next asked', async () => {
@@ -310,6 +328,21 @@ describe('who may sign in (the Sign-in feature sets these)', () => {
     expect(club.sent.sent).toEqual([])
     const guessed = await club.call('/sign-in/email-otp', { email: 'new@example.com', otp: '123456' })
     expect(guessed.status).toBe(400)
+  })
+
+  it('refuses a code sent while an address was allowed, once it no longer is, as a wrong code', async () => {
+    const list = ['@club.example']
+    const club = await appWith({ allows: (email) => onList(list, email) })
+    await club.call('/email-otp/send-verification-otp', { email: 'ann@club.example', type: 'sign-in' })
+    const code = /is (\d{6})\./.exec(club.sent.sent.at(-1)!.text)![1]!
+    const wrong = await club.call('/sign-in/email-otp', { email: 'ann@club.example', otp: code === '000000' ? '111111' : '000000' })
+    list.length = 0
+    const refused = await club.call('/sign-in/email-otp', { email: 'ann@club.example', otp: code })
+    expect(refused).toEqual(wrong)
+    expect(refused.status).toBe(400)
+    // Allowed again, the code still works: the refusal used up nothing.
+    list.push('@club.example')
+    expect((await club.call('/sign-in/email-otp', { email: 'ann@club.example', otp: code })).status).toBe(200)
   })
 
   it('answers an address not on the list as one on it, and sends it nothing', async () => {

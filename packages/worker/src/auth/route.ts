@@ -83,12 +83,15 @@ function secretFor(platformSecret: string, key: string): Promise<string> {
   return secret
 }
 
-/** Upgrades running in this isolate, by model: concurrent requests for one app wait for one upgrade. */
-const upgrading = new Map<string, Promise<AppAuth>>()
-function upgradeOnce(tables: AuthTables, model: string): Promise<AppAuth> {
+/**
+ * Upgrades running in this isolate, by model: concurrent requests for one app wait for one upgrade. Never creates
+ * tables: an app deleted meanwhile has none, and gets none back (null).
+ */
+const upgrading = new Map<string, Promise<AppAuth | null>>()
+function upgradeOnce(tables: AuthTables, model: string): Promise<AppAuth | null> {
   let running = upgrading.get(model)
   if (!running) {
-    running = tables.ensure(model).finally(() => upgrading.delete(model))
+    running = tables.upgrade(model).finally(() => upgrading.delete(model))
     upgrading.set(model, running)
   }
   return running
@@ -115,6 +118,7 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
     // Its tables are made when a version with sign-in is published, and brought up to date here, once, after a deploy
     // adds a step (db:upgrade-apps does every app right after the deploy, so this is rarely more than a read).
     const tables = current.schemaVersion < AUTH_SCHEMA_STEPS.length ? await upgradeOnce(found.tables, found.model) : current
+    if (!tables) return error(404, NO_SIGN_IN)
     const { allowed } = found.signIn
     const auth = authFor({
       db: found.db,
@@ -130,7 +134,7 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
     return { auth, found }
   }
 
-  api.on(['GET', 'POST'], '/app/auth/*', limit, async (c) => {
+  api.all('/app/auth/*', limit, async (c) => {
     const path = c.req.path.slice(AUTH_BASE_PATH.length)
     const methods = AUTH_ENDPOINTS[path]
     if (!methods) return error(404, 'No such API endpoint')
