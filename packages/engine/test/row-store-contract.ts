@@ -201,5 +201,72 @@ export function describeRowStore(name: string, create: () => RowStore | Promise<
       // A model stored again under the same id starts over.
       expect(await store.storeSampleRows(requests, [{ title: 'Sample' }])).toBe(true)
     })
+
+    it('remembers who added a row, lists only theirs when asked, and keeps it through changes', async () => {
+      const store = await create()
+      const live = { ...requests, space: 'live' as const }
+      const ann = await store.create(live, { title: 'Ann’s' }, 'user-ann')
+      const anon = await store.create(live, { title: 'Nobody’s' })
+      const bo = await store.create(live, { title: 'Bo’s' }, 'user-bo')
+      expect(ann.created_by).toBe('user-ann')
+      expect(anon).not.toHaveProperty('created_by')
+      expect(await store.get(live, ann.id)).toEqual(ann)
+      expect(await store.list(live, { createdBy: 'user-ann' })).toEqual([ann])
+      expect(await store.list(live, { createdBy: 'user-cy' })).toEqual([])
+      expect(await store.list(live)).toEqual([ann, anon, bo])
+      const changed = await store.update(live, ann.id, { title: 'Ann’s, changed' })
+      expect(changed).toMatchObject({ created_by: 'user-ann', title: 'Ann’s, changed' })
+    })
+
+    it('gives a person’s rows by table, in one space and model', async () => {
+      const store = await create()
+      const live = { ...requests, space: 'live' as const }
+      const a = await store.create(live, { title: 'A' }, 'user-ann')
+      const b = await store.create({ ...live, table: '4' }, { title: 'B' }, 'user-ann')
+      await store.create(live, { title: 'Bo’s' }, 'user-bo')
+      await store.create(requests, { title: 'Draft' }, 'user-ann')
+      await store.create({ ...live, model: 'm2' }, { title: 'Other app' }, 'user-ann')
+      expect(await store.rowsBy('m1', 'live', 'user-ann')).toEqual({ '3': [a], '4': [b] })
+      expect(await store.rowsBy('m1', 'live', 'user-cy')).toEqual({})
+    })
+
+    it('forgets a deleted person: their rows go, except in kept tables, where their name goes', async () => {
+      const store = await create()
+      const live = { ...requests, space: 'live' as const }
+      const kept = { ...live, table: '4' }
+      await store.create(live, { title: 'Ann’s' }, 'user-ann')
+      const bo = await store.create(live, { title: 'Bo’s' }, 'user-bo')
+      const shared = await store.create(kept, { title: 'Ann’s shared' }, 'user-ann')
+      const otherApp = await store.create({ ...live, model: 'm2' }, { title: 'Other app' }, 'user-ann')
+      await store.forgetPerson('m1', 'live', 'user-ann', ['4'])
+      expect(await store.list(live)).toEqual([bo])
+      const [left] = await store.list(kept)
+      expect(left).toEqual({ ...shared, created_by: undefined })
+      expect(left).not.toHaveProperty('created_by')
+      expect(await store.rowsBy('m1', 'live', 'user-ann')).toEqual({})
+      expect(await store.list({ ...live, model: 'm2' })).toEqual([otherApp])
+    })
+
+    it('copies who added each row when it copies a space', async () => {
+      const store = await create()
+      const row = await store.create(requests, { title: 'Draft' }, 'user-ann')
+      await store.copySpace('m1', 'draft', 'live')
+      expect(await store.list({ ...requests, space: 'live' })).toEqual([row])
+    })
+
+    it('changes or deletes a row only for the person who added it, when asked to check, and says whether it deleted', async () => {
+      const store = await create()
+      const live = { ...requests, space: 'live' as const }
+      const row = await store.create(live, { title: 'Ann’s' }, 'user-ann')
+      const anon = await store.create(live, { title: 'No one’s' })
+      expect(await store.update(live, row.id, { title: 'Bo was here' }, [], { createdBy: 'user-bo' })).toBeNull()
+      expect(await store.update(live, anon.id, { title: 'Bo was here' }, [], { createdBy: 'user-bo' })).toBeNull()
+      expect(await store.delete(live, row.id, { createdBy: 'user-bo' })).toBe(false)
+      expect(await store.list(live)).toEqual([row, anon])
+      expect(await store.update(live, row.id, { title: 'Changed' }, [], { createdBy: 'user-ann' })).toMatchObject({ title: 'Changed' })
+      expect(await store.delete(live, row.id, { createdBy: 'user-ann' })).toBe(true)
+      expect(await store.delete(live, row.id)).toBe(false)
+      expect(await store.delete(live, anon.id)).toBe(true)
+    })
   })
 }

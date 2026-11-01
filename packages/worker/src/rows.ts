@@ -1,7 +1,16 @@
 // The rows API: a model's Database tables, read and written by its pages: the draft's at
 // /api/v1/models/:id/tables/:table/rows on the builder, a published app's at /api/v1/app/tables/:table/rows on its host.
 
-import { isRowId, RowLimitError, validateRow, type DatabaseTable, type RowStore, type TableRef } from '@feature-domain/engine'
+import {
+  isRowId,
+  RowLimitError,
+  validateRow,
+  type DatabaseTable,
+  type RowOperation,
+  type RowStore,
+  type StoredRow,
+  type TableRef,
+} from '@feature-domain/engine'
 import type { Context, Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { error, sendsJson } from './http'
@@ -22,14 +31,13 @@ export class RowsError extends Error {
 }
 
 /**
- * The table a request names among a model version's Database tables (the draft's, or a published app's), in that
- * version's space. With `sample`, its sample rows are stored if they never were: requests to the whole table (list, add)
- * do that; a request to one row needs an id it was given, so it skips the extra read.
+ * The table a request names among a model version's Database tables (the draft's, or a published app's). Requests to the
+ * whole table (list, add) then store its sample rows if they never were; a request to one row needs an id it was given,
+ * so it skips the extra read.
  */
-export async function tableOf(rows: RowStore, tables: ReadonlyMap<string, DatabaseTable>, ref: TableRef, sample: boolean): Promise<DatabaseTable> {
+export function tableOf(tables: ReadonlyMap<string, DatabaseTable>, ref: TableRef): DatabaseTable {
   const table = tables.get(ref.table)
   if (!table) throw new RowsError(404, ref.space === 'live' ? 'The app has no Database table with this id' : 'The model has no Database table with this id')
-  if (sample) await rows.storeSampleRows(ref, table.sampleRows)
   return table
 }
 
@@ -63,11 +71,61 @@ export function limitError(e: RowLimitError): RowsError {
   return new RowsError(e.limit === 'bytes' ? 413 : 409, e.message)
 }
 
-/** Where a rows request's table is: its row store, its place (model, space, key) and the tables of that model version. */
+/**
+ * Where a rows request's table is: its row store, its place (model, space, key) and the tables of that model version.
+ * On a published app, `visitor` says who asks (the person signed in, or null) and whether the app has sign-in, and the
+ * table's rules apply; without it (the builder's draft rows) they don't.
+ */
 export interface RowsTarget {
   rowStore: RowStore
   ref: TableRef
   tables: ReadonlyMap<string, DatabaseTable>
+  visitor?: { person: string | null; signIn: boolean }
+}
+
+const VERB: Record<RowOperation, string> = { see: 'see', add: 'add', change: 'change', delete: 'delete' }
+
+/**
+ * What the table's rule for `operation` lets this visitor do: refused (a 401 when signing in could help, else a 403), or
+ * allowed, with the person signed in (undefined for no one, or where rules don't apply) and whether only their own rows
+ * count (Owner).
+ */
+export function allowed(target: RowsTarget, table: DatabaseTable, operation: RowOperation): { person?: string; own: boolean } {
+  const visitor = target.visitor
+  if (!visitor) return { own: false }
+  const person = visitor.person ?? undefined
+  const rule = table.access[operation]
+  if (rule === 'anyone') return { ...(person ? { person } : {}), own: false }
+  if (rule === 'nobody') throw new RowsError(403, `No one can ${VERB[operation]} this table's rows`)
+  if (!visitor.signIn) throw new RowsError(403, `Only people signed in can ${VERB[operation]} this table's rows, and this app has no sign-in`)
+  if (!person) throw new RowsError(401, `Sign in to ${VERB[operation]} this table's rows`)
+  return { person, own: rule === 'owner' }
+}
+
+/**
+ * Who a change or delete must have added the row for it to happen: the person signed in under an Owner rule, and also
+ * where they may see only their own rows (no one changes what they can't see). Refused outright when they may not see
+ * the table's rows at all, or not do this.
+ */
+function writer(target: RowsTarget, table: DatabaseTable, operation: 'change' | 'delete'): { person?: string; owner?: string } {
+  const see = allowed(target, table, 'see')
+  const write = allowed(target, table, operation)
+  const person = write.person ?? see.person
+  return { ...(person ? { person } : {}), ...((write.own || see.own) && person ? { owner: person } : {}) }
+}
+
+/** Why a change or delete that touched nothing didn't: no such row (null), or another person's (a 404 where they can't see it, else a 403). */
+async function untouched(target: RowsTarget, table: DatabaseTable, id: string, operation: 'change' | 'delete', person?: string): Promise<null> {
+  const row = await target.rowStore.get(target.ref, id)
+  if (!row) return null
+  if (table.access.see === 'owner' && row.created_by !== person) throw new RowsError(404, 'No row with this id')
+  throw new RowsError(403, `Only the person who added a row can ${VERB[operation]} it`)
+}
+
+/** A row as a page gets it: never with who added it (a person's id is theirs alone). */
+export function pageRow(row: StoredRow): StoredRow {
+  const { created_by: _, ...rest } = row
+  return rest as StoredRow
 }
 
 /**
@@ -84,52 +142,65 @@ export function mountRows<A extends Hono<any>>(
   location: (ref: TableRef, id: string) => string,
 ) {
   const limit = bodyLimit({ maxSize: MAX_ROW_REQUEST_BYTES, onError: () => error(413, `Rows are sent in at most ${MAX_ROW_REQUEST_BYTES} bytes`) })
-  /** The table, with its sample rows stored first when `sample`. */
-  const resolve = async (c: Context, sample: boolean) => {
+  /** The table a request names (its sample rows are stored once its rules allow the request). */
+  const resolve = async (c: Context) => {
     const found = await target(c)
-    return { ...found, table: await tableOf(found.rowStore, found.tables, found.ref, sample) }
+    return { ...found, table: tableOf(found.tables, found.ref) }
   }
 
+  // Rules are checked before anything is read or stored (a refused request never stores a table's sample rows).
   api.get(path, (c) =>
     rowsAnswer(async () => {
-      const { ref, rowStore } = await resolve(c, true)
-      return c.json(await rowStore.list(ref), 200, { 'Cache-Control': 'no-store' })
+      const { table, ...found } = await resolve(c)
+      const { person, own } = allowed(found, table, 'see')
+      await found.rowStore.storeSampleRows(found.ref, table.sampleRows)
+      const rows = await found.rowStore.list(found.ref, own ? { createdBy: person! } : {})
+      return c.json(rows.map(pageRow), 200, { 'Cache-Control': 'no-store' })
     }),
   )
 
   api.post(path, limit, (c) =>
     rowsAnswer(async () => {
-      const { ref, table, rowStore } = await resolve(c, true)
+      const { table, ...found } = await resolve(c)
+      const { person } = allowed(found, table, 'add')
       const { row } = await readRow(c.req.raw, table, false)
-      const created = await rowStore.create(ref, row)
-      return c.json(created, 201, { Location: location(ref, created.id) })
+      await found.rowStore.storeSampleRows(found.ref, table.sampleRows)
+      const created = await found.rowStore.create(found.ref, row, person)
+      return c.json(pageRow(created), 201, { Location: location(found.ref, created.id) })
     }),
   )
 
   api.get(`${path}/:row`, (c) =>
     rowsAnswer(async () => {
-      const { ref, rowStore } = await resolve(c, false)
-      const row = await rowStore.get(ref, rowIdOf(c.req.param('row')!))
-      if (!row) throw new RowsError(404, 'No row with this id')
-      return c.json(row, 200, { 'Cache-Control': 'no-store' })
+      const { table, ...found } = await resolve(c)
+      const { person, own } = allowed(found, table, 'see')
+      const row = await found.rowStore.get(found.ref, rowIdOf(c.req.param('row')!))
+      if (!row || (own && row.created_by !== person)) throw new RowsError(404, 'No row with this id')
+      return c.json(pageRow(row), 200, { 'Cache-Control': 'no-store' })
     }),
   )
 
+  // Under an Owner rule the write itself checks who added the row (RowStore's `createdBy`), so it can't change between a
+  // check and the write.
   api.patch(`${path}/:row`, limit, (c) =>
     rowsAnswer(async () => {
-      const { ref, table, rowStore } = await resolve(c, false)
+      const { table, ...found } = await resolve(c)
       const id = rowIdOf(c.req.param('row')!)
+      const { person, owner } = writer(found, table, 'change')
       const { row, cleared } = await readRow(c.req.raw, table, true)
-      const changed = await rowStore.update(ref, id, row, cleared)
-      if (!changed) throw new RowsError(404, 'No row with this id')
-      return c.json(changed)
+      const changed = await found.rowStore.update(found.ref, id, row, cleared, owner ? { createdBy: owner } : {})
+      if (!changed) throw (await untouched(found, table, id, 'change', person), new RowsError(404, 'No row with this id'))
+      return c.json(pageRow(changed))
     }),
   )
 
   api.delete(`${path}/:row`, (c) =>
     rowsAnswer(async () => {
-      const { ref, rowStore } = await resolve(c, false)
-      await rowStore.delete(ref, rowIdOf(c.req.param('row')!))
+      const { table, ...found } = await resolve(c)
+      const id = rowIdOf(c.req.param('row')!)
+      const { person, owner } = writer(found, table, 'delete')
+      // Deleting a missing row is not an error, whoever asks.
+      if (!(await found.rowStore.delete(found.ref, id, owner ? { createdBy: owner } : {})) && owner) await untouched(found, table, id, 'delete', person)
       return c.body(null, 204)
     }),
   )

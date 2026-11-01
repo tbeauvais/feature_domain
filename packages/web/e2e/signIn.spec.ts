@@ -114,3 +114,71 @@ test('a wrong code is said, and signs no one in', async ({ page, request }) => {
   await expect(page.getByRole('alert')).toHaveText("That code isn't right, or it has expired. Check it, or ask for a new one.")
   await expect(page.getByText('The members’ newsletter')).toHaveCount(0)
 })
+
+test('a booking only its member can delete: another member is told so, and the booking stays', async ({ browser, request }) => {
+  const slug = `club-${Math.random().toString(36).slice(2, 10)}`
+  const stored = await request.post('/api/v1/models', {
+    data: {
+      version: 2,
+      name: 'Rowing club',
+      features: [
+        { feature: 'PageFeature', id: '1', inputs: { name: 'Home' }, placement: { parent: '$root', slot: 'content' } },
+        { feature: 'SignInFeature', id: '2', inputs: { open_to: 'signed-in' } },
+        {
+          feature: 'DatabaseTableFeature',
+          id: '3',
+          inputs: { name: 'Bookings', fields: ['boat: text, required'], add_rows: 'signed-in', delete_rows: 'owner' },
+        },
+        { feature: 'AccountFeature', id: '4', inputs: {}, placement: { parent: '1', slot: 'content' } },
+        {
+          feature: 'FormFeature',
+          id: '5',
+          inputs: { title: 'Book', data_resource: '3', submit_label: 'Book it' },
+          placement: { parent: '1', slot: 'content' },
+        },
+        {
+          feature: 'TableFeature',
+          id: '6',
+          inputs: { title: 'Bookings', data_resource: '3', delete_operation: 'DELETE rows' },
+          placement: { parent: '1', slot: 'content' },
+        },
+      ],
+    },
+  })
+  const { id } = (await stored.json()) as { id: string }
+  expect((await request.post(`/api/v1/models/${id}/publish`, { data: { slug }, headers: { 'If-Match': stored.headers().etag! } })).status()).toBe(200)
+  const app = `http://${slug}.localhost:${PORT}`
+
+  /** A member signed in on a page of their own (their own cookies). */
+  const member = async (email: string) => {
+    const page = await (await browser.newContext()).newPage()
+    await page.goto(`${app}/`)
+    await page.getByLabel('Code').fill(codeIn(await askForCode(page, request, app, email)))
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(page.getByText(`Signed in as ${email}`)).toBeVisible()
+    return page
+  }
+  const ann = await member(`ann-${Date.now()}@example.com`)
+  await ann.getByLabel('Boat').fill('Heron')
+  await ann.getByRole('button', { name: 'Book it' }).click()
+  await expect(ann.getByRole('table')).toContainText('Heron')
+
+  const bo = await member(`bo-${Date.now()}@example.com`)
+  await expect(bo.getByRole('table')).toContainText('Heron')
+  await bo
+    .getByRole('table')
+    .getByRole('button', { name: /^Delete row/ })
+    .click()
+  await bo.getByRole('table').getByRole('button', { name: 'Delete', exact: true }).click()
+  await expect(bo.locator('.fd-table-delete-problem')).toHaveText("Couldn't delete the row: Only the person who added a row can delete it")
+  await bo.reload()
+  await expect(bo.getByRole('table')).toContainText('Heron')
+
+  await ann.reload()
+  await ann
+    .getByRole('table')
+    .getByRole('button', { name: /^Delete row/ })
+    .click()
+  await ann.getByRole('table').getByRole('button', { name: 'Delete', exact: true }).click()
+  await expect(ann.getByRole('table').getByText('Heron')).toHaveCount(0)
+})

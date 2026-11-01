@@ -357,6 +357,20 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
     if (e.def.single) singles.set(e.def.type, id)
   }
 
+  // Features that need another kind of feature (`requires`), once every feature has generated.
+  const generatedTypes = new Set([...resolved.values()].map((r) => r.feature))
+  for (const [id, r] of resolved) {
+    const def = entries.get(id)?.def
+    let need: ReturnType<NonNullable<FeatureDefinition['requires']>>
+    try {
+      need = def?.requires?.(r.exports)
+    } catch (e) {
+      report({ code: 'feature-error', severity: 'error', featureInstanceId: id, message: `Feature threw in requires: ${errorMessage(e)}` })
+      continue
+    }
+    if (need && !generatedTypes.has(need.feature)) report({ code: 'missing-required-feature', severity: 'error', featureInstanceId: id, message: need.message })
+  }
+
   // 4. Assemble the tree. Features are appended to their slot in model order, so siblings keep the order users chose.
   const template = node('root', ROOT_ID, {}, { slot: ROOT_SLOT })
   slotNodes.set(slotKey(ROOT_ID, ROOT_SLOT), template)

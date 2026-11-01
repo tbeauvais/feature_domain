@@ -335,6 +335,30 @@ describe('custom features', () => {
     expect(r.metadata.targets.filter((t) => t.parent === 'b')).toEqual([])
   })
 
+  it('reports a feature that needs another kind of feature none of which generates, and one whose requires throws', () => {
+    const needy = stub({
+      type: 'Needy',
+      placement: 'none',
+      generate: () => ({ exports: { wants: true } }),
+      requires: (exports) => (exports.wants ? { feature: 'ThemeFeature', message: 'Needs a theme' } : undefined),
+    })
+    const thrower = stub({
+      type: 'Thrower',
+      placement: 'none',
+      generate: () => ({}),
+      requires: () => {
+        throw new Error('boom')
+      },
+    })
+    const r = generate(model(page(), inst('Needy', 'n', {}, null), inst('Thrower', 'x', {}, null)), registry(needy, thrower))
+    expect(r.diagnostics.map((d) => `${d.code}:${d.featureInstanceId}: ${d.message}`)).toEqual([
+      'missing-required-feature:n: Needs a theme',
+      'feature-error:x: Feature threw in requires: boom',
+    ])
+    expect(statusOf(r, 'n')).toBe('generated')
+    expect(codes(generate(model(inst('ThemeFeature', 't', {}, null), page(), inst('Needy', 'n', {}, null)), registry(needy)))).toEqual([])
+  })
+
   it('skips placed features that generate no node', () => {
     const empty = stub({ type: 'Empty', generate: () => ({}) })
     expect(codes(generate(model(page(), inst('Empty', 'e')), registry(empty)))).toEqual(['missing-node:e'])

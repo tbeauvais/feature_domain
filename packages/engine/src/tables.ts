@@ -28,7 +28,7 @@ export interface TableField {
 }
 
 /** Fields every row has, set by the server: never a field of the table, and ignored in what is sent. */
-export const ROW_SYSTEM_FIELDS = ['id', 'created_at', 'updated_at'] as const
+export const ROW_SYSTEM_FIELDS = ['id', 'created_at', 'updated_at', 'created_by'] as const
 
 /** At most this many fields: a table wider than that wants splitting anyway. */
 export const MAX_TABLE_FIELDS = 30

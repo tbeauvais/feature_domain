@@ -37,6 +37,11 @@ export interface AuthForOptions {
   waitUntil: (promise: Promise<unknown>) => void
   /** Turns on the signed session cookie cache. */
   cookieCache?: boolean
+  /**
+   * Deletes or keeps (without their name) the rows a person added, before their account is deleted: if it fails, the
+   * account stays, and deleting it again tries again.
+   */
+  forgetUser?: (userId: string) => Promise<void>
 }
 
 export const AUTH_BASE_PATH = '/api/v1/app/auth'
@@ -74,7 +79,10 @@ export function authConfig(options: AuthForOptions) {
     trustedOrigins: [new URL(options.baseURL).origin],
     telemetry: { enabled: false },
     // Delete my account: Better Auth asks for a recent sign-in (a day, its default freshAge) before deleting.
-    user: { modelName: t.user, deleteUser: { enabled: true } },
+    user: {
+      modelName: t.user,
+      deleteUser: { enabled: true, ...(options.forgetUser ? { beforeDelete: (user: { id: string }) => options.forgetUser!(user.id) } : {}) },
+    },
     session: { modelName: t.session, cookieCache: { enabled: options.cookieCache ?? false, maxAge: 300 } },
     account: { modelName: t.account },
     verification: { modelName: t.verification },

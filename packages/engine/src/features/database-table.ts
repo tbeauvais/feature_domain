@@ -1,8 +1,11 @@
+import { accessNeedsSignIn, ADD_RULES, DELETED_ACCOUNT_ROWS, ROW_RULES, type TableAccess } from '../access.js'
 import type { FeatureDefinition } from '../feature.js'
-import { asList, asString, nameInput } from '../inputs.js'
+import type { InputValue } from '../types.js'
+import { asList, asString, nameInput, type InputDef } from '../inputs.js'
 import { isTableKey, tableRowsAddress } from '../links.js'
 import { tableSchema, validateRow, type FieldValue, type TableField, type TableSchema } from '../tables.js'
 import { MAX_SAMPLE_ROWS, parseSampleRows, type DataOperation, type DataParameter, type DataProperty, type DataResourceExports } from './data-resource.js'
+import { SIGN_IN_FEATURE } from './sign-in.js'
 import { fieldLabel } from './sources.js'
 
 /** What a Database table exports: a data resource over its rows, plus the table itself for the Worker that stores them. */
@@ -10,9 +13,13 @@ export interface DatabaseTableExports extends DataResourceExports {
   table: {
     /** Where its rows are kept: the table's instance id, so renaming it keeps them. */
     key: string
+    /** Its name (what a person's downloaded data calls it). */
+    name: string
     schema: TableSchema
     /** The rows a new table starts with (stored once, the first time its rows are read), as stored. */
     sampleRows: Record<string, FieldValue>[]
+    /** Who may see, add, change and delete its rows on the published app, and what a deleted account leaves. */
+    access: TableAccess
   }
 }
 
@@ -93,6 +100,44 @@ function sampleRows(text: string, schema: TableSchema, report: (message: string)
   return out
 }
 
+const RULE_TEXT: Record<string, string> = { anyone: 'Anyone', 'signed-in': 'Signed in', owner: 'Owner', nobody: 'No one' }
+const GROUP = 'Who can'
+
+/** A rule's input: segmented, under "Who can". */
+const ruleInput = (name: string, label: string, rules: readonly string[], hint: string): InputDef => ({
+  name,
+  label,
+  type: 'string',
+  default: 'anyone',
+  control: 'segmented',
+  options: rules.map((value) => ({ value, text: RULE_TEXT[value]! })),
+  group: GROUP,
+  hint,
+})
+
+/** The rule inputs, by operation. */
+const RULE_INPUTS = [
+  { input: 'see_rows', operation: 'see', rules: ROW_RULES, label: 'See rows' },
+  { input: 'add_rows', operation: 'add', rules: ADD_RULES, label: 'Add rows' },
+  { input: 'change_rows', operation: 'change', rules: ROW_RULES, label: 'Change rows' },
+  { input: 'delete_rows', operation: 'delete', rules: ROW_RULES, label: 'Delete rows' },
+] as const
+
+/** The table's rules, read from its inputs. An unknown one is an error, and no one may do that (never opened by a typo). */
+function readAccess(inputs: Readonly<Record<string, InputValue | undefined>>, report: (message: string) => void): TableAccess {
+  const access = { deletedAccounts: 'delete' } as TableAccess
+  for (const { input, operation, rules, label } of RULE_INPUTS) {
+    const stored = asString(inputs[input])
+    const known = (rules as readonly string[]).includes(stored)
+    if (!known) report(`"${stored}" isn't a choice of who can ${label.toLowerCase()}: choose one`)
+    ;(access as unknown as Record<string, string>)[operation] = known ? stored : 'nobody'
+  }
+  const kept = asString(inputs.deleted_accounts)
+  if ((DELETED_ACCOUNT_ROWS as readonly string[]).includes(kept)) access.deletedAccounts = kept as TableAccess['deletedAccounts']
+  else report(`"${kept}" isn't a choice of what happens to a deleted account's rows: choose one`)
+  return access
+}
+
 /**
  * A table of rows kept by the app (in D1, by the Worker), defined by its fields. It is a data resource like any
  * other, so a Table lists its rows, a Form adds them and a Text counts them, with no address to set up.
@@ -122,7 +167,31 @@ export const DatabaseTableFeature: FeatureDefinition = {
       hint: 'The rows the table starts with, the first time it is read',
       control: 'json-area',
     },
+    ruleInput('see_rows', 'See rows', ROW_RULES, 'On the published app. Owner: each person sees only the rows they added.'),
+    ruleInput('add_rows', 'Add rows', ADD_RULES, 'Signed in: rows remember who added them, for Owner rules.'),
+    ruleInput('change_rows', 'Change rows', ROW_RULES, 'Owner: only the person who added a row.'),
+    ruleInput('delete_rows', 'Delete rows', ROW_RULES, 'Owner: only the person who added a row.'),
+    {
+      name: 'deleted_accounts',
+      label: 'When someone deletes their account',
+      type: 'string',
+      default: 'delete',
+      control: 'segmented',
+      options: [
+        { value: 'delete', text: 'Delete their rows' },
+        { value: 'keep', text: 'Keep them, without their name' },
+      ],
+      group: GROUP,
+      hint: 'Keep shared records, such as a team’s requests, when the person who added them leaves.',
+    },
   ],
+
+  // Rules that need someone signed in need sign-in: without it the published app would refuse everyone.
+  requires(exports) {
+    const access = isDatabaseTableExports(exports) ? exports.table.access : undefined
+    if (!access || !accessNeedsSignIn(access)) return undefined
+    return { feature: SIGN_IN_FEATURE, message: 'Its rules need people to sign in: add a Sign-in feature, or set them to Anyone or No one' }
+  },
 
   generate(inputs, ctx) {
     const name = asString(inputs.name)
@@ -131,6 +200,7 @@ export const DatabaseTableFeature: FeatureDefinition = {
     if (schema.fields.length === 0) ctx.report('warning', 'The table has no fields: list them in Fields, like "name: text, required"')
     const key = ctx.instanceId
     const rows = sampleRows(asString(inputs.sample_rows), schema, (message) => ctx.report('warning', message))
+    const access = readAccess(inputs, (message) => ctx.report('error', message))
     const exports: DatabaseTableExports = {
       resource: name,
       operations: [],
@@ -143,7 +213,7 @@ export const DatabaseTableFeature: FeatureDefinition = {
         },
         [ROWS_SCHEMA]: { type: 'array', items: { $ref: ROW_SCHEMA } },
       },
-      table: { key, schema, sampleRows: rows },
+      table: { key, name, schema, sampleRows: rows, access },
     }
     if (isTableKey(key)) exports.operations = operations(key, schema)
     else ctx.report('error', `The table's id "${key}" can't name where its rows are kept; give it an id of letters, digits, "_" or "-"`)

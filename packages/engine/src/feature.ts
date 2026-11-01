@@ -48,6 +48,12 @@ export interface FeatureDefinition {
    * first in generation order does; the others are skipped with an error, so a model holding two can't be published.
    */
   single?: boolean
+  /**
+   * Another feature type this one needs, given what it exported (e.g. a Database table whose rules need someone signed
+   * in needs a Sign-in feature): if none of that type generates, it is an error (`missing-required-feature`) with the
+   * message given. The feature itself still generates.
+   */
+  requires?(exports: Readonly<Record<string, unknown>>): { feature: string; message: string } | undefined
   /** Slot keys this feature provides. Each must appear as a node with a matching `slot` in its output. */
   slots?(inputs: Inputs): string[]
   /** Instance ids this feature depends on beyond its `reference` inputs. */
