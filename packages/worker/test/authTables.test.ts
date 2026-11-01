@@ -212,8 +212,11 @@ describe('publishing and deleting', () => {
   })
   const page = { feature: 'PageFeature', id: '1', inputs: { name: 'Home' }, placement: { parent: '$root', slot: 'content' } }
   /** Until the engine has a Sign-in feature, a model "has sign-in" by its name. */
-  const signIn = (model: AppModel) => model.name.endsWith('with sign-in')
-  const model = (name: string): AppModel => ({ version: 2, name, features: [page] })
+  const model = (name: string): AppModel => ({
+    version: 2,
+    name,
+    features: name.endsWith('with sign-in') ? [page, { feature: SIGN_IN_FEATURE, id: '2', inputs: {} }] : [page],
+  })
 
   async function stored(own: ReturnType<typeof createApp>, m: AppModel): Promise<{ id: string; revision: string }> {
     const response = await own.request(`${BUILDER}/api/v1/models`, json(m), env)
@@ -224,12 +227,12 @@ describe('publishing and deleting', () => {
 
   it('counts a Sign-in feature only when it generates', () => {
     expect(hasSignIn(model('Plain'))).toBe(false)
-    // Not a feature the engine knows yet (it comes with the sign-in page), so it doesn't generate.
-    expect(hasSignIn({ ...model('Signed'), features: [page, { feature: SIGN_IN_FEATURE, id: '2', inputs: {} }] })).toBe(false)
+    expect(hasSignIn(model('Meetup with sign-in'))).toBe(true)
+    expect(hasSignIn({ ...model('Signed'), features: [page, { feature: SIGN_IN_FEATURE, id: '2', inputs: { disable: true } }] })).toBe(false)
   })
 
   it('creates the tables when a version with sign-in is published, and keeps them for the next', async () => {
-    const own = createApp({ signIn })
+    const own = createApp()
     const { id, revision } = await stored(own, model('Meetup with sign-in'))
     expect((await publish(own, id, revision, 'meetup')).status).toBe(200)
     const auth = await store.get(id)
@@ -239,7 +242,7 @@ describe('publishing and deleting', () => {
   })
 
   it('creates none for a version without sign-in', async () => {
-    const own = createApp({ signIn })
+    const own = createApp()
     const { id, revision } = await stored(own, model('Harbor Coffee'))
     expect((await publish(own, id, revision, 'harbor')).status).toBe(200)
     expect(await store.get(id)).toBeNull()
@@ -247,7 +250,7 @@ describe('publishing and deleting', () => {
   })
 
   it('drops them when the model is deleted', async () => {
-    const own = createApp({ signIn })
+    const own = createApp()
     const { id, revision } = await stored(own, model('Meetup with sign-in'))
     await publish(own, id, revision, 'meetup')
     expect((await own.request(`${BUILDER}/api/v1/models/${id}`, { method: 'DELETE' }, env)).status).toBe(204)
@@ -267,7 +270,7 @@ describe('publishing and deleting', () => {
       await new Promise<void>((resolve) => (resume = resolve))
       return made
     }
-    const own = createApp({ signIn, authTables: () => tables })
+    const own = createApp({ authTables: () => tables })
     const other = await stored(own, model('Harbor Coffee'))
     expect((await publish(own, other.id, other.revision, 'meetup')).status).toBe(200)
     const { id, revision } = await stored(own, model('Meetup with sign-in'))
@@ -282,7 +285,7 @@ describe('publishing and deleting', () => {
 
   it('still deletes the model when dropping its tables fails, and leaves them for db:upgrade-apps', async () => {
     const tables = new D1AuthTables(db)
-    const own = createApp({ signIn, authTables: () => tables })
+    const own = createApp({ authTables: () => tables })
     const { id, revision } = await stored(own, model('Meetup with sign-in'))
     await publish(own, id, revision, 'meetup')
     tables.drop = () => Promise.reject(new Error('D1 is down'))
@@ -309,7 +312,7 @@ describe('publishing and deleting', () => {
         if (when === 'after') await pause()
         return made
       }
-      const own = createApp({ signIn, authTables: () => tables })
+      const own = createApp({ authTables: () => tables })
       const { id, revision } = await stored(own, model('Meetup with sign-in'))
       const publishing = publish(own, id, revision, 'meetup')
       await paused

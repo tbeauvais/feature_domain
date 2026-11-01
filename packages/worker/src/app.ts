@@ -6,6 +6,7 @@ import {
   ModelConflictError,
   ModelNotFoundError,
   newModel,
+  signInOf as signInSettings,
   slugProblem,
   validateModel,
   type AppModel,
@@ -17,7 +18,6 @@ import { bodyLimit } from 'hono/body-limit'
 import { createAppHost } from './appHost'
 import { CloudflareMailer, type Mailer } from './auth/mailer'
 import { appSignIn } from './auth/route'
-import { hasSignIn } from './auth/signIn'
 import { D1AuthTables, type AuthTables } from './auth/store'
 import { AlreadyPublishedError, ClaimLostError, SlugTakenError, type AppStore } from './apps'
 import { D1AppStore } from './d1AppStore'
@@ -53,8 +53,6 @@ export interface AppOptions {
   hosts?: Hosts
   /** Published apps' sign-in tables (src/auth/store.ts). */
   authTables?: (env: Env) => AuthTables
-  /** Whether a version to publish has sign-in, so its app gets auth tables (else a Sign-in feature in it). */
-  signIn?: (model: AppModel) => boolean
   /** Sends sign-in codes (tests); else Cloudflare Email Sending on the EMAIL binding, from MAIL_FROM. */
   mailer?: (env: Env) => Mailer | undefined
 }
@@ -77,9 +75,8 @@ export function createApp(options: AppOptions = {}) {
   const appStoreOf = (env: Env) => (options.apps ? options.apps(env) : new D1AppStore(env.DB))
   const hostsFor = (env: Env | undefined) => options.hosts ?? hostsOf(env)
   const authTablesOf = (env: Env) => (options.authTables ? options.authTables(env) : new D1AuthTables(env.DB))
-  const signIn = options.signIn ?? hasSignIn
   const mailerOf = options.mailer ?? ((env: Env) => (env?.EMAIL && env.MAIL_FROM ? new CloudflareMailer(env.EMAIL, env.MAIL_FROM) : undefined))
-  const signInOf = versionCache((model) => appSignIn(model, signIn))
+  const signInOf = versionCache(appSignIn)
   const originsOf = versionCache(allowedOrigins)
   const tablesOf = versionCache((model) => databaseTables(model))
   const builder = createBuilder()
@@ -273,9 +270,8 @@ export function createApp(options: AppOptions = {}) {
      */
     const release = async (c: Context<AppEnv>, id: string, app: AppModel, body: PublishRequest, claim: string): Promise<Response> => {
       // Generated as the engine does now: an earlier version that no longer generates cleanly isn't published either.
-      const problems = generate(app)
-        .diagnostics.filter((d) => d.severity === 'error')
-        .map((d) => d.message)
+      const generated = generate(app)
+      const problems = generated.diagnostics.filter((d) => d.severity === 'error').map((d) => d.message)
       if (problems.length > 0) return error(400, 'The model has problems to fix before it can be published', { problems })
       const apps = appStoreOf(c.env)
       const rows = rowStoreOf(c.env)
@@ -305,7 +301,7 @@ export function createApp(options: AppOptions = {}) {
       if (first) await (body.copyDraftRows ? rows.copySpace(id, 'draft', 'live') : rows.keepTables(id, 'live', []))
       // An app with sign-in gets its auth tables before it is served: created, or brought up to date. Never dropped here
       // (an earlier version without sign-in published again keeps them, and its accounts, for a later one with it).
-      if (signIn(app)) await authTablesOf(c.env).ensure(id)
+      if (signInSettings(generated)) await authTablesOf(c.env).ensure(id)
       let publication
       try {
         // Only while the claim holds: one taken over (a publish past PUBLISHING_CLAIM_MS) stores nothing.

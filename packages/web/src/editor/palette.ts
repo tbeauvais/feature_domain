@@ -7,7 +7,16 @@ const GROUPS: { label: string; types: string[] }[] = [
   { label: 'Media and cards', types: ['ImageFeature', 'ImageWithParagraphFeature', 'ListGroupFeature', 'ButtonFeature', 'GoogleMapFeature', 'WeatherFeature'] },
   {
     label: 'Data and style',
-    types: ['DataResourceFeature', 'DatabaseTableFeature', 'SwaggerDataResourceFeature', 'TableFeature', 'GoogleChartFeature', 'FormFeature', 'ThemeFeature'],
+    types: [
+      'DataResourceFeature',
+      'DatabaseTableFeature',
+      'SwaggerDataResourceFeature',
+      'TableFeature',
+      'GoogleChartFeature',
+      'FormFeature',
+      'ThemeFeature',
+      'SignInFeature',
+    ],
   },
 ]
 

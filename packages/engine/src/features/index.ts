@@ -17,6 +17,7 @@ import { WeatherFeature } from './weather.js'
 import { PageFeature } from './page.js'
 import { PanelFeature } from './panel.js'
 import { SeparatorFeature } from './separator.js'
+import { SignInFeature } from './sign-in.js'
 import { TableFeature } from './table.js'
 import { TextFeature } from './text.js'
 import { TextWithParagraphFeature } from './text-with-paragraph.js'
@@ -68,6 +69,19 @@ export { FORECAST_DAYS, OPEN_METEO_CREDIT, openMeteoUrl, readCoordinate, WEATHER
 export { PageFeature } from './page.js'
 export { PanelFeature } from './panel.js'
 export { SeparatorFeature } from './separator.js'
+export {
+  isSignInExports,
+  MAX_ALLOWED_ENTRIES,
+  onAllowedList,
+  OPEN_TO,
+  readAllowedEntry,
+  SIGN_IN_FEATURE,
+  SignInFeature,
+  signInOf,
+  type OpenTo,
+  type SignInExports,
+  type SignInSettings,
+} from './sign-in.js'
 export { columnsFromRows, defaultOperation, fieldLabel, isDataAddress, withInputs } from './sources.js'
 export { TableFeature } from './table.js'
 export { parseBindings, TextFeature } from './text.js'
@@ -97,6 +111,7 @@ export const coreFeatures = [
   ChartFeature,
   FormFeature,
   ThemeFeature,
+  SignInFeature,
 ]
 
 export const defaultRegistry = createRegistry(coreFeatures)

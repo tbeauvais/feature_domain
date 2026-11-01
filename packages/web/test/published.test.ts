@@ -46,10 +46,33 @@ describe('loadPublishedApp', () => {
     expect(await load(async () => json({ ...published, id: undefined }))).toMatchObject({ status: 'error', message: expect.stringContaining('no id') })
     expect(await load(async () => Promise.reject(new TypeError('Failed to fetch')))).toMatchObject({ status: 'error' })
   })
+
+  it("tells the app's own sign-in from an expired Access session", async () => {
+    const load = (answer: () => Promise<Response>) => loadPublishedApp(answer as unknown as typeof fetch)
+    expect(await load(async () => json({ error: 'Sign in to open this app', sign_in: { app: 'Members' } }, 401))).toEqual({ status: 'sign-in', app: 'Members' })
+    expect(await load(async () => json({ error: 'Listed only', sign_in: { app: 'Board', email: 'ann@example.com' } }, 403))).toEqual({
+      status: 'sign-in',
+      app: 'Board',
+      email: 'ann@example.com',
+    })
+    // A 401 that isn't the app's sign-in answer is a failure like any other.
+    expect(await load(async () => json({ error: 'No' }, 401))).toMatchObject({ status: 'error', message: expect.stringContaining('(401)') })
+  })
 })
 
 describe('PublishedApp', () => {
   afterEach(() => vi.unstubAllGlobals())
+
+  it('says who the app is open to when it asks for sign-in', async () => {
+    vi.stubGlobal('fetch', async () => json({ error: 'Sign in to open this app', sign_in: { app: 'Members' } }, 401))
+    const w = mount(PublishedApp)
+    await flushPromises()
+    expect(w.text()).toBe('Members is open only to people signed in.')
+    vi.stubGlobal('fetch', async () => json({ error: 'Listed only', sign_in: { app: 'Board', email: 'eve@example.com' } }, 403))
+    const listed = mount(PublishedApp)
+    await flushPromises()
+    expect(listed.text()).toBe("Board is open only to the people it lists, and eve@example.com isn't one of them.")
+  })
 
   it('renders the app, reading its live rows on its own host, and names the page after it', async () => {
     vi.stubGlobal('fetch', async () => json(published))

@@ -301,6 +301,7 @@ export type DiagnosticCode =
   | 'missing-node'
   | 'invalid-node-id'
   | 'duplicate-node-id'
+  | 'duplicate-single'
   | 'invalid-edit-mark'
   | 'cycle'
   | 'parent-skipped'

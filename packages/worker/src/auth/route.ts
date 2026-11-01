@@ -2,13 +2,12 @@
 // /api/v1/app/account (what the app holds about the person signed in, to download). The app is always the one the
 // host names: its tables, its secret, its exact address. Only while the published version has sign-in.
 
-import type { AppModel } from '@feature-domain/engine'
+import { generate, onAllowedList, signInOf, type AppModel, type OpenTo } from '@feature-domain/engine'
 import type { Context, Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { error, sendsJson } from '../http'
 import { appSecret, AUTH_BASE_PATH, authFor } from './authFor'
 import type { Mailer } from './mailer'
-import { hasSignIn } from './signIn'
 import type { AppAuth, AuthTables } from './store'
 import { AUTH_SCHEMA_STEPS } from './tables'
 
@@ -28,27 +27,18 @@ export const MAX_AUTH_REQUEST_BYTES = 4096
 export interface AppSignIn {
   on: boolean
   name: string
+  /** Who can open the app: its version, rows and proxy answer only them. */
+  openTo: OpenTo
   /** Whether people without an account may make one by signing in. */
   signUp: boolean
   /** The emails and `@domains` that may sign in, or null for anyone. */
   allowed: readonly string[] | null
 }
 
-/** The version's sign-in. Open to anyone until the Sign-in feature (next) sets who may sign up and sign in. */
-export const appSignIn = (model: AppModel, signIn: (model: AppModel) => boolean = hasSignIn): AppSignIn => ({
-  on: signIn(model),
-  name: model.name,
-  signUp: true,
-  allowed: null,
-})
-
-/** Whether an address is on the list: an exact email, or one at a listed `@domain` (case doesn't matter). */
-export function onList(allowed: readonly string[], email: string): boolean {
-  const address = email.trim().toLowerCase()
-  return allowed.some((entry) => {
-    const e = entry.trim().toLowerCase()
-    return e.startsWith('@') ? address.endsWith(e) : address === e
-  })
+/** The version's sign-in: its Sign-in feature's settings (src/features/sign-in.ts in the engine), if one generates. */
+export function appSignIn(model: AppModel): AppSignIn {
+  const settings = signInOf(generate(model))
+  return { on: settings !== null, name: model.name, openTo: settings?.openTo ?? 'anyone', signUp: settings?.signUp ?? true, allowed: settings?.allowed ?? null }
 }
 
 /** What the sign-in routes need for the app a request is for. */
@@ -65,6 +55,7 @@ export interface SignInTarget {
 }
 
 const NO_SIGN_IN = 'This app has no sign-in'
+const NOT_READY = "This app's sign-in isn't set up: publishing it again sets it up"
 
 /** The app's published version was deleted while the request was answered: as if it never was (a 404). */
 export class SignInGone extends Error {}
@@ -101,18 +92,25 @@ function upgradeOnce(tables: AuthTables, model: string): Promise<AppAuth | null>
 export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) => Promise<SignInTarget>) {
   const limit = bodyLimit({ maxSize: MAX_AUTH_REQUEST_BYTES, onError: () => error(413, 'The request is too large') })
 
-  /** Better Auth for the app (and what was found for it), or the answer when it can't have one. */
-  const authOf = async (c: Context, sending = false) => {
-    let found: SignInTarget
+  /** What was found for the app, or the answer when its version was deleted meanwhile. */
+  const find = async (c: Context): Promise<SignInTarget | Response> => {
     try {
-      found = await target(c)
+      return await target(c)
     } catch (e) {
       if (e instanceof SignInGone) return error(404, e.message)
       throw e
     }
+  }
+
+  /** Better Auth for the app (and what was found for it), or the answer when it can't have one. */
+  const authOf = async (c: Context, sending = false, given?: SignInTarget) => {
+    const found = given ?? (await find(c))
+    if (found instanceof Response) return found
     if (!found.signIn.on || !found.db || !found.tables) return error(404, NO_SIGN_IN)
     const current = await found.tables.get(found.model)
-    if (!current) return error(404, NO_SIGN_IN)
+    // Its tables are made by the publish, before the app is served: none means that step failed, which publishing again
+    // repeats. Not a 404, which would read as an app without sign-in.
+    if (!current) return error(503, NOT_READY)
     if (!found.secret) return error(503, "Sign-in isn't set up on this server")
     if (sending && !found.mailer) return error(503, "Sign-in email isn't set up on this server")
     // Its tables are made when a version with sign-in is published, and brought up to date here, once, after a deploy
@@ -129,7 +127,7 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
       mailer: found.mailer ?? { send: () => Promise.reject(new Error('No mailer')) },
       waitUntil: found.waitUntil,
       signUp: found.signIn.signUp,
-      ...(allowed ? { allows: (email: string) => onList(allowed, email) } : {}),
+      ...(allowed ? { allows: (email: string) => onAllowedList(allowed, email) } : {}),
     })
     return { auth, found }
   }
@@ -178,6 +176,48 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
     )
   })
   api.all('/app/account', () => error(405, 'Method not allowed', { allow: 'GET' }))
+
+  return {
+    /**
+     * Whether a request may see the app: its version, rows and proxy. An app open to anyone, or without sign-in, lets
+     * everyone in (undefined); otherwise only a person signed in (else a 401), and for a list, only while their email is
+     * on it (else a 403; the list may have changed since they signed in). Each answer names the app, for its sign-in
+     * page. An app that needs sign-in but can't check it (no secret, no tables) lets no one in.
+     */
+    async visitor(c: Context): Promise<Visitor> {
+      const found = await find(c)
+      if (found instanceof Response) return { refused: found }
+      if (!found.signIn.on || found.signIn.openTo === 'anyone') return { gated: false }
+      const app = await authOf(c, false, found)
+      if (app instanceof Response) return { refused: app }
+      // Reading a session past its update age extends it: the renewed cookie goes out with the answer.
+      const { headers, response: session } = await app.auth.api.getSession({ headers: c.req.raw.headers, returnHeaders: true })
+      const cookies = headers.getSetCookie()
+      const { name, allowed } = found.signIn
+      if (!session) return { refused: signInAnswer(401, 'Sign in to open this app', { app: name }, cookies) }
+      if (allowed && !onAllowedList(allowed, session.user.email))
+        return { refused: signInAnswer(403, 'This app is open only to the people it lists', { app: name, email: session.user.email }, cookies) }
+      return { gated: true, cookies }
+    },
+  }
+}
+
+/**
+ * Whether a request may see the app: `refused` with the answer, or let in, `gated` when that took a session (so the
+ * answer is the person's own, never for a shared cache), with any cookie the session read renewed.
+ */
+export type Visitor = { refused: Response } | { gated: false } | { gated: true; cookies: readonly string[] }
+
+/** What an app asking for sign-in answers: its page shows the sign-in page for `sign_in`. Never cached. */
+export interface SignInAnswer {
+  error: string
+  sign_in: { app: string; email?: string }
+}
+
+function signInAnswer(status: 401 | 403, message: string, signIn: SignInAnswer['sign_in'], cookies: readonly string[]) {
+  const answer = Response.json({ error: message, sign_in: signIn } satisfies SignInAnswer, { status, headers: { 'Cache-Control': 'no-store' } })
+  for (const cookie of cookies) answer.headers.append('Set-Cookie', cookie)
+  return answer
 }
 
 /** The `type` a code request asks for: null when it names none, undefined when the body isn't JSON. */

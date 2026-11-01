@@ -9,7 +9,12 @@ export const PUBLISHED_APP_TIMEOUT_MS = 20_000
 
 /** What a published app's page shows: the app, or why it can't. */
 export type PublishedApp =
-  { status: 'ready'; id: string; name: string; root: DocNode } | { status: 'none' } | { status: 'signed-out' } | { status: 'error'; message: string }
+  | { status: 'ready'; id: string; name: string; root: DocNode }
+  | { status: 'none' }
+  | { status: 'signed-out' }
+  /** The app is open only to people signed in (or listed, when `email`, signed in, isn't): its own sign-in, not Access. */
+  | { status: 'sign-in'; app: string; email?: string }
+  | { status: 'error'; message: string }
 
 /**
  * Reads the app published at this host once (it never polls and never saves) and generates it, upgrading a model stored
@@ -30,6 +35,8 @@ export async function loadPublishedApp(fetchImpl: typeof fetch = fetch): Promise
   }
   if (isSignInAnswer(response)) return { status: 'signed-out' }
   if (response.status === 404) return { status: 'none' }
+  const signIn = await appSignInAnswer(response)
+  if (signIn) return signIn
   if (!response.ok) return { status: 'error', message: `The app couldn't be loaded (${response.status}).` }
   let model: unknown
   try {
@@ -50,5 +57,19 @@ export async function loadPublishedApp(fetchImpl: typeof fetch = fetch): Promise
     return { status: 'ready', id: upgraded.id!, name: upgraded.name, root }
   } catch (e) {
     return { status: 'error', message: `The app couldn't be shown: ${e instanceof Error ? e.message : String(e)}` }
+  }
+}
+
+/** The app's own answer asking for sign-in (a 401, or a 403 for someone it doesn't list): `{ error, sign_in }`. */
+async function appSignInAnswer(response: Response): Promise<PublishedApp | undefined> {
+  if ((response.status !== 401 && response.status !== 403) || !response.headers.get('Content-Type')?.includes('application/json')) return undefined
+  try {
+    const body = (await response.clone().json()) as { sign_in?: { app?: unknown; email?: unknown } } | null
+    const app = body?.sign_in?.app
+    if (typeof app !== 'string') return undefined
+    const email = body?.sign_in?.email
+    return typeof email === 'string' ? { status: 'sign-in', app, email } : { status: 'sign-in', app }
+  } catch {
+    return undefined
   }
 }
