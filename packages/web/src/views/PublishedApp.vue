@@ -22,6 +22,8 @@ onMounted(load)
   <DocumentView v-if="app?.status === 'ready'" :root="app.root" :model-id="app.id" app />
   <p v-else-if="app?.status === 'none'">Nothing is published at this address.</p>
   <p v-else-if="app?.status === 'signed-out'">Your sign-in has expired. Reload the page to sign in again.</p>
+  <p v-else-if="app?.status === 'sign-in' && app.email">{{ app.app }} is open only to the people it lists, and {{ app.email }} isn't one of them.</p>
+  <p v-else-if="app?.status === 'sign-in'">{{ app.app }} is open only to people signed in.</p>
   <div v-else-if="app?.status === 'error'" role="alert">
     <p>{{ app.message }}</p>
     <button type="button" @click="load">Try again</button>

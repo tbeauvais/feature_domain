@@ -242,6 +242,8 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
   const generated = new Map<string, DocNode>()
   const slotNodes = new Map<string, DocNode>()
   const nodeIds = new Set([ROOT_ID])
+  /** The generated instance of each `single` feature type. */
+  const singles = new Map<string, string>()
 
   for (const id of order) {
     if (status.has(id)) continue
@@ -277,6 +279,12 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
         const why = status.get(p) === 'suppressed' ? 'is suppressed' : 'was not generated'
         report({ code: 'dependency-skipped', severity: 'warning', featureInstanceId: id, message: `Referenced ${describe(p)} ${why}; generating without it` })
       }
+    }
+
+    const first = e.def.single ? singles.get(e.def.type) : undefined
+    if (first !== undefined) {
+      fail(id, { code: 'duplicate-single', severity: 'error', message: `An app has one ${e.def.name}: ${describe(first)} is the one used, so remove this one` })
+      continue
     }
 
     const undeclared = new Set<string>()
@@ -346,6 +354,7 @@ export function generate(model: AppModel, registry: FeatureRegistry = defaultReg
     }
     resolved.set(id, { id, feature: e.instance.feature, name: asString(e.inputs.name), exports: frozenCopy(out.exports ?? {}) })
     status.set(id, 'generated')
+    if (e.def.single) singles.set(e.def.type, id)
   }
 
   // 4. Assemble the tree. Features are appended to their slot in model order, so siblings keep the order users chose.

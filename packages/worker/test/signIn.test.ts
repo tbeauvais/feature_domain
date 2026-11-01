@@ -1,12 +1,12 @@
 // A published app's sign-in on its own host (src/auth/route.ts), through the Worker's routes on the real local D1:
 // emailed codes, sessions, signing out, deleting an account and downloading it, on two apps at once.
 
-import type { AppModel } from '@feature-domain/engine'
+import { onAllowedList, SIGN_IN_FEATURE, type AppModel, type InputValue } from '@feature-domain/engine'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from '../src/app'
 import { appSecret, authFor } from '../src/auth/authFor'
 import { MemoryMailer } from '../src/auth/mailer'
-import { appSignIn, onList } from '../src/auth/route'
+import { appSignIn } from '../src/auth/route'
 import { D1AuthTables } from '../src/auth/store'
 import { authTables, tablesOf } from '../src/auth/tables'
 import type { Env } from '../src/env'
@@ -28,8 +28,6 @@ afterAll(() => d1?.dispose())
 
 let mailer: MemoryMailer
 let tasks: Promise<unknown>[]
-/** Until the engine has a Sign-in feature, a model "has sign-in" by its name. */
-const signIn = (model: AppModel) => model.name.endsWith('with sign-in')
 let app: ReturnType<typeof createApp>
 
 const tables = () => new D1AuthTables(db)
@@ -43,7 +41,7 @@ const authTableNames = async () =>
 beforeEach(async () => {
   mailer = new MemoryMailer()
   tasks = []
-  app = createApp({ signIn, mailer: () => mailer })
+  app = createApp({ mailer: () => mailer })
   for (const row of (await db.prepare('SELECT model_id FROM app_auth').all<{ model_id: string }>()).results) await tables().drop(row.model_id)
   await db.exec('DELETE FROM models; DELETE FROM rows; DELETE FROM sampled_tables; DELETE FROM apps; DELETE FROM versions; DELETE FROM publishing')
 })
@@ -56,15 +54,19 @@ const post = (body: unknown, headers: Record<string, string> = {}): RequestInit 
   headers: { 'Content-Type': 'application/json', ...headers },
   body: JSON.stringify(body),
 })
-const model = (name: string): AppModel => ({
+/** A model with one page; named "… with sign-in", it has a Sign-in feature too (with these inputs). */
+const model = (name: string, signIn: Record<string, InputValue> = {}): AppModel => ({
   version: 2,
   name,
-  features: [{ feature: 'PageFeature', id: '1', inputs: { name: 'Home' }, placement: { parent: '$root', slot: 'content' } }],
+  features: [
+    { feature: 'PageFeature', id: '1', inputs: { name: 'Home' }, placement: { parent: '$root', slot: 'content' } },
+    ...(name.endsWith('with sign-in') ? [{ feature: SIGN_IN_FEATURE, id: '2', inputs: signIn }] : []),
+  ],
 })
 
 /** Stores and publishes a model at <slug>.localhost; returns its id and revision. */
-async function published(name: string, slug: string): Promise<{ id: string; revision: string }> {
-  const stored = await request('/api/v1/models', post(model(name)))
+async function published(name: string, slug: string, signIn: Record<string, InputValue> = {}): Promise<{ id: string; revision: string }> {
+  const stored = await request('/api/v1/models', post(model(name, signIn)))
   const id = ((await stored.json()) as { id: string }).id
   const revision = stored.headers.get('ETag')!
   expect((await request(`/api/v1/models/${id}/publish`, post({ slug }, { 'If-Match': revision }))).status).toBe(200)
@@ -220,9 +222,17 @@ describe('what an app answers', () => {
     const { AUTH_SECRET: _, ...noSecret } = env
     void _
     expect((await request(`${origin('meetup')}/api/v1/app/auth/get-session`, {}, noSecret)).status).toBe(503)
-    app = createApp({ signIn, mailer: () => undefined })
+    app = createApp({ mailer: () => undefined })
     expect((await askCode('meetup', 'ann@example.com')).status).toBe(503)
     expect((await auth('meetup', '/get-session')).status).toBe(200)
+  })
+
+  it('a 503 of its own when a version with sign-in has no tables (its publish failed at that step)', async () => {
+    const { id } = await published('Shoreline meetup with sign-in', 'meetup')
+    await tables().drop(id)
+    const answer = await auth('meetup', '/get-session')
+    expect(answer.status).toBe(503)
+    expect(await answer.json()).toEqual({ error: "This app's sign-in isn't set up: publishing it again sets it up" })
   })
 
   it('gives no tables back to an app deleted while its tables were being upgraded', async () => {
@@ -234,7 +244,7 @@ describe('what an app answers', () => {
     const racing = new D1AuthTables(db)
     let first = true
     racing.get = async (modelId) => (first ? ((first = false), { ...stale, schemaVersion: 0 }) : D1AuthTables.prototype.get.call(racing, modelId))
-    app = createApp({ signIn, mailer: () => mailer, authTables: () => racing })
+    app = createApp({ mailer: () => mailer, authTables: () => racing })
     expect((await auth('meetup', '/get-session')).status).toBe(404)
     expect(await real.get(id)).toBeNull()
     expect(await authTableNames()).toEqual([])
@@ -279,17 +289,16 @@ describe('the account', () => {
 })
 
 describe('who may sign in (the Sign-in feature sets these)', () => {
-  it('is anyone, with sign-up open, until the Sign-in feature says otherwise', () => {
-    expect(appSignIn(model('Club'), () => true)).toEqual({ on: true, name: 'Club', signUp: true, allowed: null })
-  })
-
-  it('matches listed emails exactly and listed @domains by their end, whatever the case', () => {
-    const list = ['ann@example.com', '@Club.Example']
-    expect(onList(list, 'ANN@example.com')).toBe(true)
-    expect(onList(list, 'bob@club.example')).toBe(true)
-    expect(onList(list, 'bob@example.com')).toBe(false)
-    expect(onList(list, 'bob@notclub.example')).toBe(false)
-    expect(onList(list, 'ann@example.com.evil')).toBe(false)
+  it("reads the version's Sign-in feature: none, the defaults, or its settings", () => {
+    expect(appSignIn(model('Club'))).toEqual({ on: false, name: 'Club', openTo: 'anyone', signUp: true, allowed: null })
+    expect(appSignIn(model('Club with sign-in'))).toEqual({ on: true, name: 'Club with sign-in', openTo: 'anyone', signUp: true, allowed: null })
+    expect(appSignIn(model('Club with sign-in', { open_to: 'signed-in', sign_up: false }))).toMatchObject({ on: true, openTo: 'signed-in', signUp: false })
+    expect(appSignIn(model('Club with sign-in', { open_to: 'listed', allowed: ['Ann@Example.com', '@club.example'] }))).toMatchObject({
+      openTo: 'listed',
+      signUp: true,
+      allowed: ['ann@example.com', '@club.example'],
+    })
+    expect(appSignIn(model('Club with sign-in', { disable: true })).on).toBe(false)
   })
 
   /** Better Auth for one app with these settings, called directly. */
@@ -332,7 +341,7 @@ describe('who may sign in (the Sign-in feature sets these)', () => {
 
   it('refuses a code sent while an address was allowed, once it no longer is, as a wrong code', async () => {
     const list = ['@club.example']
-    const club = await appWith({ allows: (email) => onList(list, email) })
+    const club = await appWith({ allows: (email) => onAllowedList(list, email) })
     await club.call('/email-otp/send-verification-otp', { email: 'ann@club.example', type: 'sign-in' })
     const code = /is (\d{6})\./.exec(club.sent.sent.at(-1)!.text)![1]!
     const wrong = await club.call('/sign-in/email-otp', { email: 'ann@club.example', otp: code === '000000' ? '111111' : '000000' })
@@ -351,6 +360,130 @@ describe('who may sign in (the Sign-in feature sets these)', () => {
     const unlisted = await club.call('/email-otp/send-verification-otp', { email: 'bob@example.com', type: 'sign-in' })
     expect(unlisted).toEqual(listed)
     expect(club.sent.sent.map((m) => m.to)).toEqual(['ann@club.example'])
+  })
+})
+
+describe('who can open the app (the Sign-in feature’s Who can open)', () => {
+  const at = (slug: string, path: string, cookie?: string, init: RequestInit = {}) =>
+    request(`${origin(slug)}/api/v1/app${path}`, { ...init, headers: { ...(cookie ? { Cookie: cookie } : {}), ...init.headers } })
+  const proxy = (slug: string, cookie?: string) =>
+    at(slug, '/proxy', cookie, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method: 'GET', url: 'https://example.com/' }),
+    })
+  /** Saves and publishes the next version, with these Sign-in inputs. */
+  async function republish(id: string, revision: string, name: string, signIn: Record<string, InputValue>) {
+    const saved = await request(`/api/v1/models/${id}`, {
+      ...post(model(name, signIn)),
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'If-Match': revision },
+    })
+    expect((await request(`/api/v1/models/${id}/publish`, post({}, { 'If-Match': saved.headers.get('ETag')! }))).status).toBe(200)
+  }
+
+  it('anyone, by default: the version, rows and proxy answer without signing in', async () => {
+    await published('Shoreline meetup with sign-in', 'meetup')
+    expect((await at('meetup', '')).status).toBe(200)
+    expect((await at('meetup', '/tables/9/rows')).status).toBe(404)
+  })
+
+  it('people signed in: the rest get a 401 naming the app, for its sign-in page, until they sign in', async () => {
+    await published('Members with sign-in', 'members', { open_to: 'signed-in' })
+    for (const answer of [await at('members', ''), await at('members', '/tables/9/rows'), await proxy('members')]) {
+      expect(answer.status).toBe(401)
+      expect(answer.headers.get('Cache-Control')).toBe('no-store')
+      expect(await answer.json()).toEqual({ error: 'Sign in to open this app', sign_in: { app: 'Members with sign-in' } })
+    }
+    // Signing in itself stays open.
+    const { cookie } = await signInAt('members', 'ann@example.com')
+    const version = await at('members', '', cookie)
+    expect(version.status).toBe(200)
+    expect(((await version.json()) as AppModel).name).toBe('Members with sign-in')
+    // Past the gate, the table is simply not there.
+    expect((await at('members', '/tables/9/rows', cookie)).status).toBe(404)
+    expect((await auth('members', '/sign-out', { method: 'POST', body: '{}' }, cookie)).status).toBe(200)
+    expect((await at('members', '', cookie)).status).toBe(401)
+  })
+
+  it('a cookie from another app opens nothing', async () => {
+    await published('Members with sign-in', 'members', { open_to: 'signed-in' })
+    await published('Shoreline meetup with sign-in', 'meetup')
+    const { cookie } = await signInAt('meetup', 'ann@example.com')
+    expect((await at('members', '', cookie)).status).toBe(401)
+  })
+
+  it('listed people: only they get a code, and they lose the app once the list leaves them out', async () => {
+    const { id, revision } = await published('Board with sign-in', 'board', { open_to: 'listed', allowed: ['ann@example.com', '@board.example'] })
+    expect((await askCode('board', 'eve@example.com')).status).toBe(200)
+    await Promise.all(tasks)
+    expect(mailer.sent).toEqual([])
+    const { cookie } = await signInAt('board', 'ann@example.com')
+    expect((await at('board', '', cookie)).status).toBe(200)
+
+    const stored = await request(`/api/v1/models/${id}`)
+    expect(stored.headers.get('ETag')).toBe(revision)
+    await republish(id, revision, 'Board with sign-in', { open_to: 'listed', allowed: ['@board.example'] })
+    const refused = await at('board', '', cookie)
+    expect(refused.status).toBe(403)
+    expect(await refused.json()).toEqual({
+      error: 'This app is open only to the people it lists',
+      sign_in: { app: 'Board with sign-in', email: 'ann@example.com' },
+    })
+    expect((await proxy('board', cookie)).status).toBe(403)
+    // Opening it to anyone lets everyone in again.
+    await republish(id, (await request(`/api/v1/models/${id}`)).headers.get('ETag')!, 'Board with sign-in', { open_to: 'anyone' })
+    expect((await at('board', '')).status).toBe(200)
+  })
+
+  it('lets no one in where it can’t check: no secret, or no tables', async () => {
+    const { id } = await published('Members with sign-in', 'members', { open_to: 'signed-in' })
+    const { AUTH_SECRET: _, ...noSecret } = env
+    void _
+    expect((await request(`${origin('members')}/api/v1/app`, {}, noSecret)).status).toBe(503)
+    await tables().drop(id)
+    expect((await at('members', '')).status).toBe(503)
+  })
+
+  it('a disabled Sign-in opens the app to anyone', async () => {
+    await published('Members with sign-in', 'members', { open_to: 'signed-in', disable: true })
+    expect((await at('members', '')).status).toBe(200)
+  })
+
+  it('answers a member privately, varying by cookie; an open app as before', async () => {
+    await published('Members with sign-in', 'members', { open_to: 'signed-in' })
+    const { cookie } = await signInAt('members', 'ann@example.com')
+    const version = await at('members', '', cookie)
+    expect(version.headers.get('Cache-Control')).toBe('private, no-cache')
+    expect(version.headers.get('Vary')).toContain('Cookie')
+    expect((await at('members', '/tables/9/rows', cookie)).headers.get('Cache-Control')).toMatch(/^private/)
+    await published('Shoreline meetup with sign-in', 'meetup')
+    expect((await at('meetup', '')).headers.get('Cache-Control')).toBe('no-cache')
+  })
+
+  it('a method a route doesn’t take is its 405, signed in or not', async () => {
+    await published('Members with sign-in', 'members', { open_to: 'signed-in' })
+    expect((await at('members', '', undefined, { method: 'POST' })).status).toBe(405)
+    expect((await at('members', '/proxy')).status).toBe(405)
+    expect((await at('members', '/tables/9/rows', undefined, { method: 'PUT' })).status).toBe(405)
+    expect((await at('members', '/tables/9/rows/01J0000000000000000000000A', undefined, { method: 'POST' })).status).toBe(405)
+    // The methods they do take are still gated, one row as the whole table.
+    expect((await at('members', '/tables/9/rows', undefined, { method: 'POST' })).status).toBe(401)
+    expect((await at('members', '/tables/9/rows/01J0000000000000000000000A', undefined, { method: 'DELETE' })).status).toBe(401)
+  })
+
+  it('renews the session cookie when reading the session extends it', async () => {
+    const { id } = await published('Members with sign-in', 'members', { open_to: 'signed-in' })
+    const { cookie } = await signInAt('members', 'ann@example.com')
+    // As if signed in days ago: the session is past its update age, so reading it extends it.
+    const { key } = (await tables().get(id))!
+    await db
+      .prepare(`UPDATE "${authTables(key).session}" SET "expiresAt" = ?`)
+      .bind(new Date(Date.now() + 3600_000).toISOString())
+      .run()
+    const version = await at('members', '', cookie)
+    expect(version.status).toBe(200)
+    expect(version.headers.getSetCookie().some((c) => c.startsWith('fd.session_token='))).toBe(true)
   })
 })
 
@@ -394,7 +527,7 @@ describe('over https, as deployed', () => {
   const at = (slug: string) => `https://${slug}.apprun.app`
 
   async function publishedHere(name: string, slug: string) {
-    app = createApp({ signIn, mailer: () => mailer, hosts: HOSTS })
+    app = createApp({ mailer: () => mailer, hosts: HOSTS })
     const stored = await request(`https://${HOSTS.builder}/api/v1/models`, post(model(name)))
     const id = ((await stored.json()) as { id: string }).id
     const answer = await request(`https://${HOSTS.builder}/api/v1/models/${id}/publish`, post({ slug }, { 'If-Match': stored.headers.get('ETag')! }))

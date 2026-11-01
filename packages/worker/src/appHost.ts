@@ -99,6 +99,51 @@ export function createAppHost(deps: AppHostDeps) {
   /** The published app, once the middleware above has checked there is one. */
   const published = (c: Context<AppHostEnv>) => c.var.published!
 
+  // Sign-in, for the app the host names (src/auth/route.ts).
+  const signIn = mountSignIn(api, async (c: Context<AppHostEnv>) => {
+    const { model, version } = published(c)
+    let waitUntil: (promise: Promise<unknown>) => void = (promise) => void promise.catch((e) => console.error(e))
+    try {
+      const ctx = c.executionCtx
+      waitUntil = (promise) => ctx.waitUntil(promise.catch((e) => console.error(e)))
+    } catch {
+      // No execution context (tests): the work runs without being waited for.
+    }
+    return {
+      model,
+      signIn: await deps.signInOf.load(
+        model,
+        `live:${version}`,
+        modelOf(c, (message) => new SignInGone(message)),
+      ),
+      db: c.env?.DB,
+      tables: c.env ? deps.authTables(c.env) : undefined,
+      secret: c.env?.AUTH_SECRET,
+      mailer: deps.mailer(c.env),
+      waitUntil,
+    }
+  })
+
+  // An app open only to people signed in (or listed) shows them alone its version, rows and proxy. A method those don't
+  // take goes on to its 405. What they answer someone signed in is theirs alone: private, and varying by cookie.
+  const visitorsOnly = (methods?: readonly string[]) => async (c: Context<AppHostEnv>, next: () => Promise<void>) => {
+    if (methods && !methods.includes(c.req.method)) return next()
+    const visitor = await signIn.visitor(c)
+    if ('refused' in visitor) return visitor.refused
+    await next()
+    if (!visitor.gated) return
+    // In place: Hono copies a replaced answer's headers over the new one's.
+    const headers = c.res.headers
+    const cache = headers.get('Cache-Control')
+    headers.set('Cache-Control', cache ? `private, ${cache}` : 'private')
+    headers.append('Vary', 'Cookie')
+    for (const cookie of visitor.cookies) headers.append('Set-Cookie', cookie)
+  }
+  api.use('/app', visitorsOnly(['GET', 'HEAD']))
+  api.use('/app/tables/:table/rows', visitorsOnly(['GET', 'HEAD', 'POST']))
+  api.use('/app/tables/:table/rows/:row', visitorsOnly(['GET', 'HEAD', 'PATCH', 'DELETE']))
+  api.use('/app/proxy', visitorsOnly(['POST']))
+
   // The published version: what the app's page shows. Its number is its ETag, so a page checks for a new one cheaply.
   // The model's id is in it too: an address can pass to another model's app, whose version 1 isn't this one's.
   api.get('/app', async (c) => {
@@ -140,31 +185,6 @@ export function createAppHost(deps: AppHostDeps) {
         modelOf(c, (message) => new ProxyError(404, message)),
       )
     return answerProxy(c.req.raw, false, origins, site, deps.upstream)
-  })
-
-  // Sign-in, for the app the host names (src/auth/route.ts).
-  mountSignIn(api, async (c: Context<AppHostEnv>) => {
-    const { model, version } = published(c)
-    let waitUntil: (promise: Promise<unknown>) => void = (promise) => void promise.catch((e) => console.error(e))
-    try {
-      const ctx = c.executionCtx
-      waitUntil = (promise) => ctx.waitUntil(promise.catch((e) => console.error(e)))
-    } catch {
-      // No execution context (tests): the work runs without being waited for.
-    }
-    return {
-      model,
-      signIn: await deps.signInOf.load(
-        model,
-        `live:${version}`,
-        modelOf(c, (message) => new SignInGone(message)),
-      ),
-      db: c.env?.DB,
-      tables: c.env ? deps.authTables(c.env) : undefined,
-      secret: c.env?.AUTH_SECRET,
-      mailer: deps.mailer(c.env),
-      waitUntil,
-    }
   })
 
   api.all('/app', () => error(405, 'Method not allowed', { allow: 'GET' }))

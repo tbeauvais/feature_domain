@@ -43,6 +43,11 @@ export interface FeatureDefinition {
   inputs: readonly InputDef[]
   /** 'required': the feature is placed in a parent slot. 'none': it only provides exports (e.g. a data resource). */
   placement: 'required' | 'none'
+  /**
+   * At most one per model (e.g. Sign-in: an app has one set of sign-in settings). Of several that would generate, the
+   * first in generation order does; the others are skipped with an error, so a model holding two can't be published.
+   */
+  single?: boolean
   /** Slot keys this feature provides. Each must appear as a node with a matching `slot` in its output. */
   slots?(inputs: Inputs): string[]
   /** Instance ids this feature depends on beyond its `reference` inputs. */

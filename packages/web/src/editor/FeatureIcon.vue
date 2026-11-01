@@ -28,6 +28,8 @@ const paths: Record<string, string> = {
   FormFeature: 'M4 4h16v5H4zM4 13h16v5H4zM7 6.5h6M7 15.5h4',
   ThemeFeature:
     'M12 2a10 10 0 0 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A5.6 5.6 0 0 0 22 9.8C22 5.5 17.5 2 12 2zM7.5 12.5h.01M8.5 7.5h.01M13.5 6.5h.01M17.5 10.5h.01',
+  // A padlock.
+  SignInFeature: 'M6 11h12a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM8 11V7a4 4 0 0 1 8 0v4M12 15v3',
 }
 const fallback = 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z'
 </script>
