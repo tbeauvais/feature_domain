@@ -1,5 +1,6 @@
 import type { NodeKind } from '@feature-domain/engine'
 import { defineAsyncComponent, type Component } from 'vue'
+import AccountNode from './nodes/AccountNode.vue'
 import ButtonNode from './nodes/ButtonNode.vue'
 import CardNode from './nodes/CardNode.vue'
 import FormNode from './nodes/FormNode.vue'
@@ -18,6 +19,7 @@ import PanelNode from './nodes/PanelNode.vue'
 import PlaceholderNode from './nodes/PlaceholderNode.vue'
 import RootNode from './nodes/RootNode.vue'
 import SeparatorNode from './nodes/SeparatorNode.vue'
+import SignInNode from './nodes/SignInNode.vue'
 import StackNode from './nodes/StackNode.vue'
 import TableNode from './nodes/TableNode.vue'
 import TextNode from './nodes/TextNode.vue'
@@ -49,4 +51,6 @@ export const nodeComponents: Record<NodeKind, Component> = {
   card: CardNode,
   weather: WeatherNode,
   placeholder: PlaceholderNode,
+  account: AccountNode,
+  'sign-in': SignInNode,
 }

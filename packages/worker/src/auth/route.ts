@@ -2,7 +2,7 @@
 // /api/v1/app/account (what the app holds about the person signed in, to download). The app is always the one the
 // host names: its tables, its secret, its exact address. Only while the published version has sign-in.
 
-import { generate, onAllowedList, signInOf, type AppModel, type OpenTo } from '@feature-domain/engine'
+import { generate, onAllowedList, pageTheme, signInOf, type AppModel, type OpenTo, type ThemeTokens } from '@feature-domain/engine'
 import type { Context, Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { error, sendsJson } from '../http'
@@ -33,12 +33,23 @@ export interface AppSignIn {
   signUp: boolean
   /** The emails and `@domains` that may sign in, or null for anyone. */
   allowed: readonly string[] | null
+  /** The theme of the app's first page, for its sign-in page (absent: the default theme). */
+  theme?: ThemeTokens
 }
 
 /** The version's sign-in: its Sign-in feature's settings (src/features/sign-in.ts in the engine), if one generates. */
 export function appSignIn(model: AppModel): AppSignIn {
-  const settings = signInOf(generate(model))
-  return { on: settings !== null, name: model.name, openTo: settings?.openTo ?? 'anyone', signUp: settings?.signUp ?? true, allowed: settings?.allowed ?? null }
+  const result = generate(model)
+  const settings = signInOf(result)
+  const theme = pageTheme(result.root)
+  return {
+    on: settings !== null,
+    name: model.name,
+    openTo: settings?.openTo ?? 'anyone',
+    signUp: settings?.signUp ?? true,
+    allowed: settings?.allowed ?? null,
+    ...(theme ? { theme } : {}),
+  }
 }
 
 /** What the sign-in routes need for the app a request is for. */
@@ -193,10 +204,11 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
       // Reading a session past its update age extends it: the renewed cookie goes out with the answer.
       const { headers, response: session } = await app.auth.api.getSession({ headers: c.req.raw.headers, returnHeaders: true })
       const cookies = headers.getSetCookie()
-      const { name, allowed } = found.signIn
-      if (!session) return { refused: signInAnswer(401, 'Sign in to open this app', { app: name }, cookies) }
+      const { name, allowed, theme } = found.signIn
+      const page = { app: name, ...(theme ? { theme } : {}) }
+      if (!session) return { refused: signInAnswer(401, 'Sign in to open this app', page, cookies) }
       if (allowed && !onAllowedList(allowed, session.user.email))
-        return { refused: signInAnswer(403, 'This app is open only to the people it lists', { app: name, email: session.user.email }, cookies) }
+        return { refused: signInAnswer(403, 'This app is open only to the people it lists', { ...page, email: session.user.email }, cookies) }
       return { gated: true, cookies }
     },
   }
@@ -211,7 +223,8 @@ export type Visitor = { refused: Response } | { gated: false } | { gated: true; 
 /** What an app asking for sign-in answers: its page shows the sign-in page for `sign_in`. Never cached. */
 export interface SignInAnswer {
   error: string
-  sign_in: { app: string; email?: string }
+  /** The app's name and theme, for its sign-in page; `email`: the person signed in, whom the list leaves out. */
+  sign_in: { app: string; theme?: ThemeTokens; email?: string }
 }
 
 function signInAnswer(status: 401 | 403, message: string, signIn: SignInAnswer['sign_in'], cookies: readonly string[]) {

@@ -16,6 +16,7 @@ const GROUPS: { label: string; types: string[] }[] = [
       'FormFeature',
       'ThemeFeature',
       'SignInFeature',
+      'AccountFeature',
     ],
   },
 ]

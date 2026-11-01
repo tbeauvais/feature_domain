@@ -1,6 +1,9 @@
 import type { FeatureDefinition } from '../feature.js'
 import type { GenerateResult } from '../generate.js'
 import { asBool, asList, asString, disableInput, nameInput, type InputDef } from '../inputs.js'
+import { node } from '../nodes.js'
+import type { ThemeTokens } from '../theme/tokens.js'
+import { ROOT_ID, ROOT_SLOT, type DocNode } from '../types.js'
 
 export const SIGN_IN_FEATURE = 'SignInFeature'
 
@@ -145,4 +148,23 @@ export function onAllowedList(allowed: readonly string[], email: string): boolea
     const entry = listed.trim().toLowerCase()
     return entry !== '' && (entry.startsWith('@') ? address.endsWith(entry) : address === entry)
   })
+}
+
+/**
+ * An app's sign-in page as a document: a page in the app's theme (its first page's; absent, the default) holding the
+ * sign-in form, so it renders like the app, inside the same style boundary.
+ */
+export function signInDocument(app: string, options: { theme?: ThemeTokens; refused?: string } = {}): DocNode {
+  const form = node('sign-in', 'sign-in.form', options.refused ? { app, refused: options.refused } : { app })
+  const page = node('page', 'sign-in', options.theme ? { theme: options.theme } : {}, { slot: 'content', children: [form] })
+  return node('root', ROOT_ID, {}, { slot: ROOT_SLOT, children: [page] })
+}
+
+/**
+ * The theme of a document's first page (in the editor, a page that failed to generate leaves a placeholder before it),
+ * if it has one of its own: the whole document takes it, and so does the app's sign-in page.
+ */
+export function pageTheme(root: DocNode): ThemeTokens | undefined {
+  const page = root.children.find((n) => n.kind === 'page')
+  return page?.kind === 'page' ? page.props.theme : undefined
 }

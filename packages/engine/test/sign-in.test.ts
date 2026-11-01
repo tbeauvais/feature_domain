@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generate, MAX_ALLOWED_ENTRIES, onAllowedList, readAllowedEntry, signInOf } from '../src'
+import { generate, MAX_ALLOWED_ENTRIES, onAllowedList, readAllowedEntry, signInDocument, signInOf } from '../src'
 import type { InputValue } from '../src'
 import { inst, model, page } from './helpers'
 
@@ -125,5 +125,29 @@ describe('allowed lists', () => {
     // A list not read through readAllowedEntry still matches whatever the case and spaces, and a blank entry matches no one.
     expect(onAllowedList([' @Team.Example.ORG '], 'bob@team.example.org')).toBe(true)
     expect(onAllowedList(['', ' '], '')).toBe(false)
+  })
+})
+
+describe('AccountFeature', () => {
+  const account = (inputs: Record<string, InputValue> = {}) => generate(model(page(), inst('AccountFeature', 'a', inputs))).root.children[0]!.children[0]!
+
+  it('is an account node: its sign-in words, placed at the right', () => {
+    expect(account()).toMatchObject({ kind: 'account', id: 'a', props: { signInText: 'Sign in', align: 'right' } })
+    expect(account({ sign_in_text: ' Members ', align: 'left' }).props).toEqual({ signInText: 'Members', align: 'left' })
+    expect(account({ sign_in_text: '  ' }).props).toMatchObject({ signInText: 'Sign in' })
+    // Its words are edited in place, unless they are the default standing in for an empty input.
+    expect(account().edit).toEqual({ signInText: { input: 'sign_in_text', kind: 'text' } })
+    expect(account({ sign_in_text: '' }).edit).toBeUndefined()
+  })
+})
+
+describe('signInDocument', () => {
+  it("is a page holding the sign-in form, in the app's theme when given", () => {
+    const plain = signInDocument('Members')
+    expect(plain).toMatchObject({ kind: 'root', children: [{ kind: 'page', props: {}, children: [{ kind: 'sign-in', props: { app: 'Members' } }] }] })
+    const theme = generate(model(inst('ThemeFeature', 't', {}, null), page({ theme: 't' }))).root.children[0]!.props as { theme: unknown }
+    const themed = signInDocument('Board', { theme: theme.theme as never, refused: 'eve@example.com' })
+    expect(themed.children[0]!.props).toEqual({ theme: theme.theme })
+    expect(themed.children[0]!.children[0]!.props).toEqual({ app: 'Board', refused: 'eve@example.com' })
   })
 })

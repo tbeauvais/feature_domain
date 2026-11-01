@@ -2,7 +2,7 @@
 // emailed codes, sessions, signing out, deleting an account and downloading it, on two apps at once.
 
 import { onAllowedList, SIGN_IN_FEATURE, type AppModel, type InputValue } from '@feature-domain/engine'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from '../src/app'
 import { appSecret, authFor } from '../src/auth/authFor'
 import { MemoryMailer } from '../src/auth/mailer'
@@ -299,6 +299,17 @@ describe('who may sign in (the Sign-in feature sets these)', () => {
       allowed: ['ann@example.com', '@club.example'],
     })
     expect(appSignIn(model('Club with sign-in', { disable: true })).on).toBe(false)
+    // Its sign-in page takes the theme of the app's first page.
+    const themed: AppModel = {
+      ...model('Club with sign-in'),
+      features: [
+        { feature: 'ThemeFeature', id: '3', inputs: { accent: '#2255aa' } },
+        { feature: 'PageFeature', id: '1', inputs: { name: 'Home', theme: '3' }, placement: { parent: '$root', slot: 'content' } },
+        { feature: SIGN_IN_FEATURE, id: '2', inputs: {} },
+      ],
+    }
+    expect(appSignIn(themed).theme?.vars).toMatchObject({ '--fd-accent': expect.any(String) })
+    expect(appSignIn(model('Club with sign-in')).theme).toBeUndefined()
   })
 
   /** Better Auth for one app with these settings, called directly. */
@@ -519,6 +530,32 @@ describe('only from the app’s own pages', () => {
     })
     expect(attacker.status).toBe(403)
     expect(attacker.headers.getSetCookie()).toEqual([])
+  })
+})
+
+describe('in development', () => {
+  it('sends codes to the log and keeps them for the end-to-end tests, read on the app’s host', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    app = createApp()
+    await published('Shoreline meetup with sign-in', 'meetup')
+    expect((await askCode('meetup', 'ann@example.com')).status).toBe(200)
+    await Promise.all(tasks)
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('Sign-in email to ann@example.com'))
+    log.mockRestore()
+    const mails = (await (await request(`${origin('meetup')}/api/v1/app/dev/mail?to=ann%40example.com`)).json()) as { text: string }[]
+    expect(mails).toHaveLength(1)
+    expect(mails[0]!.text).toMatch(/is \d{6}\./)
+    expect(await (await request(`${origin('meetup')}/api/v1/app/dev/mail?to=bob%40example.com`)).json()).toEqual([])
+    // Another app's host serves only its own.
+    await published('Harbor club with sign-in', 'harbor')
+    expect(await (await request(`${origin('harbor')}/api/v1/app/dev/mail?to=ann%40example.com`)).json()).toEqual([])
+  })
+
+  it('serves no mail where the apps’ domain isn’t localhost, nor with a mailer of its own', async () => {
+    await published('Shoreline meetup with sign-in', 'meetup')
+    expect((await request(`${origin('meetup')}/api/v1/app/dev/mail?to=a%40example.com`)).status).toBe(404)
+    app = createApp({ hosts: { builder: 'app.feature-domain.workers.dev', apps: 'apprun.app' } })
+    expect((await request('https://meetup.apprun.app/api/v1/app/dev/mail?to=a%40example.com')).status).toBe(404)
   })
 })
 

@@ -1,4 +1,4 @@
-import { defaultRegistry, generate, migrate, validateModel, type DocNode } from '@feature-domain/engine'
+import { defaultRegistry, generate, migrate, signInOf, validateModel, type DocNode, type ThemeTokens } from '@feature-domain/engine'
 import { isSignInAnswer } from './lib/signIn'
 
 /** The path a published app's page reads its model from, on the app's own host. */
@@ -9,11 +9,12 @@ export const PUBLISHED_APP_TIMEOUT_MS = 20_000
 
 /** What a published app's page shows: the app, or why it can't. */
 export type PublishedApp =
-  | { status: 'ready'; id: string; name: string; root: DocNode }
+  /** `signIn`: the version has sign-in (a Sign-in feature that generates), so its sign-in page works. */
+  | { status: 'ready'; id: string; name: string; root: DocNode; signIn: boolean }
   | { status: 'none' }
   | { status: 'signed-out' }
   /** The app is open only to people signed in (or listed, when `email`, signed in, isn't): its own sign-in, not Access. */
-  | { status: 'sign-in'; app: string; email?: string }
+  | { status: 'sign-in'; app: string; email?: string; theme?: ThemeTokens }
   | { status: 'error'; message: string }
 
 /**
@@ -51,10 +52,11 @@ export async function loadPublishedApp(fetchImpl: typeof fetch = fetch): Promise
     return { status: 'error', message: `The app couldn't be loaded: it isn't a valid model (${problems[0] ?? 'it has no id'}).` }
   try {
     const upgraded = migrate(model).model
-    const { root } = generate(upgraded, defaultRegistry)
+    const result = generate(upgraded, defaultRegistry)
+    const { root } = result
     // Publishing refuses a model with errors, but one can still show nothing (its only page disabled).
     if (root.children.length === 0) return { status: 'error', message: 'The app has no page to show.' }
-    return { status: 'ready', id: upgraded.id!, name: upgraded.name, root }
+    return { status: 'ready', id: upgraded.id!, name: upgraded.name, root, signIn: signInOf(result) !== null }
   } catch (e) {
     return { status: 'error', message: `The app couldn't be shown: ${e instanceof Error ? e.message : String(e)}` }
   }
@@ -64,12 +66,24 @@ export async function loadPublishedApp(fetchImpl: typeof fetch = fetch): Promise
 async function appSignInAnswer(response: Response): Promise<PublishedApp | undefined> {
   if ((response.status !== 401 && response.status !== 403) || !response.headers.get('Content-Type')?.includes('application/json')) return undefined
   try {
-    const body = (await response.clone().json()) as { sign_in?: { app?: unknown; email?: unknown } } | null
+    const body = (await response.clone().json()) as { sign_in?: { app?: unknown; email?: unknown; theme?: unknown } } | null
     const app = body?.sign_in?.app
     if (typeof app !== 'string') return undefined
-    const email = body?.sign_in?.email
-    return typeof email === 'string' ? { status: 'sign-in', app, email } : { status: 'sign-in', app }
+    const { email, theme } = body!.sign_in!
+    return {
+      status: 'sign-in',
+      app,
+      ...(typeof email === 'string' ? { email } : {}),
+      ...(isThemeTokens(theme) ? { theme } : {}),
+    }
   } catch {
     return undefined
   }
+}
+
+/** Theme tokens as the Worker sends them (custom properties and component styles, all text). */
+function isThemeTokens(value: unknown): value is ThemeTokens {
+  const t = value as Partial<ThemeTokens> | undefined
+  const allText = (o: unknown) => typeof o === 'object' && o !== null && Object.values(o).every((v) => typeof v === 'string')
+  return typeof t?.scheme === 'string' && Array.isArray(t.adjustments) && allText(t.vars) && allText(t.styles)
 }
