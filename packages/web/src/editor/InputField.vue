@@ -120,13 +120,27 @@ function settle() {
     <!-- Heights and widths: named sizes as buttons, and the number typed (applied on leaving the field). -->
     <SizeField v-else-if="def.control === 'height' || def.control === 'pixels'" :id="id" :def="def" :value="text" @change="emit('change', $event)" />
 
-    <select v-else-if="def.type === 'reference'" :id="id" :class="field" :value="text" @change="emit('change', ($event.target as HTMLSelectElement).value)">
+    <select
+      v-else-if="def.type === 'reference'"
+      :id="id"
+      :class="field"
+      :aria-describedby="def.hint ? `${id}-hint` : undefined"
+      :value="text"
+      @change="emit('change', ($event.target as HTMLSelectElement).value)"
+    >
       <option value="">None</option>
       <option v-if="text !== '' && !(references ?? []).some((r) => r.id === text)" :value="text" disabled>Missing: #{{ text }}</option>
       <option v-for="ref in references ?? []" :key="ref.id" :value="ref.id">{{ ref.label }}</option>
     </select>
 
-    <select v-else-if="def.options" :id="id" :class="field" :value="text" @change="emit('change', ($event.target as HTMLSelectElement).value)">
+    <select
+      v-else-if="def.options"
+      :id="id"
+      :class="field"
+      :aria-describedby="def.hint ? `${id}-hint` : undefined"
+      :value="text"
+      @change="emit('change', ($event.target as HTMLSelectElement).value)"
+    >
       <option v-if="!def.options.some((o) => o.value === text)" :value="text" disabled>Unknown: {{ text || '(empty)' }}</option>
       <option v-for="option in def.options" :key="option.value" :value="option.value">{{ option.text }}</option>
     </select>

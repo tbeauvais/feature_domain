@@ -46,7 +46,6 @@ export const TextFeature: FeatureDefinition = {
       label: 'Text',
       type: 'string',
       default: 'Say what this part of the page is about in a sentence or two.',
-      hint: 'Values from data, with a Data Resource below: {{public_repos}}, {{0.name}}, {{length}}, {{0.updated_at | date}}',
       control: 'text-input',
     },
     // Soft: a text whose resource goes away still shows, with its values as written.
@@ -59,6 +58,7 @@ export const TextFeature: FeatureDefinition = {
       default: '',
       control: 'resource-select',
       group: 'Values from data',
+      hint: 'Then write {{field}} in the Text to show a value from it: {{length}} counts the rows, {{0.title}} is the first row’s title, {{0.due | date}} shows a date.',
     },
     { name: 'operation', label: 'Operation', type: 'string', default: '', control: 'operation-select', methods: ['GET'], group: 'Values from data' },
   ],

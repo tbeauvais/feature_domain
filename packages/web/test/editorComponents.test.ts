@@ -37,6 +37,15 @@ describe('InputField', () => {
     expect(lastChange(w)).toBe('[{"a": 1}]')
   })
 
+  it('names its hint as the description of a select too (a reference, or options)', () => {
+    for (const d of [def({ type: 'reference', hint: 'Pick one' }), def({ type: 'string', options: [{ value: 'a', text: 'A' }], hint: 'Pick one' })]) {
+      const w = mount(InputField, { props: { def: d, value: '' } })
+      const hint = w.get('p')
+      expect(hint.text()).toBe('Pick one')
+      expect(w.get('select').attributes('aria-describedby')).toBe(hint.attributes('id'))
+    }
+  })
+
   it('edits numbers, clearing to undefined when empty', async () => {
     const w = mount(InputField, { props: { def: def({ type: 'integer', min: 1, max: 6 }), value: 3 } })
     expect(w.get('input').attributes()).toMatchObject({ type: 'number', min: '1', max: '6' })
