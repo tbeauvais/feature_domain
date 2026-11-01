@@ -2,7 +2,7 @@
 // /api/v1/app: the published version, its live rows and its proxy. Nothing of the builder is reachable here: the model
 // is always the one the host names, never one a request names.
 
-import { databaseTables, needsPerson, rowOperation, type AppModel, type RowStore } from '@feature-domain/engine'
+import { databaseTables, operationNeedsPerson, rowOperation, type AppModel, type RowStore } from '@feature-domain/engine'
 import { Hono, type Context } from 'hono'
 import type { AppStore } from './apps'
 import type { DevMailer, Mailer } from './auth/mailer'
@@ -147,17 +147,22 @@ export function createAppHost(deps: AppHostDeps) {
     (methods?: readonly string[], rows = false) =>
     async (c: Context<AppHostEnv>, next: () => Promise<void>) => {
       if (methods && !methods.includes(c.req.method)) return next()
+      // What a rows request needs to know, worked out only for an app open to anyone (otherwise the session is read
+      // anyway): a person where the table's rules need one, and for an add, who added it if anyone signed in did.
       const operation = rows ? rowOperation(c.req.method) : undefined
-      let table
+      const wants = async () => {
+        if (!operation) return false
+        const table = (await tablesOf(c)).get(c.req.param('table') ?? '')
+        return table && operationNeedsPerson(table.access, operation) ? 'needed' : operation === 'add' ? 'wanted' : false
+      }
+      let visitor
       try {
-        table = operation ? (await tablesOf(c)).get(c.req.param('table') ?? '') : undefined
+        visitor = await signIn.visitor(c, wants)
       } catch (e) {
         // The version was deleted meanwhile: as the rows routes answer it.
         if (e instanceof RowsError) return error(e.status, e.message)
         throw e
       }
-      const needed = !!operation && !!table && needsPerson(table.access[operation])
-      const visitor = await signIn.visitor(c, needed ? 'needed' : operation === 'add' ? 'wanted' : false)
       if ('refused' in visitor) return visitor.refused
       if (rows) c.set('rowsVisitor', visitor.gated ? { person: visitor.person, signIn: true } : { person: null, signIn: visitor.signIn })
       await next()

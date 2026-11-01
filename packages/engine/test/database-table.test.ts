@@ -5,6 +5,9 @@ import {
   generate,
   isDatabaseTableExports,
   OPEN_ACCESS,
+  operationNeedsPerson,
+  rowOperation,
+  rulesFor,
   proxyAddresses,
   type DocNodeOf,
   type FeatureInstance,
@@ -338,5 +341,20 @@ describe('a Database table’s access rules', () => {
   it('make created_by a name no field can take', () => {
     const r = generate(model(table({ fields: ['created_by: text'] })))
     expect(r.diagnostics.map((d) => d.message)).toContain('"created_by" is set for every row already; name the field something else')
+  })
+})
+
+describe('which rules an operation answers to', () => {
+  it('is its own, and for a change or delete the See rule too', () => {
+    const access = { see: 'owner', add: 'anyone', change: 'anyone', delete: 'nobody', deletedAccounts: 'delete' } as const
+    expect(rulesFor(access, 'see')).toEqual(['owner'])
+    expect(rulesFor(access, 'add')).toEqual(['anyone'])
+    expect(rulesFor(access, 'change')).toEqual(['anyone', 'owner'])
+    expect(rulesFor(access, 'delete')).toEqual(['nobody', 'owner'])
+    expect(operationNeedsPerson(access, 'add')).toBe(false)
+    expect(operationNeedsPerson(access, 'change')).toBe(true)
+    expect(operationNeedsPerson(OPEN_ACCESS, 'delete')).toBe(false)
+    expect(rowOperation('get')).toBe('see')
+    expect(rowOperation('PUT')).toBeUndefined()
   })
 })

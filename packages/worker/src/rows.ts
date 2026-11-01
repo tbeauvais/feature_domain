@@ -3,6 +3,7 @@
 
 import {
   isRowId,
+  PersonForgottenError,
   RowLimitError,
   validateRow,
   type DatabaseTable,
@@ -83,8 +84,6 @@ export interface RowsTarget {
   visitor?: { person: string | null; signIn: boolean }
 }
 
-const VERB: Record<RowOperation, string> = { see: 'see', add: 'add', change: 'change', delete: 'delete' }
-
 /**
  * What the table's rule for `operation` lets this visitor do: refused (a 401 when signing in could help, else a 403), or
  * allowed, with the person signed in (undefined for no one, or where rules don't apply) and whether only their own rows
@@ -96,9 +95,9 @@ export function allowed(target: RowsTarget, table: DatabaseTable, operation: Row
   const person = visitor.person ?? undefined
   const rule = table.access[operation]
   if (rule === 'anyone') return { ...(person ? { person } : {}), own: false }
-  if (rule === 'nobody') throw new RowsError(403, `No one can ${VERB[operation]} this table's rows`)
-  if (!visitor.signIn) throw new RowsError(403, `Only people signed in can ${VERB[operation]} this table's rows, and this app has no sign-in`)
-  if (!person) throw new RowsError(401, `Sign in to ${VERB[operation]} this table's rows`)
+  if (rule === 'nobody') throw new RowsError(403, `No one can ${operation} this table's rows`)
+  if (!visitor.signIn) throw new RowsError(403, `Only people signed in can ${operation} this table's rows, and this app has no sign-in`)
+  if (!person) throw new RowsError(401, `Sign in to ${operation} this table's rows`)
   return { person, own: rule === 'owner' }
 }
 
@@ -107,6 +106,8 @@ export function allowed(target: RowsTarget, table: DatabaseTable, operation: Row
  * where they may see only their own rows (no one changes what they can't see). Refused outright when they may not see
  * the table's rows at all, or not do this.
  */
+// Answers to the rules `rulesFor` (in the engine) names for a change or delete: its own and See. appHost reads the
+// session by the same function, so the two can't drift apart.
 function writer(target: RowsTarget, table: DatabaseTable, operation: 'change' | 'delete'): { person?: string; owner?: string } {
   const see = allowed(target, table, 'see')
   const write = allowed(target, table, operation)
@@ -119,7 +120,7 @@ async function untouched(target: RowsTarget, table: DatabaseTable, id: string, o
   const row = await target.rowStore.get(target.ref, id)
   if (!row) return null
   if (table.access.see === 'owner' && row.created_by !== person) throw new RowsError(404, 'No row with this id')
-  throw new RowsError(403, `Only the person who added a row can ${VERB[operation]} it`)
+  throw new RowsError(403, `Only the person who added a row can ${operation} it`)
 }
 
 /** A row as a page gets it: never with who added it (a person's id is theirs alone). */
@@ -189,7 +190,10 @@ export function mountRows<A extends Hono<any>>(
       const { person, owner } = writer(found, table, 'change')
       const { row, cleared } = await readRow(c.req.raw, table, true)
       const changed = await found.rowStore.update(found.ref, id, row, cleared, owner ? { createdBy: owner } : {})
-      if (!changed) throw (await untouched(found, table, id, 'change', person), new RowsError(404, 'No row with this id'))
+      if (!changed) {
+        await untouched(found, table, id, 'change', person)
+        throw new RowsError(404, 'No row with this id')
+      }
       return c.json(pageRow(changed))
     }),
   )
@@ -214,7 +218,8 @@ async function rowsAnswer(route: () => Promise<Response>): Promise<Response> {
   try {
     return await route()
   } catch (e) {
-    const answer = e instanceof RowLimitError ? limitError(e) : e
+    const answer =
+      e instanceof RowLimitError ? limitError(e) : e instanceof PersonForgottenError ? new RowsError(401, 'Your account was deleted: sign in to add rows') : e
     if (answer instanceof RowsError) return error(answer.status, answer.message, answer.problems ? { problems: answer.problems } : {})
     throw e
   }

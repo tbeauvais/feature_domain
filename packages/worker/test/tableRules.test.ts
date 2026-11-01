@@ -8,6 +8,7 @@ import { createApp } from '../src/app'
 import { MemoryMailer } from '../src/auth/mailer'
 import { D1AuthTables } from '../src/auth/store'
 import { D1AppStore } from '../src/d1AppStore'
+import { D1RowStore } from '../src/d1RowStore'
 import type { Env } from '../src/env'
 import { localD1, type LocalD1 } from './localD1'
 
@@ -37,7 +38,9 @@ beforeEach(async () => {
   app = createApp({ mailer: () => mailer })
   const tables = new D1AuthTables(db)
   for (const row of (await db.prepare('SELECT model_id FROM app_auth').all<{ model_id: string }>()).results) await tables.drop(row.model_id)
-  await db.exec('DELETE FROM models; DELETE FROM rows; DELETE FROM sampled_tables; DELETE FROM apps; DELETE FROM versions; DELETE FROM publishing')
+  await db.exec(
+    'DELETE FROM models; DELETE FROM rows; DELETE FROM sampled_tables; DELETE FROM forgotten_people; DELETE FROM apps; DELETE FROM versions; DELETE FROM publishing',
+  )
 })
 
 const ctx = { waitUntil: (p: Promise<unknown>) => void tasks.push(p), passThroughOnException: () => {}, props: {} } as unknown as ExecutionContext
@@ -214,6 +217,16 @@ describe('owner', () => {
   })
 })
 
+describe('changing or deleting where seeing needs sign-in', () => {
+  it('reads the session for it, in an app open to anyone, so people signed in can change and delete', async () => {
+    await publish(model({ see_rows: 'signed-in' }))
+    const ann = await signIn('ann@example.com')
+    const [sample] = (await (await list(ann)).json()) as { id: string }[]
+    expect((await change(sample!.id, 'Changed', ann)).status).toBe(200)
+    expect((await remove(sample!.id, ann)).status).toBe(204)
+  })
+})
+
 describe('changing or deleting what one may not see', () => {
   it('is as good as missing for rows only their owner sees, whatever the change rule', async () => {
     await publish(model({ see_rows: 'owner', add_rows: 'signed-in', change_rows: 'signed-in', delete_rows: 'signed-in' }))
@@ -292,6 +305,27 @@ describe('a person’s own rows', () => {
     }
   })
 
+  it('can’t be added once their account is deleted, even by a request that read their session before', async () => {
+    const id = await publish(model({ add_rows: 'signed-in' }))
+    const ann = await signIn('ann@example.com')
+    const session = (await (await request(`${ORIGIN}/api/v1/app/auth/get-session`, { headers: { Cookie: ann } })).json()) as { user: { id: string } }
+    // The deletion lands between this request's session read and its insert (its session is still good here).
+    await new D1RowStore(db).forgetPerson(id, 'live', session.user.id, [], true)
+    const late = await add('Too late', ann)
+    expect(late.status).toBe(401)
+    expect(await late.json()).toEqual({ error: 'Your account was deleted: sign in to add rows' })
+    expect(await titles(await list())).toEqual(['Sample'])
+  })
+
+  it('aren’t locked away by a deletion that fails after their rows went: the person keeps adding rows', async () => {
+    const id = await publish(model({ add_rows: 'signed-in' }))
+    const ann = await signIn('ann@example.com')
+    const session = (await (await request(`${ORIGIN}/api/v1/app/auth/get-session`, { headers: { Cookie: ann } })).json()) as { user: { id: string } }
+    // What deleting does before the account goes (Better Auth's beforeDelete); here the deletion then failed.
+    await new D1RowStore(db).forgetPerson(id, 'live', session.user.id, [])
+    expect((await add('Still here', ann)).status).toBe(201)
+  })
+
   it('go with their account, except in a table set to keep them, which keeps them without their name', async () => {
     await publish(model({ add_rows: 'signed-in' }))
     const ann = await signIn('ann@example.com')
@@ -310,5 +344,7 @@ describe('a person’s own rows', () => {
     const kept = (await (await request(notes)).json()) as { text: string }[]
     expect(kept.map((r) => r.text)).toEqual(['Ann’s note'])
     expect(await db.prepare("SELECT created_by FROM rows WHERE table_key = '4'").first('created_by')).toBeNull()
+    // Remembered once the account is gone.
+    expect(await db.prepare('SELECT count(*) AS n FROM forgotten_people').first('n')).toBe(1)
   })
 })

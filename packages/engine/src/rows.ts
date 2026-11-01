@@ -42,6 +42,17 @@ export class RowLimitError extends Error {
   }
 }
 
+/**
+ * A row added by a person whose account was deleted (`forgetPerson`): a request that read their session before the
+ * deletion and adds the row after it. Nothing is stored.
+ */
+export class PersonForgottenError extends Error {
+  constructor() {
+    super('This account was deleted')
+    this.name = 'PersonForgottenError'
+  }
+}
+
 /** Only a row this person added (an Owner rule): checked in the same step as the write, so nothing changes in between. */
 export interface OwnedBy {
   createdBy?: string
@@ -54,7 +65,8 @@ export interface RowStore {
   get(table: TableRef, id: string): Promise<StoredRow | null>
   /**
    * Adds a row with a new id, added by `createdBy` if given, and returns it. Throws `RowLimitError` past
-   * `MAX_TABLE_ROWS` or `MAX_ROW_BYTES`.
+   * `MAX_TABLE_ROWS` or `MAX_ROW_BYTES`, and `PersonForgottenError` when `createdBy` was forgotten in that space
+   * (checked in the same step as the insert).
    */
   create(table: TableRef, values: RowValues, createdBy?: string): Promise<StoredRow>
   /**
@@ -90,12 +102,14 @@ export interface RowStore {
   rowsBy(model: string, space: RowSpace, person: string): Promise<Record<string, StoredRow[]>>
   /**
    * What a deleted account leaves, in one step: the rows the person added to a model's tables in `space` are deleted,
-   * except in the tables `keep` names, where they stay without their name (`created_by` cleared).
+   * except in the tables `keep` names, where they stay without their name (`created_by` cleared). With `remember` (once
+   * their account is gone), the person is also remembered as forgotten there, so no row is added in their name
+   * afterwards (`PersonForgottenError`), even by a request that read their session before.
    */
-  forgetPerson(model: string, space: RowSpace, person: string, keep: readonly string[]): Promise<void>
+  forgetPerson(model: string, space: RowSpace, person: string, keep: readonly string[], remember?: boolean): Promise<void>
   /** How many rows each of a model's tables holds in `space`, by table key; tables with none are left out. */
   countRows(model: string, space: RowSpace): Promise<Record<string, number>>
-  /** Deletes every row of a model, in every space, and forgets which tables had their sample rows. */
+  /** Deletes every row of a model, in every space, and forgets which tables had their sample rows and who was forgotten. */
   deleteModel(model: string): Promise<void>
 }
 
@@ -110,12 +124,14 @@ export function rowBytes(values: RowValues): number {
 }
 
 const tableKey = (t: TableRef) => JSON.stringify([t.model, t.space, t.table])
+const personKey = (model: string, space: RowSpace, person: string) => JSON.stringify([model, space, person])
 const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
 /** An in-memory store, for tests and as the reference implementation of the contract. */
 export class MemoryRowStore implements RowStore {
   private readonly tables = new Map<string, { ref: TableRef; rows: Map<string, StoredRow> }>()
   private readonly sampled = new Set<string>()
+  private readonly forgotten = new Set<string>()
   private counter = 0
 
   constructor(
@@ -146,9 +162,11 @@ export class MemoryRowStore implements RowStore {
   }
 
   async create(table: TableRef, values: RowValues, createdBy?: string): Promise<StoredRow> {
+    // In the order every store checks: the row's size, then a forgotten person, then the table's rows.
+    if (rowBytes(values) > MAX_ROW_BYTES) throw new RowLimitError('bytes')
+    if (createdBy !== undefined && this.forgotten.has(personKey(table.model, table.space, createdBy))) throw new PersonForgottenError()
     const rows = this.rowsOf(table)
     if (rows.size >= MAX_TABLE_ROWS) throw new RowLimitError('rows')
-    if (rowBytes(values) > MAX_ROW_BYTES) throw new RowLimitError('bytes')
     const time = this.now()
     const at = new Date(time).toISOString()
     const row = { ...copy(values), id: this.newId(time), created_at: at, updated_at: at } as StoredRow
@@ -208,7 +226,8 @@ export class MemoryRowStore implements RowStore {
   }
 
   async rowsBy(model: string, space: RowSpace, person: string): Promise<Record<string, StoredRow[]>> {
-    const out: Record<string, StoredRow[]> = {}
+    // No prototype: a table's key may be any word, `__proto__` and `constructor` included.
+    const out: Record<string, StoredRow[]> = Object.create(null) as Record<string, StoredRow[]>
     for (const { ref, rows } of this.tables.values()) {
       if (ref.model !== model || ref.space !== space) continue
       const theirs = [...rows.values()].filter((r) => r.created_by === person)
@@ -217,7 +236,8 @@ export class MemoryRowStore implements RowStore {
     return out
   }
 
-  async forgetPerson(model: string, space: RowSpace, person: string, keep: readonly string[]): Promise<void> {
+  async forgetPerson(model: string, space: RowSpace, person: string, keep: readonly string[], remember = false): Promise<void> {
+    if (remember) this.forgotten.add(personKey(model, space, person))
     for (const { ref, rows } of this.tables.values()) {
       if (ref.model !== model || ref.space !== space) continue
       for (const row of [...rows.values()]) {
@@ -229,13 +249,14 @@ export class MemoryRowStore implements RowStore {
   }
 
   async countRows(model: string, space: RowSpace): Promise<Record<string, number>> {
-    const counts: Record<string, number> = {}
+    const counts: Record<string, number> = Object.create(null) as Record<string, number>
     for (const { ref, rows } of this.tables.values()) if (ref.model === model && ref.space === space && rows.size > 0) counts[ref.table] = rows.size
     return counts
   }
 
   async deleteModel(model: string): Promise<void> {
     this.forget(([m]) => m === model)
+    for (const key of this.forgotten) if ((JSON.parse(key) as string[])[0] === model) this.forgotten.delete(key)
   }
 
   /** Deletes the rows and sample marks of the tables `drop` picks, by their [model, space, table]. */

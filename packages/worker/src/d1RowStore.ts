@@ -1,6 +1,7 @@
 import {
   MAX_ROW_BYTES,
   MAX_TABLE_ROWS,
+  PersonForgottenError,
   RowLimitError,
   rowBytes,
   sampleRowId,
@@ -76,16 +77,35 @@ export class D1RowStore implements RowStore {
   async create(table: TableRef, values: RowValues, createdBy?: string): Promise<StoredRow> {
     if (rowBytes(values) > MAX_ROW_BYTES) throw new RowLimitError('bytes')
     const at = this.now()
+    // A forgotten person (a deleted account) adds nothing: checked in the same statement, so no deletion slips between.
     const row = await this.db
       .prepare(
         `INSERT INTO rows (model_id, space, table_key, id, data, created_at, updated_at, created_by)
          SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE (SELECT count(*) FROM rows WHERE ${OF_TABLE}) < ?
+         AND NOT EXISTS (SELECT 1 FROM forgotten_people WHERE model_id = ? AND space = ? AND person = ?)
          RETURNING ${COLUMNS}`,
       )
-      .bind(...of(table), this.newId(at), JSON.stringify(values), at, at, createdBy ?? null, ...of(table), MAX_TABLE_ROWS)
+      .bind(
+        ...of(table),
+        this.newId(at),
+        JSON.stringify(values),
+        at,
+        at,
+        createdBy ?? null,
+        ...of(table),
+        MAX_TABLE_ROWS,
+        table.model,
+        table.space,
+        createdBy ?? null,
+      )
       .first<RowRecord>()
-    if (!row) throw new RowLimitError('rows')
-    return toRow(row)
+    if (row) return toRow(row)
+    if (createdBy !== undefined && (await this.isForgotten(table.model, table.space, createdBy))) throw new PersonForgottenError()
+    throw new RowLimitError('rows')
+  }
+
+  private async isForgotten(model: string, space: RowSpace, person: string): Promise<boolean> {
+    return (await this.db.prepare('SELECT 1 FROM forgotten_people WHERE model_id = ? AND space = ? AND person = ?').bind(model, space, person).first()) !== null
   }
 
   async update(table: TableRef, id: string, changes: RowValues, cleared: readonly string[] = [], options: OwnedBy = {}): Promise<StoredRow | null> {
@@ -174,17 +194,22 @@ export class D1RowStore implements RowStore {
       .prepare(`SELECT table_key, ${COLUMNS} FROM rows WHERE model_id = ? AND space = ? AND created_by = ? ORDER BY table_key, created_at, rowid`)
       .bind(model, space, person)
       .all<RowRecord & { table_key: string }>()
-    const out: Record<string, StoredRow[]> = {}
+    // No prototype: a table's key may be any word, `__proto__` and `constructor` included.
+    const out: Record<string, StoredRow[]> = Object.create(null) as Record<string, StoredRow[]>
     for (const { table_key, ...row } of results) (out[table_key] ??= []).push(toRow(row))
     return out
   }
 
-  async forgetPerson(model: string, space: RowSpace, person: string, keep: readonly string[]): Promise<void> {
-    // One batch (a transaction): kept tables' rows lose the name, then the person's other rows go.
+  async forgetPerson(model: string, space: RowSpace, person: string, keep: readonly string[], remember = false): Promise<void> {
+    // One batch (a transaction): with `remember`, the person is remembered as forgotten (so no insert after it adds a row
+    // in their name), then kept tables' rows lose the name, and the person's other rows go.
     const theirs = 'model_id = ? AND space = ? AND created_by = ?'
     const kept = 'table_key IN (SELECT value FROM json_each(?))'
     const bind = [model, space, person, JSON.stringify(keep)] as const
     await this.db.batch([
+      ...(remember
+        ? [this.db.prepare('INSERT INTO forgotten_people (model_id, space, person) VALUES (?, ?, ?) ON CONFLICT DO NOTHING').bind(model, space, person)]
+        : []),
       this.db.prepare(`UPDATE rows SET created_by = NULL WHERE ${theirs} AND ${kept}`).bind(...bind),
       this.db.prepare(`DELETE FROM rows WHERE ${theirs} AND NOT ${kept}`).bind(...bind),
     ])
@@ -202,6 +227,7 @@ export class D1RowStore implements RowStore {
     await this.db.batch([
       this.db.prepare('DELETE FROM rows WHERE model_id = ?').bind(model),
       this.db.prepare('DELETE FROM sampled_tables WHERE model_id = ?').bind(model),
+      this.db.prepare('DELETE FROM forgotten_people WHERE model_id = ?').bind(model),
     ])
   }
 }

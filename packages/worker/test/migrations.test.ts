@@ -96,6 +96,11 @@ it('adds sign-in tables beside the apps published before, leaving them as they w
 
 it('remembers who adds rows from now on, the rows stored before added by no one', async () => {
   await apply('0007_row_owners.sql')
+  expect(await d1.env.DB.prepare('SELECT created_by FROM rows WHERE id = ?').bind(OLD_ROW).first('created_by')).toBeNull()
+})
+
+it('adds forgotten people beside the rows stored before, which keep working', async () => {
+  await apply('0008_forgotten_people.sql')
   const rows = new D1RowStore(d1.env.DB)
   const table = { model: 'old', space: 'draft', table: '2' } as const
   const [old] = await rows.list(table)

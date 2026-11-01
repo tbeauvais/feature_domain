@@ -17,7 +17,7 @@ import type { Context, Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { error, sendsJson } from '../http'
 import { pageRow } from '../rows'
-import { appSecret, AUTH_BASE_PATH, authFor } from './authFor'
+import { appSecret, AUTH_BASE_PATH, authFor, hasSessionCookie } from './authFor'
 import type { Mailer } from './mailer'
 import type { AppAuth, AuthTables } from './store'
 import { AUTH_SCHEMA_STEPS } from './tables'
@@ -154,9 +154,9 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
       signUp: found.signIn.signUp,
       ...(allowed ? { allows: (email: string) => onAllowedList(allowed, email) } : {}),
       // Their rows go, except in tables set to keep them, which keep them without their name.
-      forgetUser: async (userId) => {
+      forgetUser: async (userId, gone) => {
         const keep = [...(await rows.tables()).values()].filter((t) => t.access.deletedAccounts === 'keep').map((t) => t.key)
-        await rows.store.forgetPerson(model, 'live', userId, keep)
+        await rows.store.forgetPerson(model, 'live', userId, keep, gone)
       },
     })
     return { auth, found }
@@ -219,15 +219,17 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
      * everyone in; otherwise only a person signed in (else a 401), and for a list, only while their email is on it
      * (else a 403; the list may have changed since they signed in). Each answer names the app, for its sign-in page. An
      * app that needs sign-in but can't check it (no secret, no tables) lets no one in. In an app open to anyone with
-     * sign-in, `person` says whether to read the session too: `needed` (a table's rule needs to know who asks), or
-     * `wanted` (a row is added, which remembers who added it if someone signed in did: only read when a session cookie
-     * is sent, and a sign-in that can't be checked doesn't refuse it).
+     * sign-in, `person` says whether to read the session too (asked only there, as working it out may read the app's
+     * tables): `needed` (a table's rule needs to know who asks), or `wanted` (a row is added, which remembers who added
+     * it if someone signed in did: only read when a session cookie is sent, and a sign-in that can't be checked doesn't
+     * refuse it).
      */
-    async visitor(c: Context, person: 'needed' | 'wanted' | false = false): Promise<Visitor> {
+    async visitor(c: Context, wants: () => Promise<'needed' | 'wanted' | false> = async () => false): Promise<Visitor> {
       const found = await find(c)
       if (found instanceof Response) return { refused: found }
       if (!found.signIn.on) return { gated: false, signIn: false }
       const open = found.signIn.openTo === 'anyone'
+      const person = open ? await wants() : 'needed'
       if (open && (!person || (person === 'wanted' && !hasSessionCookie(c.req.raw)))) return { gated: false, signIn: true }
       const app = await authOf(c, false, found)
       if (app instanceof Response) return open && person === 'wanted' ? { gated: false, signIn: true } : { refused: app }
@@ -264,9 +266,6 @@ function signInAnswer(status: 401 | 403, message: string, signIn: SignInAnswer['
   for (const cookie of cookies) answer.headers.append('Set-Cookie', cookie)
   return answer
 }
-
-/** Whether a request carries a session cookie of an app (`fd.session_token`, `__Host-fd.session_token` on https). */
-export const hasSessionCookie = (request: Request) => /(?:^|;\s*)(?:__Host-)?fd\.session_token=/.test(request.headers.get('Cookie') ?? '')
 
 /** The `type` a code request asks for: null when it names none, undefined when the body isn't JSON. */
 async function readType(request: Request): Promise<unknown> {

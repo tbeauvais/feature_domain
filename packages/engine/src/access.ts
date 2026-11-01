@@ -35,5 +35,16 @@ export function rowOperation(method: string): RowOperation | undefined {
   return ({ GET: 'see', HEAD: 'see', POST: 'add', PATCH: 'change', DELETE: 'delete' } as const)[method.toUpperCase() as 'GET']
 }
 
+/**
+ * The rules an operation answers to: its own, and for a change or delete the See rule too (no one changes what they
+ * can't see). The Worker's checks and its choice of when to read the session both go by this.
+ */
+export function rulesFor(access: TableAccess, operation: RowOperation): (RowRule | AddRule)[] {
+  return operation === 'change' || operation === 'delete' ? [access[operation], access.see] : [access[operation]]
+}
+
+/** Whether an operation on the table needs to know who is signed in. */
+export const operationNeedsPerson = (access: TableAccess, operation: RowOperation) => rulesFor(access, operation).some(needsPerson)
+
 /** Whether any of the table's rules needs to know who is signed in. */
 export const accessNeedsSignIn = (access: TableAccess) => [access.see, access.add, access.change, access.delete].some(needsPerson)

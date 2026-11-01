@@ -11,7 +11,7 @@ afterAll(() => d1?.dispose())
 
 /** An empty database. */
 async function fresh(): Promise<void> {
-  await d1.env.DB.exec('DELETE FROM rows; DELETE FROM sampled_tables')
+  await d1.env.DB.exec('DELETE FROM rows; DELETE FROM sampled_tables; DELETE FROM forgotten_people')
 }
 
 describeRowStore('D1RowStore', async () => {
