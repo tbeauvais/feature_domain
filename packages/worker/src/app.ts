@@ -16,7 +16,7 @@ import {
 import { Hono, type Context } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { createAppHost } from './appHost'
-import { CloudflareMailer, type Mailer } from './auth/mailer'
+import { CloudflareMailer, DevMailer, type Mailer } from './auth/mailer'
 import { appSignIn } from './auth/route'
 import { D1AuthTables, type AuthTables } from './auth/store'
 import { AlreadyPublishedError, ClaimLostError, SlugTakenError, type AppStore } from './apps'
@@ -75,7 +75,11 @@ export function createApp(options: AppOptions = {}) {
   const appStoreOf = (env: Env) => (options.apps ? options.apps(env) : new D1AppStore(env.DB))
   const hostsFor = (env: Env | undefined) => options.hosts ?? hostsOf(env)
   const authTablesOf = (env: Env) => (options.authTables ? options.authTables(env) : new D1AuthTables(env.DB))
-  const mailerOf = options.mailer ?? ((env: Env) => (env?.EMAIL && env.MAIL_FROM ? new CloudflareMailer(env.EMAIL, env.MAIL_FROM) : undefined))
+  // In development, codes go to the log (and the end-to-end tests read them), never out.
+  const devMailer = new DevMailer()
+  const mailerOf =
+    options.mailer ??
+    ((env: Env) => (hostsFor(env).apps === 'localhost' ? devMailer : env?.EMAIL && env.MAIL_FROM ? new CloudflareMailer(env.EMAIL, env.MAIL_FROM) : undefined))
   const signInOf = versionCache(appSignIn)
   const originsOf = versionCache(allowedOrigins)
   const tablesOf = versionCache((model) => databaseTables(model))
@@ -90,6 +94,7 @@ export function createApp(options: AppOptions = {}) {
     signInOf,
     authTables: authTablesOf,
     mailer: mailerOf,
+    devMail: options.mailer ? undefined : devMailer,
   })
 
   function createBuilder() {

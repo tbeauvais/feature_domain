@@ -1216,6 +1216,60 @@ h6.fd-heading {
   color: var(--fd-danger);
 }
 
+/* An app's sign-in page: one narrow column of the form, under its title, with the privacy line beneath. */
+.fd-sign-in {
+  max-width: 28rem;
+  margin: calc(var(--fd-space) * 8) auto calc(var(--fd-space) * 6);
+}
+.fd-sign-in-title {
+  margin: 0 0 calc(var(--fd-space) * 3);
+  font-family: var(--fd-font-display);
+  font-size: var(--fd-h3);
+  font-weight: var(--fd-display-weight);
+  letter-spacing: var(--fd-display-tracking);
+  line-height: 1.1;
+  color: var(--fd-ink);
+  text-wrap: balance;
+}
+.fd-sign-in-text {
+  margin: 0;
+  color: var(--fd-text);
+}
+.fd-sign-in-code {
+  max-width: 12ch;
+  font-family: var(--fd-font-mono);
+  letter-spacing: 0.2em;
+}
+.fd-sign-in-privacy {
+  margin: calc(var(--fd-space) * 2) 0 0;
+  font-size: var(--fd-size-small);
+  color: var(--fd-muted);
+}
+
+/* The visitor's account: a Sign in button, or who is signed in with their account's actions. */
+.fd-account {
+  margin: calc(var(--fd-space) * 1.5) 0;
+}
+.fd-account-panel {
+  display: inline-grid;
+  gap: calc(var(--fd-space) * 0.75);
+  text-align: left;
+}
+.fd-account-text {
+  margin: 0;
+  color: var(--fd-text);
+}
+.fd-account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fd-space);
+}
+.fd-account-actions .fd-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 /* Row delete: a quiet button, asked inline first. */
 .fd-table .fd-table-actions {
   width: 1%;

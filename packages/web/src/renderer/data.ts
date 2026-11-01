@@ -97,6 +97,11 @@ export class DataStore {
     if (stored) this.restore(stored)
   }
 
+  /** Whether the page is a published app's, on its own host (where its sign-in works). */
+  get onApp(): boolean {
+    return this.site?.app === true
+  }
+
   private restore(stored: Added): void {
     this.added.value = stored.rows
     this.lastIds = stored.lastIds

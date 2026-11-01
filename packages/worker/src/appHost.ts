@@ -5,7 +5,7 @@
 import { databaseTables, type AppModel, type RowStore } from '@feature-domain/engine'
 import { Hono, type Context } from 'hono'
 import type { AppStore } from './apps'
-import type { Mailer } from './auth/mailer'
+import type { DevMailer, Mailer } from './auth/mailer'
 import { mountSignIn, SignInGone, type AppSignIn } from './auth/route'
 import type { AuthTables } from './auth/store'
 import type { Env } from './env'
@@ -26,6 +26,8 @@ export interface AppHostDeps {
   authTables: (env: Env) => AuthTables
   /** Sends sign-in codes; none where email isn't set up. */
   mailer: (env: Env) => Mailer | undefined
+  /** Development's mailer, whose mails GET /api/v1/app/dev/mail reads where the apps' domain is localhost. */
+  devMail?: DevMailer
 }
 
 /**
@@ -185,6 +187,16 @@ export function createAppHost(deps: AppHostDeps) {
         modelOf(c, (message) => new ProxyError(404, message)),
       )
     return answerProxy(c.req.raw, false, origins, site, deps.upstream)
+  })
+
+  // Development only (the apps' domain is localhost, so never on Cloudflare): the codes this app emailed to an address
+  // (its emails name its host), newest last, for the end-to-end tests.
+  api.get('/app/dev/mail', (c) => {
+    if (deps.hosts(c.env).apps !== 'localhost' || !deps.devMail) return error(404, 'No such API endpoint')
+    const to = c.req.query('to') ?? ''
+    const from = `(${new URL(c.req.url).host})`
+    const mails = deps.devMail.sent.filter((m) => m.to === to && m.subject.endsWith(from)).map(({ subject, text }) => ({ subject, text }))
+    return c.json(mails, 200, { 'Cache-Control': 'no-store' })
   })
 
   api.all('/app', () => error(405, 'Method not allowed', { allow: 'GET' }))

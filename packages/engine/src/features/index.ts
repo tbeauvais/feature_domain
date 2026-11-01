@@ -1,4 +1,5 @@
 import { createRegistry } from '../feature.js'
+import { AccountFeature } from './account.js'
 import { ApiSpecFeature } from './api-spec.js'
 import { ButtonFeature } from './button.js'
 import { ChartFeature } from './chart.js'
@@ -23,6 +24,7 @@ import { TextFeature } from './text.js'
 import { TextWithParagraphFeature } from './text-with-paragraph.js'
 import { ThemeFeature } from './theme.js'
 
+export { AccountFeature, DEFAULT_SIGN_IN_TEXT } from './account.js'
 export { ApiSpecFeature, MAX_SPEC_CHARS, MAX_SPEC_OPERATIONS, readApiSpec, type ReadSpec } from './api-spec.js'
 export { ButtonFeature } from './button.js'
 export { ChartFeature, CHART_HEIGHT_SCALE } from './chart.js'
@@ -74,8 +76,10 @@ export {
   MAX_ALLOWED_ENTRIES,
   onAllowedList,
   OPEN_TO,
+  pageTheme,
   readAllowedEntry,
   SIGN_IN_FEATURE,
+  signInDocument,
   SignInFeature,
   signInOf,
   type OpenTo,
@@ -112,6 +116,7 @@ export const coreFeatures = [
   FormFeature,
   ThemeFeature,
   SignInFeature,
+  AccountFeature,
 ]
 
 export const defaultRegistry = createRegistry(coreFeatures)

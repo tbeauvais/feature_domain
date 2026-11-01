@@ -211,6 +211,16 @@ export interface NodeKinds {
   media: { side: 'left' | 'right' }
   /** Layout: children in a raised card on the theme's surface. */
   card: Record<string, never>
+  /**
+   * The visitor's account on a published app (the Account feature): Sign in (`signInText`) when signed out; who they
+   * are, Sign out, Download my data and Delete my account when signed in.
+   */
+  account: { signInText: string; align: Align }
+  /**
+   * An app's sign-in form (its sign-in page, `signInDocument`): an emailed code for `app`. `refused`: the email signed in,
+   * which the app doesn't list.
+   */
+  'sign-in': { app: string; refused?: string }
   /** A link styled as a button. */
   button: { text: string; href: string; variant: ButtonVariant; size: ButtonSize; align: Align }
   /**

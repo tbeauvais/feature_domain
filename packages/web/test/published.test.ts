@@ -63,17 +63,6 @@ describe('loadPublishedApp', () => {
 describe('PublishedApp', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('says who the app is open to when it asks for sign-in', async () => {
-    vi.stubGlobal('fetch', async () => json({ error: 'Sign in to open this app', sign_in: { app: 'Members' } }, 401))
-    const w = mount(PublishedApp)
-    await flushPromises()
-    expect(w.text()).toBe('Members is open only to people signed in.')
-    vi.stubGlobal('fetch', async () => json({ error: 'Listed only', sign_in: { app: 'Board', email: 'eve@example.com' } }, 403))
-    const listed = mount(PublishedApp)
-    await flushPromises()
-    expect(listed.text()).toBe("Board is open only to the people it lists, and eve@example.com isn't one of them.")
-  })
-
   it('renders the app, reading its live rows on its own host, and names the page after it', async () => {
     vi.stubGlobal('fetch', async () => json(published))
     const fetchJson = vi.fn<FetchJson>(async () => [{ title: 'Paint the hall' }])
