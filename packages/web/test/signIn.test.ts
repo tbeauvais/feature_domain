@@ -232,7 +232,7 @@ describe('PublishedApp and sign-in', () => {
   it('sends someone already signed in from /sign-in on to the app', async () => {
     const replace = vi.fn()
     vi.stubGlobal('location', { ...window.location, pathname: '/sign-in', search: '', hash: '', replace })
-    fakeApp({ '/api/v1/app': () => app(), '/api/v1/app/auth/get-session': () => json({ user: { email: 'ann@example.com', name: '' }, session: {} }) })
+    fakeApp({ '/api/v1/app': () => app(), '/api/v1/app/auth/get-session': () => json({ user: { id: 'u1', email: 'ann@example.com', name: '' }, session: {} }) })
     const w = mount(PublishedApp)
     await flushPromises()
     expect(replace).toHaveBeenCalledWith('/')
@@ -291,7 +291,7 @@ describe('the Account', () => {
 
   it('signed in: who, Sign out, their data, and Delete asked first', async () => {
     const sent = fakeApp({
-      '/api/v1/app/auth/get-session': () => json({ user: { email: 'ann@example.com', name: '' }, session: {} }),
+      '/api/v1/app/auth/get-session': () => json({ user: { id: 'u1', email: 'ann@example.com', name: '' }, session: {} }),
       '/api/v1/app/auth/sign-out': () => json({ success: true }),
       '/api/v1/app/auth/delete-user': () => json({ code: 'SESSION_EXPIRED', message: 'Session expired' }, 403),
       '/api/v1/app/account': () => json({ error: 'Sign in first' }, 401),

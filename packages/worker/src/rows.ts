@@ -3,6 +3,7 @@
 
 import {
   isRowId,
+  marksOwnRows,
   PersonForgottenError,
   RowLimitError,
   validateRow,
@@ -123,10 +124,15 @@ async function untouched(target: RowsTarget, table: DatabaseTable, id: string, o
   throw new RowsError(403, `Only the person who added a row can ${operation} it`)
 }
 
-/** A row as a page gets it: never with who added it (a person's id is theirs alone). */
-export function pageRow(row: StoredRow): StoredRow {
-  const { created_by: _, ...rest } = row
-  return rest as StoredRow
+/**
+ * A row as a page gets it: never with who added it (a person's id is theirs alone), except that where only a row's
+ * owner may change or delete it (`marksOwnRows`), the visitor's own rows say so with their own id, so the page offers
+ * them those controls.
+ */
+export function pageRow(row: StoredRow, person?: string, table?: DatabaseTable): StoredRow {
+  const { created_by, ...rest } = row
+  const mine = person !== undefined && created_by === person && table !== undefined && marksOwnRows(table.access)
+  return (mine ? { ...rest, created_by } : rest) as StoredRow
 }
 
 /**
@@ -156,7 +162,11 @@ export function mountRows<A extends Hono<any>>(
       const { person, own } = allowed(found, table, 'see')
       await found.rowStore.storeSampleRows(found.ref, table.sampleRows)
       const rows = await found.rowStore.list(found.ref, own ? { createdBy: person! } : {})
-      return c.json(rows.map(pageRow), 200, { 'Cache-Control': 'no-store' })
+      return c.json(
+        rows.map((row) => pageRow(row, person, table)),
+        200,
+        { 'Cache-Control': 'no-store' },
+      )
     }),
   )
 
@@ -167,7 +177,7 @@ export function mountRows<A extends Hono<any>>(
       const { row } = await readRow(c.req.raw, table, false)
       await found.rowStore.storeSampleRows(found.ref, table.sampleRows)
       const created = await found.rowStore.create(found.ref, row, person)
-      return c.json(pageRow(created), 201, { Location: location(found.ref, created.id) })
+      return c.json(pageRow(created, person, table), 201, { Location: location(found.ref, created.id) })
     }),
   )
 
@@ -177,7 +187,7 @@ export function mountRows<A extends Hono<any>>(
       const { person, own } = allowed(found, table, 'see')
       const row = await found.rowStore.get(found.ref, rowIdOf(c.req.param('row')!))
       if (!row || (own && row.created_by !== person)) throw new RowsError(404, 'No row with this id')
-      return c.json(pageRow(row), 200, { 'Cache-Control': 'no-store' })
+      return c.json(pageRow(row, person, table), 200, { 'Cache-Control': 'no-store' })
     }),
   )
 
@@ -194,7 +204,7 @@ export function mountRows<A extends Hono<any>>(
         await untouched(found, table, id, 'change', person)
         throw new RowsError(404, 'No row with this id')
       }
-      return c.json(pageRow(changed))
+      return c.json(pageRow(changed, person, table))
     }),
   )
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { columnsFromRows, withInputs, type DocNodeOf } from '@feature-domain/engine'
-import { computed, nextTick, onBeforeUnmount, onMounted, onUpdated, ref, shallowRef, useId } from 'vue'
+import { columnsFromRows, withInputs, type DataAction, type DocNodeOf } from '@feature-domain/engine'
+import { computed, nextTick, onBeforeUnmount, onMounted, onUpdated, ref, shallowRef, useId, watchEffect } from 'vue'
 import { badgeKey, badgeTints, cellContent, getPath, NUMERIC_FILTERS, parseFilter } from '../filters'
 import SpotEmpty from '../illustrations/SpotEmpty.vue'
 import { NotSentFromEditor, useDataStore } from '../data'
@@ -29,12 +29,17 @@ const columns = computed(() => {
 // is gone from a real API; on sample data only rows a form added can go.
 const store = useDataStore()
 /**
- * The delete action, with its column: on an address always (so it doesn't come and go while rows reload), on sample
- * data only once a form has added a row (the model's own rows can't go).
+ * The delete action, with its column: on an address whose rows the visitor may all delete, always (so it doesn't come
+ * and go while rows reload); otherwise once a row can go: on sample data a row a form added (the model's own rows
+ * can't go), on a published app's table a row its rule lets the visitor delete (under Owner, their own).
  */
-const deleteAction = computed(() => {
+const deleteAction = computed<DataAction | undefined>((before) => {
   const action = props.node.props.deleteAction
-  return action && (!action.sample || rows.value.some((row) => store.canDelete(action, row))) ? action : undefined
+  if (!action) return undefined
+  if (!action.sample && store.allows(action) === 'yes') return action
+  // While rows reload the column stays as it was, so the table doesn't reflow.
+  if (state.value.status === 'loading' && before === action) return before
+  return rows.value.some((row) => store.canDelete(action, row)) ? action : undefined
 })
 // shallowRef: rows are compared by identity, and ref() would wrap them in a proxy.
 const confirming = shallowRef<unknown>(undefined)
@@ -77,6 +82,14 @@ async function deleteRow(row: unknown, index: number) {
 // Changing a row in place: a column with options is a select per row, sent as that one field (the Change Operation).
 // The rows stay on show while they reload, so the select keeps keyboard focus; a change that fails is put back.
 const updateAction = computed(() => props.node.props.updateAction)
+/** Per row, whether its cells can be changed: the table's rule lets the visitor (on a published app; under Owner, their own rows). */
+const changeable = computed(() => rows.value.map((row) => !!updateAction.value && store.allows(updateAction.value, row) === 'yes'))
+// Who is signed in, checked where a rule needs it (on a published app).
+watchEffect(() => {
+  store.checkVisitorFor(props.node.props.deleteAction)
+  store.checkVisitorFor(updateAction.value)
+})
+
 /** The cells being sent (`<row index>:<field>`); each select is busy on its own, so other rows can change meanwhile. */
 const changing = ref(new Set<string>())
 const changeProblem = ref('')
@@ -230,7 +243,7 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
           <tr v-for="(row, index) in rows" :key="index" role="row">
             <td v-for="(column, c) in columns" :key="column.field" role="cell" :data-label="column.label" :class="{ 'fd-num': numeric[c] }">
               <select
-                v-if="updateAction && column.options"
+                v-if="changeable[index] && column.options"
                 class="fd-table-select"
                 :value="chosen(row, column.field)"
                 :aria-label="`${column.label} of ${rowNames[index]}`"
@@ -243,7 +256,7 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
                 </option>
                 <option v-for="option in column.options" :key="option" :value="option">{{ option }}</option>
               </select>
-              <template v-for="(cell, k) in updateAction && column.options ? [] : [cellContent(row, column.field, column.filter)]" :key="k">
+              <template v-for="(cell, k) in changeable[index] && column.options ? [] : [cellContent(row, column.field, column.filter)]" :key="k">
                 <a
                   v-if="cell.href"
                   :href="cell.href"

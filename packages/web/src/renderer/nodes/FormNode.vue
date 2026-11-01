@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DocNodeOf, FormField } from '@feature-domain/engine'
-import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, useId, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, useId, watch, watchEffect } from 'vue'
+import { SIGN_IN_PATH } from '../account'
 import { NotSentFromEditor, useDataStore } from '../data'
 import { fillLink } from '../filters'
 import { browserOpenAddress, OPEN_ADDRESS, safeHref } from '../urls'
@@ -57,6 +58,14 @@ watch(
   { immediate: true },
 )
 const action = computed(() => props.node.props.action)
+/**
+ * Whether the visitor may send it, by its table's rule on a published app: the form, a sign-in prompt in its place,
+ * nothing (no one may, or who is signed in is still being checked), or what kept it from checking, with Try again.
+ */
+const permission = computed(() => (action.value ? store.allows(action.value) : 'yes'))
+const checkFailed = computed(() => (permission.value === 'unknown' && store.visitor.value.status === 'failed' ? store.visitor.value.message : ''))
+watchEffect(() => store.checkVisitorFor(action.value))
+const checkAgain = () => void store.whoIsSignedIn().catch(() => undefined)
 const host = computed(() => /^https?:\/\/([^/?#]+)/i.exec(action.value?.endPoint ?? '')?.[1] ?? '')
 
 /** The typed values, numbers as numbers; empty fields left out. A problem (a required field, a non-number) in words. */
@@ -126,7 +135,22 @@ const sentence = (text: string) => (/[.!?…]$/.test(text) ? text : `${text}.`)
 </script>
 
 <template>
+  <div v-if="permission === 'sign-in'" class="fd-form" role="group" :aria-labelledby="node.props.title ? titleId : undefined">
+    <p v-if="node.props.title" :id="titleId" class="fd-form-title">{{ node.props.title }}</p>
+    <p class="fd-form-note">Only people signed in can use this form.</p>
+    <div class="fd-form-actions">
+      <a class="fd-button fd-button-secondary" :href="SIGN_IN_PATH">Sign in</a>
+    </div>
+  </div>
+  <div v-else-if="checkFailed" class="fd-form" role="group" :aria-labelledby="node.props.title ? titleId : undefined">
+    <p v-if="node.props.title" :id="titleId" class="fd-form-title">{{ node.props.title }}</p>
+    <p class="fd-form-error" role="alert">
+      Couldn't check who is signed in, so this form can't be used yet. {{ checkFailed }}
+      <button type="button" class="fd-button fd-button-link fd-button-small" @click="checkAgain">Try again</button>
+    </p>
+  </div>
   <form
+    v-else-if="permission === 'yes'"
     class="fd-form"
     :aria-labelledby="node.props.title ? titleId : undefined"
     :aria-busy="status === 'sending' ? 'true' : undefined"

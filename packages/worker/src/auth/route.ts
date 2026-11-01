@@ -205,7 +205,7 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
         account: { id: user.id, email: user.email, name: user.name, email_verified: user.emailVerified, created_at: user.createdAt },
         sessions: sessions.map((s) => ({ created_at: s.createdAt, expires_at: s.expiresAt, ip_address: s.ipAddress, user_agent: s.userAgent })),
         // By table, named as the published version names it (a table it no longer has, by its key).
-        rows: Object.entries(byTable).map(([key, rows]) => ({ table: tables.get(key)?.name ?? key, rows: rows.map(pageRow) })),
+        rows: Object.entries(byTable).map(([key, rows]) => ({ table: tables.get(key)?.name ?? key, rows: rows.map((row) => pageRow(row)) })),
       },
       200,
       { 'Cache-Control': 'no-store', 'Content-Disposition': 'attachment; filename="account.json"' },
@@ -221,8 +221,8 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
      * app that needs sign-in but can't check it (no secret, no tables) lets no one in. In an app open to anyone with
      * sign-in, `person` says whether to read the session too (asked only there, as working it out may read the app's
      * tables): `needed` (a table's rule needs to know who asks), or `wanted` (a row is added, which remembers who added
-     * it if someone signed in did: only read when a session cookie is sent, and a sign-in that can't be checked doesn't
-     * refuse it).
+     * it if someone signed in did, or rows are read whose owner alone may change them, marked as the visitor's): only
+     * read when a session cookie is sent, and a sign-in that can't be checked doesn't refuse it.
      */
     async visitor(c: Context, wants: () => Promise<'needed' | 'wanted' | false> = async () => false): Promise<Visitor> {
       const found = await find(c)

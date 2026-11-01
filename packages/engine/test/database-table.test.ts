@@ -5,10 +5,13 @@ import {
   generate,
   isDatabaseTableExports,
   OPEN_ACCESS,
+  marksOwnRows,
   operationNeedsPerson,
+  operationRule,
   rowOperation,
   rulesFor,
   proxyAddresses,
+  SIGN_IN_FEATURE,
   type DocNodeOf,
   type FeatureInstance,
   type InputValue,
@@ -356,5 +359,40 @@ describe('which rules an operation answers to', () => {
     expect(operationNeedsPerson(OPEN_ACCESS, 'delete')).toBe(false)
     expect(rowOperation('get')).toBe('see')
     expect(rowOperation('PUT')).toBeUndefined()
+  })
+})
+
+describe('the rule an operation comes down to', () => {
+  it('is the strictest it answers to: Owner over Signed in, No one over all', () => {
+    const access = { see: 'signed-in', add: 'signed-in', change: 'owner', delete: 'anyone', deletedAccounts: 'delete' } as const
+    expect(operationRule(access, 'see')).toBe('signed-in')
+    expect(operationRule(access, 'change')).toBe('owner')
+    expect(operationRule(access, 'delete')).toBe('signed-in')
+    expect(operationRule({ ...access, see: 'nobody' }, 'change')).toBe('nobody')
+    expect(operationRule(OPEN_ACCESS, 'add')).toBe('anyone')
+  })
+
+  it('says when a page needs the visitor’s own rows marked: a change or delete comes down to Owner', () => {
+    expect(marksOwnRows(OPEN_ACCESS)).toBe(false)
+    expect(marksOwnRows({ ...OPEN_ACCESS, delete: 'owner' })).toBe(true)
+    expect(marksOwnRows({ ...OPEN_ACCESS, see: 'owner' })).toBe(true)
+    expect(marksOwnRows({ ...OPEN_ACCESS, see: 'owner', change: 'nobody', delete: 'nobody' })).toBe(false)
+  })
+
+  it('goes with what a Form or a Table sends to the table, so the page offers it only to someone allowed', () => {
+    const { nodes, problems } = run(
+      { add_rows: 'signed-in', change_rows: 'owner', delete_rows: 'nobody' },
+      inst(SIGN_IN_FEATURE, 's', {}, null),
+      inst('FormFeature', 'f', { data_resource: 't' }),
+      inst('TableFeature', 'x', { data_resource: 't', delete_operation: 'DELETE rows', update_operation: 'PATCH rows' }),
+    )
+    expect(problems).toEqual([])
+    expect((nodes[0] as DocNodeOf<'form'>).props.action).toMatchObject({ method: 'POST', rule: 'signed-in' })
+    const table = (nodes[1] as DocNodeOf<'table'>).props
+    expect(table.deleteAction).toMatchObject({ method: 'DELETE', rule: 'nobody' })
+    expect(table.updateAction).toMatchObject({ method: 'PATCH', rule: 'owner' })
+    // Open to anyone: no rule at all, as before rules.
+    const open = run({}, inst('FormFeature', 'f', { data_resource: 't' }))
+    expect((open.nodes[0] as DocNodeOf<'form'>).props.action).not.toHaveProperty('rule')
   })
 })
