@@ -145,8 +145,11 @@ describe('Text value warnings', () => {
     expect(r.diagnostics.map((d) => d.message)).toEqual(['Adder has no GET operation to read values from'])
   })
 
-  it('give the Text input a hint about the syntax', async () => {
+  it('give the syntax with the Data Resource, not under the Text itself (a plain text isn’t told about data)', async () => {
     const { TextFeature } = await import('../src')
-    expect(TextFeature.inputs.find((i) => i.name === 'text')!.hint).toContain('{{0.updated_at | date}}')
+    expect(TextFeature.inputs.find((i) => i.name === 'text')!.hint).toBeUndefined()
+    expect(TextFeature.inputs.find((i) => i.name === 'data_resource')!.hint).toBe(
+      'Then write {{field}} in the Text to show a value from it: {{length}} counts the rows, {{0.title}} is the first row’s title, {{0.due | date}} shows a date.',
+    )
   })
 })
