@@ -47,5 +47,30 @@ Migrations run before the new code is uploaded, and nothing rolls them back if t
 must keep working with the Worker already running: add tables and columns; drop or rename only in a later deploy, once
 no running code uses them. wrangler asks before applying migrations to Cloudflare.
 
+## Published apps' sign-in
+
+Apps with sign-in (Data Apps iteration 3) need two things set up once, by hand, before the deploy that brings it:
+
+1. **The platform's secret**, from which each app's sign-in secret is derived. Never in the repo or `wrangler.jsonc`:
+
+   ```bash
+   source ~/.config/feature-domain/cloudflare.env
+   cd packages/worker && openssl rand -hex 32 | node_modules/.bin/wrangler secret put AUTH_SECRET   # the Worker in wrangler.jsonc
+   ```
+
+   Changing it signs everyone out of every app (their session cookies no longer verify); accounts are kept.
+
+2. **Email Sending for `apprun.app`**: in the dashboard, Compute > Email Service > Email Sending, onboard
+   `apprun.app` (its DNS is on Cloudflare). This adds the SPF, DKIM, DMARC and bounce records. Codes come from
+   `MAIL_FROM` (`sign-in@apprun.app`, a var in `packages/worker/wrangler.jsonc`) under each app's name, through the
+   Worker's `EMAIL` binding, which may send only from that address. Email Sending is in public beta and needs Workers
+   Paid.
+
+Without the secret an app's sign-in answers 503; without the binding, asking for a code does.
+
+After a deploy that adds an auth schema step (`packages/worker/src/auth/tables.ts`), run
+`npm run db:upgrade-apps -w packages/worker -- --remote`. Apps not upgraded yet keep working (steps only add), and each
+is brought up to date the next time someone signs in to it.
+
 `terraform output d1_database_id` is the id in `packages/worker/wrangler.jsonc`. Local D1 data is stored per database
 id, so after it changes `npm run dev` starts from freshly seeded samples.

@@ -1,5 +1,6 @@
 // Spike: Better Auth for one app in workerd, without nodejs_compat. GET /mail shows the last code sent.
-import { appSecret, authFor, MemoryMailer } from '../src/auth/authFor'
+import { appSecret, authFor } from '../src/auth/authFor'
+import { MemoryMailer } from '../src/auth/mailer'
 import { D1AuthTables } from '../src/auth/store'
 
 const mailer = new MemoryMailer()
@@ -14,6 +15,7 @@ export default {
       key,
       secret: await appSecret('spike-platform-secret-0123456789abcdef', key),
       baseURL: url.origin,
+      appName: 'Spike',
       mailer,
       waitUntil: (p) => ctx.waitUntil(p),
     })

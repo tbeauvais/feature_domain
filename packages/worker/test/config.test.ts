@@ -28,9 +28,14 @@ it('answers published apps on the wildcard Terraform points at it, behind Access
   expect(terraform).toMatch(/resource "cloudflare_zero_trust_access_application" "apps" \{[^}]*domain\s*=\s*"\*\.\$\{var\.app_domain\}"/)
   // The Worker tells the sites apart by these, so they must be the hosts Access protects.
   const hostname = /variable "hostname" \{[^}]*default\s*=\s*"([^"]+)"/.exec(terraform)?.[1]
-  expect(config.vars).toEqual({ BUILDER_HOST: hostname, APP_DOMAIN: appDomain })
+  expect(config.vars).toEqual({ BUILDER_HOST: hostname, APP_DOMAIN: appDomain, MAIL_FROM: `sign-in@${appDomain}` })
   // Every request reaches the Worker first, so an app's host never gets the editor's pages from the assets.
   expect(config.assets).toMatchObject({ binding: 'ASSETS', run_worker_first: true })
+})
+
+it("leaves https to the Worker's 308: the zone's Always Use HTTPS would answer a POST with a 301 first", () => {
+  // Browsers follow a 301 after a POST with a GET and no body, so a sign-in or a new row would turn into a read.
+  expect(terraform).not.toContain('always_use_https')
 })
 
 it('is at localhost in development, with apps at <slug>.localhost', () => {
@@ -40,7 +45,12 @@ it('is at localhost in development, with apps at <slug>.localhost', () => {
       .filter((line) => /^\w+=/.test(line))
       .map((line) => line.split('=') as [string, string]),
   )
-  expect(vars).toEqual({ BUILDER_HOST: 'localhost', APP_DOMAIN: 'localhost' })
+  expect(vars).toEqual({ BUILDER_HOST: 'localhost', APP_DOMAIN: 'localhost', AUTH_SECRET: expect.stringMatching(/^development-only-/) })
+})
+
+it('sends sign-in codes from MAIL_FROM only, and keeps AUTH_SECRET out of the config', () => {
+  expect(config.send_email).toEqual([{ name: 'EMAIL', allowed_sender_addresses: [config.vars.MAIL_FROM] }])
+  expect(config.vars).not.toHaveProperty('AUTH_SECRET')
 })
 
 it("sets the same security headers on the pages it passes on as public/_headers does on Cloudflare's own", () => {

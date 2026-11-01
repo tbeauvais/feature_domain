@@ -30,6 +30,8 @@ export interface AuthTables {
   get(modelId: string): Promise<AppAuth | null>
   /** Creates the model's auth tables, or brings them up to date; never drops anything. */
   ensure(modelId: string): Promise<AppAuth>
+  /** Brings the model's auth tables up to date, never creating them: null when it has none (dropped meanwhile). */
+  upgrade(modelId: string): Promise<AppAuth | null>
   /** Drops the model's auth tables. Nothing when it has none. */
   drop(modelId: string): Promise<void>
 }
@@ -47,6 +49,9 @@ export class MemoryAuthTables implements AuthTables {
     const app = { key: current?.key ?? newAuthKey(), schemaVersion: this.schemaVersion }
     this.apps.set(modelId, app)
     return app
+  }
+  async upgrade(modelId: string) {
+    return this.apps.has(modelId) ? this.ensure(modelId) : null
   }
   async drop(modelId: string) {
     this.apps.delete(modelId)
@@ -72,9 +77,19 @@ export class D1AuthTables implements AuthTables {
    * applied when they are older, nothing when current. Never drops anything.
    */
   async ensure(modelId: string): Promise<AppAuth> {
+    return (await this.change(modelId, true))!
+  }
+
+  async upgrade(modelId: string): Promise<AppAuth | null> {
+    return this.change(modelId, false)
+  }
+
+  /** `ensure`, or with `create` false `upgrade`: an app without tables (dropped meanwhile) stays without them. */
+  private async change(modelId: string, create: boolean): Promise<AppAuth | null> {
     const newest = this.steps.length
     let current = await this.get(modelId)
     for (let attempt = 0; ; attempt++) {
+      if (!current && !create) return null
       if (current && current.schemaVersion >= newest) return current
       const key = current?.key ?? newAuthKey()
       const from = current?.schemaVersion ?? 0

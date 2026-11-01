@@ -17,7 +17,12 @@
     // 404. packages/worker/.dev.vars sets both to localhost in development.
     "BUILDER_HOST": "app.feature-domain.workers.dev",
     "APP_DOMAIN": "apprun.app",
+    // Where published apps' sign-in codes come from, under each app's name (Cloudflare Email Sending; the domain is set
+    // up for sending as infrastructure/README.md says). The platform's AUTH_SECRET is a Worker secret, not a var.
+    "MAIL_FROM": "sign-in@apprun.app",
   },
+  // Cloudflare Email Sending, for sign-in codes only: from MAIL_FROM, to any address.
+  "send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["sign-in@apprun.app"] }],
   "assets": {
     // The Worker answers every request first, so an app's host never gets the editor: it passes the builder's
     // non-API requests to the assets (env.ASSETS), and serves app.html on an app's.

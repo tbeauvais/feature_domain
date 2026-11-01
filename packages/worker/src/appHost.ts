@@ -5,6 +5,9 @@
 import { databaseTables, type AppModel, type RowStore } from '@feature-domain/engine'
 import { Hono, type Context } from 'hono'
 import type { AppStore } from './apps'
+import type { Mailer } from './auth/mailer'
+import { mountSignIn, SignInGone, type AppSignIn } from './auth/route'
+import type { AuthTables } from './auth/store'
 import type { Env } from './env'
 import { siteOf, type Hosts } from './hosts'
 import { error, mountApi, noneMatch, withPageHeaders, type versionCache } from './http'
@@ -19,7 +22,17 @@ export interface AppHostDeps {
   upstream: typeof fetch
   tablesOf: ReturnType<typeof versionCache<ReturnType<typeof databaseTables>>>
   originsOf: ReturnType<typeof versionCache<ReturnType<typeof allowedOrigins>>>
+  signInOf: ReturnType<typeof versionCache<AppSignIn>>
+  authTables: (env: Env) => AuthTables
+  /** Sends sign-in codes; none where email isn't set up. */
+  mailer: (env: Env) => Mailer | undefined
 }
+
+/**
+ * HSTS for an app's host: browsers then never ask it over http again for a year (its own subdomains too). Not
+ * preloaded: that would bind every name under the domain to https for good.
+ */
+export const APP_HSTS = 'max-age=31536000; includeSubDomains'
 
 /** The app a request's host serves: its model and the number of its published version. */
 type Published = { model: string; version: number }
@@ -29,6 +42,22 @@ type AppHostEnv = { Bindings: Env; Variables: { published: Published | undefined
 export function createAppHost(deps: AppHostDeps) {
   const app = new Hono<AppHostEnv>()
   const api = new Hono<AppHostEnv>()
+
+  // Apps are https only (outside development, where they are http://<slug>.localhost): plain http is sent to the same
+  // address over https (308 keeps the method), so no session cookie is ever set without Secure, and every answer
+  // carries HSTS.
+  app.use(async (c, next) => {
+    if (deps.hosts(c.env).apps === 'localhost') return next()
+    const url = new URL(c.req.url)
+    if (url.protocol !== 'https:') {
+      url.protocol = 'https:'
+      return withPageHeaders(new Response(null, { status: 308, headers: { Location: url.toString() } }))
+    }
+    await next()
+    const answer = new Response(c.res.body, c.res)
+    answer.headers.set('Strict-Transport-Security', APP_HSTS)
+    c.res = answer
+  })
 
   /**
    * The published version's model, read from the store each time it is needed: only to answer /api/v1/app, or when
@@ -111,6 +140,31 @@ export function createAppHost(deps: AppHostDeps) {
         modelOf(c, (message) => new ProxyError(404, message)),
       )
     return answerProxy(c.req.raw, false, origins, site, deps.upstream)
+  })
+
+  // Sign-in, for the app the host names (src/auth/route.ts).
+  mountSignIn(api, async (c: Context<AppHostEnv>) => {
+    const { model, version } = published(c)
+    let waitUntil: (promise: Promise<unknown>) => void = (promise) => void promise.catch((e) => console.error(e))
+    try {
+      const ctx = c.executionCtx
+      waitUntil = (promise) => ctx.waitUntil(promise.catch((e) => console.error(e)))
+    } catch {
+      // No execution context (tests): the work runs without being waited for.
+    }
+    return {
+      model,
+      signIn: await deps.signInOf.load(
+        model,
+        `live:${version}`,
+        modelOf(c, (message) => new SignInGone(message)),
+      ),
+      db: c.env?.DB,
+      tables: c.env ? deps.authTables(c.env) : undefined,
+      secret: c.env?.AUTH_SECRET,
+      mailer: deps.mailer(c.env),
+      waitUntil,
+    }
   })
 
   api.all('/app', () => error(405, 'Method not allowed', { allow: 'GET' }))
