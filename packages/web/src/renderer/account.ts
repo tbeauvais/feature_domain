@@ -1,4 +1,5 @@
 import type { InjectionKey } from 'vue'
+import { isSignInAnswer } from '../lib/signIn'
 // A published app's sign-in, from its page: Better Auth's endpoints on the app's own host (the Worker's
 // src/auth/route.ts), called with fetch (no client library: nothing else to load, and the CSP is unchanged).
 
@@ -31,25 +32,39 @@ export class NoSignIn extends Error {}
 
 type Fetch = typeof fetch
 
-async function call(fetchImpl: Fetch, path: string, body?: unknown): Promise<unknown> {
+/** How long a sign-in request, its answer's body included, may take before it fails (so no page waits forever). */
+export const AUTH_TIMEOUT_MS = 20_000
+
+const UNREACHABLE = "Couldn't reach the app. Check your connection and try again."
+/** What an answer from Cloudflare Access (in front of apps until they are public) says: its session ended. */
+const ACCESS_EXPIRED = 'Your sign-in to this site has expired. Reload the page to sign in again.'
+
+/** Fetches with a time limit (aborting the body's read too), refusing Access's sign-in pages. */
+async function request(fetchImpl: Fetch, url: string, init: RequestInit): Promise<Response> {
   let response: Response
   try {
-    response = await fetchImpl(`${APP_AUTH_PATH}${path}`, {
-      method: body === undefined ? 'GET' : 'POST',
-      headers: { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      credentials: 'same-origin',
-      redirect: 'manual',
-    })
+    response = await fetchImpl(url, { ...init, credentials: 'same-origin', redirect: 'manual', signal: AbortSignal.timeout(AUTH_TIMEOUT_MS) })
   } catch {
-    throw new SignInError("Couldn't reach the app. Check your connection and try again.")
+    throw new SignInError(UNREACHABLE)
   }
+  if (isSignInAnswer(response)) throw new SignInError(ACCESS_EXPIRED)
+  return response
+}
+
+async function call(fetchImpl: Fetch, path: string, body?: unknown): Promise<unknown> {
+  const response = await request(fetchImpl, `${APP_AUTH_PATH}${path}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
   if (response.status === 404) throw new NoSignIn()
-  let answer: unknown = null
+  let answer: unknown
   try {
     answer = await response.json()
   } catch {
-    // An answer without JSON is said by its status below.
+    // A success must be the app's JSON (else nothing was sent, or no one signed in); a failure is said by its status.
+    if (response.ok) throw new SignInError(UNREACHABLE)
+    answer = null
   }
   if (response.ok) return answer
   const { code, message, error } = (answer ?? {}) as { code?: string; message?: string; error?: string }
@@ -114,13 +129,14 @@ export function linkedSignIn(location: { search: string; hash: string }): { emai
 
 /** What the app holds about the person signed in, as a file to save (account.json). */
 export async function downloadAccount(fetchImpl: Fetch = fetch): Promise<Blob> {
-  let response: Response
-  try {
-    response = await fetchImpl(APP_ACCOUNT_PATH, { headers: { Accept: 'application/json' }, credentials: 'same-origin', redirect: 'manual' })
-  } catch {
-    throw new SignInError("Couldn't reach the app. Check your connection and try again.")
-  }
+  const response = await request(fetchImpl, APP_ACCOUNT_PATH, { headers: { Accept: 'application/json' } })
   if (response.status === 401) throw new SignInError('You were signed out. Sign in again to download your data.')
-  if (!response.ok) throw new SignInError(`Your data couldn't be downloaded (${response.status}). Try again.`)
-  return response.blob()
+  // Only the app's JSON is saved as the file, never some other page.
+  if (!response.ok || !response.headers.get('Content-Type')?.toLowerCase().startsWith('application/json'))
+    throw new SignInError(`Your data couldn't be downloaded (${response.status}). Try again.`)
+  try {
+    return await response.blob()
+  } catch {
+    throw new SignInError(UNREACHABLE)
+  }
 }

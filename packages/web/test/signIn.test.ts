@@ -4,7 +4,7 @@
 import { signInDocument, type DocNodeOf } from '@feature-domain/engine'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { linkedSignIn, readCode, SIGNED_IN } from '../src/renderer/account'
+import { downloadAccount, linkedSignIn, readCode, sendCode, SIGNED_IN, signInWithCode } from '../src/renderer/account'
 import { provideDataStore } from '../src/renderer/data'
 import DocumentView from '../src/renderer/DocumentView.vue'
 import AccountNode from '../src/renderer/nodes/AccountNode.vue'
@@ -40,6 +40,37 @@ describe('reading the emailed link', () => {
     expect(readCode('123-456')).toBe('123456')
     expect(readCode('12345')).toBeUndefined()
     expect(readCode('12345a')).toBeUndefined()
+  })
+})
+
+describe('the sign-in calls', () => {
+  const html = (status = 200) => new Response('<html>Sign in</html>', { status, headers: { 'Content-Type': 'text/html' } })
+  const text = () => new Response('ok', { status: 200, headers: { 'Content-Type': 'text/plain' } })
+
+  it('give every request a time limit, so a stalled one fails rather than waiting forever', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.signal).toBeInstanceOf(AbortSignal)
+      throw new DOMException('The operation timed out.', 'TimeoutError')
+    })
+    await expect(sendCode('ann@example.com', fetchImpl)).rejects.toThrow("Couldn't reach the app.")
+    await expect(downloadAccount(fetchImpl)).rejects.toThrow("Couldn't reach the app.")
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('never take an Access sign-in page, or any answer that is not the app’s JSON, as success', async () => {
+    await expect(sendCode('ann@example.com', async () => html())).rejects.toThrow('Your sign-in to this site has expired.')
+    await expect(signInWithCode('ann@example.com', '123456', async () => html())).rejects.toThrow('Your sign-in to this site has expired.')
+    await expect(signInWithCode('ann@example.com', '123456', async () => text())).rejects.toThrow("Couldn't reach the app.")
+    // A body whose read is cut off (the time limit) is no success either.
+    const cut = new Response('{"us', { status: 200, headers: { 'Content-Type': 'application/json' } })
+    await expect(signInWithCode('ann@example.com', '123456', async () => cut)).rejects.toThrow("Couldn't reach the app.")
+  })
+
+  it('download only the app’s JSON as the file', async () => {
+    await expect(downloadAccount(async () => html())).rejects.toThrow('Your sign-in to this site has expired.')
+    await expect(downloadAccount(async () => text())).rejects.toThrow("Your data couldn't be downloaded (200).")
+    const file = await downloadAccount(async () => json({ account: { email: 'ann@example.com' } }))
+    expect(JSON.parse(await file.text())).toEqual({ account: { email: 'ann@example.com' } })
   })
 })
 
@@ -104,6 +135,31 @@ describe('the sign-in page', () => {
       .find((b) => b.text() === 'Use another email')!
       .trigger('click')
     expect(w.find('input[type=email]').exists()).toBe(true)
+    w.unmount()
+  })
+
+  it('signs in with the address the code went to, the field locked while it is sent', async () => {
+    let sent!: () => void
+    const calls = fakeApp({
+      '/api/v1/app/auth/email-otp/send-verification-otp': () => json({ success: true }),
+      '/api/v1/app/auth/sign-in/email-otp': () => json({ user: { email: 'ann@example.com' } }),
+    })
+    const answered = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementationOnce(async (input, init) => (await new Promise<void>((r) => (sent = r)), answered(input, init)))
+    const { w } = form()
+    await w.find('input[type=email]').setValue('ann@example.com')
+    await w.find('form').trigger('submit')
+    await flushPromises()
+    expect(w.find('input[type=email]').attributes('readonly')).toBeDefined()
+    // Even a change that gets through meanwhile doesn't move the code to another address.
+    await w.find('input[type=email]').setValue('bo@example.com')
+    sent()
+    await flushPromises()
+    expect(w.text()).toContain('If ann@example.com can sign in, a code is on its way.')
+    await w.find('input[autocomplete=one-time-code]').setValue('123456')
+    await w.find('form').trigger('submit')
+    await flushPromises()
+    expect(calls.at(-1)).toMatchObject({ body: { email: 'ann@example.com', otp: '123456' } })
     w.unmount()
   })
 

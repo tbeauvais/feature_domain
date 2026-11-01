@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DocNodeOf } from '@feature-domain/engine'
-import { computed, inject, nextTick, onMounted, ref, useId } from 'vue'
+import { inject, nextTick, onMounted, ref, useId } from 'vue'
 import { linkedSignIn, looksLikeEmail, NoSignIn, readCode, sendCode, SIGNED_IN, signInWithCode, signOut, SignInError } from '../account'
 
 /**
@@ -13,6 +13,8 @@ const signedIn = inject(SIGNED_IN, () => window.location.replace('/'))
 const id = useId()
 const step = ref<'refused' | 'email' | 'code'>(props.node.props.refused ? 'refused' : 'email')
 const email = ref('')
+/** The address the code went to: the code step signs in with it, whatever the field says since. */
+const sentTo = ref('')
 const code = ref('')
 const busy = ref(false)
 const problem = ref('')
@@ -34,12 +36,11 @@ onMounted(() => {
 function fillLinked() {
   if (linked.email) email.value = linked.email
   if (linked.email && linked.code) {
+    sentTo.value = linked.email.trim()
     code.value = linked.code
     step.value = 'code'
   }
 }
-
-const sentTo = computed(() => email.value.trim())
 
 /** Runs one step, saying what went wrong in words. */
 async function attempt(work: () => Promise<void>) {
@@ -55,12 +56,15 @@ async function attempt(work: () => Promise<void>) {
 }
 
 async function ask() {
-  if (!looksLikeEmail(email.value)) {
+  // A new code goes where the last one went; a first one to the address typed.
+  const to = step.value === 'code' ? sentTo.value : email.value.trim()
+  if (!looksLikeEmail(to)) {
     problem.value = 'Enter your email address, such as ann@example.com.'
     return
   }
   await attempt(async () => {
-    await sendCode(sentTo.value)
+    await sendCode(to)
+    sentTo.value = to
     code.value = ''
     step.value = 'code'
     notice.value = `If ${sentTo.value} can sign in, a code is on its way. It works for 5 minutes.`
@@ -126,6 +130,7 @@ async function leave() {
           autocomplete="email"
           inputmode="email"
           required
+          :readonly="busy"
           :aria-describedby="`${id}-email-hint`"
         />
         <p :id="`${id}-email-hint`" class="fd-form-hint">We'll email you a code to sign in with. No password.</p>
