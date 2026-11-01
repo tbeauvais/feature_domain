@@ -653,6 +653,8 @@ h6.fd-heading {
 }
 .fd-list li::before {
   content: counter(fd-list, decimal-leading-zero);
+  /* Never squeezed by an item that wraps (which would break "02" over two lines). */
+  flex: none;
   font-family: var(--fd-font-mono);
   font-size: 0.75em;
   color: var(--fd-accent);

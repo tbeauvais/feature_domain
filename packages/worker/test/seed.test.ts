@@ -53,7 +53,7 @@ it('adds a sample written after a database was seeded once, and keeps it deleted
   const names = (await store.list()).map((m) => m.name)
   expect(names).toEqual(SAMPLE_MODELS.slice(1).map((m) => m.name))
   const later = (await store.list()).at(-1)!
-  expect(later).toMatchObject({ id: `sample-2-${SAMPLE_MODELS.length}`, name: 'Team requests' })
+  expect(later).toMatchObject({ id: `sample-2-${SAMPLE_MODELS.length}`, name: 'Saltmarsh Rowing Club' })
 
   await store.delete(later.id)
   seed(SAMPLE_MODELS)
@@ -70,6 +70,7 @@ it('keeps every sample at its position, as databases remember seeded samples by 
     'Tom Beauvais · projects',
     'Shoreline JS meetup',
     'Team requests',
+    'Saltmarsh Rowing Club',
   ])
   expect(FIRST_SAMPLES).toBe(6)
 })

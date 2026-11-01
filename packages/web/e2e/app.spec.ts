@@ -55,6 +55,7 @@ test('lists the sample models', async ({ page }) => {
     'Tom Beauvais · projects',
     'Shoreline JS meetup',
     'Team requests',
+    'Saltmarsh Rowing Club',
   ])
 })
 
