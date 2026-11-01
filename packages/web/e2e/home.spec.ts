@@ -10,7 +10,16 @@ isolateNetwork()
 
 const home = (page: Page) => page.getByTestId('home-page')
 const models = (page: Page) => home(page).getByRole('table').getByRole('link')
-const SAMPLES = ['Start here', 'Harbor Coffee', 'Ledgerly pricing', 'Northwind sales', 'Tom Beauvais · projects', 'Shoreline JS meetup', 'Team requests']
+const SAMPLES = [
+  'Start here',
+  'Harbor Coffee',
+  'Ledgerly pricing',
+  'Northwind sales',
+  'Tom Beauvais · projects',
+  'Shoreline JS meetup',
+  'Team requests',
+  'Saltmarsh Rowing Club',
+]
 
 test('lists the models, each opening in the editor in the same tab', async ({ page }) => {
   await page.goto('/')

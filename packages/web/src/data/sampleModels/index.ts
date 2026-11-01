@@ -5,6 +5,7 @@ import { meetup } from './meetup'
 import { portfolio } from './portfolio'
 import { pricing } from './pricing'
 import { requestTracker } from './requests'
+import { rowingClub } from './rowingClub'
 import { sales } from './sales'
 
 /**
@@ -12,4 +13,4 @@ import { sales } from './sales'
  * seed stores each under its position (`sample-2-<n>`), and remembers samples added after the first six by that id
  * (packages/worker/scripts/seedSql.ts), so moving one would make a database forget or repeat it.
  */
-export const SAMPLE_MODELS: readonly AppModel[] = [guide, cafe, pricing, sales, portfolio, meetup, requestTracker]
+export const SAMPLE_MODELS: readonly AppModel[] = [guide, cafe, pricing, sales, portfolio, meetup, requestTracker, rowingClub]
