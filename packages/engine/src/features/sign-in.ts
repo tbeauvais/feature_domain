@@ -29,11 +29,27 @@ export function isSignInExports(value: unknown): value is SignInExports {
 /** The longest list of emails and domains (one per line). */
 export const MAX_ALLOWED_ENTRIES = 500
 
-/** An email (`ann@example.com`) or a whole domain (`@example.com`), lowercase; undefined when it is neither. */
+/** One label of a domain name: letters, digits and inner hyphens. */
+const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
+/** A domain's last label: letters, or punycode (`xn--…`). */
+const TOP_LABEL = /^(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/
+
+/**
+ * An email (`ann@example.com`) or a whole domain (`@example.com`), lowercase; undefined when it is neither. The domain
+ * must be a real name (`example.com/` or `@example.com/path` would match no one); the local part is anything but
+ * spaces, control characters and `@`.
+ */
 export function readAllowedEntry(entry: string): string | undefined {
   const e = entry.trim().toLowerCase()
-  return /^[^\s@]*@[^\s@.]+(\.[^\s@.]+)+$/.test(e) && !e.includes('..') ? e : undefined
+  const at = e.indexOf('@')
+  if (at < 0 || e.indexOf('@', at + 1) >= 0 || /[\s\p{Cc}]/u.test(e)) return undefined
+  const labels = e.slice(at + 1).split('.')
+  if (labels.length < 2 || !labels.every((l) => LABEL.test(l)) || !TOP_LABEL.test(labels.at(-1)!)) return undefined
+  return e
 }
+
+/** How many unreadable entries are named one by one before the rest are counted. */
+const NAMED_PROBLEMS = 5
 
 const openToInput: InputDef = {
   name: 'open_to',
@@ -91,13 +107,19 @@ export const SignInFeature: FeatureDefinition = {
     if (openTo !== stored) ctx.report('error', `"${stored}" isn't a choice of who can open the app: choose one`)
     if (openTo !== 'listed') return { exports: { signIn: { openTo, allowed: null, signUp: asBool(inputs.sign_up) } } satisfies SignInExports }
 
-    const allowed: string[] = []
+    // Read only until one past the most used (a stored list may be any length), so a long one costs no more.
+    const unique = new Set<string>()
+    let unreadable = 0
     for (const line of asList(inputs.allowed)) {
+      if (unique.size > MAX_ALLOWED_ENTRIES) break
       if (line.trim() === '') continue
       const entry = readAllowedEntry(line)
-      if (entry === undefined) ctx.report('warning', `"${line.trim()}" is neither an email nor an @domain, so it is left out`)
-      else if (!allowed.includes(entry)) allowed.push(entry)
+      if (entry !== undefined) unique.add(entry)
+      else if (++unreadable <= NAMED_PROBLEMS) ctx.report('warning', `"${line.trim().slice(0, 80)}" is neither an email nor an @domain, so it is left out`)
     }
+    if (unreadable > NAMED_PROBLEMS)
+      ctx.report('warning', `${unreadable - NAMED_PROBLEMS} more lines are neither an email nor an @domain, so they are left out`)
+    const allowed = [...unique]
     if (allowed.length > MAX_ALLOWED_ENTRIES) {
       ctx.report('warning', `Only the first ${MAX_ALLOWED_ENTRIES} emails and domains are used`)
       allowed.length = MAX_ALLOWED_ENTRIES

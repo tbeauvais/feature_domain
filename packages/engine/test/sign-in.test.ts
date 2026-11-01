@@ -43,6 +43,23 @@ describe('SignInFeature', () => {
     expect(problems).toEqual([['warning', 's', `Only the first ${MAX_ALLOWED_ENTRIES} emails and domains are used`]])
   })
 
+  it('names a few unreadable lines and counts the rest, and a list of only bad domains is an error', () => {
+    const { settings, problems } = read(signIn({ open_to: 'listed', allowed: Array.from({ length: 8 }, (_, i) => `ann@example.com/${i}`) }))
+    expect(settings!.allowed).toEqual([])
+    expect(problems.map((p) => p[2])).toEqual([
+      ...Array.from({ length: 5 }, (_, i) => `"ann@example.com/${i}" is neither an email nor an @domain, so it is left out`),
+      '3 more lines are neither an email nor an @domain, so they are left out',
+      'List the emails or domains of the people who can open the app',
+    ])
+  })
+
+  it('reads a very long list only as far as it uses', () => {
+    const huge = Array.from({ length: 50_000 }, (_, i) => `p${i}@example.com`)
+    const started = performance.now()
+    expect(read(signIn({ open_to: 'listed', allowed: huge })).settings!.allowed).toHaveLength(MAX_ALLOWED_ENTRIES)
+    expect(performance.now() - started).toBeLessThan(1000)
+  })
+
   it('reads an unknown choice as signed in only, never anyone, with an error so it is not published', () => {
     expect(read(signIn({ open_to: 'signed_in' }))).toMatchObject({
       settings: { openTo: 'signed-in' },
@@ -75,7 +92,26 @@ describe('allowed lists', () => {
   it('reads an email or an @domain', () => {
     expect(readAllowedEntry(' Ann@Example.COM ')).toBe('ann@example.com')
     expect(readAllowedEntry('@example.co.uk')).toBe('@example.co.uk')
-    for (const bad of ['ann', 'ann@', '@', '@example', 'a b@example.com', 'a@b@example.com', 'ann@example..com', 'ann@.example.com'])
+    expect(readAllowedEntry('first.last+tag@xn--bcher-kva.example')).toBe('first.last+tag@xn--bcher-kva.example')
+    expect(readAllowedEntry('ann@mail-1.example.com')).toBe('ann@mail-1.example.com')
+    for (const bad of [
+      'ann',
+      'ann@',
+      '@',
+      '@example',
+      'a b@example.com',
+      'a@b@example.com',
+      'ann@example..com',
+      'ann@.example.com',
+      'ann@example.com/',
+      '@example.com/path',
+      '@-example.com',
+      '@example-.com',
+      'a@exa_mple.com',
+      'a@example.c0m',
+      'a@example.c',
+      'a\u0000b@example.com',
+    ])
       expect(readAllowedEntry(bad)).toBeUndefined()
   })
 

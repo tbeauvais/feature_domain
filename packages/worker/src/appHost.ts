@@ -140,7 +140,8 @@ export function createAppHost(deps: AppHostDeps) {
     for (const cookie of visitor.cookies) headers.append('Set-Cookie', cookie)
   }
   api.use('/app', visitorsOnly(['GET', 'HEAD']))
-  api.use('/app/tables/*', visitorsOnly())
+  api.use('/app/tables/:table/rows', visitorsOnly(['GET', 'HEAD', 'POST']))
+  api.use('/app/tables/:table/rows/:row', visitorsOnly(['GET', 'HEAD', 'PATCH', 'DELETE']))
   api.use('/app/proxy', visitorsOnly(['POST']))
 
   // The published version: what the app's page shows. Its number is its ETag, so a page checks for a new one cheaply.

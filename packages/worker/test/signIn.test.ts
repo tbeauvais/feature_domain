@@ -465,6 +465,11 @@ describe('who can open the app (the Sign-in feature’s Who can open)', () => {
     await published('Members with sign-in', 'members', { open_to: 'signed-in' })
     expect((await at('members', '', undefined, { method: 'POST' })).status).toBe(405)
     expect((await at('members', '/proxy')).status).toBe(405)
+    expect((await at('members', '/tables/9/rows', undefined, { method: 'PUT' })).status).toBe(405)
+    expect((await at('members', '/tables/9/rows/01J0000000000000000000000A', undefined, { method: 'POST' })).status).toBe(405)
+    // The methods they do take are still gated, one row as the whole table.
+    expect((await at('members', '/tables/9/rows', undefined, { method: 'POST' })).status).toBe(401)
+    expect((await at('members', '/tables/9/rows/01J0000000000000000000000A', undefined, { method: 'DELETE' })).status).toBe(401)
   })
 
   it('renews the session cookie when reading the session extends it', async () => {
