@@ -4,6 +4,10 @@ import {
   databaseTables,
   generate,
   isDatabaseTableExports,
+  OPEN_ACCESS,
+  operationNeedsPerson,
+  rowOperation,
+  rulesFor,
   proxyAddresses,
   type DocNodeOf,
   type FeatureInstance,
@@ -95,6 +99,8 @@ describe('DatabaseTableFeature', () => {
       },
       table: {
         key: 't',
+        name: 'Requests',
+        access: OPEN_ACCESS,
         schema: {
           fields: [
             { name: 'title', type: 'text', required: true },
@@ -290,5 +296,65 @@ describe('databaseTables', () => {
 describe('databaseTableKeys', () => {
   it('lists every Database table, also ones that do not generate', () => {
     expect(databaseTableKeys(model(table(), table({}, 'a/b'), inst('DataResourceFeature', 'r', {}, null), page()))).toEqual(['t', 'a/b'])
+  })
+})
+
+describe('a Database table’s access rules', () => {
+  const signIn = inst('SignInFeature', 's', {}, null)
+  const accessOf = (inputs: Record<string, InputValue>, ...others: FeatureInstance[]) => {
+    const m = model(table(inputs), ...others)
+    return { access: databaseTables(m).get('t')?.access, problems: generate(m).diagnostics.map((d) => `${d.severity}: ${d.message}`) }
+  }
+
+  it('are open to anyone by default, so tables stored before rules keep working as they did', () => {
+    expect(accessOf({})).toEqual({ access: OPEN_ACCESS, problems: [] })
+  })
+
+  it('take a rule per operation, and what a deleted account leaves', () => {
+    expect(accessOf({ see_rows: 'signed-in', add_rows: 'signed-in', change_rows: 'owner', delete_rows: 'nobody', deleted_accounts: 'keep' }, signIn)).toEqual({
+      access: { see: 'signed-in', add: 'signed-in', change: 'owner', delete: 'nobody', deletedAccounts: 'keep' },
+      problems: [],
+    })
+  })
+
+  it('fail closed on a choice they don’t know, as an error so the app isn’t published (adding has no owner)', () => {
+    const { access, problems } = accessOf({ see_rows: 'everyone', add_rows: 'owner', deleted_accounts: 'archive' })
+    expect(access).toMatchObject({ see: 'nobody', add: 'nobody', change: 'anyone', deletedAccounts: 'delete' })
+    expect(problems).toEqual([
+      'error: "everyone" isn\'t a choice of who can see rows: choose one',
+      'error: "owner" isn\'t a choice of who can add rows: choose one',
+      'error: "archive" isn\'t a choice of what happens to a deleted account\'s rows: choose one',
+    ])
+  })
+
+  it('need a Sign-in feature when a rule needs someone signed in (else the app would refuse everyone)', () => {
+    const missing = 'error: Its rules need people to sign in: add a Sign-in feature, or set them to Anyone or No one'
+    expect(accessOf({ delete_rows: 'owner' }).problems).toEqual([missing])
+    expect(accessOf({ see_rows: 'signed-in' }, inst('SignInFeature', 's', { disable: true }, null)).problems).toContain(missing)
+    expect(accessOf({ delete_rows: 'owner' }, signIn).problems).toEqual([])
+    // Anyone and No one need no one signed in.
+    expect(accessOf({ see_rows: 'anyone', delete_rows: 'nobody' }).problems).toEqual([])
+    // The table still generates (its rows stay readable in the builder).
+    expect(databaseTables(model(table({ delete_rows: 'owner' }))).has('t')).toBe(true)
+  })
+
+  it('make created_by a name no field can take', () => {
+    const r = generate(model(table({ fields: ['created_by: text'] })))
+    expect(r.diagnostics.map((d) => d.message)).toContain('"created_by" is set for every row already; name the field something else')
+  })
+})
+
+describe('which rules an operation answers to', () => {
+  it('is its own, and for a change or delete the See rule too', () => {
+    const access = { see: 'owner', add: 'anyone', change: 'anyone', delete: 'nobody', deletedAccounts: 'delete' } as const
+    expect(rulesFor(access, 'see')).toEqual(['owner'])
+    expect(rulesFor(access, 'add')).toEqual(['anyone'])
+    expect(rulesFor(access, 'change')).toEqual(['anyone', 'owner'])
+    expect(rulesFor(access, 'delete')).toEqual(['nobody', 'owner'])
+    expect(operationNeedsPerson(access, 'add')).toBe(false)
+    expect(operationNeedsPerson(access, 'change')).toBe(true)
+    expect(operationNeedsPerson(OPEN_ACCESS, 'delete')).toBe(false)
+    expect(rowOperation('get')).toBe('see')
+    expect(rowOperation('PUT')).toBeUndefined()
   })
 })

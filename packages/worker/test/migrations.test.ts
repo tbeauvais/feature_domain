@@ -16,6 +16,9 @@ beforeAll(async () => {
 }, 60_000)
 afterAll(() => d1?.dispose())
 
+const OLD_ROW = '01JBQ0000000000000000000AA'
+const rowCount = async () => (await d1.env.DB.prepare("SELECT count(*) AS n FROM rows WHERE model_id = 'old'").first<{ n: number }>())!.n
+
 /** Runs one migration file's statements. */
 async function apply(file: string) {
   const sql = readFileSync(join(WORKER_DIR, 'migrations', file), 'utf8').replace(/^--.*$/gm, '')
@@ -46,14 +49,19 @@ it('starts models stored before revisions at revision 1, and saves count on from
 
 it('adds rows beside the models stored before, leaving them as they were', async () => {
   await apply('0003_rows.sql')
-  const rows = new D1RowStore(d1.env.DB)
-  const table = { model: 'old', space: 'draft', table: '2' } as const
-  const row = await rows.create(table, { title: 'Kept' })
-  expect(await rows.list(table)).toEqual([row])
+  // A row as the Worker before 0007 wrote it (today's D1RowStore needs 0007's column, tested below).
+  const insert = (space: string) =>
+    d1.env.DB.prepare('INSERT INTO rows (model_id, space, table_key, id, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind('old', space, '2', OLD_ROW, JSON.stringify({ title: 'Kept' }), 3, 3)
+      .run()
+  await insert('draft')
+  expect(await rowCount()).toBe(1)
   expect(await new D1ModelStore(d1.env.DB).get('old')).toMatchObject({ revision: 2 })
   // Rows of an unknown space are refused, and so are sample marks.
-  await expect(rows.create({ ...table, space: 'other' as 'live' }, { title: 'x' })).rejects.toThrow(/CHECK/)
-  await expect(rows.storeSampleRows({ ...table, space: 'other' as 'live' }, [])).rejects.toThrow(/CHECK/)
+  await expect(insert('other')).rejects.toThrow(/CHECK/)
+  await expect(d1.env.DB.prepare("INSERT INTO sampled_tables (model_id, space, table_key, token) VALUES ('old', 'other', '2', 't')").run()).rejects.toThrow(
+    /CHECK/,
+  )
 })
 
 it('adds published apps beside the models and rows stored before, leaving them as they were', async () => {
@@ -62,7 +70,7 @@ it('adds published apps beside the models and rows stored before, leaving them a
   expect(await apps.publish('old', 'old-app', { version: 2, name: 'Old', features: [] })).toMatchObject({ slug: 'old-app', version: 1 })
   expect((await apps.bySlug('old-app'))?.model).toBe('old')
   expect(await new D1ModelStore(d1.env.DB).get('old')).toMatchObject({ revision: 2 })
-  expect(await new D1RowStore(d1.env.DB).list({ model: 'old', space: 'draft', table: '2' })).toHaveLength(1)
+  expect(await rowCount()).toBe(1)
 })
 
 it('adds publishing claims beside the apps published before, leaving them as they were', async () => {
@@ -83,5 +91,27 @@ it('adds sign-in tables beside the apps published before, leaving them as they w
   expect(await tables.get('old')).toEqual(made)
   expect((await new D1AppStore(d1.env.DB).bySlug('old-app'))?.model).toBe('old')
   expect(await new D1ModelStore(d1.env.DB).get('old')).toMatchObject({ revision: 2 })
-  expect(await new D1RowStore(d1.env.DB).list({ model: 'old', space: 'draft', table: '2' })).toHaveLength(1)
+  expect(await rowCount()).toBe(1)
+})
+
+it('remembers who adds rows from now on, the rows stored before added by no one', async () => {
+  await apply('0007_row_owners.sql')
+  expect(await d1.env.DB.prepare('SELECT created_by FROM rows WHERE id = ?').bind(OLD_ROW).first('created_by')).toBeNull()
+})
+
+it('adds forgotten people beside the rows stored before, which keep working', async () => {
+  await apply('0008_forgotten_people.sql')
+  const rows = new D1RowStore(d1.env.DB)
+  const table = { model: 'old', space: 'draft', table: '2' } as const
+  const [old] = await rows.list(table)
+  expect(old).toMatchObject({ id: OLD_ROW, title: 'Kept' })
+  expect(old).not.toHaveProperty('created_by')
+  const live = { ...table, space: 'live' } as const
+  const added = await rows.create(live, { title: 'Ann’s' }, 'user-ann')
+  expect(await rows.list(live, { createdBy: 'user-ann' })).toEqual([added])
+  // The Worker before 0007 still inserts without it while the new one is uploading.
+  await d1.env.DB.prepare('INSERT INTO rows (model_id, space, table_key, id, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .bind('old', 'live', '2', '01JBQ0000000000000000000BB', '{}', 4, 4)
+    .run()
+  expect(await rows.list(live)).toHaveLength(2)
 })

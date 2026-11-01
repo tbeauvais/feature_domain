@@ -2,11 +2,22 @@
 // /api/v1/app/account (what the app holds about the person signed in, to download). The app is always the one the
 // host names: its tables, its secret, its exact address. Only while the published version has sign-in.
 
-import { generate, onAllowedList, pageTheme, signInOf, type AppModel, type OpenTo, type ThemeTokens } from '@feature-domain/engine'
+import {
+  generate,
+  onAllowedList,
+  pageTheme,
+  signInOf,
+  type AppModel,
+  type DatabaseTable,
+  type OpenTo,
+  type RowStore,
+  type ThemeTokens,
+} from '@feature-domain/engine'
 import type { Context, Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { error, sendsJson } from '../http'
-import { appSecret, AUTH_BASE_PATH, authFor } from './authFor'
+import { pageRow } from '../rows'
+import { appSecret, AUTH_BASE_PATH, authFor, hasSessionCookie } from './authFor'
 import type { Mailer } from './mailer'
 import type { AppAuth, AuthTables } from './store'
 import { AUTH_SCHEMA_STEPS } from './tables'
@@ -63,6 +74,8 @@ export interface SignInTarget {
   secret: string | undefined
   mailer: Mailer | undefined
   waitUntil: (promise: Promise<unknown>) => void
+  /** The app's live rows and the published version's Database tables: a person's rows go with their account. */
+  rows: { store: RowStore; tables: () => Promise<ReadonlyMap<string, DatabaseTable>> }
 }
 
 const NO_SIGN_IN = 'This app has no sign-in'
@@ -129,6 +142,7 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
     const tables = current.schemaVersion < AUTH_SCHEMA_STEPS.length ? await upgradeOnce(found.tables, found.model) : current
     if (!tables) return error(404, NO_SIGN_IN)
     const { allowed } = found.signIn
+    const { rows, model } = found
     const auth = authFor({
       db: found.db,
       key: tables.key,
@@ -139,6 +153,11 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
       waitUntil: found.waitUntil,
       signUp: found.signIn.signUp,
       ...(allowed ? { allows: (email: string) => onAllowedList(allowed, email) } : {}),
+      // Their rows go, except in tables set to keep them, which keep them without their name.
+      forgetUser: async (userId, gone) => {
+        const keep = [...(await rows.tables()).values()].filter((t) => t.access.deletedAccounts === 'keep').map((t) => t.key)
+        await rows.store.forgetPerson(model, 'live', userId, keep, gone)
+      },
     })
     return { auth, found }
   }
@@ -165,8 +184,11 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
     return withoutTokens(await app.auth.handler(c.req.raw))
   })
 
-  // What the app holds about the person signed in, to download. (Their rows join it with access rules.)
+  // What the app holds about the person signed in, to download: their account, sessions and the rows they added. Only
+  // from the app's own page (or typed in the address bar), so another site can't make a visitor's browser download it.
   api.get('/app/account', async (c) => {
+    const site = c.req.header('Sec-Fetch-Site')
+    if (site && site !== 'same-origin' && site !== 'none') return error(403, "Your data is downloaded from the app's own page")
     const app = await authOf(c)
     if (app instanceof Response) return app
     const { auth, found } = app
@@ -175,12 +197,15 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
     if (!session) return error(401, 'Sign in first')
     const sessions = await auth.api.listSessions({ headers })
     const { user } = session
+    const [byTable, tables] = await Promise.all([found.rows.store.rowsBy(found.model, 'live', user.id), found.rows.tables()])
     return c.json(
       {
         app: found.signIn.name,
         exported_at: new Date().toISOString(),
         account: { id: user.id, email: user.email, name: user.name, email_verified: user.emailVerified, created_at: user.createdAt },
         sessions: sessions.map((s) => ({ created_at: s.createdAt, expires_at: s.expiresAt, ip_address: s.ipAddress, user_agent: s.userAgent })),
+        // By table, named as the published version names it (a table it no longer has, by its key).
+        rows: Object.entries(byTable).map(([key, rows]) => ({ table: tables.get(key)?.name ?? key, rows: rows.map(pageRow) })),
       },
       200,
       { 'Cache-Control': 'no-store', 'Content-Disposition': 'attachment; filename="account.json"' },
@@ -191,34 +216,43 @@ export function mountSignIn<A extends Hono<any>>(api: A, target: (c: Context) =>
   return {
     /**
      * Whether a request may see the app: its version, rows and proxy. An app open to anyone, or without sign-in, lets
-     * everyone in (undefined); otherwise only a person signed in (else a 401), and for a list, only while their email is
-     * on it (else a 403; the list may have changed since they signed in). Each answer names the app, for its sign-in
-     * page. An app that needs sign-in but can't check it (no secret, no tables) lets no one in.
+     * everyone in; otherwise only a person signed in (else a 401), and for a list, only while their email is on it
+     * (else a 403; the list may have changed since they signed in). Each answer names the app, for its sign-in page. An
+     * app that needs sign-in but can't check it (no secret, no tables) lets no one in. In an app open to anyone with
+     * sign-in, `person` says whether to read the session too (asked only there, as working it out may read the app's
+     * tables): `needed` (a table's rule needs to know who asks), or `wanted` (a row is added, which remembers who added
+     * it if someone signed in did: only read when a session cookie is sent, and a sign-in that can't be checked doesn't
+     * refuse it).
      */
-    async visitor(c: Context): Promise<Visitor> {
+    async visitor(c: Context, wants: () => Promise<'needed' | 'wanted' | false> = async () => false): Promise<Visitor> {
       const found = await find(c)
       if (found instanceof Response) return { refused: found }
-      if (!found.signIn.on || found.signIn.openTo === 'anyone') return { gated: false }
+      if (!found.signIn.on) return { gated: false, signIn: false }
+      const open = found.signIn.openTo === 'anyone'
+      const person = open ? await wants() : 'needed'
+      if (open && (!person || (person === 'wanted' && !hasSessionCookie(c.req.raw)))) return { gated: false, signIn: true }
       const app = await authOf(c, false, found)
-      if (app instanceof Response) return { refused: app }
+      if (app instanceof Response) return open && person === 'wanted' ? { gated: false, signIn: true } : { refused: app }
       // Reading a session past its update age extends it: the renewed cookie goes out with the answer.
       const { headers, response: session } = await app.auth.api.getSession({ headers: c.req.raw.headers, returnHeaders: true })
       const cookies = headers.getSetCookie()
       const { name, allowed, theme } = found.signIn
       const page = { app: name, ...(theme ? { theme } : {}) }
-      if (!session) return { refused: signInAnswer(401, 'Sign in to open this app', page, cookies) }
+      // Open to anyone: someone signed out still sees the app (a table's rules say what they may do).
+      if (!session) return open ? { gated: true, cookies, person: null } : { refused: signInAnswer(401, 'Sign in to open this app', page, cookies) }
       if (allowed && !onAllowedList(allowed, session.user.email))
         return { refused: signInAnswer(403, 'This app is open only to the people it lists', { ...page, email: session.user.email }, cookies) }
-      return { gated: true, cookies }
+      return { gated: true, cookies, person: session.user.id }
     },
   }
 }
 
 /**
- * Whether a request may see the app: `refused` with the answer, or let in, `gated` when that took a session (so the
- * answer is the person's own, never for a shared cache), with any cookie the session read renewed.
+ * Whether a request may see the app: `refused` with the answer, or let in. `gated` when that took a session (so the
+ * answer is the person's own, never for a shared cache), with any cookie the session read renewed and the `person`
+ * signed in (their id; null for no one). Ungated, `signIn` says whether the app has sign-in at all.
  */
-export type Visitor = { refused: Response } | { gated: false } | { gated: true; cookies: readonly string[] }
+export type Visitor = { refused: Response } | { gated: false; signIn: boolean } | { gated: true; cookies: readonly string[]; person: string | null }
 
 /** What an app asking for sign-in answers: its page shows the sign-in page for `sign_in`. Never cached. */
 export interface SignInAnswer {

@@ -11,7 +11,7 @@ afterAll(() => d1?.dispose())
 
 /** An empty database. */
 async function fresh(): Promise<void> {
-  await d1.env.DB.exec('DELETE FROM rows; DELETE FROM sampled_tables')
+  await d1.env.DB.exec('DELETE FROM rows; DELETE FROM sampled_tables; DELETE FROM forgotten_people')
 }
 
 describeRowStore('D1RowStore', async () => {
@@ -21,6 +21,19 @@ describeRowStore('D1RowStore', async () => {
 
 describe('D1RowStore', () => {
   const table = { model: 'm1', space: 'draft', table: '3' } as const
+
+  it('takes who added a row from its column alone, never from a created_by key its data holds from before', async () => {
+    await fresh()
+    // A field once named created_by (before it was the row's own) left the key in the data.
+    await d1.env.DB.prepare('INSERT INTO rows (model_id, space, table_key, id, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind('m1', 'live', '3', '01JBQ0000000000000000000AA', JSON.stringify({ title: 'Old', created_by: 'user-ann' }), 1, 1)
+      .run()
+    const store = new D1RowStore(d1.env.DB)
+    const live = { ...table, space: 'live' } as const
+    const [row] = await store.list(live)
+    expect(row).toEqual({ id: '01JBQ0000000000000000000AA', title: 'Old', created_at: expect.any(String), updated_at: expect.any(String) })
+    expect(await store.delete(live, row!.id, { createdBy: 'user-ann' })).toBe(false)
+  })
 
   it('keeps the order rows were added in, even within one millisecond', async () => {
     await fresh()

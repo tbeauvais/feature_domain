@@ -2,7 +2,7 @@ import { inCell, inPage, inPanel, root, sample } from './build'
 
 // A rowing club's members-only boat bookings: the published app asks visitors to sign in with an emailed code (the
 // Sign-in feature), the Account shows who is signed in, and bookings are kept in a Database table, made with a form and
-// listed in a table.
+// listed in a table, which only the member who made a booking can delete (the table's Owner rules).
 const bookings = [
   { boat: 'Heron', date: '2026-11-07', session: 'early', rower: 'Maya Chen', crew: 1, notes: 'Steady state, out to the old pier and back.' },
   { boat: 'Osprey', date: '2026-11-07', session: 'morning', rower: 'Jonas Weber', crew: 4, notes: 'Novice four, with a coach launch.' },
@@ -35,6 +35,10 @@ export const rowingClub = sample('Saltmarsh Rowing Club', (add) => {
       'notes: long text',
     ],
     sample_rows: JSON.stringify(bookings, null, 2),
+    // Members book for themselves: a booking can be changed or deleted only by the member who made it.
+    add_rows: 'signed-in',
+    change_rows: 'owner',
+    delete_rows: 'owner',
   })
   const page = add('PageFeature', { name: 'Page', theme }, root())
   add('AccountFeature', { name: 'Account', sign_in_text: 'Member sign-in' }, inPage(page))

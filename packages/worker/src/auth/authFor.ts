@@ -37,9 +37,25 @@ export interface AuthForOptions {
   waitUntil: (promise: Promise<unknown>) => void
   /** Turns on the signed session cookie cache. */
   cookieCache?: boolean
+  /**
+   * Deletes or keeps (without their name) the rows a person added: before their account is deleted (if it fails, the
+   * account stays, and deleting it again tries again), and again once it is gone (`gone`), which also remembers them, so
+   * no row a request still on its way adds lands in their name.
+   */
+  forgetUser?: (userId: string, gone: boolean) => Promise<void>
 }
 
 export const AUTH_BASE_PATH = '/api/v1/app/auth'
+
+/** The apps' cookie names start with this (`__Host-` before it on https): the session's is `<prefix>.session_token`. */
+export const COOKIE_PREFIX = 'fd'
+const HOST_COOKIE_PREFIX = `__Host-${COOKIE_PREFIX}`
+
+/** Whether a request carries an app's session cookie (it may have expired: only a session read says). */
+export function hasSessionCookie(request: Request): boolean {
+  const names = (request.headers.get('Cookie') ?? '').split(';').map((c) => c.trim().split('=')[0])
+  return names.some((n) => n === `${COOKIE_PREFIX}.session_token` || n === `${HOST_COOKIE_PREFIX}.session_token`)
+}
 
 /** Better Auth's answer to a wrong code (the email-code plugin's INVALID_OTP), given to a refused address too. */
 const INVALID_OTP = { code: 'INVALID_OTP', message: 'Invalid OTP' }
@@ -74,7 +90,18 @@ export function authConfig(options: AuthForOptions) {
     trustedOrigins: [new URL(options.baseURL).origin],
     telemetry: { enabled: false },
     // Delete my account: Better Auth asks for a recent sign-in (a day, its default freshAge) before deleting.
-    user: { modelName: t.user, deleteUser: { enabled: true } },
+    user: {
+      modelName: t.user,
+      deleteUser: {
+        enabled: true,
+        ...(options.forgetUser
+          ? {
+              beforeDelete: (user: { id: string }) => options.forgetUser!(user.id, false),
+              afterDelete: (user: { id: string }) => options.forgetUser!(user.id, true),
+            }
+          : {}),
+      },
+    },
     session: { modelName: t.session, cookieCache: { enabled: options.cookieCache ?? false, maxAge: 300 } },
     account: { modelName: t.account },
     verification: { modelName: t.verification },
@@ -85,12 +112,13 @@ export function authConfig(options: AuthForOptions) {
       // Off: by default every new instance introspects the whole database (sqlite_master, then every table's columns)
       // and auth requests wait for it. Built per request, over thousands of apps' tables, that would be every request.
       // The schema is checked in CI instead (the drift test).
-      database: { validateSchema: false },
+      // Ids are random UUIDs, like models' (Better Auth makes them itself on D1; the columns are text either way).
+      database: { validateSchema: false, generateId: 'uuid' },
       backgroundTasks: { handler: options.waitUntil },
       ipAddress: { ipAddressHeaders: ['cf-connecting-ip'] },
       // __Host- names on https: host-only (no Domain), Path=/ and Secure, so no other site can set them. Better Auth
       // would otherwise use __Secure-, which a sibling subdomain could still set. Plain names over http (development).
-      ...(https ? { cookiePrefix: '__Host-fd', useSecureCookies: false, defaultCookieAttributes: { secure: true } } : { cookiePrefix: 'fd' }),
+      ...(https ? { cookiePrefix: HOST_COOKIE_PREFIX, useSecureCookies: false, defaultCookieAttributes: { secure: true } } : { cookiePrefix: COOKIE_PREFIX }),
     },
     // An address the app no longer allows can't use a code it was sent while it did: refused as a wrong code would be.
     hooks: {

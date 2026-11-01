@@ -2,7 +2,7 @@
 // /api/v1/app: the published version, its live rows and its proxy. Nothing of the builder is reachable here: the model
 // is always the one the host names, never one a request names.
 
-import { databaseTables, type AppModel, type RowStore } from '@feature-domain/engine'
+import { databaseTables, operationNeedsPerson, rowOperation, type AppModel, type RowStore } from '@feature-domain/engine'
 import { Hono, type Context } from 'hono'
 import type { AppStore } from './apps'
 import type { DevMailer, Mailer } from './auth/mailer'
@@ -39,7 +39,9 @@ export const APP_HSTS = 'max-age=31536000; includeSubDomains'
 /** The app a request's host serves: its model and the number of its published version. */
 type Published = { model: string; version: number }
 const NOTHING_PUBLISHED = 'No app is published at this address'
-type AppHostEnv = { Bindings: Env; Variables: { published: Published | undefined } }
+/** Who asks for rows: the person signed in (null for no one), and whether the app has sign-in. */
+type RowsVisitor = { person: string | null; signIn: boolean }
+type AppHostEnv = { Bindings: Env; Variables: { published: Published | undefined; rowsVisitor: RowsVisitor | undefined } }
 
 export function createAppHost(deps: AppHostDeps) {
   const app = new Hono<AppHostEnv>()
@@ -101,6 +103,16 @@ export function createAppHost(deps: AppHostDeps) {
   /** The published app, once the middleware above has checked there is one. */
   const published = (c: Context<AppHostEnv>) => c.var.published!
 
+  /** The published version's Database tables (cached per version). */
+  const tablesOf = (c: Context<AppHostEnv>) => {
+    const { model, version } = published(c)
+    return deps.tablesOf.load(
+      model,
+      `live:${version}`,
+      modelOf(c, (message) => new RowsError(404, message)),
+    )
+  }
+
   // Sign-in, for the app the host names (src/auth/route.ts).
   const signIn = mountSignIn(api, async (c: Context<AppHostEnv>) => {
     const { model, version } = published(c)
@@ -123,27 +135,48 @@ export function createAppHost(deps: AppHostDeps) {
       secret: c.env?.AUTH_SECRET,
       mailer: deps.mailer(c.env),
       waitUntil,
+      rows: { store: deps.rows(c.env), tables: () => tablesOf(c) },
     }
   })
 
   // An app open only to people signed in (or listed) shows them alone its version, rows and proxy. A method those don't
   // take goes on to its 405. What they answer someone signed in is theirs alone: private, and varying by cookie.
-  const visitorsOnly = (methods?: readonly string[]) => async (c: Context<AppHostEnv>, next: () => Promise<void>) => {
-    if (methods && !methods.includes(c.req.method)) return next()
-    const visitor = await signIn.visitor(c)
-    if ('refused' in visitor) return visitor.refused
-    await next()
-    if (!visitor.gated) return
-    // In place: Hono copies a replaced answer's headers over the new one's.
-    const headers = c.res.headers
-    const cache = headers.get('Cache-Control')
-    headers.set('Cache-Control', cache ? `private, ${cache}` : 'private')
-    headers.append('Vary', 'Cookie')
-    for (const cookie of visitor.cookies) headers.append('Set-Cookie', cookie)
-  }
+  // For rows, the session is read too wherever the table's rule needs to know who asks, or a row is added (it remembers
+  // who added it), even in an app open to anyone.
+  const visitorsOnly =
+    (methods?: readonly string[], rows = false) =>
+    async (c: Context<AppHostEnv>, next: () => Promise<void>) => {
+      if (methods && !methods.includes(c.req.method)) return next()
+      // What a rows request needs to know, worked out only for an app open to anyone (otherwise the session is read
+      // anyway): a person where the table's rules need one, and for an add, who added it if anyone signed in did.
+      const operation = rows ? rowOperation(c.req.method) : undefined
+      const wants = async () => {
+        if (!operation) return false
+        const table = (await tablesOf(c)).get(c.req.param('table') ?? '')
+        return table && operationNeedsPerson(table.access, operation) ? 'needed' : operation === 'add' ? 'wanted' : false
+      }
+      let visitor
+      try {
+        visitor = await signIn.visitor(c, wants)
+      } catch (e) {
+        // The version was deleted meanwhile: as the rows routes answer it.
+        if (e instanceof RowsError) return error(e.status, e.message)
+        throw e
+      }
+      if ('refused' in visitor) return visitor.refused
+      if (rows) c.set('rowsVisitor', visitor.gated ? { person: visitor.person, signIn: true } : { person: null, signIn: visitor.signIn })
+      await next()
+      if (!visitor.gated) return
+      // In place: Hono copies a replaced answer's headers over the new one's.
+      const headers = c.res.headers
+      const cache = headers.get('Cache-Control')
+      headers.set('Cache-Control', cache ? `private, ${cache}` : 'private')
+      headers.append('Vary', 'Cookie')
+      for (const cookie of visitor.cookies) headers.append('Set-Cookie', cookie)
+    }
   api.use('/app', visitorsOnly(['GET', 'HEAD']))
-  api.use('/app/tables/:table/rows', visitorsOnly(['GET', 'HEAD', 'POST']))
-  api.use('/app/tables/:table/rows/:row', visitorsOnly(['GET', 'HEAD', 'PATCH', 'DELETE']))
+  api.use('/app/tables/:table/rows', visitorsOnly(['GET', 'HEAD', 'POST'], true))
+  api.use('/app/tables/:table/rows/:row', visitorsOnly(['GET', 'HEAD', 'PATCH', 'DELETE'], true))
   api.use('/app/proxy', visitorsOnly(['POST']))
 
   // The published version: what the app's page shows. Its number is its ETag, so a page checks for a new one cheaply.
@@ -161,18 +194,13 @@ export function createAppHost(deps: AppHostDeps) {
   mountRows(
     api,
     '/app/tables/:table/rows',
-    async (c: Context<AppHostEnv>) => {
-      const { model, version } = published(c)
-      return {
-        rowStore: deps.rows(c.env),
-        ref: { model, space: 'live', table: c.req.param('table')! },
-        tables: await deps.tablesOf.load(
-          model,
-          `live:${version}`,
-          modelOf(c, (message) => new RowsError(404, message)),
-        ),
-      }
-    },
+    async (c: Context<AppHostEnv>) => ({
+      rowStore: deps.rows(c.env),
+      ref: { model: published(c).model, space: 'live', table: c.req.param('table')! },
+      tables: await tablesOf(c),
+      // Set by visitorsOnly for every method the routes take; rules then apply. (None for a 405, which reads no rows.)
+      visitor: c.var.rowsVisitor ?? { person: null, signIn: false },
+    }),
     (ref, id) => `/api/v1/app/tables/${ref.table}/rows/${id}`,
   )
 

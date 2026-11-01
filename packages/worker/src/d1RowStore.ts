@@ -1,10 +1,12 @@
 import {
   MAX_ROW_BYTES,
   MAX_TABLE_ROWS,
+  PersonForgottenError,
   RowLimitError,
   rowBytes,
   sampleRowId,
   ulid,
+  type OwnedBy,
   type RowSpace,
   type RowStore,
   type RowValues,
@@ -17,20 +19,28 @@ interface RowRecord {
   data: string
   created_at: number
   updated_at: number
+  created_by: string | null
 }
 
-const COLUMNS = 'id, data, created_at, updated_at'
+const COLUMNS = 'id, data, created_at, updated_at, created_by'
 /** Where a table's rows are: its model, space and key, bound in that order. */
 const OF_TABLE = 'model_id = ? AND space = ? AND table_key = ?'
 const of = (t: TableRef) => [t.model, t.space, t.table] as const
 
-const toRow = (r: RowRecord): StoredRow =>
-  ({
-    ...(JSON.parse(r.data) as RowValues),
+/** A stored row: who added it is the column alone (a `created_by` key in the data, from a field of that name before it was the row's, is dropped). */
+const toRow = (r: RowRecord): StoredRow => {
+  const { created_by: _, ...data } = JSON.parse(r.data) as RowValues
+  return {
+    ...data,
     id: r.id,
     created_at: new Date(r.created_at).toISOString(),
     updated_at: new Date(r.updated_at).toISOString(),
-  }) as StoredRow
+    ...(r.created_by === null ? {} : { created_by: r.created_by }),
+  } as StoredRow
+}
+
+/** The clause and value that keep a write to the rows `options.createdBy` added, if given. */
+const ownedBy = (options: OwnedBy): [string, string[]] => (options.createdBy === undefined ? ['', []] : [' AND created_by = ?', [options.createdBy]])
 
 /** A random ULID: the time, then 80 bits from the platform's random source. */
 const randomId = (time: number) => ulid(time, crypto.getRandomValues(new Uint8Array(10)))
@@ -47,10 +57,11 @@ export class D1RowStore implements RowStore {
     private readonly newId: (time: number) => string = randomId,
   ) {}
 
-  async list(table: TableRef): Promise<StoredRow[]> {
+  async list(table: TableRef, options: { createdBy?: string } = {}): Promise<StoredRow[]> {
+    const by = options.createdBy === undefined ? '' : ' AND created_by = ?'
     const { results } = await this.db
-      .prepare(`SELECT ${COLUMNS} FROM rows WHERE ${OF_TABLE} ORDER BY created_at, rowid`)
-      .bind(...of(table))
+      .prepare(`SELECT ${COLUMNS} FROM rows WHERE ${OF_TABLE}${by} ORDER BY created_at, rowid`)
+      .bind(...of(table), ...(options.createdBy === undefined ? [] : [options.createdBy]))
       .all<RowRecord>()
     return results.map(toRow)
   }
@@ -63,42 +74,65 @@ export class D1RowStore implements RowStore {
     return row ? toRow(row) : null
   }
 
-  async create(table: TableRef, values: RowValues): Promise<StoredRow> {
+  async create(table: TableRef, values: RowValues, createdBy?: string): Promise<StoredRow> {
     if (rowBytes(values) > MAX_ROW_BYTES) throw new RowLimitError('bytes')
     const at = this.now()
+    // A forgotten person (a deleted account) adds nothing: checked in the same statement, so no deletion slips between.
     const row = await this.db
       .prepare(
-        `INSERT INTO rows (model_id, space, table_key, id, data, created_at, updated_at)
-         SELECT ?, ?, ?, ?, ?, ?, ? WHERE (SELECT count(*) FROM rows WHERE ${OF_TABLE}) < ?
+        `INSERT INTO rows (model_id, space, table_key, id, data, created_at, updated_at, created_by)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE (SELECT count(*) FROM rows WHERE ${OF_TABLE}) < ?
+         AND NOT EXISTS (SELECT 1 FROM forgotten_people WHERE model_id = ? AND space = ? AND person = ?)
          RETURNING ${COLUMNS}`,
       )
-      .bind(...of(table), this.newId(at), JSON.stringify(values), at, at, ...of(table), MAX_TABLE_ROWS)
-      .first<RowRecord>()
-    if (!row) throw new RowLimitError('rows')
-    return toRow(row)
-  }
-
-  async update(table: TableRef, id: string, changes: RowValues, cleared: readonly string[] = []): Promise<StoredRow | null> {
-    // A JSON merge patch (null removes a key), applied by D1 in the one statement, so changes to other fields made at
-    // the same time are kept.
-    const patch = JSON.stringify({ ...changes, ...Object.fromEntries(cleared.map((name) => [name, null])) })
-    const row = await this.db
-      .prepare(
-        `UPDATE rows SET data = json_patch(data, ?), updated_at = ? WHERE ${OF_TABLE} AND id = ?
-         AND length(CAST(json_patch(data, ?) AS BLOB)) <= ? RETURNING ${COLUMNS}`,
+      .bind(
+        ...of(table),
+        this.newId(at),
+        JSON.stringify(values),
+        at,
+        at,
+        createdBy ?? null,
+        ...of(table),
+        MAX_TABLE_ROWS,
+        table.model,
+        table.space,
+        createdBy ?? null,
       )
-      .bind(patch, this.now(), ...of(table), id, patch, MAX_ROW_BYTES)
       .first<RowRecord>()
     if (row) return toRow(row)
-    if (await this.get(table, id)) throw new RowLimitError('bytes')
+    if (createdBy !== undefined && (await this.isForgotten(table.model, table.space, createdBy))) throw new PersonForgottenError()
+    throw new RowLimitError('rows')
+  }
+
+  private async isForgotten(model: string, space: RowSpace, person: string): Promise<boolean> {
+    return (await this.db.prepare('SELECT 1 FROM forgotten_people WHERE model_id = ? AND space = ? AND person = ?').bind(model, space, person).first()) !== null
+  }
+
+  async update(table: TableRef, id: string, changes: RowValues, cleared: readonly string[] = [], options: OwnedBy = {}): Promise<StoredRow | null> {
+    // A JSON merge patch (null removes a key), applied by D1 in the one statement, so changes to other fields made at
+    // the same time are kept. An owner, when given, is checked in it too.
+    const patch = JSON.stringify({ ...changes, ...Object.fromEntries(cleared.map((name) => [name, null])) })
+    const [owned, owner] = ownedBy(options)
+    const row = await this.db
+      .prepare(
+        `UPDATE rows SET data = json_patch(data, ?), updated_at = ? WHERE ${OF_TABLE} AND id = ?${owned}
+         AND length(CAST(json_patch(data, ?) AS BLOB)) <= ? RETURNING ${COLUMNS}`,
+      )
+      .bind(patch, this.now(), ...of(table), id, ...owner, patch, MAX_ROW_BYTES)
+      .first<RowRecord>()
+    if (row) return toRow(row)
+    const stored = await this.get(table, id)
+    if (stored && (options.createdBy === undefined || stored.created_by === options.createdBy)) throw new RowLimitError('bytes')
     return null
   }
 
-  async delete(table: TableRef, id: string): Promise<void> {
-    await this.db
-      .prepare(`DELETE FROM rows WHERE ${OF_TABLE} AND id = ?`)
-      .bind(...of(table), id)
+  async delete(table: TableRef, id: string, options: OwnedBy = {}): Promise<boolean> {
+    const [owned, owner] = ownedBy(options)
+    const { meta } = await this.db
+      .prepare(`DELETE FROM rows WHERE ${OF_TABLE} AND id = ?${owned}`)
+      .bind(...of(table), id, ...owner)
       .run()
+    return meta.changes > 0
   }
 
   async storeSampleRows(table: TableRef, sample: readonly RowValues[]): Promise<boolean> {
@@ -145,13 +179,39 @@ export class D1RowStore implements RowStore {
       this.db.prepare(`DELETE FROM sampled_tables WHERE ${space}`).bind(model, to),
       this.db
         .prepare(
-          `INSERT INTO rows (model_id, space, table_key, id, data, created_at, updated_at)
-           SELECT model_id, ?, table_key, id, data, created_at, updated_at FROM rows WHERE ${space} ORDER BY created_at, rowid`,
+          `INSERT INTO rows (model_id, space, table_key, id, data, created_at, updated_at, created_by)
+           SELECT model_id, ?, table_key, id, data, created_at, updated_at, created_by FROM rows WHERE ${space} ORDER BY created_at, rowid`,
         )
         .bind(to, model, from),
       this.db
         .prepare(`INSERT INTO sampled_tables (model_id, space, table_key, token) SELECT model_id, ?, table_key, token FROM sampled_tables WHERE ${space}`)
         .bind(to, model, from),
+    ])
+  }
+
+  async rowsBy(model: string, space: RowSpace, person: string): Promise<Record<string, StoredRow[]>> {
+    const { results } = await this.db
+      .prepare(`SELECT table_key, ${COLUMNS} FROM rows WHERE model_id = ? AND space = ? AND created_by = ? ORDER BY table_key, created_at, rowid`)
+      .bind(model, space, person)
+      .all<RowRecord & { table_key: string }>()
+    // No prototype: a table's key may be any word, `__proto__` and `constructor` included.
+    const out: Record<string, StoredRow[]> = Object.create(null) as Record<string, StoredRow[]>
+    for (const { table_key, ...row } of results) (out[table_key] ??= []).push(toRow(row))
+    return out
+  }
+
+  async forgetPerson(model: string, space: RowSpace, person: string, keep: readonly string[], remember = false): Promise<void> {
+    // One batch (a transaction): with `remember`, the person is remembered as forgotten (so no insert after it adds a row
+    // in their name), then kept tables' rows lose the name, and the person's other rows go.
+    const theirs = 'model_id = ? AND space = ? AND created_by = ?'
+    const kept = 'table_key IN (SELECT value FROM json_each(?))'
+    const bind = [model, space, person, JSON.stringify(keep)] as const
+    await this.db.batch([
+      ...(remember
+        ? [this.db.prepare('INSERT INTO forgotten_people (model_id, space, person) VALUES (?, ?, ?) ON CONFLICT DO NOTHING').bind(model, space, person)]
+        : []),
+      this.db.prepare(`UPDATE rows SET created_by = NULL WHERE ${theirs} AND ${kept}`).bind(...bind),
+      this.db.prepare(`DELETE FROM rows WHERE ${theirs} AND NOT ${kept}`).bind(...bind),
     ])
   }
 
@@ -167,6 +227,7 @@ export class D1RowStore implements RowStore {
     await this.db.batch([
       this.db.prepare('DELETE FROM rows WHERE model_id = ?').bind(model),
       this.db.prepare('DELETE FROM sampled_tables WHERE model_id = ?').bind(model),
+      this.db.prepare('DELETE FROM forgotten_people WHERE model_id = ?').bind(model),
     ])
   }
 }
