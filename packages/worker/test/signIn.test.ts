@@ -116,6 +116,15 @@ describe('signing in', () => {
     expect((await sessionAt('meetup', cookie))?.user.email).toBe('ann@example.com')
   })
 
+  it('gives accounts and sessions random UUIDs for ids, like models', async () => {
+    await published('Shoreline meetup with sign-in', 'meetup')
+    const { cookie } = await signInAt('meetup', 'ann@example.com')
+    const session = (await sessionAt('meetup', cookie))!
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+    expect(session.user.id).toMatch(uuid)
+    expect(session.session.id).toMatch(uuid)
+  })
+
   it('gives one email a separate account on each app, and refuses one app’s cookie on another', async () => {
     const meetup = await published('Shoreline meetup with sign-in', 'meetup')
     const tracker = await published('Team requests with sign-in', 'tracker')

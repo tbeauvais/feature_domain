@@ -112,7 +112,8 @@ export function authConfig(options: AuthForOptions) {
       // Off: by default every new instance introspects the whole database (sqlite_master, then every table's columns)
       // and auth requests wait for it. Built per request, over thousands of apps' tables, that would be every request.
       // The schema is checked in CI instead (the drift test).
-      database: { validateSchema: false },
+      // Ids are random UUIDs, like models' (Better Auth makes them itself on D1; the columns are text either way).
+      database: { validateSchema: false, generateId: 'uuid' },
       backgroundTasks: { handler: options.waitUntil },
       ipAddress: { ipAddressHeaders: ['cf-connecting-ip'] },
       // __Host- names on https: host-only (no Domain), Path=/ and Secure, so no other site can set them. Better Auth

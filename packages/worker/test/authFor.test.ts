@@ -33,10 +33,10 @@ describe('authConfig', () => {
     expect(config('http://meetup.localhost:5173').advanced).toMatchObject({ cookiePrefix: 'fd' })
   })
 
-  it("trusts only the app's own origin, and never validates the schema at run time", () => {
+  it("trusts only the app's own origin, never validates the schema at run time, and gives UUIDs for ids", () => {
     const c = config('https://meetup.apprun.app')
     expect(c.trustedOrigins).toEqual(['https://meetup.apprun.app'])
-    expect(c.advanced.database).toEqual({ validateSchema: false })
+    expect(c.advanced.database).toEqual({ validateSchema: false, generateId: 'uuid' })
     expect(c.advanced.ipAddress).toEqual({ ipAddressHeaders: ['cf-connecting-ip'] })
   })
 
