@@ -1,9 +1,11 @@
 // Where a data-reading feature (Table, Chart) gets its rows: the operation it lists, and what a spec says the rows hold.
 
+import { operationRule, rowOperation } from '../access.js'
 import type { FeatureContext } from '../feature.js'
 import { isAppDataAddress, isModelsApiAddress } from '../links.js'
 import type { DataAction, DataSource, TableColumn } from '../types.js'
 import type { DataOperation, DataProperty, DataResourceExports, DataSchema } from './data-resource.js'
+import { isDatabaseTableExports } from './database-table.js'
 
 /** A column per schema property, labeled by its description (without a closing period), else its name. */
 export function columnsOf(properties: NonNullable<DataSchema['properties']>): TableColumn[] {
@@ -135,6 +137,11 @@ export function actionFor(resourceId: string, resource: DataResourceExports, ope
   if (operation.requestType) action.requestType = operation.requestType
   const ids = operation.sample && operation.method === 'POST' ? sampleIds(resource.sampleRows ?? []) : undefined
   if (ids) action.sampleIds = ids
+  const operationOf = rowOperation(operation.method)
+  if (isDatabaseTableExports(resource) && operationOf) {
+    const rule = operationRule(resource.table.access, operationOf)
+    if (rule !== 'anyone') action.rule = rule
+  }
   return action
 }
 

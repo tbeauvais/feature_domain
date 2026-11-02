@@ -115,7 +115,7 @@ test('a wrong code is said, and signs no one in', async ({ page, request }) => {
   await expect(page.getByText('The members’ newsletter')).toHaveCount(0)
 })
 
-test('a booking only its member can delete: another member is told so, and the booking stays', async ({ browser, request }) => {
+test('a booking only its member can delete: only they are offered Delete', async ({ browser, request }) => {
   const slug = `club-${Math.random().toString(36).slice(2, 10)}`
   const stored = await request.post('/api/v1/models', {
     data: {
@@ -163,16 +163,13 @@ test('a booking only its member can delete: another member is told so, and the b
   await ann.getByRole('button', { name: 'Book it' }).click()
   await expect(ann.getByRole('table')).toContainText('Heron')
 
+  // Ann's own booking offers her Delete as soon as it is listed (the Worker marks her rows as hers).
+  await expect(ann.getByRole('table').getByRole('button', { name: /^Delete row/ })).toHaveCount(1)
+
   const bo = await member(`bo-${Date.now()}@example.com`)
   await expect(bo.getByRole('table')).toContainText('Heron')
-  await bo
-    .getByRole('table')
-    .getByRole('button', { name: /^Delete row/ })
-    .click()
-  await bo.getByRole('table').getByRole('button', { name: 'Delete', exact: true }).click()
-  await expect(bo.locator('.fd-table-delete-problem')).toHaveText("Couldn't delete the row: Only the person who added a row can delete it")
-  await bo.reload()
-  await expect(bo.getByRole('table')).toContainText('Heron')
+  await expect(bo.getByRole('table').getByRole('button', { name: /^Delete row/ })).toHaveCount(0)
+  await expect(bo.getByRole('columnheader', { name: 'Actions' })).toHaveCount(0)
 
   await ann.reload()
   await ann

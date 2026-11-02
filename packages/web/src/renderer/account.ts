@@ -12,6 +12,8 @@ export const SIGN_IN_PATH = '/sign-in'
 
 /** The person signed in, as the app's session says. */
 export interface Visitor {
+  /** Their account id: what the app's rows say of the rows they added (`created_by`, on their own rows only). */
+  id: string
   email: string
   name: string
 }
@@ -83,10 +85,10 @@ function failure(status: number, code: string | undefined, message: string | und
 
 /** The person signed in, null when no one is. Throws NoSignIn for an app without sign-in. */
 export async function currentVisitor(fetchImpl: Fetch = fetch): Promise<Visitor | null> {
-  const answer = (await call(fetchImpl, '/get-session')) as { user?: { email?: unknown; name?: unknown } } | null
-  const email = answer?.user?.email
-  if (typeof email !== 'string') return null
-  return { email, name: typeof answer?.user?.name === 'string' ? answer.user.name : '' }
+  const answer = (await call(fetchImpl, '/get-session')) as { user?: { id?: unknown; email?: unknown; name?: unknown } } | null
+  const { id, email, name } = answer?.user ?? {}
+  if (typeof email !== 'string' || typeof id !== 'string') return null
+  return { id, email, name: typeof name === 'string' ? name : '' }
 }
 
 /** Emails a sign-in code (the app answers alike whether or not it sends one). */

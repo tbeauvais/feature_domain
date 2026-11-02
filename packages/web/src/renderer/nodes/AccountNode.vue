@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DocNodeOf } from '@feature-domain/engine'
-import { nextTick, onMounted, ref, useId } from 'vue'
-import { currentVisitor, deleteAccount, downloadAccount, NoSignIn, SIGN_IN_PATH, signOut, SignInError, type Visitor } from '../account'
+import { computed, nextTick, onMounted, ref, useId } from 'vue'
+import { deleteAccount, downloadAccount, SIGN_IN_PATH, signOut, SignInError } from '../account'
 import { useEditAttrs } from '../editable'
 import { useDataStore } from '../data'
 
@@ -15,25 +15,24 @@ const store = useDataStore()
 const editAttrs = useEditAttrs()
 const id = useId()
 
-const state = ref<'builder' | 'loading' | 'none' | 'signed-out' | 'signed-in' | 'failed'>(store.onApp ? 'loading' : 'builder')
-const visitor = ref<Visitor | null>(null)
+/** What it shows, from who the page knows is signed in (the store's, shared with the table rules' controls). */
+const state = computed(() => {
+  if (!store.onApp) return 'builder'
+  const known = store.visitor.value
+  if (known.status === 'known') return known.visitor ? 'signed-in' : 'signed-out'
+  return known.status === 'no-sign-in' ? 'none' : known.status === 'failed' ? 'failed' : 'loading'
+})
+const visitor = computed(() => (store.visitor.value.status === 'known' ? store.visitor.value.visitor : null))
 const busy = ref(false)
 const confirming = ref(false)
 const problem = ref('')
 const deleteButton = ref<HTMLButtonElement>()
 const confirmButton = ref<HTMLButtonElement>()
 
-async function load() {
-  state.value = 'loading'
-  try {
-    visitor.value = await currentVisitor()
-    state.value = visitor.value ? 'signed-in' : 'signed-out'
-  } catch (e) {
-    state.value = e instanceof NoSignIn ? 'none' : 'failed'
-  }
-}
+// The page asks who is signed in once; Try again asks again.
+const load = () => void store.whoIsSignedIn().catch(() => undefined)
 onMounted(() => {
-  if (store.onApp) void load()
+  if (store.onApp && store.visitor.value.status === 'unknown') load()
 })
 
 async function attempt(work: () => Promise<void>) {

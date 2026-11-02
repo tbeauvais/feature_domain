@@ -48,3 +48,20 @@ export const operationNeedsPerson = (access: TableAccess, operation: RowOperatio
 
 /** Whether any of the table's rules needs to know who is signed in. */
 export const accessNeedsSignIn = (access: TableAccess) => [access.see, access.add, access.change, access.delete].some(needsPerson)
+
+/** Rules from the most open to the strictest: owner is stricter than signed in, as it needs someone signed in too. */
+const STRICTNESS: readonly RowRule[] = ['anyone', 'signed-in', 'owner', 'nobody']
+
+/**
+ * The one rule an operation comes down to, the strictest of those it answers to (`rulesFor`): what a page goes by to
+ * offer a control (a form, a row's Delete) only to someone the Worker would let use it.
+ */
+export function operationRule(access: TableAccess, operation: RowOperation): RowRule {
+  return rulesFor(access, operation).reduce<RowRule>((a, b) => (STRICTNESS.indexOf(b) > STRICTNESS.indexOf(a) ? b : a), 'anyone')
+}
+
+/**
+ * Whether a page needs to know which rows are the visitor's: a change or delete comes down to Owner, so only their own
+ * rows get those controls. The Worker then marks their rows as theirs.
+ */
+export const marksOwnRows = (access: TableAccess) => operationRule(access, 'change') === 'owner' || operationRule(access, 'delete') === 'owner'
