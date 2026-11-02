@@ -9,6 +9,7 @@ import {
   provide,
   ref,
   shallowRef,
+  toRaw,
   watch,
   type ComputedRef,
   type InjectionKey,
@@ -26,6 +27,7 @@ import {
   type SendRequest,
   type Via,
 } from './rows'
+import { currentVisitor, NoSignIn, type Visitor } from './account'
 
 // Runtime data for a generated page: one store per document, shared by every feature reading a data resource.
 // - Readers of the same address share one fetch, and `reload` refreshes all of them.
@@ -78,6 +80,23 @@ export interface DataSite {
   app?: boolean
 }
 
+/**
+ * Who is signed in on a published app, as far as its page knows: not asked yet, being checked, known (`visitor`: null
+ * for no one), the app has no sign-in, or the check failed (`message`, in words; asked again on Try again).
+ */
+export type VisitorState =
+  | { status: 'unknown' }
+  | { status: 'checking' }
+  | { status: 'known'; visitor: Visitor | null }
+  | { status: 'no-sign-in' }
+  | { status: 'failed'; message: string }
+
+/**
+ * Whether a page offers an action (a form, a row's Delete or change) to whoever is looking: yes, sign in first, no, or
+ * not known (who is signed in is being checked, or couldn't be).
+ */
+export type Permission = 'yes' | 'sign-in' | 'no' | 'unknown'
+
 export class DataStore {
   private readonly fetched = new Map<string, Fetched>()
   /** Rows added to each sample-data resource (by instance id). */
@@ -95,6 +114,74 @@ export class DataStore {
   ) {
     const stored = this.storageKey ? this.read(this.storageKey) : undefined
     if (stored) this.restore(stored)
+  }
+
+  /** Who is signed in on the app (`whoIsSignedIn` finds out; every reader of the page shares one check). */
+  readonly visitor = shallowRef<VisitorState>({ status: 'unknown' })
+  private visitorCheck?: Promise<Visitor | null>
+  /**
+   * Who added each of the app's rows the page holds, where the Worker said (only the visitor's own, where only their
+   * owner may change or delete them): kept here rather than on the row, so no reader of the rows (a chart guessing
+   * its fields, a text's values, an address to open) ever sees an account id.
+   */
+  private readonly owners = new WeakMap<object, string>()
+
+  /**
+   * The person signed in on the app, null for no one: asked once per page (the Account and the rules' controls share
+   * it). Throws NoSignIn for an app without sign-in, or a SignInError when it couldn't check (asked again next time).
+   */
+  whoIsSignedIn(): Promise<Visitor | null> {
+    if (!this.visitorCheck) {
+      this.visitor.value = { status: 'checking' }
+      this.visitorCheck = currentVisitor().then(
+        (visitor) => ((this.visitor.value = { status: 'known', visitor }), visitor),
+        (error: unknown) => {
+          if (error instanceof NoSignIn) this.visitor.value = { status: 'no-sign-in' }
+          else {
+            this.visitorCheck = undefined
+            this.visitor.value = { status: 'failed', message: error instanceof Error ? error.message : String(error) }
+          }
+          throw error
+        },
+      )
+    }
+    return this.visitorCheck
+  }
+
+  /**
+   * Starts the check of who is signed in when an action's rule needs to know (on a published app), and it wasn't asked
+   * yet. Controls call it once they are shown (never while rendering).
+   */
+  checkVisitorFor(action: DataAction | undefined): void {
+    if (this.onApp && action?.rule && action.rule !== 'nobody' && this.visitor.value.status === 'unknown') void this.whoIsSignedIn().catch(() => undefined)
+  }
+
+  /**
+   * Whether the page offers an action to whoever is looking, by its table's rule (`DataAction.rule`), for `row` when it
+   * is a change or delete: only on a published app, where the Worker enforces the rules (the builder's draft rows have
+   * none). Under Owner, a row is the visitor's when the Worker said so (`owners`); with no row (a Form changing a row
+   * by the id typed in), anyone signed in is offered it and the Worker checks whose row it is. Unknown until
+   * `checkVisitorFor` has found out who is signed in.
+   */
+  allows(action: DataAction, row?: unknown): Permission {
+    const rule = action.rule
+    if (!rule || !this.onApp) return 'yes'
+    if (rule === 'nobody') return 'no'
+    const state = this.visitor.value
+    if (state.status === 'no-sign-in') return 'no'
+    if (state.status !== 'known') return 'unknown'
+    if (!state.visitor) return 'sign-in'
+    return rule === 'signed-in' || row === undefined || (isRecord(row) && this.owners.get(toRaw(row)) === state.visitor.id) ? 'yes' : 'no'
+  }
+
+  /** Takes who added them off the app's rows in an answer (a list or one row), into `owners`. */
+  private takeOwners(answer: unknown): void {
+    if (!this.onApp) return
+    for (const row of Array.isArray(answer) ? answer : [answer]) {
+      if (!isRecord(row) || !Object.hasOwn(row, 'created_by')) continue
+      if (typeof row.created_by === 'string') this.owners.set(row, row.created_by)
+      delete row.created_by
+    }
   }
 
   /** Whether the page is a published app's, on its own host (where its sign-in works). */
@@ -176,6 +263,7 @@ export class DataStore {
     if (!(quiet && entry.state.value.status === 'loaded')) entry.state.value = { status: 'loading' }
     try {
       const response = await (entry.proxy ? this.fetchJson(entry.address, this.via()) : this.fetchJson(this.resolve(entry.address)))
+      if (!entry.proxy && isAppDataAddress(entry.address)) this.takeOwners(response)
       if (current === entry.request) entry.state.value = { status: 'loaded', response }
     } catch (error) {
       if (current === entry.request) entry.state.value = { status: 'error', message: error instanceof Error ? error.message : String(error) }
@@ -341,15 +429,20 @@ export class DataStore {
     const request: DataRequest = { method: action.method, url, body }
     if (action.requestType) request.requestType = action.requestType
     const answer = await (action.proxy ? this.sendRequest(request, this.via()) : this.sendRequest(request))
+    if (!action.proxy && isAppDataAddress(action.endPoint)) this.takeOwners(answer)
     // Loading never throws: a failed reload shows on its readers.
     const reloaded = this.reloadResource(action.feature)
     if (waitForReload) await reloaded
     return answer
   }
 
-  /** Whether a row can be deleted: any fetched row, but only rows added to sample data (the model's own are the sample). */
+  /**
+   * Whether a row can be deleted: any fetched row the table's rule lets the visitor delete, but only rows added to sample
+   * data (the model's own are the sample).
+   */
   canDelete(action: DataAction, row: unknown): boolean {
-    return !action.sample || (this.added.value[action.feature] ?? []).includes(row as Record<string, unknown>)
+    if (action.sample) return (this.added.value[action.feature] ?? []).includes(row as Record<string, unknown>)
+    return this.allows(action, row) === 'yes'
   }
 
   /** Deletes a row (its values fill the address's placeholders), then every reader of the resource reloads. */

@@ -45,6 +45,7 @@ export interface AppModel {
 // Document tree
 // ---------------------------------------------------------------------------------------------------------------------
 
+import type { RowRule } from './access.js'
 import type { EditMarks } from './text-edit.js'
 import type { ThemeTokens } from './theme/tokens.js'
 
@@ -107,6 +108,13 @@ export interface DataAction {
    * them, and whether ids are text ("6") or numbers. A row added without one gets the next.
    */
   sampleIds?: { field: string; after: number; text: boolean }
+  /**
+   * Who may send it on the published app, when not anyone: a Database table's rule for the operation (the See rule
+   * included, for a change or delete; `operationRule`). The Worker enforces it on the app's live rows; a page there only
+   * offers the control to someone it would allow. Set wherever the table is, but meaningless on the builder's draft
+   * rows, which rules never apply to (the editor and the preview ignore it). Absent for other resources.
+   */
+  rule?: Exclude<RowRule, 'anyone'>
 }
 
 /** What a Form field takes: one line of text, a number, several lines, a date, one of its options, or yes or no. */

@@ -2,7 +2,7 @@
 // /api/v1/app: the published version, its live rows and its proxy. Nothing of the builder is reachable here: the model
 // is always the one the host names, never one a request names.
 
-import { databaseTables, operationNeedsPerson, rowOperation, type AppModel, type RowStore } from '@feature-domain/engine'
+import { databaseTables, marksOwnRows, operationNeedsPerson, rowOperation, type AppModel, type RowStore } from '@feature-domain/engine'
 import { Hono, type Context } from 'hono'
 import type { AppStore } from './apps'
 import type { DevMailer, Mailer } from './auth/mailer'
@@ -141,8 +141,9 @@ export function createAppHost(deps: AppHostDeps) {
 
   // An app open only to people signed in (or listed) shows them alone its version, rows and proxy. A method those don't
   // take goes on to its 405. What they answer someone signed in is theirs alone: private, and varying by cookie.
-  // For rows, the session is read too wherever the table's rule needs to know who asks, or a row is added (it remembers
-  // who added it), even in an app open to anyone.
+  // For rows, the session is read too wherever the table's rule needs to know who asks, a row is added (it remembers
+  // who added it), or rows are read from a table whose own rows only their owner may change or delete (they are marked
+  // as the visitor's), even in an app open to anyone.
   const visitorsOnly =
     (methods?: readonly string[], rows = false) =>
     async (c: Context<AppHostEnv>, next: () => Promise<void>) => {
@@ -153,7 +154,10 @@ export function createAppHost(deps: AppHostDeps) {
       const wants = async () => {
         if (!operation) return false
         const table = (await tablesOf(c)).get(c.req.param('table') ?? '')
-        return table && operationNeedsPerson(table.access, operation) ? 'needed' : operation === 'add' ? 'wanted' : false
+        if (!table) return false
+        if (operationNeedsPerson(table.access, operation)) return 'needed'
+        // An add remembers who added the row; a read marks the visitor's own rows where only they may change or delete them.
+        return operation === 'add' || (operation === 'see' && marksOwnRows(table.access)) ? 'wanted' : false
       }
       let visitor
       try {

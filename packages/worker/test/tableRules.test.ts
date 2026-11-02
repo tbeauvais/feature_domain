@@ -217,6 +217,43 @@ describe('owner', () => {
   })
 })
 
+describe('marking the visitor’s own rows', () => {
+  /** Who each listed row says added it, by title: only the visitor's own say, with the visitor's id. */
+  const marks = async (answer: Response) =>
+    Object.fromEntries(((await answer.json()) as { title: string; created_by?: string }[]).map((r) => [r.title, r.created_by]))
+  const idOf = async (cookie: string) =>
+    ((await (await request(`${ORIGIN}/api/v1/app/auth/get-session`, { headers: as(cookie) })).json()) as { user: { id: string } }).user.id
+
+  it('where only a row’s owner may change or delete it, so the page offers them those controls, even in an app open to anyone', async () => {
+    await publish(model({ delete_rows: 'owner' }))
+    const ann = await signIn('ann@example.com')
+    const bo = await signIn('bo@example.com')
+    const added = (await (await add('Ann’s', ann)).json()) as Record<string, unknown>
+    const annId = await idOf(ann)
+    expect(added.created_by).toBe(annId)
+    await add('Bo’s', bo)
+    expect(await marks(await list(ann))).toEqual({ Sample: undefined, 'Ann’s': annId, 'Bo’s': undefined })
+    expect(await marks(await list())).toEqual({ Sample: undefined, 'Ann’s': undefined, 'Bo’s': undefined })
+    const one = (await (await request(`${ROWS}/${added.id as string}`, { headers: as(ann) })).json()) as Record<string, unknown>
+    expect(one.created_by).toBe(annId)
+    expect((await (await request(`${ROWS}/${added.id as string}`, { headers: as(bo) })).json()) as object).not.toHaveProperty('created_by')
+  })
+
+  it('also where seeing only one’s own rows makes a change Owner', async () => {
+    await publish(model({ see_rows: 'owner', change_rows: 'signed-in' }))
+    const ann = await signIn('ann@example.com')
+    await add('Ann’s', ann)
+    expect(await marks(await list(ann))).toEqual({ 'Ann’s': await idOf(ann) })
+  })
+
+  it('never where people signed in may change and delete any row', async () => {
+    await publish(model({ add_rows: 'signed-in', change_rows: 'signed-in', delete_rows: 'signed-in' }))
+    const ann = await signIn('ann@example.com')
+    expect((await (await add('Ann’s', ann)).json()) as object).not.toHaveProperty('created_by')
+    expect(await marks(await list(ann))).toEqual({ Sample: undefined, 'Ann’s': undefined })
+  })
+})
+
 describe('changing or deleting where seeing needs sign-in', () => {
   it('reads the session for it, in an app open to anyone, so people signed in can change and delete', async () => {
     await publish(model({ see_rows: 'signed-in' }))
