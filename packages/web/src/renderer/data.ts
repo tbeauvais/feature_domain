@@ -159,8 +159,9 @@ export class DataStore {
   /**
    * Whether the page offers an action to whoever is looking, by its table's rule (`DataAction.rule`), for `row` when it
    * is a change or delete: only on a published app, where the Worker enforces the rules (the builder's draft rows have
-   * none). Under Owner, a row is the visitor's when the Worker said so (`owners`). Unknown until `checkVisitorFor`
-   * has found out who is signed in.
+   * none). Under Owner, a row is the visitor's when the Worker said so (`owners`); with no row (a Form changing a row
+   * by the id typed in), anyone signed in is offered it and the Worker checks whose row it is. Unknown until
+   * `checkVisitorFor` has found out who is signed in.
    */
   allows(action: DataAction, row?: unknown): Permission {
     const rule = action.rule
@@ -170,7 +171,7 @@ export class DataStore {
     if (state.status === 'no-sign-in') return 'no'
     if (state.status !== 'known') return 'unknown'
     if (!state.visitor) return 'sign-in'
-    return rule === 'signed-in' || (isRecord(row) && this.owners.get(toRaw(row)) === state.visitor.id) ? 'yes' : 'no'
+    return rule === 'signed-in' || row === undefined || (isRecord(row) && this.owners.get(toRaw(row)) === state.visitor.id) ? 'yes' : 'no'
   }
 
   /** Takes who added them off the app's rows in an answer (a list or one row), into `owners`. */

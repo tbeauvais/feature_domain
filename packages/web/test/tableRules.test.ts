@@ -117,6 +117,41 @@ describe('on a published app', () => {
     w.unmount()
   })
 
+  it('offers a form changing a row under Owner to anyone signed in: the Worker checks whose row it is', async () => {
+    session(ANN)
+    const m = club({ change_rows: 'owner' })
+    m.features.push(inst('FormFeature', 'g', { data_resource: '2', operation: 'PATCH rows', title: 'Change', submit_label: 'Change it' }))
+    const w = render(m)
+    await flushPromises()
+    expect(w.findAll('form')).toHaveLength(2)
+    w.unmount()
+    session(null)
+    const signedOut = render(m)
+    await flushPromises()
+    expect(signedOut.findAll('form')).toHaveLength(1)
+    expect(signedOut.get('.fd-form[role=group]').text()).toContain('Only people signed in can use this form.')
+    signedOut.unmount()
+  })
+
+  it('says when it couldn’t check who is signed in for a table’s controls, with Try again', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => json({ error: 'Unavailable' }, 503)),
+    )
+    const m = club({ delete_rows: 'owner' })
+    m.features = m.features.filter((f) => f.feature !== 'FormFeature')
+    const w = render(m)
+    await flushPromises()
+    expect(controls(w)['Ann’s']).toEqual({ delete: false, change: true })
+    expect(w.get('.fd-table-note[role=alert]').text()).toContain("Couldn't check who is signed in")
+    session(ANN)
+    await w.get('.fd-table-note[role=alert] button').trigger('click')
+    await flushPromises()
+    expect(controls(w)['Ann’s']).toEqual({ delete: true, change: true })
+    expect(w.find('.fd-table-note[role=alert]').exists()).toBe(false)
+    w.unmount()
+  })
+
   it('asks no one who is signed in for a table open to anyone', async () => {
     const fetchImpl = session(ANN)
     const w = render(club({}))
@@ -152,6 +187,7 @@ describe('DataStore.allows', () => {
     expect(s.allows({ ...action, rule: 'signed-in' })).toBe('yes')
     // A row the Worker didn't mark as hers (only the store's own record counts, never a key a row holds).
     expect(s.allows({ ...action, rule: 'owner' }, { created_by: ANN })).toBe('no')
+    expect(s.allows({ ...action, rule: 'owner' })).toBe('yes')
     expect(s.allows({ ...action, rule: 'nobody' })).toBe('no')
     expect(s.allows(action)).toBe('yes')
   })

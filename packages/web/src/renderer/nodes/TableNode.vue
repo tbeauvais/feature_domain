@@ -85,6 +85,14 @@ const updateAction = computed(() => props.node.props.updateAction)
 /** Per row, whether its cells can be changed: the table's rule lets the visitor (on a published app; under Owner, their own rows). */
 const changeable = computed(() => rows.value.map((row) => !!updateAction.value && store.allows(updateAction.value, row) === 'yes'))
 // Who is signed in, checked where a rule needs it (on a published app).
+/** What kept the page from checking who is signed in, when the table's controls wait on it (else empty). */
+const checkFailed = computed(() => {
+  const state = store.visitor.value
+  if (state.status !== 'failed') return ''
+  const waiting = [props.node.props.deleteAction, updateAction.value].some((action) => action && store.allows(action) === 'unknown')
+  return waiting ? state.message : ''
+})
+const checkAgain = () => void store.whoIsSignedIn().catch(() => undefined)
 watchEffect(() => {
   store.checkVisitorFor(props.node.props.deleteAction)
   store.checkVisitorFor(updateAction.value)
@@ -296,6 +304,10 @@ const regionLabel = computed(() => (props.node.props.source?.resource ? `${props
       <p class="fd-table-state-title">No rows yet</p>
       <p class="fd-table-state-text">The data source returned an empty list.</p>
     </div>
+    <p v-if="checkFailed" class="fd-table-note fd-table-delete-problem" role="alert">
+      Couldn't check who is signed in, so this table's changes and deletes can't be offered yet. {{ checkFailed }}
+      <button type="button" class="fd-button fd-button-link fd-button-small" @click="checkAgain">Try again</button>
+    </p>
     <p v-if="deleteProblem" class="fd-table-note fd-table-delete-problem" role="alert">{{ deleteProblem }}</p>
     <p v-if="changeProblem" class="fd-table-note fd-table-delete-problem" role="alert">{{ changeProblem }}</p>
     <p v-if="!node.props.title && state.status === 'loaded' && rows.length > 0" class="fd-table-foot">{{ count }}</p>
