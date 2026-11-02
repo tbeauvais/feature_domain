@@ -36,7 +36,8 @@ const store = useDataStore()
 const deleteAction = computed<DataAction | undefined>((before) => {
   const action = props.node.props.deleteAction
   if (!action) return undefined
-  if (!action.sample && store.allows(action) === 'yes') return action
+  // Under Owner it depends on the row (allows without one answers for a form, which names its row by id).
+  if (!action.sample && action.rule !== 'owner' && store.allows(action) === 'yes') return action
   // While rows reload the column stays as it was, so the table doesn't reflow.
   if (state.value.status === 'loading' && before === action) return before
   return rows.value.some((row) => store.canDelete(action, row)) ? action : undefined

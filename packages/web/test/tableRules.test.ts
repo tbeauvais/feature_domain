@@ -66,6 +66,15 @@ describe('on a published app', () => {
     w.unmount()
   })
 
+  it('has no Delete column under Owner for someone signed in who added none of the rows', async () => {
+    session('u-bo')
+    const w = render(club({ change_rows: 'owner', delete_rows: 'owner' }))
+    await flushPromises()
+    expect(controls(w)).toEqual({ Sample: { delete: false, change: false }, 'Ann’s': { delete: false, change: false } })
+    expect(w.find('th.fd-table-actions').exists()).toBe(false)
+    w.unmount()
+  })
+
   it('has no Delete column where the visitor may delete none, and asks people signed out to sign in to use the form', async () => {
     session(null)
     const w = render(club({ add_rows: 'signed-in', change_rows: 'signed-in', delete_rows: 'owner' }))
